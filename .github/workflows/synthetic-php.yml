@@ -20,12 +20,15 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
           tools: none
+          extensions: mbstring
           coverage: none
       - name: PHP syntax
         run: |
-          for f in src/Domain/*.php src/Application/*.php src/Integration/*.php tests/*.php; do php -l "$f" || exit 1; done
-      - name: Pure domain and integration contract mocks
+          for f in src/Domain/*.php src/Application/*.php src/Integration/*.php src/Production/*.php src/Publication/*.php tests/*.php; do php -l "$f" || exit 1; done
+      - name: Pure domain, render and publication-state tests
         run: |
           php tests/run.php
           php tests/f2-run.php
           php tests/f4-run.php
+          php tests/f6-run.php
+          php tests/f9-run.php

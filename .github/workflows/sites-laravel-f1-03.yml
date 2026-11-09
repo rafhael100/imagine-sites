@@ -31,6 +31,19 @@ jobs:
       - name: PHP syntax (application and tests)
         run: |
           for f in apps/sites/artisan apps/sites/bootstrap/*.php apps/sites/routes/*.php apps/sites/public/index.php apps/sites/tests/*.php apps/sites/tests/Feature/*.php apps/sites/app/Providers/*.php; do php -l "$f" || exit 1; done
-      - name: Isolated bootstrap and denied operational routes
+      - name: Laravel tests and denied operational routes
         working-directory: apps/sites
         run: php artisan test --no-ansi
+      - name: Render fictional local preview only in testing mode
+        working-directory: apps/sites
+        env:
+          APP_ENV: testing
+          SITES_SYNTHETIC_PREVIEW: '1'
+        run: |
+          php artisan sites:preview-fixture onepage
+          php artisan sites:preview-fixture landing_page
+          test -s storage/app/private/sites-f1-07-onepage.html
+          test -s storage/app/private/sites-f1-07-landing_page.html
+          grep -q 'noindex, nofollow' storage/app/private/sites-f1-07-onepage.html
+          grep -q 'data-site-product="landing-page"' storage/app/private/sites-f1-07-landing_page.html
+          rm -f storage/app/private/sites-f1-07-onepage.html storage/app/private/sites-f1-07-landing_page.html
