@@ -1,0 +1,57 @@
+name: F1-22 anti-revocation backup restore lab - disposable PostgreSQL
+
+on:
+  pull_request:
+    paths:
+      - 'labs/restore/**'
+      - 'labs/postgres/f1-05-schema.sql'
+      - '.github/workflows/sites-f1-22-restore-fence.yml'
+      - 'docs/SITES-F1-22-RESTORE-REVOCATION.md'
+
+permissions:
+  contents: read
+
+jobs:
+  restore-fencing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: sites-restore-fictional-only
+          POSTGRES_DB: sites_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sites_lab"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: sites-restore-fictional-only
+      PGDATABASE: sites_lab
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Ensure psql
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Bootstrap synthetic tenant data and RLS
+        run: psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-05-schema.sql
+      - name: Initialize separate revocation revision guard (still same runner)
+        run: psql -X -v ON_ERROR_STOP=1 -f labs/restore/f1-22-guard-schema.sql
+      - name: Prove backup resurrection is blocked unless fresh authorization revision exists
+        run: psql -X -v ON_ERROR_STOP=1 -f labs/restore/f1-22-restore-assertions.sql
+      - name: Lab-only disclaimer
+        if: always()
+        run: echo "An independent production authority ledger and tested recovery are still required; this is same-runner simulation."
