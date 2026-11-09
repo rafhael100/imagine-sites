@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Imagine Portal to Imagine Sites candidate CreateProject v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "operationId",
+    "tenantRef",
+    "orderRef",
+    "contractRef",
+    "contractRevision",
+    "productCode",
+    "idempotencyKey"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1"
+    },
+    "operationId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "tenantRef": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "orderRef": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "contractRef": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "contractRevision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "productCode": {
+      "enum": [
+        "onepage",
+        "landing_page"
+      ]
+    },
+    "idempotencyKey": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    }
+  },
+  "description": "Synthetic interface contract only. No payment, approval or authorization implied by schema validation."
+}
