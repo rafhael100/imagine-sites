@@ -8,7 +8,7 @@ Para cada produto (Onepage/Landing Page) e viewport (1365×900 e 390×844), veri
 - Sem overflow horizontal (largura do documento e body até viewport + 2 px);
 - Idioma `pt-BR`, uma `main`, um `h1`, dois grupos de navegação com `aria-current` unitário, links locais e visíveis;
 - `iframe sandbox` nomeado, checklist estrutural de sete itens, ausência de formulários/scripts/botões;
-- **Eventos reais da tecla Tab** com `Input.dispatchKeyEvent`; os quatro links iniciais devem manter a ordem, o iframe sandbox precisa ser acessível pelo teclado e o foco deve alcançar o link final após percorrer o conteúdo do iframe (até 16 eventos).
+- **Eventos reais da tecla Tab** com `Input.dispatchKeyEvent`; os quatro links iniciais devem manter a ordem, o iframe sandbox deve declarar `tabindex=0` e o foco precisa chegar ao link final sem ficar preso (até 16 eventos). O Chrome pode reportar `IFRAME` ou `BODY` durante a transição; isso **não comprova navegação dentro do frame**.
 
 É um *smoke test*, não auditoria WCAG, prova de contraste, teclado completo (Shift+Tab/Escape), compatibilidade em Safari/Firefox ou conformidade de produção. Se detectar falha de foco/overflow, a execução deve reprovar e a correção permanecer em branch de laboratório.
 
