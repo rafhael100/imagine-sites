@@ -15,7 +15,8 @@
 - [PR #48](https://github.com/rafhael100/imagine-sites/pull/48) — F1-32, histórico append-only PostgreSQL 18 descartável, RLS, versão/digest, revogação sintética e relógio DB. **CI PHP/Laravel, RLS, PostgreSQL e safety guard PASS; integrado em `dev` (`d15514a`).** Não é persistência operacional.
 - [PR #49](https://github.com/rafhael100/imagine-sites/pull/49) — F1-33, outbox de proposta de revisão Portal com digest/revisão exatos, ACL append-only e negativas. **CI Postgres/PHP/Laravel/safety guard PASS após correção de teste; integrada em `dev` (`8562009`).** Sem dispatcher.
 - [PR #50](https://github.com/rafhael100/imagine-sites/pull/50) — F1-34, view com `security_invoker`/RLS que oculta propostas de revisão obsoletas e preserva histórico append-only. **CI PostgreSQL 18, RLS, Laravel e safety guard PASS; merge em `dev` (`4329440`).** Não é dispatcher nem autorização oficial.
-- **F1-35 (PR draft):** claim único de proposta atual em Postgres descartável usando RLS, versão/digest, revogação e negações. Não envia evento nem autoriza cliente/produção; aguarda CI.
+- [PR #52](https://github.com/rafhael100/imagine-sites/pull/52) — F1-35, claim único SQL de proposta de revisão atual, com RLS, versão, digest, revogação e unicidade. **5 workflows CI PASS; integrado em `dev` (`7cd20e8`).** Sem dispatch real nem aceite.
+- **F1-36 em revisão:** ledger de créditos fictícios em PostgreSQL descartável, quotas/idempotência e teste de duas conexões em concorrência. Aguardando CI; não é faturamento ou IA real.
 - [SITES-HOMOLOGATION-ENTRY](docs/SITES-HOMOLOGATION-ENTRY-2026-11-09.md) — matriz de entrada e bloqueadores com issues #33–#38.
 
 **Ainda não há ambiente operacional Sites publicado.** P0/RF-PEND/RV-CT/AppSec/LGPD, contratos financeiros, identidade, Cloudflare/DNS, banco produtivo, geração real por IA/n8n, captação/CRM fisicamente redundante e backups/restore continuam não homologados.
