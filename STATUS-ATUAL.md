@@ -20,6 +20,7 @@
 - [PR #54](https://github.com/rafhael100/imagine-sites/pull/54) — F1-37, comando Laravel CLI de teste gera Onepage/Landing fictícias, pacote privado e proposta Portal com digest exato, sem aceitação nem publicação. CI PHP 8.3/8.4, Laravel, bundle e safety guard PASS; merge em `dev` (`a8d26fc`).
 - **F1-45 (PR draft):** envelope HMAC exclusivamente sintético de proposta Sites → Portal para revisão, versão/digest/tenant exatos, anti-replay, assinatura e verificador de autorização vigente injetado em modo DENY por padrão. Em CI; não cria identidade operacional nem aceite/publicação.
 - **F1-46 (PR draft dependente de #63):** JSON Schema candidato do envelope Sites→Portal + emissor PHP e verificação independente de HMAC/estrutura em Python, somente dados fictícios. CI pendente; sem endpoint, identidade operacional, aceite ou publicação.
+- **F1-47 (PR draft dependente de #64):** consumo de nonce de proposta Sites→Portal em PostgreSQL descartável, isolamento de issuer, RLS, expiração, duas conexões PDO, revogação sintética antes do consumo. CI pendente; sem autenticação/serviço real.
 - [SITES-HOMOLOGATION-ENTRY](docs/SITES-HOMOLOGATION-ENTRY-2026-11-09.md) — matriz de entrada e bloqueadores com issues #33–#38.
 
 **Ainda não há ambiente operacional Sites publicado.** P0/RF-PEND/RV-CT/AppSec/LGPD, contratos financeiros, identidade, Cloudflare/DNS, banco produtivo, geração real por IA/n8n, captação/CRM fisicamente redundante e backups/restore continuam não homologados.
