@@ -1,0 +1,60 @@
+name: Sites F1-34 stale review candidate fence — disposable SQL
+on:
+  pull_request:
+    paths:
+      - 'labs/postgres/f1-34-current-review-view.sql'
+      - 'labs/postgres/f1-34-current-review-assertions.sql'
+      - 'labs/postgres/f1-33-review-outbox-schema.sql'
+      - 'labs/postgres/f1-32-workflow-events-schema.sql'
+      - 'labs/postgres/f1-05-schema.sql'
+      - '.github/workflows/sites-f1-34-stale-review-view.yml'
+      - 'docs/SITES-F1-34-STALE-REVIEW-VISIBILITY.md'
+permissions:
+  contents: read
+jobs:
+  stale-review-visibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: fictional-readonly-lab
+          POSTGRES_DB: sites_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sites_lab"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: fictional-readonly-lab
+      PGDATABASE: sites_lab
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Ensure PostgreSQL client available
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Build disposable synthetic schemas and invoker-only view
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-05-schema.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-32-workflow-events-schema.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-33-review-outbox-schema.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-34-current-review-view.sql
+      - name: Verify stale proposal hidden, RLS, revocation and no write permission
+        run: psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-34-current-review-assertions.sql
+      - name: CI limitations
+        if: always()
+        run: echo "Read-only PostgreSQL lab, no dispatcher, signed Portal identity, VPS, Cloudflare or deploy."
