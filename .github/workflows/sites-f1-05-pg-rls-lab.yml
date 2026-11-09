@@ -1,0 +1,59 @@
+name: F1-05 Sites PostgreSQL 18 RLS lab - no deploy
+
+on:
+  pull_request:
+    paths:
+      - 'labs/postgres/**'
+      - '.github/workflows/sites-f1-05-pg-rls-lab.yml'
+      - 'docs/SITES-F1-05-POSTGRES-RLS-LAB.md'
+
+permissions:
+  contents: read
+
+jobs:
+  postgres-security-lab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: temporary-sites-lab-test-only
+      PGDATABASE: sites_lab
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: temporary-sites-lab-test-only
+          POSTGRES_DB: sites_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sites_lab"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check isolated SQL scripts and psql availability
+        run: |
+          set -euo pipefail
+          test -s labs/postgres/f1-05-schema.sql
+          test -s labs/postgres/f1-05-assertions.sql
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y postgresql-client
+          fi
+          psql --version
+      - name: Provision only ephemeral sites_lab tables and restricted roles
+        run: psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-05-schema.sql
+      - name: Test RLS, revoked authority, denied writes and uniqueness
+        run: psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-05-assertions.sql
+      - name: Summarize limits
+        if: always()
+        run: |
+          echo "Runner-local PostgreSQL service only; no real tenants, cloud accounts, VPS or deploy."
+          echo "The test roles model DB identities, not future service-to-service authentication."
