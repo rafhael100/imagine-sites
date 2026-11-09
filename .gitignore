@@ -1,0 +1,14 @@
+.env
+.env.*
+!.env.example
+/vendor/
+/.phpunit.cache/
+/node_modules/
+/storage/*.key
+*.sqlite
+*.sqlite3
+*.db
+*.pem
+*.p12
+*.pfx
+*.log
