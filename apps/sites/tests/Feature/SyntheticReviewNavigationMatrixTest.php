@@ -65,6 +65,7 @@ final class SyntheticReviewNavigationMatrixTest extends TestCase
                 self::assertInstanceOf(DOMElement::class,$frame);
                 self::assertTrue($frame->hasAttribute('sandbox'));
                 self::assertSame('',$frame->getAttribute('sandbox'));
+                self::assertSame('0',$frame->getAttribute('tabindex'));
                 self::assertFalse($frame->hasAttribute('src'));
                 self::assertSame('no-referrer',$frame->getAttribute('referrerpolicy'));
                 self::assertSame(0,$xp->query('//form|//script|//button|//input')->length);
@@ -93,16 +94,20 @@ final class SyntheticReviewNavigationMatrixTest extends TestCase
                         $href==='#detalhes','Only local review navigation and fixed anchor are allowed');
                     $urls[]=$href;
                 }
-                self::assertCount(5,$urls,'Two product, two device and one local anchor link.');
+                self::assertCount(8,$urls,'Two product, two device, three preset and one anchor link.');
                 foreach (['onepage','landing_page'] as $other) {
-                    self::assertContains(self::PATH.'?product='.$other.'&device='.$device,$urls);
+                    self::assertContains(self::PATH.'?product='.$other.'&device='.$device.'&preset=classic',$urls);
                 }
                 foreach (['desktop','mobile'] as $other) {
-                    self::assertContains(self::PATH.'?product='.$product.'&device='.$other,$urls);
+                    self::assertContains(self::PATH.'?product='.$product.'&device='.$other.'&preset=classic',$urls);
                 }
                 $current=$xp->query('//nav[@aria-label="Alternar produto"]/a[@aria-current="page"]');
                 self::assertSame(1,$current->length);
                 self::assertSame(1,$xp->query('//nav[@aria-label="Alternar dispositivo"]/a[@aria-current="page"]')->length);
+                self::assertSame(1,$xp->query('//nav[@aria-label="Alternar tema"]/a[@aria-current="page"]')->length);
+                foreach (['classic','modern','warm'] as $theme) {
+                    self::assertContains(self::PATH.'?product='.$product.'&device='.$device.'&preset='.$theme,$urls);
+                }
             }
         }
     }
@@ -124,6 +129,9 @@ final class SyntheticReviewNavigationMatrixTest extends TestCase
             '?device[]=mobile',
             '?product=',
             '?device=',
+            '?preset=',
+            '?preset[]=classic',
+            '?preset=../modern',
         ] as $query) {
             self::assertSame(404,$this->get(self::PATH.$query)->getStatusCode(),
                 'Rejected route query: '.$query);
