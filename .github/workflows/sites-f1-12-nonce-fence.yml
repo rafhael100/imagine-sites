@@ -1,0 +1,65 @@
+name: F1-12 Sites durable nonce replay fence - disposable PostgreSQL
+
+on:
+  pull_request:
+    paths:
+      - 'labs/security/**'
+      - '.github/workflows/sites-f1-12-nonce-fence.yml'
+      - 'docs/SITES-F1-12-PERSISTENT-REPLAY-LAB.md'
+
+permissions:
+  contents: read
+
+jobs:
+  durable-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: nonce-lab-fictional-only
+          POSTGRES_DB: sites_auth_replay_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sites_auth_replay_lab"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: nonce-lab-fictional-only
+      PGDATABASE: sites_auth_replay_lab
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Ensure psql
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Create synthetic replay schema with no login access
+        run: psql -X -v ON_ERROR_STOP=1 -f labs/security/f1-12-nonce-schema.sql
+      - name: Test single-consume, expiration and denied privileged operations
+        run: psql -X -v ON_ERROR_STOP=1 -f labs/security/f1-12-nonce-assertions.sql
+      - name: Two independent concurrent sessions racing for the same nonce
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -c "SET ROLE sites_auth_runtime" -c "INSERT INTO auth_replay.nonce_consumptions(issuer,nonce,expires_at) VALUES ('imagine-portal','nonce-race-0001',clock_timestamp()+interval '60 seconds') ON CONFLICT DO NOTHING" &
+          p1=$!
+          psql -X -v ON_ERROR_STOP=1 -c "SET ROLE sites_auth_runtime" -c "INSERT INTO auth_replay.nonce_consumptions(issuer,nonce,expires_at) VALUES ('imagine-portal','nonce-race-0001',clock_timestamp()+interval '60 seconds') ON CONFLICT DO NOTHING" &
+          p2=$!
+          wait "$p1"
+          wait "$p2"
+          rows=$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM auth_replay.nonce_consumptions")
+          test "$rows" = 2
+      - name: Lab-only notice
+        if: always()
+        run: echo "Only ephemeral PostgreSQL and fictional nonces. No actual S2S signer, API, credential or production replay store."
