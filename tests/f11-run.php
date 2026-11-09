@@ -67,4 +67,13 @@ $mutated=$env;$mutated['mac']=str_repeat('0',64);
 ok(denied(fn()=>SyntheticSignedCommand::verify($mutated,$key,$now,new MemoryNonceFixture())),'forged MAC rejected');
 $new=SyntheticSignedCommand::sign($cmd,$key,'nonce-fixture-00000002',$now,$now+120);
 ok(SyntheticSignedCommand::verify($new,$key,$now,new MemoryNonceFixture())->orderRef==='order-demo-001','maximum TTL boundary valid');
+
+$portalFixture=json_decode(file_get_contents(__DIR__.'/../fixtures/portal-sites/create-project-v1.signed.synthetic.json'),
+    true,512,JSON_THROW_ON_ERROR);
+ok(SyntheticSignedCommand::verify($portalFixture,$key,$now,new MemoryNonceFixture())->contractRef==='contract-demo-001',
+    'Portal independent signed fixture verifies in Sites contract');
+$portalTamper=$portalFixture;
+$portalTamper['payload']['contractRevision']=2;
+ok(denied(fn()=>SyntheticSignedCommand::verify($portalTamper,$key,$now,new MemoryNonceFixture())),
+    'Portal signed fixture cannot be changed to another contract revision');
 echo "\n$count F1-11 lab signed-envelope checks passed. NO LIVE AUTHORIZATION.\n";

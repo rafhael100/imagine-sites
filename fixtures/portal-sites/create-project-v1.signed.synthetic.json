@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1",
+  "issuer": "imagine-portal",
+  "audience": "imagine-sites",
+  "issuedAt": 1790000000,
+  "expiresAt": 1790000060,
+  "nonce": "nonce-portal-contract-01",
+  "payload": {
+    "schemaVersion": "1",
+    "operationId": "op-demo-001",
+    "tenantRef": "tenant-demo-001",
+    "orderRef": "order-demo-001",
+    "contractRef": "contract-demo-001",
+    "contractRevision": 1,
+    "productCode": "onepage",
+    "idempotencyKey": "idem-demo-001"
+  },
+  "mac": "26f8178091c1033d2f36c76f43ec8c77d46bfed4da41ee4e08a567b09b9fe706"
+}
