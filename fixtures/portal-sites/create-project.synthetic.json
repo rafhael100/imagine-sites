@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "1",
+  "operationId": "op-demo-001",
+  "tenantRef": "tenant-demo-001",
+  "orderRef": "order-demo-001",
+  "contractRef": "contract-demo-001",
+  "contractRevision": 1,
+  "productCode": "onepage",
+  "idempotencyKey": "idem-demo-001"
+}

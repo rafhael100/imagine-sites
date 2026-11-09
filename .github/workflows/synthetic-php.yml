@@ -21,10 +21,11 @@ jobs:
           php-version: ${{ matrix.php }}
           tools: none
           coverage: none
-      - name: Verificar sintaxe PHP
+      - name: PHP syntax
         run: |
-          for f in src/Domain/*.php src/Application/*.php tests/*.php; do php -l "$f" || exit 1; done
-      - name: Executar verificacoes puras sem terceiros
+          for f in src/Domain/*.php src/Application/*.php src/Integration/*.php tests/*.php; do php -l "$f" || exit 1; done
+      - name: Pure domain and integration contract mocks
         run: |
           php tests/run.php
           php tests/f2-run.php
+          php tests/f4-run.php
