@@ -1,0 +1,71 @@
+name: Sites F1-24 immutable inert release bundle - private runner only
+
+on:
+  pull_request:
+    paths:
+      - 'src/Domain/ReleaseManifest.php'
+      - 'src/Production/SyntheticReleaseBundle.php'
+      - 'tests/f24-run.php'
+      - 'apps/sites/routes/console.php'
+      - 'apps/sites/tests/Feature/SyntheticReleaseBundleCommandTest.php'
+      - '.github/workflows/sites-f1-24-release-bundle.yml'
+      - 'docs/SITES-F1-24-RELEASE-BUNDLE.md'
+
+permissions:
+  contents: read
+
+jobs:
+  bundle-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer:v2
+          extensions: mbstring,xml,dom,curl,pdo,pdo_pgsql
+          coverage: none
+      - name: Verify PHP syntax
+        run: |
+          php -l src/Production/SyntheticReleaseBundle.php
+          php -l src/Domain/ReleaseManifest.php
+          php -l tests/f24-run.php
+          php -l apps/sites/routes/console.php
+      - name: Run inert package security and digest tests
+        run: php tests/f24-run.php
+      - name: Install locked Laravel dependencies without scripts
+        working-directory: apps/sites
+        run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
+      - name: Assert private bundle denied without explicit flag
+        working-directory: apps/sites
+        env:
+          APP_ENV: testing
+        run: |
+          set -euo pipefail
+          if php artisan sites:package-fixture onepage; then
+            echo 'Unexpected live-able bundle without explicit lab flag'
+            exit 1
+          fi
+      - name: Build private sample bundles and validate no publish metadata
+        working-directory: apps/sites
+        env:
+          APP_ENV: testing
+          SITES_SYNTHETIC_BUNDLE: '1'
+        run: |
+          set -euo pipefail
+          php artisan sites:package-fixture onepage
+          php artisan sites:package-fixture landing_page
+          python3 -c 'import json,pathlib;root=pathlib.Path("storage/app/private"); files=[root/"sites-f1-24-onepage"/"release-manifest.json",root/"sites-f1-24-landing_page"/"release-manifest.json"]; assert all(json.loads(p.read_text())["publishable"] is False for p in files)'
+          test -s storage/app/private/sites-f1-24-onepage/index.html
+          test -s storage/app/private/sites-f1-24-landing_page/index.html
+          rm -rf storage/app/private/sites-f1-24-onepage storage/app/private/sites-f1-24-landing_page
+      - name: Explicit lab-only statement
+        if: always()
+        run: echo "No Workers, Cloudflare, Pages, DNS, customer files, public web or deployed artifacts."
