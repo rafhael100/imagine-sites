@@ -125,7 +125,8 @@ final class SyntheticReviewNavigationMatrixTest extends TestCase
             '?product=',
             '?device=',
         ] as $query) {
-            $this->get(self::PATH.$query)->assertNotFound();
+            self::assertSame(404,$this->get(self::PATH.$query)->getStatusCode(),
+                'Rejected route query: '.$query);
         }
     }
 
