@@ -1,0 +1,19 @@
+name: F1-21 CI-only operational safety guard
+
+on:
+  pull_request:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  prevent-accidental-production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify no active deployment and production readiness remains blocked
+        run: python3 ci/f21_safety_guard.py

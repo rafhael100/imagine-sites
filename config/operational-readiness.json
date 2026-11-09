@@ -1,0 +1,19 @@
+{
+  "schema": "imagine-sites.production-readiness.v1",
+  "status": "BLOCKED",
+  "checked_at_reference": "2026-11-09",
+  "non_operational": true,
+  "gates": {
+    "signed_off_operational_contracts": false,
+    "trusted_portal_identity_and_revocation": false,
+    "separate_production_database_rls_backups": false,
+    "real_ai_generation_scoped_and_homologated": false,
+    "independent_verified_publication": false,
+    "physical_dual_capture_crm_confirmed": false,
+    "customer_approval_evidence_immutable": false,
+    "privacy_security_and_cost_review": false,
+    "client_domain_consent_and_certificates": false,
+    "release_go_live_authorization": false
+  },
+  "notes": "Advisory evidence gate for CI. A code change cannot independently authorize go-live, merging or deployment."
+}
