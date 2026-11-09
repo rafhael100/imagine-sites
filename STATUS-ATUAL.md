@@ -18,6 +18,7 @@
 - [PR #52](https://github.com/rafhael100/imagine-sites/pull/52) — F1-35, claim único SQL de proposta de revisão atual, com RLS, versão, digest, revogação e unicidade. **5 workflows CI PASS; integrado em `dev` (`7cd20e8`).** Sem dispatch real nem aceite.
 - [PR #53](https://github.com/rafhael100/imagine-sites/pull/53) — F1-36, créditos fictícios em Postgres descartável com quota transacional e teste concorrente de duas conexões. CI PostgreSQL, PHP/Laravel e safety guard PASS; merge em `dev` (`c9a14fe`). Não é gasto real.
 - [PR #54](https://github.com/rafhael100/imagine-sites/pull/54) — F1-37, comando Laravel CLI de teste gera Onepage/Landing fictícias, pacote privado e proposta Portal com digest exato, sem aceitação nem publicação. CI PHP 8.3/8.4, Laravel, bundle e safety guard PASS; merge em `dev` (`a8d26fc`).
+- **F1-45 (PR draft):** envelope HMAC exclusivamente sintético de proposta Sites → Portal para revisão, versão/digest/tenant exatos, anti-replay, assinatura e verificador de autorização vigente injetado em modo DENY por padrão. Em CI; não cria identidade operacional nem aceite/publicação.
 - [SITES-HOMOLOGATION-ENTRY](docs/SITES-HOMOLOGATION-ENTRY-2026-11-09.md) — matriz de entrada e bloqueadores com issues #33–#38.
 
 **Ainda não há ambiente operacional Sites publicado.** P0/RF-PEND/RV-CT/AppSec/LGPD, contratos financeiros, identidade, Cloudflare/DNS, banco produtivo, geração real por IA/n8n, captação/CRM fisicamente redundante e backups/restore continuam não homologados.
