@@ -261,11 +261,19 @@ Artisan::command('sites:export-review-gallery-fixture', function (): int {
                 $request=\Illuminate\Http\Request::create(
                     $path,'GET',[],[],[],['REMOTE_ADDR'=>'127.0.0.1']
                 );
-                // Execute the already gated synthetic route without Laravel's
-                // HTTP web middleware; this is an offline Artisan-only export.
-                $labRoute=app('router')->getRoutes()->match($request);
-                $labRoute->bind($request);
-                $response=$labRoute->run();
+                // The route action resolves Request through Laravel's
+                // container. Rebind it for EACH synthetic viewport and restore
+                // the previous request to avoid cross-preview state leakage.
+                // No web middleware, session or network service is started.
+                $priorRequest=app('request');
+                try {
+                    app()->instance('request',$request);
+                    $labRoute=app('router')->getRoutes()->match($request);
+                    $labRoute->bind($request);
+                    $response=$labRoute->run();
+                } finally {
+                    app()->instance('request',$priorRequest);
+                }
                 $html=(string)$response->getContent();
                 if ($response->getStatusCode()!==200 ||
                     $response->headers->get('X-Frame-Options')!=='DENY' ||
