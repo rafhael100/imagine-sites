@@ -1,12 +1,13 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
-**09/11/2026 — F1-19**, laboratório Laravel/PostgreSQL de comando/outbox.
+**09/11/2026 — F1-20**, inventário de compatibilidade com Portal legado Node/SQLite e guardas PHP sintéticos.
 
-F1-14 PR #15: replay HMAC PDO + nonce em Postgres efêmero, CI PASS.
-F1-15 PR #16: outbox transacional + RLS em Postgres efêmero, CI PASS.
-F1-16 PR #17: byte-hash observado em origin fictício separado de ACK, CI PASS.
-F1-17 PR #18: jornada sintética completa CreateProject→release→aceite→observação→parecer técnico, CI PASS.
-F1-18 PR #19: contratos OpenAPI/AsyncAPI candidatos e verificações estáticas, CI PASS.
-F1-19: serviço Laravel que grava comando/outbox em PostgreSQL descartável sob role fictícia limitada; CI PHP 8.3/8.4 a verificar.
+F1-14 PR #15: HMAC→nonce PDO/PostgreSQL descartável com CI PASS.
+F1-15 PR #16: transação de comando/outbox com RLS e CI PASS.
+F1-16 PR #17: ACK fictício separado de byte-hash observado, CI PASS.
+F1-17 PR #18: jornada sintética integrando aceite, revisão, publicação e retenção, CI PASS.
+F1-18 PR #19: contratos OpenAPI/AsyncAPI candidatos, CI PASS.
+F1-19 PR #20: Laravel→PostgreSQL descartável, commit de comando+outbox e rollback, CI PASS.
+F1-20: regras candidatas de briefing, revisão Imagine e aprovação de versão exata com SHA-256; CI a conferir.
 
-**Não operacional:** sem cliente/contrato/grants reais, autenticação S2S, banco/migrations produtivas, geração IA, Cloudflare/DNS, CRM/captação redundante, backup/restore ou deploy. PRs permanecem draft, sem merge. P0/RF-PEND/RV-CT/LGPD/AppSec abertos e AGI-11-RB01 rollback automático desabilitado.
+**Não há migração de dados reais, sistema legado desligado, autorização oficial, contrato comercial real, Cloudflare, CRM, Agents, clientes, backup/restore ou deploy.** O legado permanece referência, não fonte operacional nova. Gates P0/RF-PEND/RV-CT/LGPD/AppSec abertos e AGI-11-RB01 desabilitado. Nenhum merge automático.
