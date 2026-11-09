@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Imagine Sites | Revisão demonstrativa</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#1f3048;background:#f4f6fa}
+*{box-sizing:border-box}
+body{margin:0;line-height:1.5}
+a{color:inherit;text-decoration:none}
+a:focus-visible{outline:3px solid #387cfa;outline-offset:4px}
+header{background:#132641;color:#fff;padding:16px clamp(18px,3vw,44px);display:flex;justify-content:space-between;align-items:center;gap:18px}
+.brand{font-size:1.13rem;font-weight:850;letter-spacing:-.04em}
+.brand small{font-size:.71rem;letter-spacing:.08em;color:#a9c2e2;display:block;text-transform:uppercase}
+.flag{font-size:.78rem;border:1px solid #6a7f99;border-radius:100px;padding:7px 12px;color:#d6e4f5}
+main{max-width:1550px;padding:26px clamp(18px,3vw,44px) 55px;margin:auto}
+.kicker{color:#27609a;font-size:.73rem;font-weight:800;text-transform:uppercase;letter-spacing:.14em}
+h1{font-size:clamp(1.65rem,2.8vw,2.35rem);line-height:1.16;letter-spacing:-.04em;margin:9px 0}
+.sub{font-size:.85rem;color:#697b90;margin:5px 0 17px}
+.intro{display:flex;align-items:end;justify-content:space-between;gap:22px;margin-bottom:26px}
+.status{background:#fff7e7;border:1px solid #efd8aa;color:#73520e;border-radius:11px;padding:10px 13px;font-size:.81rem;font-weight:700}
+.layout{display:grid;grid-template-columns:minmax(280px,330px) minmax(0,1fr);gap:20px;align-items:start}
+.sidebar{display:grid;gap:16px}
+.card,.preview{background:white;border:1px solid #e2e7ee;border-radius:15px;box-shadow:0 9px 26px rgba(16,40,70,.04)}
+.card{padding:21px}
+h2{font-size:1rem;margin:0;letter-spacing:-.015em}
+.tabs{display:flex;flex-wrap:wrap;gap:8px;margin-top:15px}
+.tabs a{border:1px solid #dbe3ec;border-radius:9px;padding:9px 13px;font-size:.8rem;font-weight:700}
+.tabs a[aria-current]{background:#e8f2fc;border-color:#bed5ec;color:#155e9e}
+.steps{list-style:none;margin:16px 0 0;padding:0}
+.steps li{padding:0 0 20px 32px;position:relative;font-size:.8rem}
+.steps li:last-child{padding-bottom:0}
+.steps li:not(:last-child)::after{content:"";position:absolute;width:1px;background:#dce4ed;left:10px;top:26px;bottom:2px}
+.icon{position:absolute;left:0;top:0;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:#e6f4ea;color:#276742;font-size:.8rem}
+.steps li:last-child .icon{background:#fff1d8;color:#835b16}
+.steps b{display:block}
+.steps small{display:block;color:#697b90;font-size:.75rem}
+dl{margin:15px 0 0}
+dl div{margin-bottom:13px}
+dt{font-size:.69rem;text-transform:uppercase;letter-spacing:.07em;font-weight:800;color:#718399}
+dd{margin:3px 0 0;font-size:.83rem;font-weight:650;overflow-wrap:anywhere}
+code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.75rem;color:#2a577a;word-break:break-all}
+.locked{margin-top:13px;font-size:.76rem;color:#60748a;padding:13px;border:1px dashed #bdcad7;border-radius:10px;background:#f8fafc}
+.preview{overflow:hidden}
+.preview-head{padding:18px 21px;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;border-bottom:1px solid #e2e7ee}
+.preview-head .tabs{margin:0}
+.workspace{background:#e8edf4;padding:24px 18px 30px;min-height:550px}
+.browser{border:1px solid #c5d1df;border-radius:13px;overflow:hidden;box-shadow:0 20px 45px rgba(19,40,65,.13);margin:auto;background:#fff}
+.browser.desktop{max-width:1120px;width:100%}
+.browser.mobile{max-width:390px;width:100%}
+.chrome{display:flex;gap:7px;align-items:center;background:#fafbfd;padding:13px;border-bottom:1px solid #dce4ed}
+.chrome i{width:9px;height:9px;border-radius:50%;background:#ced7e3}
+.chrome span{margin:auto;color:#7a8aa0;font-size:.7rem}
+iframe{width:100%;height:505px;border:0;display:block;background:#fff}
+.foot{padding:15px 21px;color:#697b90;font-size:.75rem;border-top:1px solid #e2e7ee}
+.note{font-size:.78rem;background:#ecf3fb;border:1px solid #d5e5f6;padding:15px 18px;border-radius:10px;margin-top:20px;color:#2a5077}
+@media(max-width:940px){.layout{grid-template-columns:1fr}.sidebar{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:610px){header,.intro{flex-direction:column;align-items:flex-start}.sidebar{grid-template-columns:1fr}.workspace{padding:10px 8px;min-height:0}iframe{height:480px}}
+</style>
+</head>
+<body>
+<header><div class="brand">Imagine Sites<small>Laboratório de revisão visual</small></div><span class="flag">Somente dados fictícios</span></header>
+<main>
+<div class="intro">
+  <div><div class="kicker">Produção de sites / Revisão</div><h1>Confira a prévia antes de avançar</h1><p class="sub">Experiência de demonstração. Nenhuma ação aprova ou publica um site.</p></div>
+  <span class="status">Aceite oficial pendente no Portal</span>
+</div>
+<div class="layout">
+  <aside class="sidebar" aria-label="Painel de revisão">
+    <section class="card" aria-labelledby="product-title"><h2 id="product-title">Tipo de site</h2><p class="sub">Alternar modelos de teste</p>
+      <nav class="tabs" aria-label="Alternar produto">
+        <a href="/_lab/sites/v1/review?product=onepage&amp;device={{ $device }}" @if($product==='onepage') aria-current="page" @endif>Onepage</a>
+        <a href="/_lab/sites/v1/review?product=landing_page&amp;device={{ $device }}" @if($product==='landing_page') aria-current="page" @endif>Landing Page</a>
+      </nav>
+    </section>
+    <section class="card" aria-labelledby="steps-title"><h2 id="steps-title">Etapas de revisão</h2>
+      <ol class="steps">
+        <li><span class="icon" aria-hidden="true">✓</span><b>Conteúdo estruturado</b><small>Briefing fictício validado</small></li>
+        <li><span class="icon" aria-hidden="true">✓</span><b>Prévia HTML gerada</b><small>Hash e auditoria offline</small></li>
+        <li><span class="icon" aria-hidden="true">✓</span><b>Revisão interna simulada</b><small>Versão exata em laboratório</small></li>
+        <li><span class="icon" aria-hidden="true">!</span><b>Aceite do cliente pendente</b><small>Exclusivo do Portal</small></li>
+      </ol>
+    </section>
+    <section class="card" id="detalhes" aria-labelledby="detail-title"><h2 id="detail-title">Identidade da versão</h2>
+      <dl>
+        <div><dt>Produto</dt><dd>{{ $product==='onepage' ? 'Onepage' : 'Landing Page' }}</dd></div>
+        <div><dt>Marca de teste</dt><dd>{{ $brief->brand }}</dd></div>
+        <div><dt>Release</dt><dd><code>{{ $proposal['releaseRef'] }}</code></dd></div>
+        <div><dt>Revisão</dt><dd>{{ $proposal['workflowRevision'] }}</dd></div>
+        <div><dt>SHA-256 do HTML</dt><dd><code id="artifact-digest">{{ $digest }}</code></dd></div>
+        <div><dt>Publicável</dt><dd>Não</dd></div>
+        <div><dt>Aceite oficial</dt><dd>Não registrado</dd></div>
+      </dl>
+      <div class="locked">Aprovação, publicação e entrega desabilitadas neste laboratório.</div>
+    </section>
+  </aside>
+  <section class="preview" aria-labelledby="preview-title">
+    <div class="preview-head"><div><h2 id="preview-title">Prévia do site</h2><p class="sub">HTML exato do motor, isolado em iframe sandbox</p></div>
+      <nav class="tabs" aria-label="Alternar dispositivo">
+        <a href="/_lab/sites/v1/review?product={{ $product }}&amp;device=desktop" @if($device==='desktop') aria-current="page" @endif>Desktop</a>
+        <a href="/_lab/sites/v1/review?product={{ $product }}&amp;device=mobile" @if($device==='mobile') aria-current="page" @endif>Mobile</a>
+      </nav>
+    </div>
+    <div class="workspace"><div class="browser {{ $device }}">
+      <div class="chrome" aria-hidden="true"><i></i><i></i><i></i><span>Prévia privada · sem domínio público</span></div>
+      <iframe title="Prévia sintética do site {{ $product }}" sandbox="" referrerpolicy="no-referrer" srcdoc="{{ $previewHtml }}"></iframe>
+    </div></div>
+    <div class="foot">Sem captação, scripts, URLs de clientes ou publicação. <a href="#detalhes">Ver identidade da versão</a></div>
+  </section>
+</div>
+<p class="note">Somente para testes Laravel em processo CLI. O Portal é a autoridade exclusiva para contrato, aceite expresso do cliente e evento oficial ENTREGUE.</p>
+</main>
+</body>
+</html>
