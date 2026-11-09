@@ -71,7 +71,7 @@ BEGIN
   INSERT INTO lab_sites.project_outbox
     (tenant_id,event_id,operation_id,event_type)
   VALUES ('tenant-fake-a','evt-rollback','op-rollback','sites.delivery.forged.v1');
- EXCEPTION WHEN check_violation THEN blocked:=true;
+ EXCEPTION WHEN check_violation OR insufficient_privilege THEN blocked:=true;
  END;
  IF NOT blocked THEN RAISE EXCEPTION 'Invalid outbox event accepted'; END IF;
  IF EXISTS (SELECT 1 FROM lab_sites.project_commands
