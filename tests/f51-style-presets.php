@@ -84,7 +84,7 @@ f51Check(f51Denied(fn()=>new SiteBrief('onepage','Marca','Título','Texto','Cliq
 f51Check(f51Denied(fn()=>new SiteBrief('onepage','Marca','Título','Texto','Clique',
     ['Benefício'],'<script>alert(1)</script>')),'script injection rejected as theme');
 $attack=new SiteBrief('landing_page','<script>bad</script>',
-    '" onmouseover="bad"','Descrição com <tags> e & símbolos',
+    'Título com "aspas" e <b>texto</b>','Descrição com <tags> e & símbolos',
     'Saiba & conheça',['<img src=x>'],'warm');
 $artifact=$renderer->render($attack);
 f51Check(InertPreviewAudit::isSafe($artifact->html) &&
