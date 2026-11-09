@@ -102,7 +102,7 @@ f60Check(f60Count($owner)===2,'failed authorizations leave v2 nonce history unch
 $shared='f60-globally-shared-nonce-00004';
 f60Check(f60Consume($a,['nonce'=>$shared]),
     'first legitimate tenant reserves a globally unique issuer+nonce');
-f60Check(!f60Consume($b,$forB+['nonce'=>$shared]),
+f60Check(!f60Consume($b,array_replace($forB,['nonce'=>$shared])),
     'same issuer+nonce cannot be reused across another tenant');
 f60Check(f60Count($owner)===3,'cross-tenant reuse did not change ledger');
 
@@ -167,7 +167,7 @@ f60Check($blockedByGrant,'role-grant revocation and consumption share a lock');
 f60Check(f60Count($owner)===$before,'grant revocation race did not consume a nonce');
 f60Check(!f60Consume($a,['nonce'=>'f60-grant-revoked-00012','epoch'=>9]),
     'revoked grant cannot consume despite apparently reviewable resource');
-f60Check(f60Consume($b,$forB+['nonce'=>'f60-other-tenant-active-0013']),
+f60Check(f60Consume($b,array_replace($forB,['nonce'=>'f60-other-tenant-active-0013'])),
     'other tenant independently continues after A grant revoked');
 f60Check(f60Count($owner)===5,'exactly five independently permitted fictional proposals stored');
 
