@@ -261,7 +261,11 @@ Artisan::command('sites:export-review-gallery-fixture', function (): int {
                 $request=\Illuminate\Http\Request::create(
                     $path,'GET',[],[],[],['REMOTE_ADDR'=>'127.0.0.1']
                 );
-                $response=app('router')->dispatch($request);
+                // Execute the already gated synthetic route without Laravel's
+                // HTTP web middleware; this is an offline Artisan-only export.
+                $labRoute=app('router')->getRoutes()->match($request);
+                $labRoute->bind($request);
+                $response=$labRoute->run();
                 $html=(string)$response->getContent();
                 if ($response->getStatusCode()!==200 ||
                     $response->headers->get('X-Frame-Options')!=='DENY' ||
