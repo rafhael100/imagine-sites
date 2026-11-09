@@ -1,9 +1,12 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
-Referência 2026-11-09 — F1-17 jornada integrada totalmente sintética, sem merge/deploy.
+**09/11/2026 — F1-22** proteção sintética contra ressurgimento de grants em restore antigo, em branch filha de F1-21.
 
-**Últimos marcos aprovados em CI:** F1-14 replay HMAC+PDO em PostgreSQL descartável; F1-15 comando+outbox transacional em PostgreSQL descartável; F1-16 origem fictícia/ACK divergente e prova exata de hash (PHP 8.3/8.4). Todos PRs draft, sem merge.
+F1-19 PR #20: serviço Laravel outbox + PostgreSQL/RLS descartável CI PASS.
+F1-20 PR #21: paridade do briefing legado e aceite de release SHA exato, CI PASS.
+F1-21 PR #22: readiness BLOCKED e scanner read-only/deploy guard CI PASS.
+F1-22: simulação de backup de cliente restaurado após revogação, com ledger separado do conteúdo restaurado, RLS e revision floor. CI a verificar.
 
-**F1-17:** teste exercita CreateProject HMAC, fontes mockadas de contrato/aceite, dedup em memória, render HTML Onepage, SHA-256 de release, preflight, publicação/observação mockadas, parecer técnico de entrega e limites T0+432h. CI a verificar.
+**Não** é prova de recuperação real: ledger fica no mesmo PostgreSQL de testes. Em produção precisa de fonte externa monotônica fora do escopo do restore, credenciais e homologação.
 
-**Não entregue operacionalmente:** autenticação real, confirmação oficial de contrato, dados de cliente, migrations/banco Sites produtivo, IA, CDN/Cloudflare, SSL/domínio, captação real, CRM, observabilidade e backups. CI sintético não encerra P0/RF-PEND/RV-CT/LGPD/AppSec. AGI-11-RB01 desabilitado. Sem merge/deploy/custos.
+Sem cliente, DNS, SSL, publicação Cloudflare, CRM, IA real, VPS, deploy/merge ou autorização de go-live. P0/RF-PEND/RV-CT/LGPD/AppSec continuam abertos. AGI-11-RB01 desabilitado.

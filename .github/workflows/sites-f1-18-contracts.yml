@@ -1,0 +1,28 @@
+name: Sites F1-18 candidate OpenAPI/AsyncAPI - static verification only
+on:
+  pull_request:
+    paths:
+      - 'contracts/portal-sites/v1/*.json'
+      - 'tests/f18_contracts.py'
+      - '.github/workflows/sites-f1-18-contracts.yml'
+      - 'docs/SITES-F1-18-API-EVENT-CONTRACTS.md'
+permissions:
+  contents: read
+jobs:
+  candidate-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Parse contracts without third-party packages
+        run: |
+          set -euo pipefail
+          for f in contracts/portal-sites/v1/*.json; do
+            python3 -m json.tool "$f" >/dev/null
+          done
+      - name: Validate static control-plane and event contracts
+        run: python3 tests/f18_contracts.py
+      - name: Explicit non-operational constraint
+        run: echo "Candidate documentation; no host, broker, real endpoint, credential, DNS or deploy."
