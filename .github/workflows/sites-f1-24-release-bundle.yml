@@ -5,6 +5,8 @@ on:
     paths:
       - 'src/Domain/ReleaseManifest.php'
       - 'src/Production/SyntheticReleaseBundle.php'
+      - 'src/Production/InertPreviewAudit.php'
+      - 'tests/f27-offline-preview-audit.php'
       - 'tests/f24-run.php'
       - 'apps/sites/routes/console.php'
       - 'apps/sites/tests/Feature/SyntheticReleaseBundleCommandTest.php'
@@ -39,7 +41,9 @@ jobs:
           php -l tests/f24-run.php
           php -l apps/sites/routes/console.php
       - name: Run inert package security and digest tests
-        run: php tests/f24-run.php
+        run: |
+          php tests/f24-run.php
+          php tests/f27-offline-preview-audit.php
       - name: Install locked Laravel dependencies without scripts
         working-directory: apps/sites
         run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
