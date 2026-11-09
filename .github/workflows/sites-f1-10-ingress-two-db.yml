@@ -1,0 +1,81 @@
+name: F1-10 Sites dual capture stores and 432h policy (CI-only)
+
+on:
+  pull_request:
+    paths:
+      - 'labs/capture/**'
+      - '.github/workflows/sites-f1-10-ingress-two-db.yml'
+      - 'docs/SITES-F1-10-DUAL-CAPTURE-LAB.md'
+
+permissions:
+  contents: read
+
+jobs:
+  dual-ingress:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      primary:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ingress-fake-primary-only
+          POSTGRES_DB: sites_ingress_primary_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sites_ingress_primary_lab"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+      secondary:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ingress-fake-secondary-only
+          POSTGRES_DB: sites_ingress_secondary_lab
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sites_ingress_secondary_lab"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Ensure PostgreSQL client
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Initialize primary and secondary independently
+        run: |
+          set -euo pipefail
+          PGPASSWORD=ingress-fake-primary-only psql -X -h 127.0.0.1 -p 5432 -U postgres -d sites_ingress_primary_lab -v ON_ERROR_STOP=1 -f labs/capture/f1-10-schema.sql
+          PGPASSWORD=ingress-fake-secondary-only psql -X -h 127.0.0.1 -p 5433 -U postgres -d sites_ingress_secondary_lab -v ON_ERROR_STOP=1 -f labs/capture/f1-10-schema.sql
+      - name: Test original-binding and deadline rules in primary
+        run: |
+          PGPASSWORD=ingress-fake-primary-only psql -X -h 127.0.0.1 -p 5432 -U postgres -d sites_ingress_primary_lab -v ON_ERROR_STOP=1 -f labs/capture/f1-10-primary-assertions.sql
+      - name: Simulate unreachable endpoint and exercise contingency storage
+        run: |
+          set -euo pipefail
+          if PGPASSWORD=ingress-fake-primary-only PGCONNECT_TIMEOUT=1 psql -X -h 127.0.0.1 -p 65432 -U postgres -d sites_ingress_primary_lab -c 'select 1' >/dev/null 2>&1; then
+            echo 'A deliberately invalid synthetic primary endpoint unexpectedly responded'
+            exit 1
+          fi
+          echo 'Synthetic primary endpoint failed; validating independent contingency database.'
+          PGPASSWORD=ingress-fake-secondary-only psql -X -h 127.0.0.1 -p 5433 -U postgres -d sites_ingress_secondary_lab -v ON_ERROR_STOP=1 -f labs/capture/f1-10-secondary-assertions.sql
+      - name: Prove metadata is not shared across both databases
+        run: |
+          set -euo pipefail
+          p=$(PGPASSWORD=ingress-fake-primary-only psql -X -At -h 127.0.0.1 -p 5432 -U postgres -d sites_ingress_primary_lab -c 'select count(*) from ingress.receipts')
+          s=$(PGPASSWORD=ingress-fake-secondary-only psql -X -At -h 127.0.0.1 -p 5433 -U postgres -d sites_ingress_secondary_lab -c 'select count(*) from ingress.receipts')
+          test "$p" = 2
+          test "$s" = 1
+      - name: State lab-only limits
+        if: always()
+        run: echo "Both databases run on one GitHub runner. NOT geographically or physically redundant production capture. No lead payload or real CRM."
