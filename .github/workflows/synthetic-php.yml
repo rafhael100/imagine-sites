@@ -41,3 +41,4 @@ jobs:
           php tests/f28-production-flow.php
           php tests/f29-structured-copy.php
           php tests/f30-ai-credit-quota.php
+          php tests/f31-portal-handoff.php
