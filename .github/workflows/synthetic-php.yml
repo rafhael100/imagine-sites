@@ -46,3 +46,4 @@ jobs:
           php tests/f48-current-portal-authority.php
           php tests/f50-review-epoch.php
           php tests/f51-style-presets.php
+          php tests/f54-style-revision.php
