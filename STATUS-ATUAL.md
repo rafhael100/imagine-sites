@@ -24,6 +24,7 @@
 - [PR #59](https://github.com/rafhael100/imagine-sites/pull/59) — F1-41, galeria CLI offline com quatro arquivos HTML navegáveis localmente e manifesto SHA-256, diretório privado imutável. **6 workflows CI PASS** após correção do contexto das requisições (`23e0f97`); PR draft dependente de #58.
 - [PR #60](https://github.com/rafhael100/imagine-sites/pull/60) — F1-42, smoke Chromium headless executado pelo workflow F1-41, **4 screenshots reais distintos e validados** (Onepage/Landing em 1365×900 e 390×844), manifestos verificados. **CI PHP/Laravel/safety guard PASS** (`de260f6`); sem upload das capturas, sem certificação WCAG; PR draft dependente de #59.
 - **F1-43 (PR draft dependente de #60):** smoke Chrome DevTools offline de foco via tecla Tab, estrutura, links locais e overflow horizontal nas quatro páginas fictícias. Aguardar CI; não certifica WCAG, sem deploy.
+- **F1-44 (PR draft dependente de #61):** contraste de tipografia secundária ajustado e regression de contraste >= 4,5:1 calculado pelo Chrome em 4 prévias. Sem certificação WCAG; aguardando CI.
 - [SITES-HOMOLOGATION-ENTRY](docs/SITES-HOMOLOGATION-ENTRY-2026-11-09.md) — matriz de entrada e bloqueadores com issues #33–#38.
 
 **Ainda não há ambiente operacional Sites publicado.** P0/RF-PEND/RV-CT/AppSec/LGPD, contratos financeiros, identidade, Cloudflare/DNS, banco produtivo, geração real por IA/n8n, captação/CRM fisicamente redundante e backups/restore continuam não homologados.

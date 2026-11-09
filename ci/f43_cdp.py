@@ -19,6 +19,8 @@ import tempfile
 import time
 from urllib.request import urlopen
 
+from f44_contrast import assert_review_text_contrast
+
 
 class CDP:
     def __init__(self, port: int, endpoint: str):
@@ -211,6 +213,7 @@ def run(gallery: Path, browser: str) -> None:
                     assert result["frameSandbox"] == "" and not result["frameSrc"], (filename, result)
                     assert result["frameTitle"] and result["qa"] == 7, (filename, result)
                     assert result["controls"] == 0, (filename, result)
+                    assert_review_text_contrast(client, filename)
 
                     # Chromium also focuses the sandbox iframe (and its
                     # inner navigation). Verify the first four outer links in

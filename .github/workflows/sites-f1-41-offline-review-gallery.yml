@@ -10,6 +10,8 @@ on:
       - 'docs/SITES-F1-41-OFFLINE-GALLERY.md'
       - 'ci/f42_browser_smoke.py'
       - 'ci/f43_cdp.py'
+      - 'ci/f44_contrast.py'
+      - 'docs/SITES-F1-44-CONTRAST-CHECK.md'
       - 'docs/SITES-F1-43-BROWSER-A11Y-GATE.md'
       - 'docs/SITES-F1-42-HEADLESS-VISUAL-QA.md'
 permissions:

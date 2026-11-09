@@ -18,7 +18,7 @@ header{background:#132641;color:#fff;padding:16px clamp(18px,3vw,44px);display:f
 main{max-width:1550px;padding:26px clamp(18px,3vw,44px) 55px;margin:auto}
 .kicker{color:#27609a;font-size:.73rem;font-weight:800;text-transform:uppercase;letter-spacing:.14em}
 h1{font-size:clamp(1.65rem,2.8vw,2.35rem);line-height:1.16;letter-spacing:-.04em;margin:9px 0}
-.sub{font-size:.85rem;color:#697b90;margin:5px 0 17px}
+.sub{font-size:.85rem;color:#52647a;margin:5px 0 17px}
 .intro{display:flex;align-items:end;justify-content:space-between;gap:22px;margin-bottom:26px}
 .status{background:#fff7e7;border:1px solid #efd8aa;color:#73520e;border-radius:11px;padding:10px 13px;font-size:.81rem;font-weight:700}
 .layout{display:grid;grid-template-columns:minmax(280px,330px) minmax(0,1fr);gap:20px;align-items:start}
@@ -36,13 +36,13 @@ h2{font-size:1rem;margin:0;letter-spacing:-.015em}
 .icon{position:absolute;left:0;top:0;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:#e6f4ea;color:#276742;font-size:.8rem}
 .steps li:last-child .icon{background:#fff1d8;color:#835b16}
 .steps b{display:block}
-.steps small{display:block;color:#697b90;font-size:.75rem}
+.steps small{display:block;color:#52647a;font-size:.75rem}
 dl{margin:15px 0 0}
 dl div{margin-bottom:13px}
-dt{font-size:.69rem;text-transform:uppercase;letter-spacing:.07em;font-weight:800;color:#718399}
+dt{font-size:.69rem;text-transform:uppercase;letter-spacing:.07em;font-weight:800;color:#52647a}
 dd{margin:3px 0 0;font-size:.83rem;font-weight:650;overflow-wrap:anywhere}
 code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.75rem;color:#2a577a;word-break:break-all}
-.locked{margin-top:13px;font-size:.76rem;color:#60748a;padding:13px;border:1px dashed #bdcad7;border-radius:10px;background:#f8fafc}
+.locked{margin-top:13px;font-size:.76rem;color:#52647a;padding:13px;border:1px dashed #bdcad7;border-radius:10px;background:#f8fafc}
 .preview{overflow:hidden}
 .preview-head{padding:18px 21px;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;border-bottom:1px solid #e2e7ee}
 .preview-head .tabs{margin:0}
@@ -52,11 +52,11 @@ code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.75rem
 .browser.mobile{max-width:390px;width:100%}
 .chrome{display:flex;gap:7px;align-items:center;background:#fafbfd;padding:13px;border-bottom:1px solid #dce4ed}
 .chrome i{width:9px;height:9px;border-radius:50%;background:#ced7e3}
-.chrome span{margin:auto;color:#7a8aa0;font-size:.7rem}
+.chrome span{margin:auto;color:#52647a;font-size:.7rem}
 iframe{width:100%;height:505px;border:0;display:block;background:#fff}
-.foot{padding:15px 21px;color:#697b90;font-size:.75rem;border-top:1px solid #e2e7ee}
+.foot{padding:15px 21px;color:#52647a;font-size:.75rem;border-top:1px solid #e2e7ee}
 .note{font-size:.78rem;background:#ecf3fb;border:1px solid #d5e5f6;padding:15px 18px;border-radius:10px;margin-top:20px;color:#2a5077}
-.qa-summary{margin-top:20px;border-top:1px solid #e5ebf2;padding-top:17px}.qa-summary strong{font-size:.84rem}.qa-summary p{font-size:.73rem;color:#68788e;margin:5px 0 10px}.qa-list{padding:0;list-style:none;display:grid;gap:7px}.qa-list li{display:flex;gap:9px;align-items:center;font-size:.76rem}.qa-list span{display:grid;place-items:center;width:18px;height:18px;background:#e8f4ec;color:#246342;border-radius:50%;font-weight:800}.qa-summary p.pending{margin-top:11px;background:#fff8e9;color:#7a5b23;border-radius:7px;padding:9px}
+.qa-summary{margin-top:20px;border-top:1px solid #e5ebf2;padding-top:17px}.qa-summary strong{font-size:.84rem}.qa-summary p{font-size:.73rem;color:#52647a;margin:5px 0 10px}.qa-list{padding:0;list-style:none;display:grid;gap:7px}.qa-list li{display:flex;gap:9px;align-items:center;font-size:.76rem}.qa-list span{display:grid;place-items:center;width:18px;height:18px;background:#e8f4ec;color:#246342;border-radius:50%;font-weight:800}.qa-summary p.pending{margin-top:11px;background:#fff8e9;color:#7a5b23;border-radius:7px;padding:9px}
 @media(max-width:940px){.layout{grid-template-columns:1fr}.sidebar{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:610px){header,.intro{flex-direction:column;align-items:flex-start}.sidebar{grid-template-columns:1fr}.workspace{padding:10px 8px;min-height:0}iframe{height:480px}}
 </style>
