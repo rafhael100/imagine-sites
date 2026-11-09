@@ -43,3 +43,4 @@ jobs:
           php tests/f30-ai-credit-quota.php
           php tests/f31-portal-handoff.php
           php tests/f45-review-handoff-envelope.php
+          php tests/f48-current-portal-authority.php
