@@ -8,6 +8,8 @@ on:
       - 'apps/sites/tests/Feature/SyntheticReviewGalleryExportTest.php'
       - '.github/workflows/sites-f1-41-offline-review-gallery.yml'
       - 'docs/SITES-F1-41-OFFLINE-GALLERY.md'
+      - 'ci/f42_browser_smoke.py'
+      - 'docs/SITES-F1-42-HEADLESS-VISUAL-QA.md'
 permissions:
   contents: read
 jobs:
@@ -73,7 +75,38 @@ jobs:
               assert len(b)==entry['bytes']
           print('PASS: four byte-exact fictional HTML previews with immutable manifest')
           PY
-          rm -rf storage/app/private/sites-f1-41-gallery
+      - name: F1-42 open the four HTML files in the runner's preinstalled Chromium
+        if: matrix.php == '8.4'
+        run: |
+          set -euo pipefail
+          browser=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
+          if test -z "$browser"; then
+            echo "No Chrome/Chromium preinstalled: no automatic software download."
+            exit 1
+          fi
+          "$browser" --version
+          root="$PWD/apps/sites/storage/app/private/sites-f1-41-gallery"
+          screenshots="$RUNNER_TEMP/sites-f42-screenshots"
+          mkdir -p "$screenshots"
+          for product in onepage landing_page; do
+            for device in desktop mobile; do
+              if [ "$device" = desktop ]; then dimensions='1365,900'; else dimensions='390,844'; fi
+              filename="$product-$device"
+              "$browser" --headless=new --no-sandbox --disable-gpu \
+                --disable-background-networking --disable-sync --disable-extensions \
+                --no-first-run --no-default-browser-check --hide-scrollbars \
+                --force-device-scale-factor=1 --window-size="$dimensions" \
+                --screenshot="$screenshots/$filename.png" \
+                "file://$root/$filename.html" >"$RUNNER_TEMP/sites-f42-chrome.log" 2>&1
+              test -s "$screenshots/$filename.png"
+            done
+          done
+          python3 ci/f42_browser_smoke.py "$root" "$screenshots"
+          rm -rf "$screenshots"
+      - name: Remove the private gallery before isolated PHPUnit tests
+        working-directory: apps/sites
+        if: always()
+        run: rm -rf storage/app/private/sites-f1-41-gallery
       - name: Verify default-deny and export file safety with Laravel tests
         working-directory: apps/sites
         env:

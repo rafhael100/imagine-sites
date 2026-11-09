@@ -1,6 +1,6 @@
 # F1-42 — Prova visual por Chromium headless no CI (sem hospedagem)
 
-A galeria HTML fictícia e privada da F1-41 pode ser aberta em **navegador de verdade** sem precisar de VPS. Este PR acrescenta um workflow de CI que verifica a existência do Chrome/Chromium já instalado no runner Ubuntu 24.04, instala apenas dependências do Laravel já travadas e executa a geração local do pacote de quatro prévias.
+A galeria HTML fictícia e privada da F1-41 pode ser aberta em **navegador de verdade** sem precisar de VPS. Este PR estende o workflow já existente F1-41 com uma etapa PHP 8.4 que verifica a existência do Chrome/Chromium já instalado no runner Ubuntu do runner GitHub, mantendo apenas dependências Laravel já travadas e executa a geração local do pacote de quatro prévias.
 
 O navegador abre os arquivos `file://` em **viewport desktop e mobile**, gerando quatro screenshots PNG no diretório temporário do runner. O script `ci/f42_browser_smoke.py` valida a assinatura PNG, tamanho/dimensões, diferenciação das quatro imagens, integridade do manifesto SHA-256, CSP/noindex e ausência de referências de rede no HTML exportado.
 
