@@ -1,0 +1,48 @@
+name: Sites F1-49 real Portal consumer interoperability - pinned read-only checkout
+on:
+  pull_request:
+    paths:
+      - 'tests/f49-review-crossrepo.php'
+      - '.github/workflows/sites-f1-49-portal-crossrepo.yml'
+      - 'docs/SITES-F1-49-PORTAL-REVIEW-PARITY.md'
+      - 'src/Security/SyntheticReviewHandoffEnvelope.php'
+permissions:
+  contents: read
+jobs:
+  actual-two-repo-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout Portal PR #161 exact candidate commit (no secrets)
+        uses: actions/checkout@v4
+        with:
+          repository: rafhael100/imagine-portal
+          ref: 2f5cd9ed77340f5d4ebc8056d029a1a79c53cc11
+          path: portal-f49-readonly
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          coverage: none
+      - name: Check exact Portal/Sites candidate PHP syntax
+        run: |
+          set -euo pipefail
+          php -l tests/f49-review-crossrepo.php
+          php -l portal-f49-readonly/apps/portal/app/Domain/SitesIntegration/SyntheticSitesReviewHandoffConsumer.php
+          php -l src/Security/SyntheticReviewHandoffEnvelope.php
+      - name: Execute actual two-repo HMAC, revocation and replay tests
+        env:
+          SITES_F49_CROSS_REPO: '1'
+          SITES_F49_PORTAL_PATH: portal-f49-readonly
+        run: php tests/f49-review-crossrepo.php
+      - name: Confirm test-only boundary
+        if: always()
+        run: echo "Two public source checkouts by immutable SHA. No real Portal API, customer, entitlement, acceptance, CDN or deploy."
