@@ -1,0 +1,62 @@
+name: Sites F1-35 DB-only review claim gate — ephemeral PostgreSQL
+on:
+  pull_request:
+    paths:
+      - 'labs/postgres/f1-35-claim-schema.sql'
+      - 'labs/postgres/f1-35-claim-assertions.sql'
+      - 'labs/postgres/f1-34-current-review-view.sql'
+      - 'labs/postgres/f1-33-review-outbox-schema.sql'
+      - 'labs/postgres/f1-32-workflow-events-schema.sql'
+      - 'labs/postgres/f1-05-schema.sql'
+      - '.github/workflows/sites-f1-35-review-claim.yml'
+      - 'docs/SITES-F1-35-REVIEW-CLAIM.md'
+permissions:
+  contents: read
+jobs:
+  db-only-review-claim:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-review-claim-only
+          POSTGRES_DB: sites_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sites_lab"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: synthetic-review-claim-only
+      PGDATABASE: sites_lab
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install PostgreSQL client if absent
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Bootstrap DB-only synthetic review chain
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-05-schema.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-32-workflow-events-schema.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-33-review-outbox-schema.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-34-current-review-view.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-35-claim-schema.sql
+      - name: Verify exact claim uniqueness, revocation and stale-version deny
+        run: psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-35-claim-assertions.sql
+      - name: No deliveries or production permissions
+        if: always()
+        run: echo "Synthetic claim only. No Portal HTTP, identity, client acceptance, Cloudflare, VPS or deploy."
