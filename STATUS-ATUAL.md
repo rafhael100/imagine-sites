@@ -1,11 +1,9 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
-Data 2026-11-08; F1-13 laboratório HTTP in-process de contrato, branch filha de F1-12.
+Referência 2026-11-09 — F1-17 jornada integrada totalmente sintética, sem merge/deploy.
 
-PRs #1–12: domínio, Laravel, contrato, PostgreSQL/RLS, geração HTML, prévia privada, manifesto/aceite, publisher simulado, dupla captação fictícia, HMAC sintético e nonce PostgreSQL, todos draft/sem merge; últimos CIs PASS.
+**Últimos marcos aprovados em CI:** F1-14 replay HMAC+PDO em PostgreSQL descartável; F1-15 comando+outbox transacional em PostgreSQL descartável; F1-16 origem fictícia/ACK divergente e prova exata de hash (PHP 8.3/8.4). Todos PRs draft, sem merge.
 
-F1-13: rota POST _lab/sites/v1/create-project registrada **somente** no Kernel PHP CLI com APP_ENV=testing e flag explícita; assinatura HMAC e store/autoridade DENY por padrão, mocks para testes adversariais. CI PHP 8.3/8.4 a conferir.
+**F1-17:** teste exercita CreateProject HMAC, fontes mockadas de contrato/aceite, dedup em memória, render HTML Onepage, SHA-256 de release, preflight, publicação/observação mockadas, parecer técnico de entrega e limites T0+432h. CI a verificar.
 
-A rota não recebe dados reais, não faz SQL ou rede, não cria projeto e não é API produtiva. O 202 de teste significa somente validação sintética.
-
-Gates P0/RF-PEND/RV-CT/AppSec/LGPD continuam abertos; nenhuma Cloudflare/DNS/VPS, merge ou deploy; AGI-11-RB01 desabilitado.
+**Não entregue operacionalmente:** autenticação real, confirmação oficial de contrato, dados de cliente, migrations/banco Sites produtivo, IA, CDN/Cloudflare, SSL/domínio, captação real, CRM, observabilidade e backups. CI sintético não encerra P0/RF-PEND/RV-CT/LGPD/AppSec. AGI-11-RB01 desabilitado. Sem merge/deploy/custos.
