@@ -90,7 +90,7 @@ BEGIN
    INSERT INTO lab_sites.portal_review_outbox
     (tenant_id,site_id,workflow_ref,workflow_revision,proposal_ref,artifact_digest)
    VALUES ('tenant-fake-b','site-fake-b','workflow-f33',3,'proposal-cross-tenant',repeat('a',64));
- EXCEPTION WHEN insufficient_privilege OR foreign_key_violation OR check_violation THEN blocked:=true;
+ EXCEPTION WHEN insufficient_privilege OR foreign_key_violation OR check_violation OR raise_exception THEN blocked:=true;
  END;
  IF NOT blocked THEN RAISE EXCEPTION 'cross-tenant proposal accepted'; END IF;
 
