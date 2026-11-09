@@ -124,11 +124,14 @@ Route::get('/_lab/sites/v1/review', static function (Request $request) {
         if (!$qa->passedStructuralChecks) {
             return response('Not found',404);
         }
+        $editorial=\Imagine\Sites\Production\SyntheticEditorialReviewReport::inspect($brief,$artifact);
         $page=view('labs.review',[
             'product'=>$product,'device'=>$device,'preset'=>$preset,
             'galleryMode'=>getenv('SITES_SYNTHETIC_EXPORT')==='1','brief'=>$brief,
             'previewHtml'=>$artifact->html,'digest'=>$artifact->digest,
-            'proposal'=>$proposal,'qaChecks'=>$qa->checks
+            'proposal'=>$proposal,'qaChecks'=>$qa->checks,
+            'editorialChecks'=>$editorial->checks,
+            'editorialSuggestions'=>$editorial->suggestions
         ])->render();
     } catch (\Throwable) {
         return response('Not found',404);

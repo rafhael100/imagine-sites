@@ -7,6 +7,7 @@ on:
       - 'apps/sites/tests/Feature/SyntheticVisualReviewHttpTest.php'
       - 'apps/sites/tests/Feature/SyntheticReviewNavigationMatrixTest.php'
       - 'apps/sites/tests/Feature/SyntheticReviewThemeSelectorTest.php'
+      - 'apps/sites/tests/Feature/SyntheticEditorialReviewUiTest.php'
       - 'fixtures/sites/f1-37-copy.synthetic.json'
       - '.github/workflows/sites-f1-38-visual-review-ui.yml'
       - 'docs/SITES-F1-38-VISUAL-REVIEW-LAB.md'
@@ -36,6 +37,8 @@ jobs:
           php -l apps/sites/tests/Feature/SyntheticVisualReviewHttpTest.php
           php -l apps/sites/tests/Feature/SyntheticReviewNavigationMatrixTest.php
           php -l apps/sites/tests/Feature/SyntheticReviewThemeSelectorTest.php
+          php -l apps/sites/tests/Feature/SyntheticEditorialReviewUiTest.php
+          php -l src/Production/SyntheticEditorialReviewReport.php
           php -l src/Production/SyntheticPreviewQaReport.php
           php -l tests/f39-qa-report.php
       - name: Install locked test dependencies without scripts
@@ -61,7 +64,7 @@ jobs:
           APP_ENV: testing
           SITES_SYNTHETIC_HTTP: '1'
           SITES_SYNTHETIC_REVIEW_UI: '1'
-        run: php artisan test --filter='(SyntheticVisualReviewHttpTest|SyntheticReviewNavigationMatrixTest|SyntheticReviewThemeSelectorTest)' --no-ansi
+        run: php artisan test --filter='(SyntheticVisualReviewHttpTest|SyntheticReviewNavigationMatrixTest|SyntheticReviewThemeSelectorTest|SyntheticEditorialReviewUiTest)' --no-ansi
       - name: Scope and non-operation declaration
         if: always()
         run: echo "CLI-only in-process test. No site publish, real HTTP, Portal approval, customer data, cloud credentials or deployment."
