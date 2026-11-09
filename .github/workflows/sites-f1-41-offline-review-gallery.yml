@@ -9,6 +9,8 @@ on:
       - '.github/workflows/sites-f1-41-offline-review-gallery.yml'
       - 'docs/SITES-F1-41-OFFLINE-GALLERY.md'
       - 'ci/f42_browser_smoke.py'
+      - 'ci/f43_cdp.py'
+      - 'docs/SITES-F1-43-BROWSER-A11Y-GATE.md'
       - 'docs/SITES-F1-42-HEADLESS-VISUAL-QA.md'
 permissions:
   contents: read
@@ -102,6 +104,7 @@ jobs:
             done
           done
           python3 ci/f42_browser_smoke.py "$root" "$screenshots"
+          python3 ci/f43_cdp.py "$root" "$browser"
           rm -rf "$screenshots"
       - name: Remove the private gallery before isolated PHPUnit tests
         working-directory: apps/sites
