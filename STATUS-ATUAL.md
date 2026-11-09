@@ -1,17 +1,12 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
-**Data de referência:** 2026-11-08. **Atual:** F1-05 laboratório SQL de isolamento em branch filha de F1-04, sem deploy.
+**Data de referência:** 2026-11-08. **Recorte atual:** F1-06 renderizador estático de laboratório, branch filha do F1-05, sem deploy.
 
-| Recorte | O que existe | Homologação |
-| --- | --- | --- |
-| F1-01 PR #1 | PHP sintético: release/manifesto, publicação/entrega consultiva, prazo 432h | CI PASS, nenhuma operação real |
-| F1-02 PR #2 | Gateway Portal DENY por padrão + mocks | CI PASS, nenhuma autoridade real |
-| F1-03 PR #3 | Aplicativo Laravel 13 isolado em apps/sites; /up e 404 para operações; PostgreSQL só placeholder | CI PHP 8.3/8.4 PASS, sem banco conectado |
-| F1-04 PR #4 | Contrato candidato CreateProject v1, schema JSON, idempotência em memória, mocks Portal↔Sites | CI PASS, sem HTTP real |
-| F1-05 PR filho | PostgreSQL 18 descartável, RLS, revogação e unicidade com empresas fictícias | CI novo; acompanhar resultados no GitHub, não declarar aprovado antes |
+F1-01 PR #1: regras de manifesto, publicação/entrega consultiva, T0+432h, dedup sintética (CI PASS).
+F1-02 PR #2: gateway Portal com default DENY e testes mockados (CI PASS).
+F1-03 PR #3: Laravel 13 próprio, PostgreSQL placeholder, /up e rotas operacionais fechadas (CI PASS).
+F1-04 PR #4: contrato Portal->Sites CreateProject v1, schema JSON, fonte DENY, testes fictícios (CI PASS); contraparte Portal PR #101 (CI PASS).
+F1-05 PR #5: PostgreSQL 18 descartável, RLS, revogação, unicidade e isolamento com dados fictícios (CI PASS). Sem migrations operacionais.
+F1-06: `src/Production` renderiza HTML estático seguro e determinístico de Onepage/Landing a partir de fixture falsa, mantém SHA-256 e comparação de manifesto. CI F1-06 a conferir após push.
 
-Portal PR #101 constrói o lado sintético do CreateProject v1. Portal PR #94 preserva a arquitetura e gates em aberto.
-
-**Ainda não existe** autenticação serviço-serviço real, conta real de cliente, deploy, banco Sites operacional, publisher, Cloudflare, CRM/Agentes integrados, APIs redundantes de leads nem geração de páginas. Não usar testes do CI como licença para produção.
-
-**Restrições:** P0-DOC01–14, RF-PEND-01/RF-PEND-04, RV-CT e LGPD/segurança seguem abertos; AGI-11-RB01 DESABILITADO; sem merge/deploy/custos.
+**Nenhuma** API real, integração Portal-Sites operacional, AI Agents, CRM, captação, Cloudflare, DNS, domínio, backup, agente com acesso externo ou deploy. Sem merge automático, custos ou dados reais. Gates P0-DOC01–14, RF-PEND-01/RF-PEND-04 e RV-CT continuam abertos. AGI-11-RB01 desabilitado.
