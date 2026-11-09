@@ -8,7 +8,7 @@ Para cada produto (Onepage/Landing Page) e viewport (1365×900 e 390×844), veri
 - Sem overflow horizontal (largura do documento e body até viewport + 2 px);
 - Idioma `pt-BR`, uma `main`, um `h1`, dois grupos de navegação com `aria-current` unitário, links locais e visíveis;
 - `iframe sandbox` nomeado, checklist estrutural de sete itens, ausência de formulários/scripts/botões;
-- **Cinco eventos reais da tecla Tab** com `Input.dispatchKeyEvent`; a ordem de foco deve ser igual à sequência dos cinco links de revisão.
+- **Eventos reais da tecla Tab** com `Input.dispatchKeyEvent`; os quatro links iniciais devem manter a ordem, o iframe sandbox precisa ser acessível pelo teclado e o foco deve alcançar o link final após percorrer o conteúdo do iframe (até 16 eventos).
 
 É um *smoke test*, não auditoria WCAG, prova de contraste, teclado completo (Shift+Tab/Escape), compatibilidade em Safari/Firefox ou conformidade de produção. Se detectar falha de foco/overflow, a execução deve reprovar e a correção permanecer em branch de laboratório.
 
