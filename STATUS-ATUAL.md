@@ -1,7 +1,8 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
-09/11/2026 — base `dev` consolidada com F1-01–22. F1-23 PR #30 integrado em dev, com classes candidatas reais Portal↔Sites exercitadas em CI, PHP 8.3/8.4.
+09/11/2026 — F1-23 cross-repo Portal↔Sites CI em PHP 8.3/8.4, integrado em dev no PR #30.
+F1-24 pacote privado e não publicável, manifesto SHA-256, CI PHP/Laravel e integrado em dev no PR #31.
 
-F1-24 em desenvolvimento: bundle de prévia privada SHA-256, `index.html` + manifesto versionado `publishable=false`, comando Laravel restrito ao modo de teste e cenários hostis de adulteração/identidade. CI a verificar.
+**F1-25 em revisão:** introduz camada descartável de captação no PostgreSQL que define T0 e prazos pelo relógio do servidor, imutabilidade de CRM/digest e limpeza de metadados após 432h. CI a verificar. Não é API operacional nem redundância física.
 
-**Produto ainda NÃO operacional:** sem site público, domínio, formulário, CRM, IA, Portal comercial oficial, mTLS, VPS, Cloudflare ou dados reais. Conexões e publicação exigem credenciais/ambiente de homologação, revisão AppSec/LGPD e gates P0/RF-PEND/RV-CT. AGI-11-RB01 desabilitado. Nunca mesclar automaticamente em `main`.
+**Gates pendentes:** vínculo CRM oficial, API de leads principal/contingência real, P0/RF-PEND/RV-CT, AppSec/LGPD, Cloudflare, IA/n8n, SSL/DNS, banco produtivo, backup/restore, autenticação e aprovação expressa. AGI-11-RB01 desabilitado. Sem `main` nem deploy.
