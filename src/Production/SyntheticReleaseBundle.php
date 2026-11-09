@@ -1,0 +1,110 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Imagine\Sites\Production;
+
+use DomainException;
+use Imagine\Sites\Domain\ReleaseManifest;
+use InvalidArgumentException;
+
+/**
+ * F1-24: immutable, provider-neutral PRIVATE PREVIEW package. Not publishable.
+ * Contains no form data, domain, credentials, customer PII, network or CDN API.
+ */
+final readonly class SyntheticReleaseBundle
+{
+    /** @var array<string,string> */
+    public array $files;
+    public string $bundleDigest;
+
+    public function __construct(ReleaseManifest $release, ReleaseArtifact $artifact)
+    {
+        if (!hash_equals($release->digest, $artifact->digest)) {
+            throw new DomainException('Manifest references different static HTML bytes.');
+        }
+        if (!self::isNonOperationalPreview($artifact->html)) {
+            throw new DomainException('Release packaging is limited to inert noindex demos.');
+        }
+
+        $manifest = [
+            'schemaVersion' => 'sites.synthetic.bundle.v1',
+            'tenantRef' => $release->tenantRef,
+            'siteRef' => $release->siteRef,
+            'releaseRef' => $release->releaseRef,
+            'artifactDigest' => $artifact->digest,
+            'artifactSizeBytes' => $artifact->sizeBytes,
+            'syntheticOnly' => true,
+            'publishable' => false,
+            'officialClientAcceptance' => false,
+        ];
+
+        $json = json_encode(
+            $manifest,
+            JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
+        )."\n";
+        // File names are FIXED, never interpolated from client/tenant input.
+        $this->files = ['index.html' => $artifact->html, 'release-manifest.json' => $json];
+        $this->bundleDigest = hash('sha256', $artifact->html."\0".$json);
+    }
+
+    /** @param array<string,mixed> $files */
+    public static function verifyFiles(array $files, ReleaseManifest $expected): bool
+    {
+        if (array_keys($files) !== ['index.html','release-manifest.json'] ||
+            !is_string($files['index.html']) || !is_string($files['release-manifest.json'])) {
+            return false;
+        }
+
+        $html = $files['index.html'];
+        $raw = $files['release-manifest.json'];
+        if (!self::isNonOperationalPreview($html)) return false;
+
+        try {
+            $meta = json_decode($raw, true, 16, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return false;
+        }
+
+        if (!is_array($meta) ||
+            array_keys($meta) !== [
+                'schemaVersion', 'tenantRef', 'siteRef', 'releaseRef',
+                'artifactDigest', 'artifactSizeBytes', 'syntheticOnly',
+                'publishable', 'officialClientAcceptance',
+            ] ||
+            $meta['schemaVersion'] !== 'sites.synthetic.bundle.v1' ||
+            $meta['tenantRef'] !== $expected->tenantRef ||
+            $meta['siteRef'] !== $expected->siteRef ||
+            $meta['releaseRef'] !== $expected->releaseRef ||
+            $meta['artifactSizeBytes'] !== strlen($html) ||
+            $meta['syntheticOnly'] !== true ||
+            $meta['publishable'] !== false ||
+            $meta['officialClientAcceptance'] !== false ||
+            !is_string($meta['artifactDigest']) ||
+            !preg_match('/\A[a-f0-9]{64}\z/D', $meta['artifactDigest'])
+        ) {
+            return false;
+        }
+
+        return hash_equals($expected->digest, $meta['artifactDigest'])
+            && hash_equals($meta['artifactDigest'], hash('sha256', $html));
+    }
+
+    private static function isNonOperationalPreview(string $html): bool
+    {
+        if (!str_starts_with($html, '<!doctype html>') ||
+            strlen($html) > 150000 ||
+            !str_contains($html, '<meta name="robots" content="noindex, nofollow">') ||
+            !str_contains($html, "default-src 'none'") ||
+            !str_contains($html, "form-action 'none'") ||
+            !str_contains($html, 'Prévia demonstrativa: formulários e envio de dados permanecem desabilitados.')) {
+            return false;
+        }
+        // An inert test bundle must not contain active embedded elements,
+        // even if its digest is internally consistent. These checks are NOT
+        // a substitute for a professional HTML sanitizer/CSP audit.
+        return preg_match('/<\s*\/?\s*(?:script|form|iframe|object|embed|base)\b/i', $html) !== 1
+            && preg_match('/\bon[a-z]+\s*=/i', $html) !== 1
+            && stripos($html, 'javascript:') === false;
+    }
+}

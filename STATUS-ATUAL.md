@@ -1,9 +1,7 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
-09/11/2026 — cadeia F1-01..F1-22 consolidada em `dev` via PRs de integração #24–#29, `main` inalterada. Fonte factual: `docs/SITES-DEV-CONSOLIDATION-2026-11-09.md`.
+09/11/2026 — base `dev` consolidada com F1-01–22. F1-23 PR #30 integrado em dev, com classes candidatas reais Portal↔Sites exercitadas em CI, PHP 8.3/8.4.
 
-**F1-23 em revisão:** teste de paridade entre **as classes reais dos dois repositórios** (Portal e Sites), com segundo checkout público do PR #105 pinado em SHA. CI em PHP 8.3/8.4 a verificar.
+F1-24 em desenvolvimento: bundle de prévia privada SHA-256, `index.html` + manifesto versionado `publishable=false`, comando Laravel restrito ao modo de teste e cenários hostis de adulteração/identidade. CI a verificar.
 
-**Ambiente:** os testes ainda usam dados fictícios, chave demonstrativa e replay store em memória, sem HTTP ou transporte de rede. Nenhuma aprovação/contrato real, CRM, IA, Cloudflare, hostname ou dados de clientes.
-
-**Gates P0/RF-PEND/RV-CT/LGPD/AppSec e custos continuam abertos;** readiness de produção BLOCKED, AGI-11-RB01 desabilitado, sem deploy ou promoção para main.
+**Produto ainda NÃO operacional:** sem site público, domínio, formulário, CRM, IA, Portal comercial oficial, mTLS, VPS, Cloudflare ou dados reais. Conexões e publicação exigem credenciais/ambiente de homologação, revisão AppSec/LGPD e gates P0/RF-PEND/RV-CT. AGI-11-RB01 desabilitado. Nunca mesclar automaticamente em `main`.
