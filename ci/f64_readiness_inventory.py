@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import copy
 import json
+from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -39,6 +40,34 @@ LABELS = {
 }
 
 
+def reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict:
+    """Never permit a second JSON key to overwrite a security declaration."""
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON key denied: {key}")
+        result[key] = value
+    return result
+
+
+def load_strict_json(raw: str) -> object:
+    """Read JSON without silently accepting duplicated keys or non-JSON floats."""
+    def reject_constant(value: str) -> None:
+        raise ValueError(f"nonstandard JSON constant denied: {value}")
+
+    return json.loads(raw, object_pairs_hook=reject_duplicate_keys,
+                      parse_constant=reject_constant)
+
+
+def valid_reference_date(value: object) -> bool:
+    if not isinstance(value, str) or len(value) != 10:
+        return False
+    try:
+        return date.fromisoformat(value).isoformat() == value
+    except ValueError:
+        return False
+
+
 def inventory(data: object) -> dict:
     if not isinstance(data, dict) or set(data) != {
         "schema", "status", "checked_at_reference", "non_operational",
@@ -49,7 +78,7 @@ def inventory(data: object) -> dict:
         data["schema"] != "imagine-sites.production-readiness.v1"
         or data["status"] != "BLOCKED"
         or data["non_operational"] is not True
-        or not isinstance(data["checked_at_reference"], str)
+        or not valid_reference_date(data["checked_at_reference"])
         or not isinstance(data["notes"], str)
     ):
         raise ValueError("no production-ready status is authorized by F1-64")
@@ -122,7 +151,30 @@ def self_test(actual: dict) -> None:
             pass
         else:
             raise AssertionError(f"unsafe readiness mutation #{idx} was accepted")
-    print("PASS F1-64: 10 blocked gates, all unsafe readiness mutations denied")
+    for unsafe_raw in [
+        '{"status":"BLOCKED","status":"READY"}',
+        '{"gates":{"release_go_live_authorization":false,"release_go_live_authorization":true}}',
+        '{"other":{"status":"BLOCKED","status":"READY"}}',
+        '{"non_operational":NaN}',
+        '{"non_operational":Infinity}',
+    ]:
+        try:
+            load_strict_json(unsafe_raw)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("unsafe JSON parser ambiguity was accepted")
+    for invalid_date in ["2026-02-30", "2026-1-9", "not-a-date", "", None]:
+        mutated = copy.deepcopy(actual)
+        mutated["checked_at_reference"] = invalid_date
+        try:
+            inventory(mutated)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"invalid reference date accepted: {invalid_date}")
+    assert load_strict_json(json.dumps(actual)) == actual
+    print("PASS F1-65: strict JSON parser, reference date and 10 blocked gates")
 
 
 def main() -> None:
@@ -131,8 +183,7 @@ def main() -> None:
                         help="Machine-readable evidence inventory, never authorizes release")
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
-    with CONFIG.open(encoding="utf-8") as stream:
-        source = json.load(stream)
+    source = load_strict_json(CONFIG.read_text(encoding="utf-8"))
     result = inventory(source)
     if args.self_test:
         self_test(source)
