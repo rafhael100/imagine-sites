@@ -1,13 +1,9 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
-**Referência:** 2026-11-09, F1-15 em branch filha do F1-14, sem merge/deploy.
+**Referência:** 2026-11-09. F1-16 — simulador de publicação e reconciliação da versão observada.
 
-F1-01–F1-13: motor independente Laravel 13 inicial, contrato e testes mockados, PostgreSQL/RLS em banco descartável, geração estática sintética, publicação simulada, captação dupla fictícia e HTTP interno de teste; PRs dependentes e draft, CI PASS nos SHAs verificados.
+F1-14 PR #15: contrato HMAC consumindo nonce com PDO/PostgreSQL descartável, falha fechada, dois PHPs e CI aprovado após ajuste de permissão sem ampliar grants.
+F1-15 PR #16: transação de comando+outbox em PostgreSQL/RLS descartável, revogação e rollback atômico. CI aprovado após reconhecimento da política RLS correta.
+F1-16: mock de ACK do fornecedor versus origem fictícia com HTML de versão exata; testes PHP 8.3/8.4 a conferir. Nenhum publish real.
 
-F1-14: adaptador PDO de replay fail-closed em PostgreSQL descartável, com segundo CI PASS após correção de `ON CONFLICT` sem SELECT privilegiado; PR #15 draft.
-
-F1-15: schema e testes de comando/outbox atômicos em `sites_lab`, RLS tenant, revisão de contrato, idempotência única e revogação. CI a verificar.
-
-**Falta** autenticação S2S operacional, banco Sites e migrations produtivas, integração comercial, publisher Cloudflare, captação real com CRM e redundância física, geração por Agents, backups/restore, políticas LGPD e autorização de go-live.
-
-P0/RF-PEND/RV-CT/AppSec abertos, AGI-11-RB01 desabilitado; não há merge, deploy, DNS, clientes reais, segredos ou custos autorizados nesta cadeia.
+O motor mantém cliente/contrato/aceite/ENTREGUE no Portal; Sites executa tarefas técnicas somente quando homologadas. Sem integração real Portal↔Sites, CRM, AI Agents/n8n, Cloudflare, domínio, backup, dados reais, merges ou deploy. P0/RF-PEND/RV-CT/AppSec permanecem abertos, rollback AGI-11-RB01 DESABILITADO.
