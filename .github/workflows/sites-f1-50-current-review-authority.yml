@@ -1,0 +1,71 @@
+name: Sites F1-50 current review authority - PostgreSQL RLS lab
+on:
+  pull_request:
+    paths:
+      - 'labs/postgres/f1-50-current-review-authority.sql'
+      - 'src/Application/LabPgCurrentReviewAuthorityGateway.php'
+      - 'tests/f50-review-authority-pg.php'
+      - '.github/workflows/sites-f1-50-current-review-authority.yml'
+      - 'docs/SITES-F1-50-CURRENT-AUTHORITY.md'
+permissions:
+  contents: read
+jobs:
+  disposable-current-authority:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: fake-f50-only
+          POSTGRES_DB: sites_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sites_lab"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      SITES_F50_AUTH_LAB: '1'
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: fake-f50-only
+      PGDATABASE: sites_lab
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          extensions: pdo,pdo_pgsql
+          coverage: none
+      - name: Confirm PostgreSQL CLI available
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Provision ephemeral RLS tenant roles and current review authority
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-05-schema.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-50-current-review-authority.sql
+      - name: PHP syntax
+        run: |
+          php -l src/Application/LabPgCurrentReviewAuthorityGateway.php
+          php -l tests/f50-review-authority-pg.php
+      - name: Current revision, revocation, regressive backup and tenant isolation
+        run: php tests/f50-review-authority-pg.php
+      - name: Scope
+        if: always()
+        run: echo "Only PostgreSQL 18 disposable lab with fictional tenant roles. No official Portal identity, payment, client, VPS or deploy."

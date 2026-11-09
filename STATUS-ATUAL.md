@@ -22,6 +22,7 @@
 - [PR #64](https://github.com/rafhael100/imagine-sites/pull/64) — F1-46, JSON Schema candidato + envelope gerado pelo PHP e assinatura HMAC verificada independentemente em Python, com negativos de payload. **CI PHP 8.3/8.4, contratos, Laravel e safety guard PASS** (`a8a3dd8`); draft dependente de #63, sem endpoint real.
 - [PR #65](https://github.com/rafhael100/imagine-sites/pull/65) — F1-47, nonce durável em Postgres 18 descartável, issuer e RLS isolados, expiração, duas conexões PDO independentes e negativa por revogação sintética antes do consumo. **CI PG 18/PHP 8.3/8.4, Laravel e safety guard PASS** (`527e34c`); draft dependente de #64. Sem integração real.
 - **F1-49 (PR draft dependente de #65):** teste *real entre repositórios* do emissor HMAC Sites F1-45 e consumidor Portal PR #161 pinado em SHA, Onepage/Landing, replay/versão/revogação negativa. CI pendente; sem endpoint, autoridade oficial ou publicação.
+- **F1-50 (PR draft dependente de #66):** autoridade atual de revisão fictícia em PostgreSQL 18 com RLS, consulta por role, revisão/bytes/release, revogação e proibição de reativar revisão antiga. CI pendente, sem identidade/contrato/cliente real.
 - [SITES-HOMOLOGATION-ENTRY](docs/SITES-HOMOLOGATION-ENTRY-2026-11-09.md) — matriz de entrada e bloqueadores com issues #33–#38.
 
 **Ainda não há ambiente operacional Sites publicado.** P0/RF-PEND/RV-CT/AppSec/LGPD, contratos financeiros, identidade, Cloudflare/DNS, banco produtivo, geração real por IA/n8n, captação/CRM fisicamente redundante e backups/restore continuam não homologados.
