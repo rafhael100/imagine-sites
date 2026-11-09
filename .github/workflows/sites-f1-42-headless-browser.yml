@@ -1,0 +1,69 @@
+name: Sites F1-42 headless browser smoke of private gallery - no upload
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/sites-f1-42-headless-browser.yml'
+      - 'ci/f42_browser_smoke.py'
+      - 'apps/sites/routes/console.php'
+      - 'apps/sites/routes/web.php'
+      - 'apps/sites/resources/views/labs/review.blade.php'
+      - 'docs/SITES-F1-42-HEADLESS-VISUAL-QA.md'
+permissions:
+  contents: read
+jobs:
+  private-offline-browser-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          extensions: mbstring,xml,dom,curl,pdo,pdo_pgsql
+          coverage: none
+      - name: Verify Chrome/Chromium already installed on runner
+        run: |
+          set -euo pipefail
+          browser=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
+          if test -z "$browser"; then
+            echo "No preinstalled Chrome/Chromium; do not silently install packages."
+            exit 1
+          fi
+          "$browser" --version
+      - name: Install locked test-only Laravel dependencies
+        working-directory: apps/sites
+        run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
+      - name: Render 4 private synthetic visual-review HTML files
+        working-directory: apps/sites
+        env:
+          APP_ENV: testing
+          APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+          SESSION_DRIVER: array
+          CACHE_STORE: array
+          SITES_SYNTHETIC_HTTP: '1'
+          SITES_SYNTHETIC_REVIEW_UI: '1'
+          SITES_SYNTHETIC_EXPORT: '1'
+        run: php artisan sites:export-review-gallery-fixture
+      - name: Offline, disposable headless-browser screenshots only
+        run: |
+          set -euo pipefail
+          browser=$(command -v google-chrome || command -v chromium || command -v chromium-browser)
+          root="$PWD/apps/sites/storage/app/private/sites-f1-41-gallery"
+          screenshots="$RUNNER_TEMP/sites-f42-screenshots"
+          mkdir -p "$screenshots"
+          for product in onepage landing_page; do
+            for device in desktop mobile; do
+              if [ "$device" = desktop ]; then dimensions='1365,900'; else dimensions='390,844'; fi
+              filename="$product-$device"
+              "$browser" --headless=new --no-sandbox --disable-gpu                 --disable-background-networking --disable-sync --disable-extensions                 --no-first-run --no-default-browser-check --hide-scrollbars                 --force-device-scale-factor=1 --window-size="$dimensions"                 --screenshot="$screenshots/$filename.png"                 "file://$root/$filename.html" >"$RUNNER_TEMP/sites-f42-chrome.log" 2>&1
+              test -s "$screenshots/$filename.png"
+            done
+          done
+          python3 ci/f42_browser_smoke.py "$root" "$screenshots"
+          rm -rf "$screenshots" "$root"
+      - name: Never upload synthetic screenshots or change release gates
+        if: always()
+        run: echo "Disposable browser-only CI: no artifact upload, no public URLs, VPS, Cloudflare, client data or deployment."
