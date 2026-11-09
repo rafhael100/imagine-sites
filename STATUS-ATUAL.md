@@ -1,11 +1,13 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
-**Referência:** 2026-11-09 — F1-14 em branch filha de F1-13, sem merge/deploy.
+**Referência:** 2026-11-09, F1-15 em branch filha do F1-14, sem merge/deploy.
 
-**Base verificada:** F1-01..F1-13 em PRs encadeados e draft, com CI registrado PASS até #13 (SHA f887113069204591a361b1cd8773465da6493ed9). Portal PR #105 testou paridade da assinatura do CreateProject v1.
+F1-01–F1-13: motor independente Laravel 13 inicial, contrato e testes mockados, PostgreSQL/RLS em banco descartável, geração estática sintética, publicação simulada, captação dupla fictícia e HTTP interno de teste; PRs dependentes e draft, CI PASS nos SHAs verificados.
 
-**F1-14:** adaptador `LabPostgresReplayStore` usa PDO em PostgreSQL 18 descartável com ROLE limitada, controle do nonce, TTL, assinaturas e testes de replay em conexões diferentes. CI deste recorte a verificar após push.
+F1-14: adaptador PDO de replay fail-closed em PostgreSQL descartável, com segundo CI PASS após correção de `ON CONFLICT` sem SELECT privilegiado; PR #15 draft.
 
-**Continua NÃO operacional:** sem autenticação S2S real, integração comercial/CRM, banco Sites permanente, aprovação de cliente, publicação Cloudflare, DNS, AI Agents, n8n ou VPS. Endpoint HTTP Laravel continua apenas em CLI testing com default DENY.
+F1-15: schema e testes de comando/outbox atômicos em `sites_lab`, RLS tenant, revisão de contrato, idempotência única e revogação. CI a verificar.
 
-Gates P0-DOC01..14, RF-PEND-01/RF-PEND-04, contratos RV-CT, LGPD/AppSec abertos; AGI-11-RB01 desabilitado. Nenhum custo, merge ou deploy automático.
+**Falta** autenticação S2S operacional, banco Sites e migrations produtivas, integração comercial, publisher Cloudflare, captação real com CRM e redundância física, geração por Agents, backups/restore, políticas LGPD e autorização de go-live.
+
+P0/RF-PEND/RV-CT/AppSec abertos, AGI-11-RB01 desabilitado; não há merge, deploy, DNS, clientes reais, segredos ou custos autorizados nesta cadeia.
