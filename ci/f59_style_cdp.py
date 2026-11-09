@@ -3,7 +3,8 @@
 
 Tests the INNER preview HTML (not just the outer operator UI) using CDP:
 mobile/desktop width, local anchors, landmarks, and solid-background contrast.
-Gradient/opacity contrast, complete WCAG and client visual QA remain unproven.
+F1-62 adds limited gradient/opacity sampling and a 320px viewport.
+Complete WCAG, focus visibility, and client visual QA remain unproven.
 """
 from __future__ import annotations
 
@@ -20,6 +21,7 @@ from urllib.request import urlopen
 
 from f43_cdp import CDP
 from f44_contrast import ratio
+from f62_hero_contrast import inspect_hero
 
 if len(sys.argv)!=3:
     raise SystemExit("usage: f59_style_cdp.py <private-gallery> <local-chrome-executable>")
@@ -36,6 +38,12 @@ INSPECT=r"""(() => {
  const body=document.querySelector('body');
  const links=[...document.querySelectorAll('a[href]')];
  const styles=[getComputedStyle(document.querySelector('.hero')).backgroundImage];
+ const heroTypography=['.hero h1','.hero .eyebrow','.hero .lead'].map(selector=>{
+  const element=document.querySelector(selector);
+  if(!element)throw Error('missing hero text: '+selector);
+  const style=getComputedStyle(element);
+  return {selector,color:style.color,opacity:style.opacity};
+ });
  const selectors=['header .brand','.benefits h2','.benefits li',
    '.contact h2','.contact p','.btn','footer'];
  if(document.querySelector('nav a')) selectors.push('nav a');
@@ -70,7 +78,7 @@ INSPECT=r"""(() => {
   disabled:document.querySelectorAll('script,form,button,input,object,embed').length,
   product:body?.getAttribute('data-site-product'),
   themeStyle:document.querySelector('style')?.textContent || '',
-  samples,gradient:styles[0]
+  samples,gradient:styles[0],heroTypography
  };
 })()"""
 
@@ -154,9 +162,29 @@ def main():
                         if score<4.5:
                             failures.append((sample["selector"],round(score,2)))
                     if failures:raise AssertionError((filename,"solid contrast below 4.5:1",failures))
+                    hero_count=inspect_hero(v, filename)
+
+                    # F1-62: render the SAME HTML at a narrow 320px viewport,
+                    # not only the existing 390px mobile or 1365px desktop.
+                    client.call("Emulation.setDeviceMetricsOverride",{
+                        "width":320,"height":740,"deviceScaleFactor":1,"mobile":True
+                    })
+                    narrow=client.evaluate("""(() => {
+                      const a=document.querySelector('.hero a[href="#contato"]');
+                      const box=a?.getBoundingClientRect();
+                      return {width:innerWidth,scroll:document.documentElement.scrollWidth,
+                        bodyScroll:document.body.scrollWidth,
+                        ctaWidth:box?.width||0,ctaLeft:box?.left||0,ctaRight:box?.right||0,
+                        hasContact:!!document.getElementById('contato')};
+                    })()""")
+                    assert narrow["width"]==320,(filename,narrow)
+                    assert narrow["scroll"]<=322 and narrow["bodyScroll"]<=322,(filename,narrow)
+                    assert narrow["ctaWidth"]>=44 and narrow["ctaLeft"]>=0, (filename,narrow)
+                    assert narrow["ctaRight"]<=322 and narrow["hasContact"],(filename,narrow)
                     seen.add(filename)
-                    print("PASS F1-59",filename,expected_width,
-                          "no horizontal overflow,",len(v["samples"]),"solid text samples >= 4.5:1")
+                    print("PASS F1-62",filename,
+                          "no 320px overflow, visible local CTA,",
+                          hero_count,"gradient text contrast samples >= 4.5:1")
                 assert len(seen)==12
             finally:
                 client.close()
@@ -166,6 +194,6 @@ def main():
             except subprocess.TimeoutExpired:
                 chrome.kill()
                 chrome.wait(timeout=5)
-    print("PASS F1-59 12 real local Chrome inspections. Not WCAG certification, no network/deploy.")
+    print("PASS F1-59/F1-62: 12 pages, 24 viewport checks, 324 gradient contrast samples; no network/deploy.")
 
 if __name__=="__main__":main()
