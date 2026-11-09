@@ -1,11 +1,8 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
-Data 2026-11-08; F1-13 laboratório HTTP in-process de contrato, branch filha de F1-12.
+Data-base 2026-11-08. Recorte atual F1-14, branch filha F1-13.
 
-PRs #1–12: domínio, Laravel, contrato, PostgreSQL/RLS, geração HTML, prévia privada, manifesto/aceite, publisher simulado, dupla captação fictícia, HMAC sintético e nonce PostgreSQL, todos draft/sem merge; últimos CIs PASS.
+F1-01..13: domínio, Laravel, CreateProject v1, PostgreSQL/RLS, templates e prévias sintéticas, publicação mockada, duas bases de leads fictícias, HMAC com paridade Portal e nonce persistente em laboratório, HTTP kernel-only com flag; PRs #1–13 draft, CI PASS.
+F1-14: adapter `LabPdoReplayStore` para consumo único de nonce assinado contra PostgreSQL temporário usando conta de privilégio mínimo e senha randômica de CI. CI desta etapa deve ser conferido.
 
-F1-13: rota POST _lab/sites/v1/create-project registrada **somente** no Kernel PHP CLI com APP_ENV=testing e flag explícita; assinatura HMAC e store/autoridade DENY por padrão, mocks para testes adversariais. CI PHP 8.3/8.4 a conferir.
-
-A rota não recebe dados reais, não faz SQL ou rede, não cria projeto e não é API produtiva. O 202 de teste significa somente validação sintética.
-
-Gates P0/RF-PEND/RV-CT/AppSec/LGPD continuam abertos; nenhuma Cloudflare/DNS/VPS, merge ou deploy; AGI-11-RB01 desabilitado.
+Nenhum endpoint operacional, dados pessoais, produção, cloud, CRM, Agents, DNS, VPS ou merge/deploy. Ainda faltam S2S real, tenancy/autorização do contrato, replay store de produção, releases persistentes no Laravel, filas/outbox e homologação P0/RF-PEND/RV-CT. AGI-11-RB01 desabilitado.
