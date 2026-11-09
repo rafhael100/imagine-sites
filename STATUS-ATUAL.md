@@ -1,12 +1,13 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
-**Data de referência:** 2026-11-08. **Recorte atual:** F1-06 renderizador estático de laboratório, branch filha do F1-05, sem deploy.
+**Data:** 2026-11-08. **F1-07** branch filha do F1-06, sem deploy ou merge.
 
-F1-01 PR #1: regras de manifesto, publicação/entrega consultiva, T0+432h, dedup sintética (CI PASS).
-F1-02 PR #2: gateway Portal com default DENY e testes mockados (CI PASS).
-F1-03 PR #3: Laravel 13 próprio, PostgreSQL placeholder, /up e rotas operacionais fechadas (CI PASS).
-F1-04 PR #4: contrato Portal->Sites CreateProject v1, schema JSON, fonte DENY, testes fictícios (CI PASS); contraparte Portal PR #101 (CI PASS).
-F1-05 PR #5: PostgreSQL 18 descartável, RLS, revogação, unicidade e isolamento com dados fictícios (CI PASS). Sem migrations operacionais.
-F1-06: `src/Production` renderiza HTML estático seguro e determinístico de Onepage/Landing a partir de fixture falsa, mantém SHA-256 e comparação de manifesto. CI F1-06 a conferir após push.
+F1-01 PR #1: manifesto/aceite lógico, janela T0+432h, idempotência fictícia (CI PASS).
+F1-02 PR #2: gateway default DENY e testes adversariais (CI PASS).
+F1-03 PR #3: Laravel 13 próprio, rotas operacionais 404, banco placeholder (CI PASS).
+F1-04 PR #4: CreateProject v1 e mock de autorização Portal; contraparte no Portal PR #101 (CI PASS).
+F1-05 PR #5: PostgreSQL 18/RLS em CI descartável com revogação e unicidade (CI PASS).
+F1-06 PR #6: Onepage/Landing determinísticas em HTML sem JS, sem formulários, SHA-256 de release (CI PHP 8.3/8.4 PASS).
+F1-07: Artisan `sites:preview-fixture` somente APP_ENV=testing + flag explícita, saída privada descartável. CI Laravel/testes a verificar.
 
-**Nenhuma** API real, integração Portal-Sites operacional, AI Agents, CRM, captação, Cloudflare, DNS, domínio, backup, agente com acesso externo ou deploy. Sem merge automático, custos ou dados reais. Gates P0-DOC01–14, RF-PEND-01/RF-PEND-04 e RV-CT continuam abertos. AGI-11-RB01 desabilitado.
+**Pendentes:** geração IA real, versões persistidas, cliente/contrato/autorização real, serviços HTTP, Portal-Sites operacional, CRM/captação, Cloudflare/DNS, deploy, backups, segurança homologada e dados reais. Gates P0/RF-PEND/RV-CT seguem abertos, AGI-11-RB01 desabilitado.

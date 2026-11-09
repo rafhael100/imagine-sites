@@ -14,7 +14,9 @@
     },
     "autoload": {
         "psr-4": {
-            "App\\": "app/"
+            "App\\": "app/",
+            "Imagine\\Sites\\Domain\\": "../../src/Domain/",
+            "Imagine\\Sites\\Production\\": "../../src/Production/"
         }
     },
     "autoload-dev": {
