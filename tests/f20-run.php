@@ -90,13 +90,13 @@ verifyF20(in_array('approved_bytes_digest_mismatch',$release->decisionBlockers(.
 $anotherRelease=$decisionArgs;$anotherRelease[6]='release-fake-003';
 verifyF20(in_array('release_reference_mismatch',$release->decisionBlockers(...$anotherRelease),true),
     'approval cannot silently transfer to release N+1');
-$approvalMissing=$decisionArgs;$approvalMissing[11]=false;
+$approvalMissing=$decisionArgs;$approvalMissing[10]=false;
 verifyF20(in_array('express_confirmation_missing',$release->decisionBlockers(...$approvalMissing),true),
     'approval by silence forbidden');
 $adminDecision=$decisionArgs;$adminDecision[1]='admin';
 verifyF20(in_array('official_owner_authority_missing',$release->decisionBlockers(...$adminDecision),true),
     'Imagine administrator cannot forge client acceptance');
-$changes=$decisionArgs;$changes[12]='request-changes';$changes[13]='short';
+$changes=$decisionArgs;$changes[11]='request-changes';$changes[12]='short';
 verifyF20(in_array('changes_note_required',$release->decisionBlockers(...$changes),true),
     'client changes demand a meaningful note');
 verifyF20($release->publicationBlockers('approved','release-fake-002','release-fake-002',$hash,$hash,true,true)===[],
