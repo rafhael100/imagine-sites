@@ -56,6 +56,7 @@ code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.75rem
 iframe{width:100%;height:505px;border:0;display:block;background:#fff}
 .foot{padding:15px 21px;color:#697b90;font-size:.75rem;border-top:1px solid #e2e7ee}
 .note{font-size:.78rem;background:#ecf3fb;border:1px solid #d5e5f6;padding:15px 18px;border-radius:10px;margin-top:20px;color:#2a5077}
+.qa-summary{margin-top:20px;border-top:1px solid #e5ebf2;padding-top:17px}.qa-summary strong{font-size:.84rem}.qa-summary p{font-size:.73rem;color:#68788e;margin:5px 0 10px}.qa-list{padding:0;list-style:none;display:grid;gap:7px}.qa-list li{display:flex;gap:9px;align-items:center;font-size:.76rem}.qa-list span{display:grid;place-items:center;width:18px;height:18px;background:#e8f4ec;color:#246342;border-radius:50%;font-weight:800}.qa-summary p.pending{margin-top:11px;background:#fff8e9;color:#7a5b23;border-radius:7px;padding:9px}
 @media(max-width:940px){.layout{grid-template-columns:1fr}.sidebar{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:610px){header,.intro{flex-direction:column;align-items:flex-start}.sidebar{grid-template-columns:1fr}.workspace{padding:10px 8px;min-height:0}iframe{height:480px}}
 </style>
@@ -94,6 +95,24 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
         <div><dt>Aceite oficial</dt><dd>Não registrado</dd></div>
       </dl>
       <div class="locked">Aprovação, publicação e entrega desabilitadas neste laboratório.</div>
+      <div class="qa-summary" id="qa">
+        <strong>Verificações estruturais</strong>
+        <p>Resultados automáticos da prévia. Não equivalem à certificação de acessibilidade.</p>
+        <ul class="qa-list">
+        @foreach([
+          'inert_markup'=>'HTML sem conteúdo ativo',
+          'sha256_consistent'=>'Identidade dos bytes',
+          'lang_and_title'=>'Idioma e título',
+          'main_and_heading'=>'Regiões e H1',
+          'navigation_anchors'=>'Links internos e IDs',
+          'mobile_and_noindex'=>'Viewport e noindex',
+          'no_executable_elements'=>'Sem tags executáveis'
+        ] as $code=>$label)
+          <li><span aria-hidden="true">{{ ($qaChecks[$code]??false) ? '✓' : '!' }}</span>{{ $label }}</li>
+        @endforeach
+        </ul>
+        <p class="pending">Revisão visual, contraste, navegação por teclado e conteúdo exigem validação humana posterior.</p>
+      </div>
     </section>
   </aside>
   <section class="preview" aria-labelledby="preview-title">
