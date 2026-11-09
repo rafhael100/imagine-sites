@@ -1,0 +1,76 @@
+name: Sites F1-36 synthetic credits ledger — disposable PG18
+on:
+  pull_request:
+    paths:
+      - 'labs/postgres/f1-36-credit-ledger-schema.sql'
+      - 'labs/postgres/f1-36-credit-ledger-assertions.sql'
+      - 'labs/postgres/f1-05-schema.sql'
+      - '.github/workflows/sites-f1-36-credit-ledger.yml'
+      - 'docs/SITES-F1-36-CREDIT-LEDGER.md'
+permissions:
+  contents: read
+jobs:
+  credit-ledger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 13
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: fictional-credit-ledger-ci
+          POSTGRES_DB: sites_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sites_lab"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: fictional-credit-ledger-ci
+      PGDATABASE: sites_lab
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install psql client if absent
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Create disposable synthetic tenant budgets
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-05-schema.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-36-credit-ledger-schema.sql
+      - name: Test limits, idempotency, malicious operators, and revocation
+        run: psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-36-credit-ledger-assertions.sql
+      - name: Test simultaneous independent DB connections cannot overbook
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -c "UPDATE lab_sites.authority_grants SET status='active' WHERE tenant_id='tenant-fake-a';"
+          psql -X -v ON_ERROR_STOP=1 -c "TRUNCATE lab_sites.synthetic_credit_reservations;"
+          psql -X -v ON_ERROR_STOP=1 -c "UPDATE lab_sites.synthetic_credit_budgets SET credit_limit=3 WHERE tenant_id='tenant-fake-a';"
+          psql -X -qAt -v ON_ERROR_STOP=1 -c "SET ROLE sites_lab_tenant_a; SELECT lab_sites.reserve_synthetic_credits('tenant-fake-a','race-op-1','race-wf',3);" > "$RUNNER_TEMP/sites-race-one.txt" 2>&1 &
+          p1=$!
+          psql -X -qAt -v ON_ERROR_STOP=1 -c "SET ROLE sites_lab_tenant_a; SELECT lab_sites.reserve_synthetic_credits('tenant-fake-a','race-op-2','race-wf',3);" > "$RUNNER_TEMP/sites-race-two.txt" 2>&1 &
+          p2=$!
+          wait "$p1"
+          wait "$p2"
+          trues=$(awk '$0=="t"{n++}END{print n+0}' "$RUNNER_TEMP/sites-race-one.txt" "$RUNNER_TEMP/sites-race-two.txt")
+          falses=$(awk '$0=="f"{n++}END{print n+0}' "$RUNNER_TEMP/sites-race-one.txt" "$RUNNER_TEMP/sites-race-two.txt")
+          test "$trues" -eq 1
+          test "$falses" -eq 1
+          count=$(psql -X -qAt -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM lab_sites.synthetic_credit_reservations WHERE tenant_id='tenant-fake-a';")
+          total=$(psql -X -qAt -v ON_ERROR_STOP=1 -c "SELECT coalesce(sum(credits),0) FROM lab_sites.synthetic_credit_reservations WHERE tenant_id='tenant-fake-a';")
+          test "$count" = 1
+          test "$total" = 3
+      - name: Explicit scope declaration
+        if: always()
+        run: echo "Nonmonetary fictional credits, no provider usage, customer billing, deployment or VPS."
