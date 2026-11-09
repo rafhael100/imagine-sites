@@ -1,13 +1,9 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
-**Data:** 2026-11-08. **F1-07** branch filha do F1-06, sem deploy ou merge.
+Referência 2026-11-08, F1-08 — PostgreSQL 18 release/provas sintéticas em branch filha de F1-07.
 
-F1-01 PR #1: manifesto/aceite lógico, janela T0+432h, idempotência fictícia (CI PASS).
-F1-02 PR #2: gateway default DENY e testes adversariais (CI PASS).
-F1-03 PR #3: Laravel 13 próprio, rotas operacionais 404, banco placeholder (CI PASS).
-F1-04 PR #4: CreateProject v1 e mock de autorização Portal; contraparte no Portal PR #101 (CI PASS).
-F1-05 PR #5: PostgreSQL 18/RLS em CI descartável com revogação e unicidade (CI PASS).
-F1-06 PR #6: Onepage/Landing determinísticas em HTML sem JS, sem formulários, SHA-256 de release (CI PHP 8.3/8.4 PASS).
-F1-07: Artisan `sites:preview-fixture` somente APP_ENV=testing + flag explícita, saída privada descartável. CI Laravel/testes a verificar.
+PRs 1..7 draft e CI PASS nos últimos SHAs, sem merge. F1-08: schema/asserções descartáveis para release, aceite expresso fictício e publicação observada fictícia, restrições RLS e comparação de digest. CI de F1-08 ainda sujeito a verificação após envio.
 
-**Pendentes:** geração IA real, versões persistidas, cliente/contrato/autorização real, serviços HTTP, Portal-Sites operacional, CRM/captação, Cloudflare/DNS, deploy, backups, segurança homologada e dados reais. Gates P0/RF-PEND/RV-CT seguem abertos, AGI-11-RB01 desabilitado.
+**Não pronto:** identidades/contratos reais, API Portal↔Sites, worker de publicação, armazenamento de clientes, CRM/leads, IA/n8n, Cloudflare e DNS, audit logs persistentes, backups/restore reais, ambiente operacional. Não existe deploy, merge nem cliente em F1-08.
+
+P0-DOC01..14, RF-PEND-01/RF-PEND-04, RV-CT e LGPD/segurança permanecem abertos. AGI-11-RB01 desabilitado.
