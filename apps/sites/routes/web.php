@@ -64,6 +64,15 @@ Route::get('/_lab/sites/v1/review', static function (Request $request) {
         !in_array($request->ip(),['127.0.0.1','::1'],true)) {
         return response('Not found',404);
     }
+    // Laravel may map an explicitly blank query value to its default after
+    // request normalization. A supplied blank filter must fail closed.
+    $query=$request->query();
+    foreach (['product','device'] as $name) {
+        if (array_key_exists($name,$query) &&
+            (!is_string($query[$name]) || $query[$name]==='')) {
+            return response('Not found',404);
+        }
+    }
     $product=$request->query('product','onepage');
     $device=$request->query('device','desktop');
     if (!is_string($product) || !is_string($device) ||
