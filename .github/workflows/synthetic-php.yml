@@ -40,3 +40,4 @@ jobs:
           php tests/f27-offline-preview-audit.php
           php tests/f28-production-flow.php
           php tests/f29-structured-copy.php
+          php tests/f30-ai-credit-quota.php
