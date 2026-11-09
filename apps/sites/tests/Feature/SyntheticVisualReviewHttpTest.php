@@ -45,6 +45,9 @@ final class SyntheticVisualReviewHttpTest extends TestCase
         self::assertStringContainsString('sandbox=""',$outer);
         self::assertStringContainsString('referrerpolicy="no-referrer"',$outer);
         self::assertStringContainsString('Aprovação, publicação e entrega desabilitadas',$outer);
+        self::assertStringContainsString('Verificações estruturais',$outer);
+        self::assertStringContainsString('Links internos e IDs',$outer);
+        self::assertStringContainsString('validação humana posterior',$outer);
         self::assertStringNotContainsString('<form',$outer);
         self::assertStringNotContainsString('<script',$outer);
         self::assertSame(1,preg_match('/\bsrcdoc="([^"]+)"/s',$outer,$found));

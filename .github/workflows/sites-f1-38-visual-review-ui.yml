@@ -32,6 +32,8 @@ jobs:
         run: |
           php -l apps/sites/routes/web.php
           php -l apps/sites/tests/Feature/SyntheticVisualReviewHttpTest.php
+          php -l src/Production/SyntheticPreviewQaReport.php
+          php -l tests/f39-qa-report.php
       - name: Install locked test dependencies without scripts
         working-directory: apps/sites
         run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
@@ -47,6 +49,8 @@ jobs:
             echo 'Review route unexpectedly registered without in-process opt-in'
             exit 1
           fi
+      - name: Check offline HTML semantics and negative fixtures
+        run: php tests/f39-qa-report.php
       - name: Test Laravel in-process visual review and fail-closed controls
         working-directory: apps/sites
         env:

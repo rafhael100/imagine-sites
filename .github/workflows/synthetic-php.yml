@@ -20,7 +20,7 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
           tools: none
-          extensions: mbstring
+          extensions: mbstring,dom,xml
           coverage: none
       - name: PHP syntax
         run: |
@@ -42,3 +42,4 @@ jobs:
           php tests/f29-structured-copy.php
           php tests/f30-ai-credit-quota.php
           php tests/f31-portal-handoff.php
+          php tests/f39-qa-report.php

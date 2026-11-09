@@ -19,6 +19,7 @@
 - [PR #53](https://github.com/rafhael100/imagine-sites/pull/53) — F1-36, créditos fictícios em Postgres descartável com quota transacional e teste concorrente de duas conexões. CI PostgreSQL, PHP/Laravel e safety guard PASS; merge em `dev` (`c9a14fe`). Não é gasto real.
 - [PR #54](https://github.com/rafhael100/imagine-sites/pull/54) — F1-37, comando Laravel CLI de teste gera Onepage/Landing fictícias, pacote privado e proposta Portal com digest exato, sem aceitação nem publicação. CI PHP 8.3/8.4, Laravel, bundle e safety guard PASS; merge em `dev` (`a8d26fc`).
 - **F1-38 (PR draft, aguardando CI):** interface de revisão visual de Onepage e Landing Page via kernel Laravel CLI testing, viewport desktop/mobile, iframe sandbox com HTML exato e sem aprovação/publicação. Nenhuma rota HTTP pública criada.
+- **F1-39 (PR dependente de F1-38):** checklist estrutural DOM offline de prévia, 7 validações com reprovação fechada e indicação de revisão humana pendente. Aguardando CI; não é certificação WCAG.
 - [SITES-HOMOLOGATION-ENTRY](docs/SITES-HOMOLOGATION-ENTRY-2026-11-09.md) — matriz de entrada e bloqueadores com issues #33–#38.
 
 **Ainda não há ambiente operacional Sites publicado.** P0/RF-PEND/RV-CT/AppSec/LGPD, contratos financeiros, identidade, Cloudflare/DNS, banco produtivo, geração real por IA/n8n, captação/CRM fisicamente redundante e backups/restore continuam não homologados.

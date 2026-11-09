@@ -103,10 +103,14 @@ Route::get('/_lab/sites/v1/review', static function (Request $request) {
             $proposal['officialClientAcceptance']!==false) {
             return response('Not found',404);
         }
+        $qa=\Imagine\Sites\Production\SyntheticPreviewQaReport::inspect($artifact);
+        if (!$qa->passedStructuralChecks) {
+            return response('Not found',404);
+        }
         $page=view('labs.review',[
             'product'=>$product,'device'=>$device,'brief'=>$brief,
             'previewHtml'=>$artifact->html,'digest'=>$artifact->digest,
-            'proposal'=>$proposal
+            'proposal'=>$proposal,'qaChecks'=>$qa->checks
         ])->render();
     } catch (\Throwable) {
         return response('Not found',404);
