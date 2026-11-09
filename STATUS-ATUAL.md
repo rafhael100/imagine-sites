@@ -1,22 +1,19 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
-**Data de referência:** 2026-11-08.
-**Recorte:** F1-01 — domínio puro sintético, branch feat/sites-f1-01-engine-domain-contracts-2026-11-08.
-**Ambiente:** sem deploy.
+**Referência:** 08/11/2026. **Recorte atual:** F1-02 (branch filha de F1-01). **Sem deploy.**
 
-## Conteúdo
-- Estrutura independente, AGENTS e documentação de autoridades, contratos, segurança e migração.
-- Código PHP puro: release/manifesto, política de elegibilidade lógica para publicar, verificador consultivo de entrega, janela T0+72h/432h e ledger **só em memória**.
-- CI de sintaxe/testes sintéticos sem interação com fornecedores.
-- **Local em PHP 8.4.24:** 32 checks sintéticos passaram. CI GitHub: a verificar no workflow do PR; não afirmar PASS antecipadamente.
+## F1-01
+- Núcleo PHP sintético de manifesto/digest, critérios de publicação, entrega técnica consultiva, T0+72h/432h, idempotência em memória, documentação e CI.
+- 32 verificações sintéticas locais PASS (PHP 8.4.24).
+- PR #1 do novo repositório continua draft sem merge. GitHub CI F1-01: duas execuções completadas com sucesso no SHA 101e416b081a9f0a1d825a635df934527bc21ddd.
 
-## O que NÃO existe
-Não há Laravel operacional, PostgreSQL, RLS, autenticação serviço-serviço, assinatura de aceite, HTTP, APIs de leads, captação redundante, publisher Cloudflare, n8n, AI Agents, integração CRM, backup, domínios ou dados reais. PortalEvidence simula flags, não é prova autêntica. O ledger não assegura idempotência persistente.
+## F1-02
+- Adiciona gateway de autoridade tipado com implementação padrão que **sempre nega**, e PublicationPreflightService que exige decisão do gateway antes de qualquer elegibilidade.
+- 8 verificações sintéticas locais PASS (PHP 8.4.24), somente mocks; CI remoto desta branch deve ser conferido.
+- Ainda não existem APIs, autenticação criptográfica, serviços externos, banco, RLS, Cloudflare, contratos reais, publisher ou deploy.
 
-## Gates
-P0-DOC01..14 abertos/parciais; P0-DOC03 e RF-PEND-01 ABERTOS; RF-PEND-04 NÃO HOMOLOGADA; AUT-P01..10 B normativas, RV-CT01/02 B diretrizes com contratos abertos, RV-CT03..08 pendentes; AGI-11-RB01 DESABILITADO.
+## Gates abertos
+P0-DOC01..14, RF-PEND-01, RF-PEND-04, AUT-P01..10 como norma e RV-CT01/02 como diretriz não homologada, RV-CT03..08 pendentes, AGI-11-RB01 DESABILITADO. Não usar flags/test fixtures como provas de autoridade real.
 
-## Próximos recortes
-F1-02 adaptadores fail-closed com contratos candidatos e testes adversariais; F1-03 fundação Laravel/PostgreSQL isolada quando gates correspondentes permitirem; Portal deve manter sua main sem alterações neste recorte.
-
-Plano de referência: https://github.com/rafhael100/imagine-portal/pull/94
+## Próxima etapa
+F1-03: plano de fundação Laravel/PostgreSQL sem execução de migrations reais e sem provedor/credencial até os gates pertinentes. Novo PR filho, sem merge/deploy automático.
