@@ -22,3 +22,4 @@ jobs:
           python3 ci/f64_readiness_inventory.py --self-test
           python3 ci/f64_readiness_inventory.py
           python3 ci/f66_readiness_cli_contract.py
+          python3 ci/f67_workflow_deploy_guard.py
