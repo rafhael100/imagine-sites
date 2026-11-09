@@ -130,7 +130,12 @@ Route::get('/_lab/sites/v1/review', static function (Request $request) {
             'previewHtml'=>$artifact->html,'digest'=>$artifact->digest,
             'proposal'=>$proposal,'qaChecks'=>$qa->checks
         ])->render();
-    } catch (\Throwable) {
+    } catch (\Throwable $e) {
+        if (PHP_SAPI==='cli' && app()->environment('testing') &&
+            getenv('SITES_SYNTHETIC_TRACE')==='1') {
+            fwrite(STDERR,'F1-57 test-only exception: '.get_class($e).' '.
+                substr($e->getMessage(),0,220)."\n");
+        }
         return response('Not found',404);
     }
     return response($page,200,[

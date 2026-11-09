@@ -61,6 +61,7 @@ jobs:
           APP_ENV: testing
           SITES_SYNTHETIC_HTTP: '1'
           SITES_SYNTHETIC_REVIEW_UI: '1'
+          SITES_SYNTHETIC_TRACE: '1'
         run: php artisan test --filter='(SyntheticVisualReviewHttpTest|SyntheticReviewNavigationMatrixTest|SyntheticReviewThemeSelectorTest)' --no-ansi
       - name: Scope and non-operation declaration
         if: always()

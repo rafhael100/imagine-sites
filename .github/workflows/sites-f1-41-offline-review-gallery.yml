@@ -64,6 +64,7 @@ jobs:
           SITES_SYNTHETIC_HTTP: '1'
           SITES_SYNTHETIC_REVIEW_UI: '1'
           SITES_SYNTHETIC_EXPORT: '1'
+          SITES_SYNTHETIC_TRACE: '1'
         run: |
           set -euo pipefail
           php artisan sites:export-review-gallery-fixture
