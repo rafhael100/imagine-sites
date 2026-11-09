@@ -72,10 +72,21 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
   <aside class="sidebar" aria-label="Painel de revisão">
     <section class="card" aria-labelledby="product-title"><h2 id="product-title">Tipo de site</h2><p class="sub">Alternar modelos de teste</p>
       <nav class="tabs" aria-label="Alternar produto">
-        <a href="/_lab/sites/v1/review?product=onepage&amp;device={{ $device }}" @if($product==='onepage') aria-current="page" @endif>Onepage</a>
-        <a href="/_lab/sites/v1/review?product=landing_page&amp;device={{ $device }}" @if($product==='landing_page') aria-current="page" @endif>Landing Page</a>
+        <a href="/_lab/sites/v1/review?product=onepage&amp;device={{ $device }}@unless($galleryMode)&amp;preset={{ $preset }}@endunless" @if($product==='onepage') aria-current="page" @endif>Onepage</a>
+        <a href="/_lab/sites/v1/review?product=landing_page&amp;device={{ $device }}@unless($galleryMode)&amp;preset={{ $preset }}@endunless" @if($product==='landing_page') aria-current="page" @endif>Landing Page</a>
       </nav>
     </section>
+    @unless($galleryMode)
+    <section class="card" aria-labelledby="style-title"><h2 id="style-title">Estilo visual</h2>
+      <p class="sub">Cada tema possui HTML e SHA-256 próprios.</p>
+      <nav class="tabs" aria-label="Alternar tema">
+        <a href="/_lab/sites/v1/review?product={{ $product }}&amp;device={{ $device }}&amp;preset=classic" @if($preset==='classic') aria-current="page" @endif>Classic</a>
+        <a href="/_lab/sites/v1/review?product={{ $product }}&amp;device={{ $device }}&amp;preset=modern" @if($preset==='modern') aria-current="page" @endif>Modern</a>
+        <a href="/_lab/sites/v1/review?product={{ $product }}&amp;device={{ $device }}&amp;preset=warm" @if($preset==='warm') aria-current="page" @endif>Warm</a>
+      </nav>
+      <p class="sub">Trocar o tema exige nova revisão interna da versão gerada.</p>
+    </section>
+    @endunless
     <section class="card" aria-labelledby="steps-title"><h2 id="steps-title">Etapas de revisão</h2>
       <ol class="steps">
         <li><span class="icon" aria-hidden="true">✓</span><b>Conteúdo estruturado</b><small>Briefing fictício validado</small></li>
@@ -87,6 +98,7 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
     <section class="card" id="detalhes" aria-labelledby="detail-title"><h2 id="detail-title">Identidade da versão</h2>
       <dl>
         <div><dt>Produto</dt><dd>{{ $product==='onepage' ? 'Onepage' : 'Landing Page' }}</dd></div>
+        <div><dt>Tema</dt><dd>{{ ucfirst($preset) }}</dd></div>
         <div><dt>Marca de teste</dt><dd>{{ $brief->brand }}</dd></div>
         <div><dt>Release</dt><dd><code>{{ $proposal['releaseRef'] }}</code></dd></div>
         <div><dt>Revisão</dt><dd>{{ $proposal['workflowRevision'] }}</dd></div>
@@ -118,8 +130,8 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
   <section class="preview" aria-labelledby="preview-title">
     <div class="preview-head"><div><h2 id="preview-title">Prévia do site</h2><p class="sub">HTML exato do motor, isolado em iframe sandbox</p></div>
       <nav class="tabs" aria-label="Alternar dispositivo">
-        <a href="/_lab/sites/v1/review?product={{ $product }}&amp;device=desktop" @if($device==='desktop') aria-current="page" @endif>Desktop</a>
-        <a href="/_lab/sites/v1/review?product={{ $product }}&amp;device=mobile" @if($device==='mobile') aria-current="page" @endif>Mobile</a>
+        <a href="/_lab/sites/v1/review?product={{ $product }}&amp;device=desktop@unless($galleryMode)&amp;preset={{ $preset }}@endunless" @if($device==='desktop') aria-current="page" @endif>Desktop</a>
+        <a href="/_lab/sites/v1/review?product={{ $product }}&amp;device=mobile@unless($galleryMode)&amp;preset={{ $preset }}@endunless" @if($device==='mobile') aria-current="page" @endif>Mobile</a>
       </nav>
     </div>
     <div class="workspace"><div class="browser {{ $device }}">

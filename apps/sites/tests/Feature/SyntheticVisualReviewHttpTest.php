@@ -67,9 +67,9 @@ final class SyntheticVisualReviewHttpTest extends TestCase
         $body=(string)$r->getContent();
         self::assertStringContainsString('class="browser mobile"',$body);
         self::assertStringContainsString(
-            'href="/_lab/sites/v1/review?product=onepage&amp;device=mobile"',$body);
+            'href="/_lab/sites/v1/review?product=onepage&amp;device=mobile&amp;preset=classic"',$body);
         self::assertStringContainsString(
-            'href="/_lab/sites/v1/review?product=landing_page&amp;device=desktop"',$body);
+            'href="/_lab/sites/v1/review?product=landing_page&amp;device=desktop&amp;preset=classic"',$body);
         self::assertStringContainsString('release-f38-landing_page',$body);
         self::assertSame(1,preg_match('/\bsrcdoc="([^"]+)"/s',$body,$m));
         $html=html_entity_decode($m[1],ENT_QUOTES|ENT_HTML5,'UTF-8');
@@ -80,7 +80,8 @@ final class SyntheticVisualReviewHttpTest extends TestCase
     public function test_unknown_product_device_and_array_queries_fail_closed(): void
     {
         foreach (['?product=../../secret','?product=blog',
-            '?product[]=onepage','?device=tablet','?device[]=mobile'] as $query) {
+            '?product[]=onepage','?device=tablet','?device[]=mobile',
+            '?preset=unknown','?preset[]=modern','?preset='] as $query) {
             $this->get(self::PATH.$query)->assertNotFound();
         }
     }

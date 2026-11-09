@@ -67,7 +67,7 @@ Route::get('/_lab/sites/v1/review', static function (Request $request) {
     // Laravel may map an explicitly blank query value to its default after
     // request normalization. A supplied blank filter must fail closed.
     $query=$request->query();
-    foreach (['product','device'] as $name) {
+    foreach (['product','device','preset'] as $name) {
         if (array_key_exists($name,$query) &&
             (!is_string($query[$name]) || $query[$name]==='')) {
             return response('Not found',404);
@@ -75,29 +75,37 @@ Route::get('/_lab/sites/v1/review', static function (Request $request) {
     }
     $product=$request->query('product','onepage');
     $device=$request->query('device','desktop');
-    if (!is_string($product) || !is_string($device) ||
+    $preset=$request->query('preset','classic');
+    if (!is_string($product) || !is_string($device) || !is_string($preset) ||
         !in_array($product,['onepage','landing_page'],true) ||
-        !in_array($device,['desktop','mobile'],true)) {
+        !in_array($device,['desktop','mobile'],true) ||
+        !in_array($preset,['classic','modern','warm'],true)) {
         return response('Not found',404);
     }
     try {
         $source=base_path('../../fixtures/sites/f1-37-copy.synthetic.json');
         if (!is_file($source)) return response('Not found',404);
         $copy=json_decode((string)file_get_contents($source),true,16,JSON_THROW_ON_ERROR);
-        $brief=\Imagine\Sites\Production\StructuredCopyCandidate::assemble(
+        $copyBrief=\Imagine\Sites\Production\StructuredCopyCandidate::assemble(
             $product,'Marca Fictícia Imagine',$copy
+        );
+        // The selected style is a strict local preset, never AI-supplied CSS.
+        $brief=new \Imagine\Sites\Production\SiteBrief(
+            $copyBrief->productCode,$copyBrief->brand,$copyBrief->headline,
+            $copyBrief->description,$copyBrief->callToAction,
+            $copyBrief->benefits,$preset
         );
         $artifact=(new \Imagine\Sites\Production\StaticSiteRenderer())->render($brief);
         if (!\Imagine\Sites\Production\InertPreviewAudit::isSafe($artifact->html)) {
             return response('Not found',404);
         }
         $workflow=\Imagine\Sites\Production\SyntheticProductionWorkflow::create(
-            'tenant-fixture','site-fixture','workflow-f38-'.$product
+            'tenant-fixture','site-fixture','workflow-f38-'.$product.($preset==='classic'?'':'-'.$preset)
         );
         $workflow=$workflow->advance('agent','start_draft',0);
         $workflow=$workflow->advance('agent','submit_draft',1,$artifact->digest);
         $workflow=$workflow->advance('imagine_reviewer','approve_internal',2,$artifact->digest);
-        $releaseRef='release-f38-'.$product;
+        $releaseRef='release-f38-'.$product.($preset==='classic'?'':'-'.$preset);
         $proposal=$workflow->portalReviewCandidate($releaseRef,$artifact->digest,3);
         if (!\Imagine\Sites\Production\SyntheticReviewCandidateGuard::matchesLocalSnapshot(
             $proposal,$workflow,$releaseRef
@@ -117,7 +125,8 @@ Route::get('/_lab/sites/v1/review', static function (Request $request) {
             return response('Not found',404);
         }
         $page=view('labs.review',[
-            'product'=>$product,'device'=>$device,'brief'=>$brief,
+            'product'=>$product,'device'=>$device,'preset'=>$preset,
+            'galleryMode'=>getenv('SITES_SYNTHETIC_EXPORT')==='1','brief'=>$brief,
             'previewHtml'=>$artifact->html,'digest'=>$artifact->digest,
             'proposal'=>$proposal,'qaChecks'=>$qa->checks
         ])->render();
