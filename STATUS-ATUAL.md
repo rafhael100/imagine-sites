@@ -1,9 +1,14 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
-Referência 2026-11-09 — F1-17 jornada integrada totalmente sintética, sem merge/deploy.
+**09/11/2026 — F1-18**, filha do F1-17. Desenvolvimento progressivo sem merges/deploys.
 
-**Últimos marcos aprovados em CI:** F1-14 replay HMAC+PDO em PostgreSQL descartável; F1-15 comando+outbox transacional em PostgreSQL descartável; F1-16 origem fictícia/ACK divergente e prova exata de hash (PHP 8.3/8.4). Todos PRs draft, sem merge.
+F1-01..13: fundação Laravel 13 Sites, políticas de domínio, contrato CreateProject, PostgreSQL/RLS e captação dupla fictícia, geração estática, prévia privada e HTTP CLI de ensaio (CI verificado).
+F1-14 PR #15: replay de comando HMAC em PHP/PostgreSQL descartável, CI PASS.
+F1-15 PR #16: comando/outbox transacional e segurança RLS em PostgreSQL descartável, CI PASS.
+F1-16 PR #17: bytes observados de origin fictício separados de ACK do provider, CI PASS.
+F1-17 PR #18: jornada integrada sintética de pedido→release→aceite→observação e parecer de entrega, CI PASS.
+F1-18: OpenAPI/AsyncAPI candidatos e testes de consistência estática, CI a verificar neste PR.
 
-**F1-17:** teste exercita CreateProject HMAC, fontes mockadas de contrato/aceite, dedup em memória, render HTML Onepage, SHA-256 de release, preflight, publicação/observação mockadas, parecer técnico de entrega e limites T0+432h. CI a verificar.
+**NÃO operacional:** autenticação/autoridades reais Portal/Sites, entrega formal, CRM real, captação independente física, AI Agents/n8n, Cloudflare/DNS, persistência produtiva/migrations/backup, dados de cliente e go-live. Os contratos são CANDIDATOS, sem endpoints ativos.
 
-**Não entregue operacionalmente:** autenticação real, confirmação oficial de contrato, dados de cliente, migrations/banco Sites produtivo, IA, CDN/Cloudflare, SSL/domínio, captação real, CRM, observabilidade e backups. CI sintético não encerra P0/RF-PEND/RV-CT/LGPD/AppSec. AGI-11-RB01 desabilitado. Sem merge/deploy/custos.
+P0-DOC01..14, RF-PEND-01/RF-PEND-04, RV-CT, LGPD/AppSec e gastos continuam sob gate. AGI-11-RB01 desabilitado.
