@@ -1,0 +1,58 @@
+name: Sites F1-33 Portal review outbox lab — offline PostgreSQL
+on:
+  pull_request:
+    paths:
+      - 'labs/postgres/f1-33-review-outbox-schema.sql'
+      - 'labs/postgres/f1-33-review-outbox-assertions.sql'
+      - 'labs/postgres/f1-32-workflow-events-schema.sql'
+      - 'labs/postgres/f1-05-schema.sql'
+      - '.github/workflows/sites-f1-33-review-outbox.yml'
+      - 'docs/SITES-F1-33-REVIEW-OUTBOX.md'
+permissions:
+  contents: read
+jobs:
+  review-outbox:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: fictional-review-lab-only
+          POSTGRES_DB: sites_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sites_lab"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: fictional-review-lab-only
+      PGDATABASE: sites_lab
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Ensure psql client
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Prepare isolated fictional schemas
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-05-schema.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-32-workflow-events-schema.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-33-review-outbox-schema.sql
+      - name: Test exact-release proposal queue isolation and denied dispatch
+        run: psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-33-review-outbox-assertions.sql
+      - name: Explicitly no dispatcher, API, Cloudflare or live customer data
+        if: always()
+        run: echo "No network review delivery, no Portal event, no official acceptance, no deploy."
