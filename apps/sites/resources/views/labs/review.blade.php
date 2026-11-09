@@ -72,8 +72,8 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
   <aside class="sidebar" aria-label="Painel de revisão">
     <section class="card" aria-labelledby="product-title"><h2 id="product-title">Tipo de site</h2><p class="sub">Alternar modelos de teste</p>
       <nav class="tabs" aria-label="Alternar produto">
-        <a href="/_lab/sites/v1/review?product=onepage&amp;device={{ $device }}@unless($galleryMode)&amp;preset={{ $preset }}@endunless" @if($product==='onepage') aria-current="page" @endif>Onepage</a>
-        <a href="/_lab/sites/v1/review?product=landing_page&amp;device={{ $device }}@unless($galleryMode)&amp;preset={{ $preset }}@endunless" @if($product==='landing_page') aria-current="page" @endif>Landing Page</a>
+        <a href="/_lab/sites/v1/review?product=onepage&amp;device={{ $device }}{{ $galleryMode ? '' : '&preset='.$preset }}" @if($product==='onepage') aria-current="page" @endif>Onepage</a>
+        <a href="/_lab/sites/v1/review?product=landing_page&amp;device={{ $device }}{{ $galleryMode ? '' : '&preset='.$preset }}" @if($product==='landing_page') aria-current="page" @endif>Landing Page</a>
       </nav>
     </section>
     @unless($galleryMode)
@@ -130,8 +130,8 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
   <section class="preview" aria-labelledby="preview-title">
     <div class="preview-head"><div><h2 id="preview-title">Prévia do site</h2><p class="sub">HTML exato do motor, isolado em iframe sandbox</p></div>
       <nav class="tabs" aria-label="Alternar dispositivo">
-        <a href="/_lab/sites/v1/review?product={{ $product }}&amp;device=desktop@unless($galleryMode)&amp;preset={{ $preset }}@endunless" @if($device==='desktop') aria-current="page" @endif>Desktop</a>
-        <a href="/_lab/sites/v1/review?product={{ $product }}&amp;device=mobile@unless($galleryMode)&amp;preset={{ $preset }}@endunless" @if($device==='mobile') aria-current="page" @endif>Mobile</a>
+        <a href="/_lab/sites/v1/review?product={{ $product }}&amp;device=desktop{{ $galleryMode ? '' : '&preset='.$preset }}" @if($device==='desktop') aria-current="page" @endif>Desktop</a>
+        <a href="/_lab/sites/v1/review?product={{ $product }}&amp;device=mobile{{ $galleryMode ? '' : '&preset='.$preset }}" @if($device==='mobile') aria-current="page" @endif>Mobile</a>
       </nav>
     </div>
     <div class="workspace"><div class="browser {{ $device }}">
