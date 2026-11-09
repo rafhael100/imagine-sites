@@ -1,0 +1,479 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Imagine Portal-Sites Control API (candidate documentation)",
+    "version": "1.0.0-candidate",
+    "description": "NON-OPERATIONAL: no endpoints, service or host. Portal owns contract/acceptance; Sites technical projects/releases. P0/RF-PEND/RV-CT open."
+  },
+  "servers": [],
+  "x-imagine-status": "candidate-only; gates open; no deploy",
+  "security": [
+    {
+      "MutualTLS": []
+    }
+  ],
+  "paths": {
+    "/v1/projects": {
+      "post": {
+        "operationId": "createSiteProject",
+        "summary": "Request site project; no creation guaranteed",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./candidate-envelope.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Acknowledged only; NOT project creation, deployment, client acceptance, lead persisted or official delivery.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Receipt"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing service identity"
+          },
+          "403": {
+            "description": "Authority, entitlement or revocation denied"
+          },
+          "409": {
+            "description": "Idempotency or revision conflict"
+          },
+          "422": {
+            "description": "Invalid schema, proof, digest or request"
+          },
+          "503": {
+            "description": "Authoritative verification unavailable: deny"
+          }
+        }
+      }
+    },
+    "/v1/projects/{siteRef}": {
+      "get": {
+        "operationId": "getSiteProjectSnapshot",
+        "summary": "Read authorized technical project snapshot",
+        "responses": {
+          "200": {
+            "description": "Authenticated scoped technical projection; no PII",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectSnapshot"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing service identity"
+          },
+          "403": {
+            "description": "Authority, entitlement or revocation denied"
+          },
+          "409": {
+            "description": "Idempotency or revision conflict"
+          },
+          "422": {
+            "description": "Invalid schema, proof, digest or request"
+          },
+          "503": {
+            "description": "Authoritative verification unavailable: deny"
+          }
+        },
+        "parameters": [
+          {
+            "name": "siteRef",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/v1/releases/{releaseRef}/acceptances": {
+      "post": {
+        "operationId": "recordPortalReleaseAcceptance",
+        "summary": "Record proof of exact release acceptance",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Acceptance"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Acknowledged only; NOT project creation, deployment, client acceptance, lead persisted or official delivery.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Receipt"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing service identity"
+          },
+          "403": {
+            "description": "Authority, entitlement or revocation denied"
+          },
+          "409": {
+            "description": "Idempotency or revision conflict"
+          },
+          "422": {
+            "description": "Invalid schema, proof, digest or request"
+          },
+          "503": {
+            "description": "Authoritative verification unavailable: deny"
+          }
+        },
+        "parameters": [
+          {
+            "name": "releaseRef",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/v1/releases/{releaseRef}/publication-requests": {
+      "post": {
+        "operationId": "requestTechnicalPublication",
+        "summary": "Request technical deployment only after verified authorization",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Acknowledged only; NOT project creation, deployment, client acceptance, lead persisted or official delivery.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Receipt"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing service identity"
+          },
+          "403": {
+            "description": "Authority, entitlement or revocation denied"
+          },
+          "409": {
+            "description": "Idempotency or revision conflict"
+          },
+          "422": {
+            "description": "Invalid schema, proof, digest or request"
+          },
+          "503": {
+            "description": "Authoritative verification unavailable: deny"
+          }
+        },
+        "parameters": [
+          {
+            "name": "releaseRef",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/v1/publication-operations/{operationRef}": {
+      "get": {
+        "operationId": "getTechnicalPublicationOperation",
+        "summary": "Report acknowledgment separately from observed artifact",
+        "responses": {
+          "200": {
+            "description": "Authenticated scoped technical projection; no PII",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicationSnapshot"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing service identity"
+          },
+          "403": {
+            "description": "Authority, entitlement or revocation denied"
+          },
+          "409": {
+            "description": "Idempotency or revision conflict"
+          },
+          "422": {
+            "description": "Invalid schema, proof, digest or request"
+          },
+          "503": {
+            "description": "Authoritative verification unavailable: deny"
+          }
+        },
+        "parameters": [
+          {
+            "name": "operationRef",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/v1/authorizations/revoke": {
+      "post": {
+        "operationId": "applyRevocation",
+        "summary": "Apply versioned authorization revocation",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Revocation"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Acknowledged only; NOT project creation, deployment, client acceptance, lead persisted or official delivery.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Receipt"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing service identity"
+          },
+          "403": {
+            "description": "Authority, entitlement or revocation denied"
+          },
+          "409": {
+            "description": "Idempotency or revision conflict"
+          },
+          "422": {
+            "description": "Invalid schema, proof, digest or request"
+          },
+          "503": {
+            "description": "Authoritative verification unavailable: deny"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "MutualTLS": {
+        "type": "mutualTLS",
+        "description": "Candidate service transport identity; final model requires AppSec homologation"
+      }
+    },
+    "schemas": {
+      "Receipt": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operationRef",
+          "technicalStatus"
+        ],
+        "properties": {
+          "operationRef": {
+            "type": "string"
+          },
+          "technicalStatus": {
+            "type": "string",
+            "enum": [
+              "requested",
+              "accepted",
+              "denied",
+              "inconclusive"
+            ]
+          }
+        }
+      },
+      "ProjectSnapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "siteRef",
+          "tenantRef",
+          "technicalState"
+        ],
+        "properties": {
+          "siteRef": {
+            "type": "string"
+          },
+          "tenantRef": {
+            "type": "string"
+          },
+          "technicalState": {
+            "type": "string"
+          },
+          "releaseRef": {
+            "type": "string"
+          }
+        }
+      },
+      "Acceptance": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantRef",
+          "siteRef",
+          "releaseRef",
+          "manifestDigest",
+          "portalAcceptanceRef",
+          "authorityRevision"
+        ],
+        "properties": {
+          "tenantRef": {
+            "type": "string"
+          },
+          "siteRef": {
+            "type": "string"
+          },
+          "releaseRef": {
+            "type": "string"
+          },
+          "manifestDigest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "portalAcceptanceRef": {
+            "type": "string"
+          },
+          "authorityRevision": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "PublicationRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantRef",
+          "siteRef",
+          "releaseRef",
+          "manifestDigest",
+          "portalAcceptanceRef",
+          "idempotencyKey"
+        ],
+        "properties": {
+          "tenantRef": {
+            "type": "string"
+          },
+          "siteRef": {
+            "type": "string"
+          },
+          "releaseRef": {
+            "type": "string"
+          },
+          "manifestDigest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "portalAcceptanceRef": {
+            "type": "string"
+          },
+          "idempotencyKey": {
+            "type": "string"
+          }
+        }
+      },
+      "PublicationSnapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operationRef",
+          "technicalStatus"
+        ],
+        "properties": {
+          "operationRef": {
+            "type": "string"
+          },
+          "technicalStatus": {
+            "type": "string",
+            "enum": [
+              "requested",
+              "dispatched",
+              "acknowledged",
+              "verified",
+              "failed",
+              "inconclusive"
+            ]
+          },
+          "requestedDigest": {
+            "type": "string"
+          },
+          "observedDigest": {
+            "type": "string"
+          },
+          "verificationRef": {
+            "type": "string"
+          }
+        }
+      },
+      "Revocation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantRef",
+          "siteRef",
+          "contractRef",
+          "authorityRevision",
+          "revocationRef"
+        ],
+        "properties": {
+          "tenantRef": {
+            "type": "string"
+          },
+          "siteRef": {
+            "type": "string"
+          },
+          "contractRef": {
+            "type": "string"
+          },
+          "authorityRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "revocationRef": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

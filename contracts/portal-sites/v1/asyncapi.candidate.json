@@ -1,0 +1,174 @@
+{
+  "asyncapi": "3.0.0",
+  "info": {
+    "title": "Imagine Sites authority events (candidate documentation)",
+    "version": "1.0.0-candidate",
+    "description": "No broker or topic exists. P0/RF-PEND/RV-CT remain open."
+  },
+  "servers": {},
+  "defaultContentType": "application/json",
+  "channels": {
+    "projectRequested": {
+      "address": "sites.project.requested.v1",
+      "messages": {
+        "siteEvent": {
+          "$ref": "#/components/messages/SiteEvent"
+        }
+      }
+    },
+    "releaseReady": {
+      "address": "sites.release.ready.v1",
+      "messages": {
+        "siteEvent": {
+          "$ref": "#/components/messages/SiteEvent"
+        }
+      }
+    },
+    "publicationObserved": {
+      "address": "sites.publication.observed.v1",
+      "messages": {
+        "siteEvent": {
+          "$ref": "#/components/messages/SiteEvent"
+        }
+      }
+    },
+    "deliveryEligible": {
+      "address": "sites.delivery.eligible.v1",
+      "messages": {
+        "siteEvent": {
+          "$ref": "#/components/messages/SiteEvent"
+        }
+      }
+    },
+    "authorizationRevoked": {
+      "address": "sites.authorization.revoked.v1",
+      "messages": {
+        "siteEvent": {
+          "$ref": "#/components/messages/SiteEvent"
+        }
+      }
+    }
+  },
+  "operations": {
+    "projectRequested": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/projectRequested"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/projectRequested/messages/siteEvent"
+        }
+      ]
+    },
+    "releaseReady": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/releaseReady"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/releaseReady/messages/siteEvent"
+        }
+      ]
+    },
+    "publicationObserved": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/publicationObserved"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/publicationObserved/messages/siteEvent"
+        }
+      ]
+    },
+    "deliveryEligible": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/deliveryEligible"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/deliveryEligible/messages/siteEvent"
+        }
+      ]
+    },
+    "authorizationRevoked": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/authorizationRevoked"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/authorizationRevoked/messages/siteEvent"
+        }
+      ]
+    }
+  },
+  "components": {
+    "messages": {
+      "SiteEvent": {
+        "name": "SiteEvent",
+        "summary": "Minimal versioned metadata without lead or briefing",
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "eventId",
+            "eventType",
+            "tenantRef",
+            "siteRef",
+            "resourceRevision",
+            "occurredAt",
+            "issuer",
+            "correlationRef"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": "1"
+            },
+            "eventId": {
+              "type": "string"
+            },
+            "eventType": {
+              "type": "string",
+              "enum": [
+                "sites.project.requested.v1",
+                "sites.release.ready.v1",
+                "sites.publication.observed.v1",
+                "sites.delivery.eligible.v1",
+                "sites.authorization.revoked.v1"
+              ]
+            },
+            "tenantRef": {
+              "type": "string"
+            },
+            "siteRef": {
+              "type": "string"
+            },
+            "resourceRevision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "occurredAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "issuer": {
+              "type": "string"
+            },
+            "correlationRef": {
+              "type": "string"
+            },
+            "payloadRef": {
+              "type": "string",
+              "description": "Opaque reference to private storage; never raw personal payload"
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CreateProject v1 signed envelope — candidate only",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "issuer",
+    "audience",
+    "issuedAt",
+    "expiresAt",
+    "nonce",
+    "payload",
+    "mac"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1"
+    },
+    "issuer": {
+      "const": "imagine-portal"
+    },
+    "audience": {
+      "const": "imagine-sites"
+    },
+    "issuedAt": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "expiresAt": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "nonce": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{8,64}$"
+    },
+    "payload": {
+      "$ref": "./create-project.schema.json"
+    },
+    "mac": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  },
+  "x-imagine-requirements": [
+    "TTL maximum 120 seconds",
+    "managed trust keys and verified signature",
+    "atomic durable nonce fence",
+    "verified current commercial and tenant authority"
+  ]
+}
