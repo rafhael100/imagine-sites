@@ -1,0 +1,79 @@
+name: F1-14 Sites PHP signed message with restricted PostgreSQL nonce (lab)
+
+on:
+  pull_request:
+    paths:
+      - 'apps/sites/app/Labs/Security/**'
+      - 'apps/sites/labs/security/**'
+      - '.github/workflows/sites-f1-14-php-pg-replay.yml'
+      - 'labs/security/f1-12-nonce-schema.sql'
+      - 'docs/SITES-F1-14-REPLAY-PHP-POSTGRES.md'
+
+permissions:
+  contents: read
+
+jobs:
+  php-pg-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: fictional-admin-runner-only
+          POSTGRES_DB: sites_auth_replay_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sites_auth_replay_lab"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: fictional-admin-runner-only
+      PGDATABASE: sites_auth_replay_lab
+      SITES_AUTH_LAB_DSN: 'pgsql:host=127.0.0.1;port=5432;dbname=sites_auth_replay_lab'
+      SITES_AUTH_LAB_USER: sites_auth_runtime
+      SITES_F1_14_LAB_ENABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          extensions: pdo, pdo_pgsql, mbstring
+          coverage: none
+      - name: Install locked Laravel and project classes only
+        working-directory: apps/sites
+        run: |
+          composer validate --strict
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts
+      - name: Prepare ephemeral nonce schema
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y postgresql-client
+          fi
+          psql -X -v ON_ERROR_STOP=1 -f labs/security/f1-12-nonce-schema.sql
+      - name: Create temporary least-privilege connection credential
+        run: |
+          set -euo pipefail
+          password="$(openssl rand -hex 32)"
+          echo "::add-mask::$password"
+          printf 'SITES_AUTH_LAB_PASSWORD=%s\n' "$password" >> "$GITHUB_ENV"
+          psql -X -v ON_ERROR_STOP=1 -c "ALTER ROLE sites_auth_runtime LOGIN PASSWORD '$password'"
+      - name: PHP syntax and signed-command replay against restricted PostgreSQL
+        run: |
+          php -l apps/sites/app/Labs/Security/LabPdoReplayStore.php
+          php -l apps/sites/labs/security/f1-14-run.php
+          php apps/sites/labs/security/f1-14-run.php
+      - name: No external effects
+        if: always()
+        run: echo "Database is disposable. No real site, key, Portal service, CRM, Cloudflare, customer, migration or deploy."
