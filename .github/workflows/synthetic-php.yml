@@ -25,7 +25,7 @@ jobs:
       - name: PHP syntax
         run: |
           for f in src/Domain/*.php src/Application/*.php src/Integration/*.php src/Production/*.php src/Publication/*.php src/Security/*.php tests/*.php; do php -l "$f" || exit 1; done
-      - name: Domain, render, publication and independent-origin mock tests
+      - name: Unit and integrated synthetic flow tests
         run: |
           php tests/run.php
           php tests/f2-run.php
@@ -34,3 +34,4 @@ jobs:
           php tests/f9-run.php
           php tests/f11-run.php
           php tests/f16-run.php
+          php tests/f17-run.php
