@@ -1,0 +1,135 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Imagine\Sites\Production;
+
+/**
+ * F1-27: conservative lexical audit of the fixed, synthetic renderer output.
+ * This is intentionally NOT a generic HTML sanitizer or a production approval.
+ * Only the current inert Onepage/Landing fixture dialect is supported.
+ */
+final class InertPreviewAudit
+{
+    /** @return list<string> */
+    public static function issues(string $html): array
+    {
+        if ($html === '' || strlen($html) > 150000 ||
+            !str_starts_with($html, "<!doctype html>\n<html lang=\"pt-BR\">\n<head>\n") ||
+            !str_ends_with($html, '</html>')) {
+            return ['unexpected_document_shell'];
+        }
+
+        // The synthetic renderer emits literal angle brackets only for tags.
+        // Untrusted copy MUST remain escaped. Reject malformed/incomplete tags.
+        $count = preg_match_all('~<[^<>]*>~s', $html, $found);
+        if ($count === false || $count !== substr_count($html, '<') ||
+            $count !== substr_count($html, '>')) {
+            return ['noncanonical_markup'];
+        }
+
+        $allowed = [
+            'html'=>true, 'head'=>true, 'meta'=>true, 'title'=>true,
+            'style'=>true, 'body'=>true, 'header'=>true, 'div'=>true,
+            'span'=>true, 'nav'=>true, 'a'=>true, 'main'=>true,
+            'section'=>true, 'h1'=>true, 'h2'=>true, 'p'=>true,
+            'ul'=>true, 'li'=>true, 'footer'=>true,
+        ];
+        $meta = [];
+        $links = [];
+        $h1Count = 0;
+        $styleCount = 0;
+        $bodyCount = 0;
+        foreach ($found[0] as $tag) {
+            if ($tag === '<!doctype html>') continue;
+            if (!preg_match('~\A<(\/?)([a-z][a-z0-9-]*)\b[^<>]*>\z~iD', $tag, $match)) {
+                return ['unsupported_markup'];
+            }
+            $name = strtolower($match[2]);
+            if (!isset($allowed[$name])) return ['active_or_unknown_element'];
+            if (preg_match('/\s(?:on[a-z]+|src|srcset|style|action|formaction|target|ping|download)\s*=/i', $tag)) {
+                return ['active_or_external_attribute'];
+            }
+            if ($match[1] !== '') continue;
+            if ($name === 'meta') $meta[] = $tag;
+            if ($name === 'a') $links[] = $tag;
+            if ($name === 'h1') ++$h1Count;
+            if ($name === 'style') ++$styleCount;
+            if ($name === 'body') {
+                ++$bodyCount;
+                if (!in_array($tag, [
+                    '<body data-site-product="onepage">',
+                    '<body data-site-product="landing-page">',
+                ], true)) return ['unsupported_product_body'];
+            }
+        }
+        if ($bodyCount !== 1 || $styleCount !== 1 || $h1Count !== 1 ||
+            substr_count($html, '<h1 id="hero-title">') !== 1 ||
+            substr_count($html, '<main id="principal">') !== 1 ||
+            substr_count($html, '<section class="contact" id="contato"') !== 1) {
+            return ['invalid_preview_structure'];
+        }
+
+        // Require exactly the five metadata tags of the safe renderer, in order.
+        // In particular, reject a second robots tag and any meta refresh.
+        if (count($meta) !== 5 ||
+            $meta[0] !== '<meta charset="utf-8">' ||
+            $meta[1] !== '<meta name="viewport" content="width=device-width, initial-scale=1">' ||
+            !preg_match('/\A<meta name="description" content="[^"<>]*">\z/D', $meta[2]) ||
+            $meta[3] !== '<meta name="robots" content="noindex, nofollow">' ||
+            $meta[4] !== '<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;">') {
+            // The fixed CSP below uses literal single quotes. The placeholder
+            // comparison above ensures the policy is checked in one place.
+            $csp = '<meta http-equiv="Content-Security-Policy" content="default-src '.
+                "'none'; style-src 'unsafe-inline'; img-src 'self' data:; ".
+                "base-uri 'none'; form-action 'none'; object-src 'none'\">";
+            if (count($meta) !== 5 ||
+                $meta[0] !== '<meta charset="utf-8">' ||
+                $meta[1] !== '<meta name="viewport" content="width=device-width, initial-scale=1">' ||
+                !preg_match('/\A<meta name="description" content="[^"<>]*">\z/D', $meta[2] ?? '') ||
+                ($meta[3] ?? null) !== '<meta name="robots" content="noindex, nofollow">' ||
+                ($meta[4] ?? null) !== $csp) {
+                return ['unsafe_or_modified_metadata'];
+            }
+        }
+
+        foreach ($links as $link) {
+            if (!in_array($link, [
+                '<a href="#beneficios">',
+                '<a href="#sobre">',
+                '<a class="btn" href="#contato">',
+            ], true)) {
+                return ['nonlocal_navigation'];
+            }
+            if (!preg_match('/href="#([^"]+)"/', $link, $anchor) ||
+                !str_contains($html, 'id="'.$anchor[1].'"')) {
+                return ['missing_internal_anchor'];
+            }
+        }
+
+        if (preg_match_all('~<style>(.*?)</style>~s', $html, $css) !== 1 ||
+            preg_match('/(?:@import\b|url\s*\(|expression\s*\(|-moz-binding)/i', $css[1][0])) {
+            return ['active_css_or_style_structure'];
+        }
+
+        // The previews are deliberately offline: no network targets,
+        // JavaScript URL schemes or inline handlers, even in demo text.
+        if (stripos($html, 'http://') !== false ||
+            stripos($html, 'https://') !== false ||
+            stripos($html, 'javascript:') !== false ||
+            preg_match('/\bon[a-z]+\s*=/i', $html)) {
+            return ['remote_or_active_content'];
+        }
+
+        if (!str_contains($html,
+            'Prévia demonstrativa: formulários e envio de dados permanecem desabilitados.')) {
+            return ['missing_inert_preview_disclaimer'];
+        }
+        return [];
+    }
+
+    public static function isSafe(string $html): bool
+    {
+        return self::issues($html) === [];
+    }
+}

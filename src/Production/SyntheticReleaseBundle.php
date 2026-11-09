@@ -23,7 +23,7 @@ final readonly class SyntheticReleaseBundle
         if (!hash_equals($release->digest, $artifact->digest)) {
             throw new DomainException('Manifest references different static HTML bytes.');
         }
-        if (!self::isNonOperationalPreview($artifact->html)) {
+        if (!InertPreviewAudit::isSafe($artifact->html)) {
             throw new DomainException('Release packaging is limited to inert noindex demos.');
         }
 
@@ -58,7 +58,7 @@ final readonly class SyntheticReleaseBundle
 
         $html = $files['index.html'];
         $raw = $files['release-manifest.json'];
-        if (!self::isNonOperationalPreview($html)) return false;
+        if (!InertPreviewAudit::isSafe($html)) return false;
 
         try {
             $meta = json_decode($raw, true, 16, JSON_THROW_ON_ERROR);
@@ -90,21 +90,4 @@ final readonly class SyntheticReleaseBundle
             && hash_equals($meta['artifactDigest'], hash('sha256', $html));
     }
 
-    private static function isNonOperationalPreview(string $html): bool
-    {
-        if (!str_starts_with($html, '<!doctype html>') ||
-            strlen($html) > 150000 ||
-            !str_contains($html, '<meta name="robots" content="noindex, nofollow">') ||
-            !str_contains($html, "default-src 'none'") ||
-            !str_contains($html, "form-action 'none'") ||
-            !str_contains($html, 'Prévia demonstrativa: formulários e envio de dados permanecem desabilitados.')) {
-            return false;
-        }
-        // An inert test bundle must not contain active embedded elements,
-        // even if its digest is internally consistent. These checks are NOT
-        // a substitute for a professional HTML sanitizer/CSP audit.
-        return preg_match('/<\s*\/?\s*(?:script|form|iframe|object|embed|base)\b/i', $html) !== 1
-            && preg_match('/\bon[a-z]+\s*=/i', $html) !== 1
-            && stripos($html, 'javascript:') === false;
-    }
 }
