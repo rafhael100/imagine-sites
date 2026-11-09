@@ -1,11 +1,23 @@
 # Imagine Sites Engine
 
-Motor independente de criação, versionamento, publicação e acompanhamento técnico de Onepages e Landing Pages produzidas e gerenciadas pela Imagine, integrado ao Imagine Portal.
+Motor independente de criação, versionamento, publicação e manutenção de **Onepages e Landing Pages produzidas e administradas pela Imagine**. O cliente continua contratando, enviando briefing, aprovando e acompanhando pelo Imagine Portal; não haverá editor livre para o cliente.
 
-> Estado: repositório recém-inicializado. Nenhum componente está homologado para produção; não há deploy, DNS, credenciais, dados reais ou integrações operacionais autorizadas.
+**F1-01 = laboratório de regras sintéticas, NÃO motor operacional.** Sem APIs reais, banco, aplicativo Laravel, CRM, Cloudflare, AI Agents ou deploy. Os testes não comprovam identidade real, criptografia, isolamento multiempresa, disponibilidade ou publicação em produção.
 
-O Portal continua responsável por contratos, atendimento, briefing e aceite do cliente. O Sites Engine concentra a execução técnica, sem editor autônomo para o cliente. A integração com CRM, AI Agents e Cloudflare depende de contratos e gates de segurança.
+Autoridades: Portal controla contratos, aceite expresso e evento oficial ENTREGUE; Sites controla release técnica, artefatos e verificação de publicação; CRM controla confirmação de leads; AI Agents executam apenas tarefas autorizadas.
 
-Planejamento de referência: [SITES-ARQ-01 no Portal](https://github.com/rafhael100/imagine-portal/pull/94).
+## Verificações locais (PHP 8.3+, sem dependências e sem rede)
 
-Os futuros trabalhos serão feitos em branches isoladas e PRs draft. Sem merges nem deployments automáticos.
+- Executar: php tests/run.php
+- Verificar sintaxe de todos os arquivos src/Domain/*.php e tests/*.php: php -l.
+
+## Documentos
+- docs/SITES-ARQ-02-BOUNDARIES.md — autoridades e topologia
+- docs/SITES-CT-01-PORTAL-SITES-v0.1.md — contratos candidatos
+- docs/SITES-SEC-01-GATES.md — segurança e pendências
+- docs/SITES-MIG-01-INVENTARIO.md — rastreamento de migração
+- STATUS-ATUAL.md e AGENTS.md
+
+Referência principal: https://github.com/rafhael100/imagine-portal/pull/94
+
+Alvo tecnológico candidato: Laravel e PostgreSQL próprios, APIs/eventos autenticados, GitHub para versionamento e Cloudflare Workers Static Assets. **Não homologado**. Sem merge/deploy automático, dados reais, despesas ou configuração de infraestrutura neste recorte.
