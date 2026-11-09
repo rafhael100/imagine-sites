@@ -46,13 +46,15 @@ final class LabPostgresReplayStore implements ReplayStore
         }
 
         try {
+            // Omit conflict target to preserve INSERT-only permissions.
+            // No SELECT on issuer/nonce is required for ON CONFLICT DO NOTHING.
             // Both constraints and RLS are enforced by the database; the
             // primary key is the cross-process atomic replay fence.
             // PostgreSQL time is authoritative, never a client timestamp.
             $query = $this->db->prepare(
                 'INSERT INTO auth_replay.nonce_consumptions (issuer,nonce,expires_at)
                  VALUES (:issuer,:nonce,to_timestamp(:expires_at))
-                 ON CONFLICT (issuer,nonce) DO NOTHING'
+                 ON CONFLICT DO NOTHING'
             );
             $query->bindValue(':issuer', $issuer, PDO::PARAM_STR);
             $query->bindValue(':nonce', $nonce, PDO::PARAM_STR);
