@@ -47,3 +47,4 @@ jobs:
           php tests/f50-review-epoch.php
           php tests/f51-style-presets.php
           php tests/f54-style-revision.php
+          php tests/f55-crm-lead-preflight.php
