@@ -26,6 +26,7 @@
 - **F1-50 (draft dependente de #69):** envelope HMAC de revisão v2 vincula autorizaçãoRevision à assinatura, nega replay de epoch anterior após revogação/reativação; fonte atual e replay DENY-default. CI pendente; não é IAM real.
 - **F1-51 (draft dependente de #71):** três temas visuais fixos para Onepage/Landing, clássico byte-idêntico e paletas modern/warm sem CSS de cliente, script, URLs externas ou publicação. CI pendente.
 - **F1-52 (draft dependente de #72):** galeria isolada de 6 HTML Onepage/Landing × Classic/Modern/Warm e 6 screenshots Chromium efêmeros, validação SHA e proibição de upload/produção. CI pendente.
+- **F1-53 (draft dependente de #73):** comando Laravel de revisão aceita tema opcional whitelisted, cria pacote privado e release exata por preset, preservando legacy classic. CI Laravel PHP8.3/8.4 pendente; sem aceite/publicação.
 - [SITES-HOMOLOGATION-ENTRY](docs/SITES-HOMOLOGATION-ENTRY-2026-11-09.md) — matriz de entrada e bloqueadores com issues #33–#38.
 
 **Ainda não há ambiente operacional Sites publicado.** P0/RF-PEND/RV-CT/AppSec/LGPD, contratos financeiros, identidade, Cloudflare/DNS, banco produtivo, geração real por IA/n8n, captação/CRM fisicamente redundante e backups/restore continuam não homologados.

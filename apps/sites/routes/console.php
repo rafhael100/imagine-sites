@@ -118,7 +118,7 @@ Artisan::command('sites:package-fixture {product=onepage}', function (): int {
  * F1-37: assemble a wholly fictional review handoff in private CI scratch.
  * No AI provider, database, network, real Portal approval, or publishing.
  */
-Artisan::command('sites:review-fixture {product=onepage}', function (): int {
+Artisan::command('sites:review-fixture {product=onepage} {preset=classic}', function (): int {
     if (PHP_SAPI !== 'cli' || !app()->environment('testing') ||
         getenv('SITES_SYNTHETIC_REVIEW') !== '1') {
         $this->error('Review candidate requires explicit synthetic CLI testing flag.');
@@ -126,8 +126,10 @@ Artisan::command('sites:review-fixture {product=onepage}', function (): int {
     }
 
     $product=(string)$this->argument('product');
-    if (!in_array($product,['onepage','landing_page'],true)) {
-        $this->error('Unsupported fictional review product.');
+    $preset=(string)$this->argument('preset');
+    if (!in_array($product,['onepage','landing_page'],true) ||
+        !in_array($preset,['classic','modern','warm'],true)) {
+        $this->error('Unsupported fictional review product or visual preset.');
         return Command::FAILURE;
     }
 
@@ -139,8 +141,15 @@ Artisan::command('sites:review-fixture {product=onepage}', function (): int {
 
     try {
         $copy=json_decode((string)file_get_contents($source),true,16,JSON_THROW_ON_ERROR);
-        $brief=\Imagine\Sites\Production\StructuredCopyCandidate::assemble(
+        $copyBrief=\Imagine\Sites\Production\StructuredCopyCandidate::assemble(
             $product,'Marca Fictícia Imagine',$copy
+        );
+        // Keep copy candidate untrusted and preset independently whitelisted.
+        // Brand/product/theme are NOT inferred from the AI text.
+        $brief=new SiteBrief(
+            $copyBrief->productCode,$copyBrief->brand,$copyBrief->headline,
+            $copyBrief->description,$copyBrief->callToAction,
+            $copyBrief->benefits,$preset
         );
         $artifact=(new StaticSiteRenderer())->render($brief);
         if (!\Imagine\Sites\Production\InertPreviewAudit::isSafe($artifact->html)) {
@@ -163,7 +172,7 @@ Artisan::command('sites:review-fixture {product=onepage}', function (): int {
         $workflow=$workflow->advance('agent','submit_draft',1,$artifact->digest);
         $workflow=$workflow->advance('imagine_reviewer','approve_internal',2,$artifact->digest);
 
-        $releaseRef='release-f37-'.$product;
+        $releaseRef='release-f37-'.$product.($preset==='classic'?'':'-'.$preset);
         $candidate=$workflow->portalReviewCandidate($releaseRef,$artifact->digest,3);
         if (!\Imagine\Sites\Production\SyntheticReviewCandidateGuard::matchesLocalSnapshot(
             $candidate,$workflow,$releaseRef
@@ -193,7 +202,7 @@ Artisan::command('sites:review-fixture {product=onepage}', function (): int {
     }
 
     $private=storage_path('app/private');
-    $directory=$private.'/sites-f1-37-'.$product;
+    $directory=$private.'/sites-f1-37-'.$product.($preset==='classic'?'':'-'.$preset);
     if (is_link($private) || is_link($directory) || file_exists($directory)) {
         $this->error('Private target already exists or is unsafe.');
         return Command::FAILURE;
@@ -224,7 +233,7 @@ Artisan::command('sites:review-fixture {product=onepage}', function (): int {
             return Command::FAILURE;
         }
     }
-    $this->line('F1-37 PRIVATE FICTIONAL REVIEW CANDIDATE ONLY — NOT DELIVERED.');
+    $this->line('F1-53 PRIVATE FICTIONAL REVIEW: '.$product.' / '.$preset.' — NOT DELIVERED.');
     $this->line('HTML SHA-256: '.$artifact->digest);
     $this->line('Bundle SHA-256: '.$bundle->bundleDigest);
     $this->line('Portal official client acceptance: false; publishable: false.');
