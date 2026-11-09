@@ -381,3 +381,168 @@ Artisan::command('sites:export-review-gallery-fixture', function (): int {
     $this->line('Four private HTML fixtures and one SHA-256 gallery manifest created.');
     return Command::SUCCESS;
 })->purpose('Render a standalone fictional gallery in local private CI scratch');
+
+
+/**
+ * F1-58: 12 synthetic PRIVATE theme + viewport preview pages.
+ * Separate from F1-41 legacy Classic-only gallery; no public routes.
+ * Theme selection is fictional visual review, NEVER client's acceptance.
+ */
+Artisan::command('sites:export-style-gallery-fixture', function (): int {
+    if (PHP_SAPI!=='cli' || !app()->environment('testing') ||
+        getenv('SITES_SYNTHETIC_HTTP')!=='1' ||
+        getenv('SITES_SYNTHETIC_REVIEW_UI')!=='1' ||
+        getenv('SITES_SYNTHETIC_STYLE_EXPORT')!=='1' ||
+        getenv('SITES_SYNTHETIC_EXPORT')==='1') {
+        $this->error('F1-58 requires three explicit lab switches; legacy export must be off.');
+        return Command::FAILURE;
+    }
+    $private=storage_path('app/private');
+    $directory=$private.'/sites-f1-58-style-gallery';
+    if (is_link($private) || is_link($directory) ||
+        file_exists($directory) || is_dir($directory)) {
+        $this->error('F1-58 private style gallery must have a fresh, safe target.');
+        return Command::FAILURE;
+    }
+    $products=['onepage','landing_page'];
+    $devices=['desktop','mobile'];
+    $styles=['classic','modern','warm'];
+    $pages=[];
+    $catalog=[];
+    try {
+        foreach ($products as $product) {
+            foreach ($devices as $device) {
+                foreach ($styles as $preset) {
+                    $url='/_lab/sites/v1/review?product='.$product.
+                        '&device='.$device.'&preset='.$preset;
+                    $request=\Illuminate\Http\Request::create(
+                        $url,'GET',[],[],[],['REMOTE_ADDR'=>'127.0.0.1']
+                    );
+                    // Call only an already registered route inside same
+                    // CLI/testing kernel. No Laravel HTTP server is started.
+                    $prior=app('request');
+                    try {
+                        app()->instance('request',$request);
+                        $matched=app('router')->getRoutes()->match($request);
+                        $matched->bind($request);
+                        $response=$matched->run();
+                    } finally {
+                        app()->instance('request',$prior);
+                    }
+                    $html=(string)$response->getContent();
+                    if ($response->getStatusCode()!==200 ||
+                        $response->headers->get('X-Frame-Options')!=='DENY' ||
+                        !str_contains((string)$response->headers->get('Cache-Control'),'no-store') ||
+                        !str_contains($html,'sandbox=""') ||
+                        !str_contains($html,'tabindex="0"') ||
+                        substr_count($html,'href="/_lab/sites/v1/review?')!==7 ||
+                        !preg_match('/id="artifact-digest">([a-f0-9]{64})<\/code>/',$html,$m) ||
+                        !str_contains($html,'release-f38-'.$product.
+                            ($preset==='classic'?'':'-'.$preset))) {
+                        throw new \DomainException('Unsafe preview or unexpected lab navigation.');
+                    }
+                    $artifactDigest=$m[1];
+                    $matches=[];
+                    if (!preg_match('/\bsrcdoc="([^"]+)"/s',$html,$matches) ||
+                        !hash_equals($artifactDigest,hash('sha256',
+                            html_entity_decode($matches[1],ENT_QUOTES|ENT_HTML5,'UTF-8')))) {
+                        throw new \DomainException('Preview HTML and release digest mismatch.');
+                    }
+                    $converted=0;
+                    foreach ($products as $p) {
+                        foreach ($devices as $d) {
+                            foreach ($styles as $s) {
+                                $link='href="/_lab/sites/v1/review?product='.$p.
+                                    '&amp;device='.$d.'&amp;preset='.$s.'"';
+                                $target='href="'.$p.'-'.$d.'-'.$s.'.html"';
+                                $count=0;
+                                $html=str_replace($link,$target,$html,$count);
+                                $converted+=$count;
+                            }
+                        }
+                    }
+                    if ($converted!==7 ||
+                        str_contains($html,'href="/_lab/sites/v1/review?')) {
+                        throw new \DomainException('Gallery contains unresolved navigation.');
+                    }
+                    $csp='<meta http-equiv="Content-Security-Policy" content="default-src '.
+                        "'none'; script-src 'none'; style-src 'unsafe-inline'; frame-src 'self'".
+                        " about:; img-src data:; connect-src 'none'; form-action 'none'; object-src 'none';".
+                        " base-uri 'none'; frame-ancestors 'none'".'">';
+                    $robots='<meta name="robots" content="noindex, nofollow">';
+                    if (substr_count($html,$robots)!==1) {
+                        throw new \DomainException('Missing exact noindex token.');
+                    }
+                    $html=str_replace($robots,$robots."\n".$csp,$html);
+                    if (preg_match('/<(?:script|form)\b/i',$html) ||
+                        preg_match('/(?:https?:\/\/|javascript:|@import)/i',$html)) {
+                        throw new \DomainException('Remote or executable preview refused.');
+                    }
+                    $filename=$product.'-'.$device.'-'.$preset.'.html';
+                    $pages[$filename]=$html;
+                    $catalog[]=[
+                        'filename'=>$filename,
+                        'product'=>$product,
+                        'device'=>$device,
+                        'preset'=>$preset,
+                        'sha256'=>hash('sha256',$html),
+                        'artifactDigest'=>$artifactDigest,
+                        'bytes'=>strlen($html),
+                    ];
+                }
+            }
+        }
+        if (count($pages)!==12 || count(array_unique(
+            array_column($catalog,'filename')))!==12) {
+            throw new \DomainException('Gallery must contain twelve unique pages.');
+        }
+        $meta=[
+            'schemaVersion'=>'sites.synthetic.style-gallery.v1',
+            'syntheticOnly'=>true,
+            'publishable'=>false,
+            'officialClientAcceptance'=>false,
+            'pages'=>$catalog,
+        ];
+        $pages['gallery-manifest.json']=json_encode(
+            $meta,JSON_THROW_ON_ERROR|JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|
+            JSON_UNESCAPED_UNICODE
+        )."\n";
+    } catch (\Throwable) {
+        $this->error('F1-58 did not assemble all twelve safe synthetic previews.');
+        return Command::FAILURE;
+    }
+    if (!is_dir($private) && !mkdir($private,0700,true) && !is_dir($private)) {
+        $this->error('Private destination unavailable.');
+        return Command::FAILURE;
+    }
+    if (!mkdir($directory,0700)) {
+        $this->error('Cannot create fresh private style gallery.');
+        return Command::FAILURE;
+    }
+    @chmod($directory,0700);
+    foreach ($pages as $filename=>$bytes) {
+        $stream=@fopen($directory.'/'.$filename,'x');
+        if ($stream===false) {
+            $this->error('Cannot create exclusive gallery file.');
+            return Command::FAILURE;
+        }
+        $offset=0;
+        try {
+            while ($offset<strlen($bytes)) {
+                $written=fwrite($stream,substr($bytes,$offset));
+                if ($written===false || $written===0) break;
+                $offset+=$written;
+            }
+        } finally {
+            fclose($stream);
+        }
+        @chmod($directory.'/'.$filename,0600);
+        if ($offset!==strlen($bytes)) {
+            $this->error('Incomplete gallery write rejected.');
+            return Command::FAILURE;
+        }
+    }
+    $this->line('F1-58 PRIVATE FICTIONAL GALLERY: 12 HTML previews, NO CLIENT ACCEPTANCE.');
+    $this->line('Each page includes SHA-256 digest and local links; publishable=false.');
+    return Command::SUCCESS;
+})->purpose('Generate twelve inert private Onepage/Landing/theme/viewport review fixtures');
