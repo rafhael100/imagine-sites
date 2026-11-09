@@ -212,22 +212,34 @@ def run(gallery: Path, browser: str) -> None:
                     assert result["frameTitle"] and result["qa"] == 7, (filename, result)
                     assert result["controls"] == 0, (filename, result)
 
-                    # Actual Tab key events in Chromium: ensure the focus sequence
-                    # matches the five safe links, without clicking or submitting.
+                    # Chromium also focuses the sandbox iframe (and its
+                    # inner navigation). Verify the first four outer links in
+                    # order and that Tab eventually reaches the final footer
+                    # anchor, instead of assuming the iframe is not tabbable.
                     client.call("Page.bringToFront")
                     client.evaluate("document.activeElement.blur(); document.body.focus()")
                     focused = []
                     key = {"key": "Tab", "code": "Tab",
                            "windowsVirtualKeyCode": 9, "nativeVirtualKeyCode": 9}
-                    for _ in range(5):
+                    for _ in range(16):
                         client.call("Input.dispatchKeyEvent", {"type": "rawKeyDown", **key})
                         client.call("Input.dispatchKeyEvent", {"type": "keyUp", **key})
                         focused.append(client.evaluate(
                             "document.activeElement?.getAttribute('href') || document.activeElement?.tagName"
                         ))
-                    assert focused == result["links"], (filename, focused, result["links"])
+                        if len(focused) >= 5 and focused[-1] == result["links"][-1]:
+                            break
+                    assert focused[:4] == result["links"][:4], (
+                        filename, 'initial keyboard navigation', focused, result["links"]
+                    )
+                    assert result["links"][-1] in focused[4:], (
+                        filename, 'keyboard trapped before final link', focused
+                    )
+                    assert 'IFRAME' in focused[4:-1], (
+                        filename, 'sandboxed preview was unexpectedly skipped', focused
+                    )
                     print(f"PASS F1-43 {filename}: {width}x{height}, no horizontal overflow, "
-                          "5 links in real keyboard Tab sequence")
+                          "Tab traverses four navigation links and sandbox to final link")
             finally:
                 client.close()
         finally:
