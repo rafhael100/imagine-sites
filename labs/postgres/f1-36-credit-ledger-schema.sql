@@ -99,6 +99,14 @@ CREATE FUNCTION lab_sites.reserve_synthetic_credits(
 ) RETURNS boolean
 LANGUAGE plpgsql SECURITY INVOKER SET search_path=pg_catalog AS $$
 BEGIN
+ -- Reject unrecognized, foreign or revoked tenants *before* the privileged
+ -- quota trigger runs. The query uses the caller's RLS-visible tenant row.
+ IF NOT EXISTS(
+   SELECT 1 FROM lab_sites.tenants t
+   WHERE t.tenant_id=p_tenant AND t.status='active'
+ ) THEN
+   RETURN false;
+ END IF;
  INSERT INTO lab_sites.synthetic_credit_reservations
    (tenant_id,operation_ref,workflow_ref,credits)
  VALUES(p_tenant,p_operation,p_workflow,p_credits)
