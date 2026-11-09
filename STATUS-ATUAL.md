@@ -1,19 +1,21 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
-**Referência:** 08/11/2026. **Recorte atual:** F1-02 (branch filha de F1-01). **Sem deploy.**
+**Referência:** 2026-11-08. Branch F1-03 filha de F1-02, sem deploy.
 
-## F1-01
-- Núcleo PHP sintético de manifesto/digest, critérios de publicação, entrega técnica consultiva, T0+72h/432h, idempotência em memória, documentação e CI.
-- 32 verificações sintéticas locais PASS (PHP 8.4.24).
-- PR #1 do novo repositório continua draft sem merge. GitHub CI F1-01: duas execuções completadas com sucesso no SHA 101e416b081a9f0a1d825a635df934527bc21ddd.
+F1-01: PHP sintético release/manifesto, publicação/entrega consultiva,
+T0+72/432h, ledger idempotência em memória; PR #1 draft e CI PASS no
+SHA 101e416b081a9f0a1d825a635df934527bc21ddd.
 
-## F1-02
-- Adiciona gateway de autoridade tipado com implementação padrão que **sempre nega**, e PublicationPreflightService que exige decisão do gateway antes de qualquer elegibilidade.
-- 8 verificações sintéticas locais PASS (PHP 8.4.24), somente mocks; CI remoto desta branch deve ser conferido.
-- Ainda não existem APIs, autenticação criptográfica, serviços externos, banco, RLS, Cloudflare, contratos reais, publisher ou deploy.
+F1-02: autoridade Portal por gateway que nega por padrão;
+mock/testes sintéticos adversariais; PR #2 draft e CI PASS no
+SHA 5e2f57ce13cf759a58fdef324839920f5ffe9013.
 
-## Gates abertos
-P0-DOC01..14, RF-PEND-01, RF-PEND-04, AUT-P01..10 como norma e RV-CT01/02 como diretriz não homologada, RV-CT03..08 pendentes, AGI-11-RB01 DESABILITADO. Não usar flags/test fixtures como provas de autoridade real.
+F1-03: fundação Laravel 13 isolada em apps/sites, /up, 404 para rotas
+de negócio, PostgreSQL apenas placeholder. CI PHP 8.3/8.4 **a verificar**.
+Nenhuma integração real, credenciais, DB, clientes, APIs ou deploy.
 
-## Próxima etapa
-F1-03: plano de fundação Laravel/PostgreSQL sem execução de migrations reais e sem provedor/credencial até os gates pertinentes. Novo PR filho, sem merge/deploy automático.
+P0-DOC01..14, RF-PEND-01, RF-PEND-04, RV-CT e homologações
+seguem abertos. Rollback AGI-11-RB01 desabilitado.
+Portal/CRM/Agents/Performance main não alteradas por essa migração.
+
+Próximo: F1-04 protocolo Portal↔Sites e mocks; teste real somente após gates.

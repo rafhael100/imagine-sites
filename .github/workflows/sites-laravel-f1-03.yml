@@ -1,0 +1,36 @@
+name: F1-03 Laravel isolado - sintético sem deploy
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  isolated-laravel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer:v2
+          extensions: mbstring, xml, dom, curl, pdo, pdo_pgsql
+          coverage: none
+      - name: Validate composer metadata and lock
+        working-directory: apps/sites
+        run: composer validate --strict
+      - name: Install locked dependencies (no scripts)
+        working-directory: apps/sites
+        run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
+      - name: PHP syntax (application and tests)
+        run: |
+          for f in apps/sites/artisan apps/sites/bootstrap/*.php apps/sites/routes/*.php apps/sites/public/index.php apps/sites/tests/*.php apps/sites/tests/Feature/*.php apps/sites/app/Providers/*.php; do php -l "$f" || exit 1; done
+      - name: Isolated bootstrap and denied operational routes
+        working-directory: apps/sites
+        run: php artisan test --no-ansi
