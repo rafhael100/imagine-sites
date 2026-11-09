@@ -1,11 +1,11 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
-Data 2026-11-08; F1-13 laboratório HTTP in-process de contrato, branch filha de F1-12.
+**Referência:** 2026-11-09 — F1-14 em branch filha de F1-13, sem merge/deploy.
 
-PRs #1–12: domínio, Laravel, contrato, PostgreSQL/RLS, geração HTML, prévia privada, manifesto/aceite, publisher simulado, dupla captação fictícia, HMAC sintético e nonce PostgreSQL, todos draft/sem merge; últimos CIs PASS.
+**Base verificada:** F1-01..F1-13 em PRs encadeados e draft, com CI registrado PASS até #13 (SHA f887113069204591a361b1cd8773465da6493ed9). Portal PR #105 testou paridade da assinatura do CreateProject v1.
 
-F1-13: rota POST _lab/sites/v1/create-project registrada **somente** no Kernel PHP CLI com APP_ENV=testing e flag explícita; assinatura HMAC e store/autoridade DENY por padrão, mocks para testes adversariais. CI PHP 8.3/8.4 a conferir.
+**F1-14:** adaptador `LabPostgresReplayStore` usa PDO em PostgreSQL 18 descartável com ROLE limitada, controle do nonce, TTL, assinaturas e testes de replay em conexões diferentes. CI deste recorte a verificar após push.
 
-A rota não recebe dados reais, não faz SQL ou rede, não cria projeto e não é API produtiva. O 202 de teste significa somente validação sintética.
+**Continua NÃO operacional:** sem autenticação S2S real, integração comercial/CRM, banco Sites permanente, aprovação de cliente, publicação Cloudflare, DNS, AI Agents, n8n ou VPS. Endpoint HTTP Laravel continua apenas em CLI testing com default DENY.
 
-Gates P0/RF-PEND/RV-CT/AppSec/LGPD continuam abertos; nenhuma Cloudflare/DNS/VPS, merge ou deploy; AGI-11-RB01 desabilitado.
+Gates P0-DOC01..14, RF-PEND-01/RF-PEND-04, contratos RV-CT, LGPD/AppSec abertos; AGI-11-RB01 desabilitado. Nenhum custo, merge ou deploy automático.
