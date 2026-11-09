@@ -1,0 +1,57 @@
+name: Sites F1-08 - release RLS and acceptance digest in disposable PostgreSQL
+
+on:
+  pull_request:
+    paths:
+      - 'labs/postgres/f1-08-*'
+      - 'labs/postgres/f1-05-schema.sql'
+      - '.github/workflows/sites-f1-08-release-lab.yml'
+      - 'docs/SITES-F1-08-RELEASE-PERSISTENCE.md'
+
+permissions:
+  contents: read
+
+jobs:
+  release-rls:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: sites-release-fictional-only
+          POSTGRES_DB: sites_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sites_lab"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: sites-release-fictional-only
+      PGDATABASE: sites_lab
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install psql if absent
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Create disposable base tables and mock identities
+        run: psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-05-schema.sql
+      - name: Create disposable release and proof tables
+        run: psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-08-releases-schema.sql
+      - name: Assert tenant boundaries and exact versions
+        run: psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-08-releases-assertions.sql
+      - name: Confirm CI-only boundary
+        if: always()
+        run: echo 'Disposable PostgreSQL; no real approval, credential, customer, storage, deploy or migration.'
