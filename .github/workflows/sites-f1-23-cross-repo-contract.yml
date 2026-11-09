@@ -1,0 +1,55 @@
+name: Sites F1-23 Portal-Sites cross-repository PHP contract (synthetic only)
+
+on:
+  pull_request:
+    paths:
+      - 'tests/f23-cross-repo.php'
+      - '.github/workflows/sites-f1-23-cross-repo-contract.yml'
+      - 'docs/SITES-F1-23-PORTAL-CROSS-REPO-COMPAT.md'
+
+permissions:
+  contents: read
+
+jobs:
+  cross-repository-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    env:
+      SITES_F1_23_CROSS_REPO: '1'
+      SITES_F1_23_PORTAL_PATH: '/home/runner/work/imagine-sites/imagine-sites/portal-candidate'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Read pinned PUBLIC Portal candidate source (no production credentials)
+        uses: actions/checkout@v4
+        with:
+          repository: rafhael100/imagine-portal
+          ref: bf1b2794de4d6000f120ffa2b1e6dd557f34c35e
+          path: portal-candidate
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          extensions: mbstring
+          coverage: none
+      - name: Verify pinned public source identity
+        run: |
+          set -euo pipefail
+          test "$(git -C portal-candidate rev-parse HEAD)" = bf1b2794de4d6000f120ffa2b1e6dd557f34c35e
+          test -f portal-candidate/apps/portal/app/Domain/SitesIntegration/SyntheticSitesEnvelopeSigner.php
+      - name: Syntax check independent code from both repositories
+        run: |
+          php -l tests/f23-cross-repo.php
+          php -l portal-candidate/apps/portal/app/Domain/SitesIntegration/SyntheticSitesEnvelopeSigner.php
+          php -l portal-candidate/apps/portal/app/Domain/SitesIntegration/SitesCreateProjectEncoder.php
+      - name: Run real candidate class interoperability tests (in-memory fake authority)
+        run: php tests/f23-cross-repo.php
+      - name: State limits and no operational side effect
+        if: always()
+        run: echo "Pinned public Portal candidate classes, fictional source, no API, no key vault, no client data or deploy."
