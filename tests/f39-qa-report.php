@@ -56,6 +56,12 @@ foreach ($mutations as $label=>$html) {
     $report=QA::inspect(new ReleaseArtifact($html));
     f39Assert(!$report->passedStructuralChecks,'structural QA fails closed '.$label);
 }
-f39Assert(QA::inspect(new ReleaseArtifact('garbled'))->passedStructuralChecks===false,
-    'non-document HTML cannot satisfy readiness checks');
+$rejectedByArtifact=false;
+try {
+    new ReleaseArtifact('garbled');
+} catch (InvalidArgumentException) {
+    $rejectedByArtifact=true;
+}
+f39Assert($rejectedByArtifact,
+    'invalid HTML is rejected by the upstream ReleaseArtifact constraint');
 echo "\n$checks F1-39 offline structural checks passed; this is NOT WCAG certification or approval.\n";
