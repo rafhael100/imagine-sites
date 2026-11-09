@@ -136,7 +136,7 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
     </div>
     <div class="workspace"><div class="browser {{ $device }}">
       <div class="chrome" aria-hidden="true"><i></i><i></i><i></i><span>Prévia privada · sem domínio público</span></div>
-      <iframe title="Prévia sintética do site {{ $product }}" sandbox="" referrerpolicy="no-referrer" srcdoc="{{ $previewHtml }}"></iframe>
+      <iframe title="Prévia sintética do site {{ $product }}" sandbox="" tabindex="0" referrerpolicy="no-referrer" srcdoc="{{ $previewHtml }}"></iframe>
     </div></div>
     <div class="foot">Sem captação, scripts, URLs de clientes ou publicação. <a href="#detalhes">Ver identidade da versão</a></div>
   </section>

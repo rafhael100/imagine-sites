@@ -136,7 +136,7 @@ METRICS = r"""(() => {
     navigationLocal:links.every(a=>a.getAttribute('href').startsWith('#') ||
       /^[a-z_]+-(?:desktop|mobile)\.html$/.test(a.getAttribute('href'))),
     frameSandbox:frame?.getAttribute('sandbox'),frameSrc:frame?.getAttribute('src'),
-    frameTitle:frame?.getAttribute('title'),qa:document.querySelectorAll('.qa-list li').length,
+    frameTitle:frame?.getAttribute('title'),frameTabindex:frame?.getAttribute('tabindex'),qa:document.querySelectorAll('.qa-list li').length,
     controls:document.querySelectorAll('form,button,input,script,object,embed').length
   };
 })()"""
@@ -211,7 +211,7 @@ def run(gallery: Path, browser: str) -> None:
                     assert len(result["links"]) == 5, (filename, result)
                     assert result["linksVisible"] and result["navigationLocal"], (filename, result)
                     assert result["frameSandbox"] == "" and not result["frameSrc"], (filename, result)
-                    assert result["frameTitle"] and result["qa"] == 7, (filename, result)
+                    assert result["frameTitle"] and result["frameTabindex"] == "0" and result["qa"] == 7, (filename, result)
                     assert result["controls"] == 0, (filename, result)
                     assert_review_text_contrast(client, filename)
 

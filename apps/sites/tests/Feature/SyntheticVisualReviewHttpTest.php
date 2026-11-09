@@ -43,6 +43,7 @@ final class SyntheticVisualReviewHttpTest extends TestCase
         self::assertStringContainsString('Aceite oficial pendente no Portal',$outer);
         self::assertStringContainsString('class="browser desktop"',$outer);
         self::assertStringContainsString('sandbox=""',$outer);
+        self::assertStringContainsString('tabindex="0"',$outer);
         self::assertStringContainsString('referrerpolicy="no-referrer"',$outer);
         self::assertStringContainsString('Aprovação, publicação e entrega desabilitadas',$outer);
         self::assertStringContainsString('Verificações estruturais',$outer);

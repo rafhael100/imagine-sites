@@ -65,6 +65,7 @@ final class SyntheticReviewNavigationMatrixTest extends TestCase
                 self::assertInstanceOf(DOMElement::class,$frame);
                 self::assertTrue($frame->hasAttribute('sandbox'));
                 self::assertSame('',$frame->getAttribute('sandbox'));
+                self::assertSame('0',$frame->getAttribute('tabindex'));
                 self::assertFalse($frame->hasAttribute('src'));
                 self::assertSame('no-referrer',$frame->getAttribute('referrerpolicy'));
                 self::assertSame(0,$xp->query('//form|//script|//button|//input')->length);
