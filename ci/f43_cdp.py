@@ -151,7 +151,7 @@ def run(gallery: Path, browser: str) -> None:
                 for d in ("desktop", "mobile")}
     assert {entry["filename"] for entry in manifest["pages"]} == expected
 
-    with tempfile.TemporaryDirectory(prefix="sites-f43-chromium-") as temp:
+    with tempfile.TemporaryDirectory(prefix="sites-f43-chromium-", ignore_cleanup_errors=True) as temp:
         profile = Path(temp)/"profile"
         args = [browser, "--headless=new", "--no-sandbox", "--disable-gpu",
                 "--disable-background-networking", "--disable-sync",
