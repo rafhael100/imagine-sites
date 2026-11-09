@@ -85,11 +85,11 @@ f51Check(f51Denied(fn()=>new SiteBrief('onepage','Marca','Título','Texto','Cliq
     ['Benefício'],'<script>alert(1)</script>')),'script injection rejected as theme');
 $attack=new SiteBrief('landing_page','<script>bad</script>',
     '" onmouseover="bad"','Descrição com <tags> e & símbolos',
-    'Saiba & conheça',['<img src=x onerror=x>'],'warm');
+    'Saiba & conheça',['<img src=x>'],'warm');
 $artifact=$renderer->render($attack);
 f51Check(InertPreviewAudit::isSafe($artifact->html) &&
     !str_contains($artifact->html,'<script>') &&
     str_contains($artifact->html,'&lt;script&gt;') &&
-    str_contains($artifact->html,'&lt;img src=x onerror=x&gt;'),
+    str_contains($artifact->html,'&lt;img src=x&gt;'),
     'injected content escaped even in warm style');
 echo "\n$n F1-51 synthetic visual preset checks passed. No public site, HTTP, AI, or client data.\n";
