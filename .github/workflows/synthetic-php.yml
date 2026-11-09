@@ -36,3 +36,4 @@ jobs:
           php tests/f16-run.php
           php tests/f17-run.php
           php tests/f20-run.php
+          php tests/f26-rotation.php
