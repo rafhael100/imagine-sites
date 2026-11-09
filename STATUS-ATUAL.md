@@ -24,6 +24,7 @@
 - **F1-48 em CI (PR draft):** gateway de autorização de revisão compara envelope assinado com snapshot corrente obtido em fonte independente; ausência, revogação, versão, digest e expiração negam sem consumir nonce. Não implementa identidade real ou aceite.
 - **F1-49 (draft dependente de #68):** fonte SQL de autoridade atual com roles separadas, RLS e leitura parametrizada em PostgreSQL descartável, conciliada ao nonce F1-47; CI pendente. Não é identidade nem autorização operacional.
 - **F1-50 (draft dependente de #69):** envelope HMAC de revisão v2 vincula autorizaçãoRevision à assinatura, nega replay de epoch anterior após revogação/reativação; fonte atual e replay DENY-default. CI pendente; não é IAM real.
+- **F1-51 (draft dependente de #71):** três temas visuais fixos para Onepage/Landing, clássico byte-idêntico e paletas modern/warm sem CSS de cliente, script, URLs externas ou publicação. CI pendente.
 - [SITES-HOMOLOGATION-ENTRY](docs/SITES-HOMOLOGATION-ENTRY-2026-11-09.md) — matriz de entrada e bloqueadores com issues #33–#38.
 
 **Ainda não há ambiente operacional Sites publicado.** P0/RF-PEND/RV-CT/AppSec/LGPD, contratos financeiros, identidade, Cloudflare/DNS, banco produtivo, geração real por IA/n8n, captação/CRM fisicamente redundante e backups/restore continuam não homologados.

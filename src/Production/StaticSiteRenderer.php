@@ -107,6 +107,45 @@ final class StaticSiteRenderer
 </body>
 </html>
 HTML;
+
+        // F1-51: conservative, predefined offline design tokens only.
+        // The classic profile remains BYTE-IDENTICAL with previous releases.
+        // Never interpolate user-defined CSS, links, fonts, JS or assets.
+        $presetCss=match($brief->stylePreset) {
+            'classic'=>'',
+            'modern'=> <<<'CSS'
+    /* visual-preset: modern */
+    .benefits ul { grid-template-columns: repeat(auto-fit,minmax(min(100%,220px),1fr)); }
+    body { color: #1b3154; background: #eff4fa; }
+    header { background: #f8fbff; border-color: #dce6f4; }
+    nav a { color: #214978; }
+    .hero { background: linear-gradient(125deg, #111d33, #254f97); }
+    .eyebrow { opacity: 1; color: #d1e7ff; }
+    .btn { background: #d8eaff; color: #16375d; border-radius: 999px; }
+    .benefits li { border-color: #cbdcec; border-radius: 20px; box-shadow: 0 9px 27px rgba(12,38,70,.08); }
+    .about { background: #e1ecfb; }
+    .contact { background: #f8fbff; }
+    footer { color: #495c75; }
+CSS,
+            'warm'=> <<<'CSS'
+    /* visual-preset: warm */
+    .benefits ul { grid-template-columns: repeat(auto-fit,minmax(min(100%,220px),1fr)); }
+    body { color: #452c33; background: #fbf5ef; }
+    header { background: #fffaf5; border-color: #ecdcd2; }
+    nav a { color: #704036; }
+    .hero { background: linear-gradient(130deg, #4b2637, #8b4938); }
+    .eyebrow { opacity: 1; color: #ffe6d4; }
+    .btn { background: #fff0e0; color: #60313a; border-radius: 12px; }
+    .benefits li { background: #fffcf8; border-color: #ead8c9; box-shadow: 0 8px 22px rgba(80,46,41,.06); }
+    .about { background: #f4e5d9; }
+    .contact { background: #fffaf5; }
+    footer { color: #6a5156; }
+CSS,
+        };
+        if ($presetCss!=='') {
+            // Only the fixed closing tag of our own renderer can be replaced.
+            $html=str_replace("  </style>\n</head>",$presetCss."\n  </style>\n</head>",$html);
+        }
         return new ReleaseArtifact($html);
     }
 }
