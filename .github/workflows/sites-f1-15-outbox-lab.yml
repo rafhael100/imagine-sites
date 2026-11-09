@@ -1,0 +1,65 @@
+name: Sites F1-15 PostgreSQL transactional outbox and revocation lab
+
+on:
+  pull_request:
+    paths:
+      - 'labs/postgres/f1-15-*'
+      - 'labs/postgres/f1-05-schema.sql'
+      - '.github/workflows/sites-f1-15-outbox-lab.yml'
+      - 'docs/SITES-F1-15-OUTBOX-TRANSACTIONS.md'
+
+permissions:
+  contents: read
+
+jobs:
+  command-outbox:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: sites-outbox-lab-fictional-only
+          POSTGRES_DB: sites_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sites_lab"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: sites-outbox-lab-fictional-only
+      PGDATABASE: sites_lab
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install PostgreSQL CLI if missing
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Bootstrap synthetic tenant schema
+        run: psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-05-schema.sql
+      - name: Create exclusive candidate command and outbox tables
+        run: psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-15-command-outbox-schema.sql
+      - name: Check atomicity, idempotency, tenant RLS and revocation
+        run: psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-15-command-outbox-assertions.sql
+      - name: Check durability across a separate PostgreSQL client connection
+        run: |
+          set -euo pipefail
+          c=$(psql -X -At -v ON_ERROR_STOP=1 -c 'select count(*) from lab_sites.project_commands')
+          o=$(psql -X -At -v ON_ERROR_STOP=1 -c 'select count(*) from lab_sites.project_outbox')
+          test "$c" = 1
+          test "$o" = 1
+          echo 'Committed synthetic rows visible from new PostgreSQL connection.'
+      - name: Do not confuse the test lab with production
+        if: always()
+        run: echo "No production migration, provider, private customer payload, VPS, main merge or deploy."
