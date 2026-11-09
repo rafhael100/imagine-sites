@@ -72,25 +72,16 @@ final class InertPreviewAudit
 
         // Require exactly the five metadata tags of the safe renderer, in order.
         // In particular, reject a second robots tag and any meta refresh.
+        $expectedCsp = '<meta http-equiv="Content-Security-Policy" content="default-src '.
+            "'none'; style-src 'unsafe-inline'; img-src 'self' data:; ".
+            "base-uri 'none'; form-action 'none'; object-src 'none'\">";
         if (count($meta) !== 5 ||
             $meta[0] !== '<meta charset="utf-8">' ||
             $meta[1] !== '<meta name="viewport" content="width=device-width, initial-scale=1">' ||
             !preg_match('/\A<meta name="description" content="[^"<>]*">\z/D', $meta[2]) ||
             $meta[3] !== '<meta name="robots" content="noindex, nofollow">' ||
-            $meta[4] !== '<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;">') {
-            // The fixed CSP below uses literal single quotes. The placeholder
-            // comparison above ensures the policy is checked in one place.
-            $csp = '<meta http-equiv="Content-Security-Policy" content="default-src '.
-                "'none'; style-src 'unsafe-inline'; img-src 'self' data:; ".
-                "base-uri 'none'; form-action 'none'; object-src 'none'\">";
-            if (count($meta) !== 5 ||
-                $meta[0] !== '<meta charset="utf-8">' ||
-                $meta[1] !== '<meta name="viewport" content="width=device-width, initial-scale=1">' ||
-                !preg_match('/\A<meta name="description" content="[^"<>]*">\z/D', $meta[2] ?? '') ||
-                ($meta[3] ?? null) !== '<meta name="robots" content="noindex, nofollow">' ||
-                ($meta[4] ?? null) !== $csp) {
-                return ['unsafe_or_modified_metadata'];
-            }
+            $meta[4] !== $expectedCsp) {
+            return ['unsafe_or_modified_metadata'];
         }
 
         foreach ($links as $link) {
