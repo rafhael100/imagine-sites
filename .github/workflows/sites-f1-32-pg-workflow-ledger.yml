@@ -1,0 +1,56 @@
+name: Sites F1-32 PostgreSQL workflow ledger — disposable CI only
+on:
+  pull_request:
+    paths:
+      - 'labs/postgres/f1-32-workflow-events-schema.sql'
+      - 'labs/postgres/f1-32-workflow-events-assertions.sql'
+      - 'labs/postgres/f1-05-schema.sql'
+      - '.github/workflows/sites-f1-32-pg-workflow-ledger.yml'
+      - 'docs/SITES-F1-32-WORKFLOW-EVENT-LEDGER.md'
+permissions:
+  contents: read
+jobs:
+  workflow-ledger-lab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: fictional-sites-ci-only
+          POSTGRES_DB: sites_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sites_lab"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: fictional-sites-ci-only
+      PGDATABASE: sites_lab
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Ensure PostgreSQL client
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Bootstrap disposable tenant RLS schema and event ledger
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-05-schema.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-32-workflow-events-schema.sql
+      - name: Execute adversarial append-only workflow assertions
+        run: psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-32-workflow-events-assertions.sql
+      - name: No operational action
+        if: always()
+        run: echo "Disposable PostgreSQL 18 only. No real identity, client data, Portal, VPS, Cloudflare or deployment."
