@@ -74,12 +74,8 @@ BEGIN
  IF (SELECT sum(credits) FROM lab_sites.synthetic_credit_reservations)<>2 THEN
    RAISE EXCEPTION 'tenant B quota incorrectly mixed with tenant A';
  END IF;
- BEGIN
-   PERFORM lab_sites.reserve_synthetic_credits('tenant-fake-a','other-op','workflow-b',1);
- EXCEPTION WHEN insufficient_privilege THEN denied:=true;
- END;
- IF NOT denied THEN
-   RAISE EXCEPTION 'cross-tenant budget claim did not fail RLS';
+ IF lab_sites.reserve_synthetic_credits('tenant-fake-a','other-op','workflow-b',1) THEN
+   RAISE EXCEPTION 'cross-tenant budget claim succeeded';
  END IF;
 END $$;
 RESET ROLE;
@@ -91,11 +87,9 @@ BEGIN
  IF EXISTS(SELECT 1 FROM lab_sites.synthetic_credit_reservations) THEN
    RAISE EXCEPTION 'unknown tenant sees credit history';
  END IF;
- BEGIN
-   PERFORM lab_sites.reserve_synthetic_credits('tenant-fake-a','other2','workflow-other',1);
- EXCEPTION WHEN insufficient_privilege THEN denied:=true;
- END;
- IF NOT denied THEN RAISE EXCEPTION 'unknown tenant could claim credits'; END IF;
+ IF lab_sites.reserve_synthetic_credits('tenant-fake-a','other2','workflow-other',1) THEN
+   RAISE EXCEPTION 'unknown tenant could claim credits';
+ END IF;
 END $$;
 RESET ROLE;
 
@@ -108,11 +102,9 @@ BEGIN
  IF EXISTS(SELECT 1 FROM lab_sites.synthetic_credit_reservations) THEN
    RAISE EXCEPTION 'revoked SQL tenant still sees bookings';
  END IF;
- BEGIN
-   PERFORM lab_sites.reserve_synthetic_credits('tenant-fake-a','after-revoke','workflow-f36',1);
- EXCEPTION WHEN insufficient_privilege THEN denied:=true;
- END;
- IF NOT denied THEN RAISE EXCEPTION 'revoked SQL tenant could reserve'; END IF;
+ IF lab_sites.reserve_synthetic_credits('tenant-fake-a','after-revoke','workflow-f36',1) THEN
+   RAISE EXCEPTION 'revoked SQL tenant could reserve';
+ END IF;
 END $$;
 RESET ROLE;
 
