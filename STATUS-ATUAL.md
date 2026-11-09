@@ -1,9 +1,11 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
-Referência 2026-11-08. F1-09, branch filha do F1-08.
+Data 2026-11-08; F1-13 laboratório HTTP in-process de contrato, branch filha de F1-12.
 
-F1-01..07: documentação, domínio, Laravel independente, contrato Portal-Sites, PostgreSQL/RLS em CI, render HTML sintético e prévia privada (PRs #1..7, CI PASS, todos draft).
-F1-08: PostgreSQL 18 descartável para releases, aceites fictícios, provas de publicação e revogação (PR #8, CI PASS).
-F1-09: máquina de estados de publicação puramente em memória; separa solicitação, execução, acknowledge do fornecedor, observação independente, falha e inconclusivo; sem rollback automático. CI a conferir no PR.
+PRs #1–12: domínio, Laravel, contrato, PostgreSQL/RLS, geração HTML, prévia privada, manifesto/aceite, publisher simulado, dupla captação fictícia, HMAC sintético e nonce PostgreSQL, todos draft/sem merge; últimos CIs PASS.
 
-**Ainda não implementado:** S2S real, API/prova criptográfica, filas/outbox duráveis, CRM/captação, execução de IA, Cloudflare/DNS, storage real, backup, publicação real e entrega formal. P0/RF-PEND/RV-CT abertos, AGI-11-RB01 desabilitado. Sem merge/deploy/custos ou dados reais.
+F1-13: rota POST _lab/sites/v1/create-project registrada **somente** no Kernel PHP CLI com APP_ENV=testing e flag explícita; assinatura HMAC e store/autoridade DENY por padrão, mocks para testes adversariais. CI PHP 8.3/8.4 a conferir.
+
+A rota não recebe dados reais, não faz SQL ou rede, não cria projeto e não é API produtiva. O 202 de teste significa somente validação sintética.
+
+Gates P0/RF-PEND/RV-CT/AppSec/LGPD continuam abertos; nenhuma Cloudflare/DNS/VPS, merge ou deploy; AGI-11-RB01 desabilitado.

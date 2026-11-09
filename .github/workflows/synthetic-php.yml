@@ -24,11 +24,12 @@ jobs:
           coverage: none
       - name: PHP syntax
         run: |
-          for f in src/Domain/*.php src/Application/*.php src/Integration/*.php src/Production/*.php src/Publication/*.php tests/*.php; do php -l "$f" || exit 1; done
-      - name: Pure domain, render and publication-state tests
+          for f in src/Domain/*.php src/Application/*.php src/Integration/*.php src/Production/*.php src/Publication/*.php src/Security/*.php tests/*.php; do php -l "$f" || exit 1; done
+      - name: Pure domain, render, publication and signed-contract labs
         run: |
           php tests/run.php
           php tests/f2-run.php
           php tests/f4-run.php
           php tests/f6-run.php
           php tests/f9-run.php
+          php tests/f11-run.php
