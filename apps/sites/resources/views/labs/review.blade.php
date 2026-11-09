@@ -57,6 +57,10 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
 .foot{padding:15px 21px;color:#52647a;font-size:.75rem;border-top:1px solid #e2e7ee}
 .note{font-size:.78rem;background:#ecf3fb;border:1px solid #d5e5f6;padding:15px 18px;border-radius:10px;margin-top:20px;color:#2a5077}
 .qa-summary{margin-top:20px;border-top:1px solid #e5ebf2;padding-top:17px}.qa-summary strong{font-size:.84rem}.qa-summary p{font-size:.73rem;color:#52647a;margin:5px 0 10px}.qa-list{padding:0;list-style:none;display:grid;gap:7px}.qa-list li{display:flex;gap:9px;align-items:center;font-size:.76rem}.qa-list span{display:grid;place-items:center;width:18px;height:18px;background:#e8f4ec;color:#246342;border-radius:50%;font-weight:800}.qa-summary p.pending{margin-top:11px;background:#fff8e9;color:#7a5b23;border-radius:7px;padding:9px}
+.editorial-summary{margin-top:15px;padding-top:15px;border-top:1px solid #e5ebf2}
+.editorial-summary strong{font-size:.84rem}
+.editorial-summary .sub{margin:5px 0}
+.editorial-note{padding:9px 10px;border-radius:8px;background:#f4f7fb;color:#394f68;font-size:.76rem}
 @media(max-width:940px){.layout{grid-template-columns:1fr}.sidebar{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:610px){header,.intro{flex-direction:column;align-items:flex-start}.sidebar{grid-template-columns:1fr}.workspace{padding:10px 8px;min-height:0}iframe{height:480px}}
 </style>
@@ -124,6 +128,15 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
         @endforeach
         </ul>
         <p class="pending">Revisão visual, contraste, navegação por teclado e conteúdo exigem validação humana posterior.</p>
+      </div>
+      <div class="editorial-summary" id="editorial" aria-labelledby="editorial-title">
+        <strong id="editorial-title">Revisão editorial orientativa</strong>
+        <p class="sub">Sugestões automáticas não substituem a aprovação humana nem autorizam publicação.</p>
+        @forelse($editorialSuggestions as $suggestion)
+          <p class="editorial-note">{{ $suggestion }}</p>
+        @empty
+          <p class="editorial-note">Sem sugestões automáticas para esta demonstração. Revisão humana ainda necessária.</p>
+        @endforelse
       </div>
     </section>
   </aside>
