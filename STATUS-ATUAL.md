@@ -1,11 +1,11 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
-Referência 2026-11-08. F1-12 PostgreSQL replay fence em laboratório, branch filha de F1-11.
+Data 2026-11-08; F1-13 laboratório HTTP in-process de contrato, branch filha de F1-12.
 
-F1-08: PostgreSQL 18 descartável, release/aceite/observação e revogação (PR #8, CI PASS).
-F1-09: máquina de estados de publicação, prova independente sintética, sem rollback (PR #9, CI PASS).
-F1-10: duas bases de captação fictícias, regras de vínculo CRM, T0+432h (PR #10, CI PASS).
-F1-11: HMAC CreateProject v1, issuer/audience, TTL e negação padrão de replay; paridade validada com fixture do Portal (PR #11, CI PASS). Portal PR #105 assina fixture equivalente, CI PASS.
-F1-12: schema descartável para replay fence durável com RLS/GRANT mínimo e concorrência, CI a verificar.
+PRs #1–12: domínio, Laravel, contrato, PostgreSQL/RLS, geração HTML, prévia privada, manifesto/aceite, publisher simulado, dupla captação fictícia, HMAC sintético e nonce PostgreSQL, todos draft/sem merge; últimos CIs PASS.
 
-**Limites:** nenhum banco persistente de clientes, chave de produção, API HTTP real, homologação de CRM, IA/n8n, Cloudflare, DNS, publicação, VPS, backup/restore ou deploy. Contratos P0/RF-PEND/RV-CT permanecem abertos; AGI-11-RB01 desabilitado. Todos PRs draft sem merges.
+F1-13: rota POST _lab/sites/v1/create-project registrada **somente** no Kernel PHP CLI com APP_ENV=testing e flag explícita; assinatura HMAC e store/autoridade DENY por padrão, mocks para testes adversariais. CI PHP 8.3/8.4 a conferir.
+
+A rota não recebe dados reais, não faz SQL ou rede, não cria projeto e não é API produtiva. O 202 de teste significa somente validação sintética.
+
+Gates P0/RF-PEND/RV-CT/AppSec/LGPD continuam abertos; nenhuma Cloudflare/DNS/VPS, merge ou deploy; AGI-11-RB01 desabilitado.
