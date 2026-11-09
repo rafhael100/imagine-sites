@@ -21,6 +21,7 @@
 - [PR #56](https://github.com/rafhael100/imagine-sites/pull/56) — F1-38, interface de revisão visual Onepage/Landing dentro do kernel Laravel CLI/testing, preview HTML exato em iframe sandbox e troca desktop/mobile. **CI PHP/Laravel e safety guard PASS** (`7197eeb`), PR draft sem merge. Sem aprovação/publicação ou acesso HTTP público.
 - [PR #57](https://github.com/rafhael100/imagine-sites/pull/57) — F1-39, sete checagens estruturais DOM de HTML e negativas adversariais, integradas à UI de revisão F1-38. **CI PHP 8.3/8.4, Laravel e safety guard PASS** (`87770fe`), PR draft dependente de #56. Não é certificação WCAG nem autorização operacional.
 - **F1-40 (PR draft dependente de #57):** matriz de navegação Onepage/Landing desktop/mobile, controles aria-current, sandbox, SHA-256 e negativas HTTP/metodologia. Aguardar CI, sem browser público, aceite ou publicação.
+- **F1-41 (PR draft dependente de F1-40):** exportador CLI de galeria HTML offline (4 páginas + manifesto SHA-256), links locais, noindex/CSP, dados fictícios, sem upload ou publicação. Aguardar CI e revisão.
 - [SITES-HOMOLOGATION-ENTRY](docs/SITES-HOMOLOGATION-ENTRY-2026-11-09.md) — matriz de entrada e bloqueadores com issues #33–#38.
 
 **Ainda não há ambiente operacional Sites publicado.** P0/RF-PEND/RV-CT/AppSec/LGPD, contratos financeiros, identidade, Cloudflare/DNS, banco produtivo, geração real por IA/n8n, captação/CRM fisicamente redundante e backups/restore continuam não homologados.
