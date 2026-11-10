@@ -77,9 +77,13 @@ final class F105SyntheticCurrentEpochSource implements CurrentPortalProjectAutho
 {
     public ?int $epoch=2;
     public bool $unavailable=false;
+    public int $calls=0;
+    public ?Closure $onRead=null;
 
     public function currentEpochFor(string $tenantRef,string $orderRef):?int
     {
+        ++$this->calls;
+        if ($this->onRead !== null) ($this->onRead)();
         if ($this->unavailable ||
             $tenantRef !== 'tenant-f103-c' || $orderRef !== 'order-f103-c') return null;
         return $this->epoch;
@@ -387,6 +391,26 @@ f94Assert($f103Created['idempotentReplay']===false &&
     f94Count($app,'tenant-f103-c','sites_projects')===1 &&
     f94Count($app,'tenant-f103-c','sites_project_admissions')===1,
     'F1-103 exactly bound short-lived fictional snapshot creates one PG admission');
+
+// A revision change in the epoch source DURING a replay must be observed
+// by the F1-104 final authorization check, even if the first check allowed.
+$f105FirstEpochCall=$f103EpochSource->calls;
+$f103EpochSource->onRead=static function() use ($f103EpochSource,$f105FirstEpochCall):void {
+    if ($f103EpochSource->calls===$f105FirstEpochCall+2) {
+        $f103EpochSource->epoch=3;
+    }
+};
+try {
+    f94Assert(f94Denied(fn()=> $f103Store->admit($f103Command,$f103Site)) &&
+        f94Count($app,'tenant-f103-c','sites_project_admissions')===1 &&
+        !$app->inTransaction(),
+        'F1-105 changed epoch at final authority check denies replay with rollback');
+    f94Assert($f103EpochSource->calls===$f105FirstEpochCall+2,
+        'F1-105 transaction asks the epoch source separately at entry and commit');
+} finally {
+    $f103EpochSource->onRead=null;
+    $f103EpochSource->epoch=2;
+}
 
 $f103EpochSource->epoch=3;
 // The old eligible snapshot has not expired yet but the independent epoch
