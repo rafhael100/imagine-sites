@@ -10,6 +10,8 @@ use Imagine\Sites\Security\DenyingReplayStore;
 use Imagine\Sites\Security\ReplayStore;
 use Imagine\Sites\Security\SyntheticSignedCommand;
 use Imagine\Sites\Security\SyntheticVersionedSignedCommand;
+use Imagine\Sites\Security\SyntheticCommercialEpochSignedCommand;
+use Imagine\Sites\Security\LabPreflightNoPersistReplayStore;
 use PDO;
 
 /**
@@ -32,6 +34,8 @@ final class LabSignedProjectIntake
             new DenyingPortalSigningKeySource(),
         private readonly PortalSigningKeyEpochSource $signingKeyEpochs =
             new DenyingPortalSigningKeyEpochSource(),
+        private readonly PortalProjectCommercialEpochSource $commercialEpochs =
+            new DenyingPortalProjectCommercialEpochSource(),
     ) {}
 
     /**
@@ -55,7 +59,8 @@ final class LabSignedProjectIntake
         // Contradictory v1/v2 flags also DENY before key lookup or nonce use.
         $requireV2=getenv('SITES_F118_REQUIRE_EPOCH_SIGNED') === '1';
         $allowLegacyV1=getenv('SITES_F118_ALLOW_LEGACY_V1_LAB') === '1';
-        if ($requireV2 === $allowLegacyV1) {
+        $requireV3=getenv('SITES_F125_REQUIRE_COMMERCIAL_EPOCH_SIGNED') === '1';
+        if ((int)$requireV2+(int)$allowLegacyV1+(int)$requireV3 !== 1) {
             throw new DomainException('lab_signed_project_envelope_mode_denied');
         }
 
@@ -99,7 +104,34 @@ final class LabSignedProjectIntake
         // v2 HMAC, not only via a contemporaneous independent lookup.
         // The legacy v1 path requires a separate affirmative CLI lab flag;
         // there is NO default version or silent downgrade.
-        if ($requireV2) {
+        $commercialEpoch=null;
+        if ($requireV3) {
+            // The commercial order must be authenticated BEFORE querying
+            // its current epoch, but no durable replay nonce may be
+            // consumed during this preflight signature/shape check.
+            $claimedEpoch=$envelope['commercialEpoch'] ?? null;
+            if (!is_int($claimedEpoch) || $claimedEpoch<1) {
+                throw new DomainException('lab_commercial_epoch_invalid');
+            }
+            $preflight= SyntheticCommercialEpochSignedCommand::verify(
+                $envelope,$syntheticKey,$signingEpoch,$claimedEpoch,
+                time(),new LabPreflightNoPersistReplayStore()
+            );
+            try {
+                $commercialEpoch=$this->commercialEpochs->currentEpochFor($preflight);
+            } catch (\Throwable $e) {
+                throw new DomainException('lab_commercial_epoch_unavailable',previous:$e);
+            }
+            if (!is_int($commercialEpoch) || $commercialEpoch<1) {
+                throw new DomainException('lab_commercial_epoch_unavailable');
+            }
+            // This second check compares the authenticated grant epoch
+            // with an independent source BEFORE the durable nonce INSERT.
+            $command=SyntheticCommercialEpochSignedCommand::verify(
+                $envelope,$syntheticKey,$signingEpoch,$commercialEpoch,
+                time(),$this->replay
+            );
+        } elseif ($requireV2) {
             $command=SyntheticVersionedSignedCommand::verify(
                 $envelope,$syntheticKey,$signingEpoch,time(),$this->replay
             );
@@ -115,8 +147,13 @@ final class LabSignedProjectIntake
         // F1-116: revocation/rotation of the pinned signing key must
         // invalidate BOTH candidate admission checks, including the
         // second decision immediately before the PostgreSQL COMMIT.
+        $commercialAuthority=$requireV3
+            ? new LabPinnedCommercialEpochAuthorityGateway(
+                $this->authority,$this->commercialEpochs,$commercialEpoch
+            )
+            : $this->authority;
         $currentAuthority=new LabPinnedPortalSigningKeyAuthorityGateway(
-            $this->authority, $this->signingKeys, $syntheticKey,
+            $commercialAuthority, $this->signingKeys, $syntheticKey,
             $this->signingKeyEpochs, $signingEpoch
         );
         return (new LabAuthorizedProjectAdmissionStore(
