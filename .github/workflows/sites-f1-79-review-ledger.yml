@@ -1,0 +1,71 @@
+name: Sites F1-79 append-only review evidence ledger - disposable PG18
+on:
+  pull_request:
+    paths:
+      - 'labs/security/f1-79-internal-review-ledger.sql'
+      - 'src/Persistence/LabInternalReviewDecisionStore.php'
+      - 'src/Production/SyntheticInternalReviewDecision.php'
+      - 'src/Production/SyntheticInternalReviewDossier.php'
+      - 'tests/f79-pg-internal-review-ledger.php'
+      - '.github/workflows/sites-f1-79-review-ledger.yml'
+      - 'docs/SITES-F1-79-PG-REVIEW-LEDGER.md'
+permissions:
+  contents: read
+jobs:
+  append-only-review-ledger:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: f79-lab-ephemeral-fixture-only
+          POSTGRES_DB: sites_f79_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sites_f79_lab"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      SITES_F79_PG_LAB: '1'
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: f79-lab-ephemeral-fixture-only
+      PGDATABASE: sites_f79_lab
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          extensions: pdo,pdo_pgsql,mbstring,dom,xml
+          coverage: none
+      - name: Check PostgreSQL client
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Load disposable tenant RLS append-only ledger
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f labs/security/f1-79-internal-review-ledger.sql
+      - name: Verify PHP syntax and evidence ledger isolation and concurrency
+        run: |
+          php -l src/Persistence/LabInternalReviewDecisionStore.php
+          php -l tests/f79-pg-internal-review-ledger.php
+          php tests/f79-pg-internal-review-ledger.php
+      - name: Restriction notice
+        if: always()
+        run: echo 'F1-79 disposable fictional PG18 lab only. Not service IAM, backup-revocation proof, Portal acceptance or deployment.'
