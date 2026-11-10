@@ -631,25 +631,27 @@ Artisan::command('sites:assemble-draft-fixture {product=onepage} {preset=classic
         $this->error('Unable to create private lab scratch.');
         return Command::FAILURE;
     }
-    if (is_link($private) || !mkdir($directory,0700)) {
-        $this->error('Unable to create a fresh private draft output.');
+    try {
+        // Stage the EXACT four files in the fixed canonical order, verify
+        // before/after the move and only then expose a complete private draft.
+        $proof=\Imagine\Sites\Production\SyntheticPrivateDraftWriter::create(
+            $directory,[
+                'index.html'=>$files['index.html'],
+                'internal-review-dossier.json'=>$files['internal-review-dossier.json'],
+                'internal-review-draft.json'=>$files['internal-review-draft.json'],
+                'release-manifest.json'=>$files['release-manifest.json'],
+            ]
+        );
+        if ($proof['releaseRef']!==$assembly->manifest->releaseRef ||
+            $proof['artifactDigest']!==$assembly->artifact->digest ||
+            $proof['dossierDigest']!==$dossier->digest ||
+            $proof['officialClientAcceptance']!==false ||
+            $proof['publishable']!==false) {
+            throw new \DomainException('Private draft readback differs from source.');
+        }
+    } catch (\Throwable) {
+        $this->error('Private draft staging/readback failed: not delivered or published.');
         return Command::FAILURE;
-    }
-    @chmod($directory,0700);
-    foreach ($files as $filename=>$bytes) {
-        $output=$directory.'/'.$filename;
-        $stream=@fopen($output,'x');
-        if ($stream===false) {
-            $this->error('Unable to create private draft file.');
-            return Command::FAILURE;
-        }
-        $n=fwrite($stream,$bytes);
-        fclose($stream);
-        @chmod($output,0600);
-        if ($n!==strlen($bytes)) {
-            $this->error('Incomplete private draft file write.');
-            return Command::FAILURE;
-        }
     }
     $this->line('PRIVATE SYNTHETIC DRAFT — INTERNAL REVIEW REQUIRED; NOT DELIVERED.');
     $this->line('HTML SHA-256: '.$assembly->artifact->digest);
