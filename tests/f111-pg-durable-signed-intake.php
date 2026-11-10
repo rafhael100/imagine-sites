@@ -641,6 +641,95 @@ try {
     f111Check($v3B->admitSigned($afterRestore)['idempotentReplay']===true &&
         f111AdmissionCount($app,'tenant-f125')===1,
         'F1-125 new signed nonce and current grant restore exact idempotent result');
+
+    // F1-126: a commercial source outage BEFORE the durable nonce INSERT
+    // may be retried with the SAME signed envelope after recovery.
+    $offlineBeforeNonce=$signV3(
+        'f126-outage-before-nonce-0001',$commercial->epoch
+    );
+    $commercial->offline=true;
+    try {
+        f111Check(f111Denied(fn()=> $v3A->admitSigned($offlineBeforeNonce)) &&
+            f111AdmissionCount($app,'tenant-f125')===1,
+            'F1-126 commercial source outage at preflight denies without SQL mutation');
+    } finally {
+        $commercial->offline=false;
+    }
+    f111Check($v3B->admitSigned($offlineBeforeNonce)['idempotentReplay']===true,
+        'F1-126 preflight outage did not burn nonce in other PostgreSQL database');
+
+    // Outage after a successful commercial lookup and nonce INSERT,
+    // during the first SQL admission authorization. Original nonce
+    // must be considered consumed despite project transaction denial.
+    $outageAtEntry=$signV3('f126-outage-at-entry-0002',$commercial->epoch);
+    $beforeEntry=$commercial->calls;
+    $commercial->onRead=static function() use($commercial,$beforeEntry):void {
+        if ($commercial->calls===$beforeEntry+2) $commercial->offline=true;
+    };
+    try {
+        f111Check(f111Denied(fn()=> $v3A->admitSigned($outageAtEntry)) &&
+            f111AdmissionCount($app,'tenant-f125')===1 &&
+            !$app->inTransaction(),
+            'F1-126 outage after nonce but before admission rolls back SQL');
+        f111Check($commercial->calls===$beforeEntry+2,
+            'F1-126 outage triggered at first transactional commercial recheck');
+    } finally {
+        $commercial->onRead=null;
+        $commercial->offline=false;
+    }
+    f111Check(f111Denied(fn()=> $v3B->admitSigned($outageAtEntry)),
+        'F1-126 cross-session retry denies nonce consumed before authorization outage');
+    $entryRetry=$signV3('f126-entry-recovery-nonce-0003',$commercial->epoch);
+    f111Check($v3B->admitSigned($entryRetry)['idempotentReplay']===true &&
+        f111AdmissionCount($app,'tenant-f125')===1,
+        'F1-126 fresh nonce recovers idempotent replay after entry outage');
+
+    // Finally, fail exactly on the THIRD commercial lookup during
+    // the creation of a NEW project: first read before durable nonce,
+    // second read at admission entry, third read before COMMIT.
+    $brandNew=new SiteProjectCommand(
+        '1','operation-f126','tenant-f126','order-f126',
+        'contract-f126',1,'onepage','idempotency-f126'
+    );
+    $newCommercial=new F125FictionalCommercialEpochSource(
+        $brandNew->tenantRef,$brandNew->orderRef
+    );
+    $newAuthority=new F111FictionalOrderGateway($brandNew);
+    $newIntakeA=new LabSignedProjectIntake(
+        $app,$newAuthority,$fenceA,$signingKeys,$signingEpoch,$newCommercial
+    );
+    $newIntakeB=new LabSignedProjectIntake(
+        $app,$newAuthority,$fenceB,$signingKeys,$signingEpoch,$newCommercial
+    );
+    $newSigned=static fn(string $nonce):array =>
+        SyntheticCommercialEpochSignedCommand::sign(
+            $brandNew,$key,$nonce,$now-1,$now+60,
+            $signingEpoch->epoch,$newCommercial->epoch
+        );
+    $precommitOutage=$newSigned('f126-precommit-outage-0004');
+    $beforeCommit=$newCommercial->calls;
+    $newCommercial->onRead=static function() use($newCommercial,$beforeCommit):void {
+        if ($newCommercial->calls===$beforeCommit+3) $newCommercial->offline=true;
+    };
+    try {
+        f111Check(f111Denied(fn()=> $newIntakeA->admitSigned($precommitOutage)) &&
+            f111AdmissionCount($app,'tenant-f126')===0 &&
+            !$app->inTransaction(),
+            'F1-126 outage at pre-COMMIT rolls back BOTH new project and admission');
+        f111Check($newCommercial->calls===$beforeCommit+3,
+            'F1-126 three per-command commercial checks reached pre-COMMIT outage');
+    } finally {
+        $newCommercial->onRead=null;
+        $newCommercial->offline=false;
+    }
+    f111Check(f111Denied(fn()=> $newIntakeB->admitSigned($precommitOutage)),
+        'F1-126 nonce remains burned after SQL rollback on pre-COMMIT outage');
+    $postCommitRecovery=$newSigned('f126-new-project-recovery-0005');
+    f111Check($newIntakeB->admitSigned($postCommitRecovery)['idempotentReplay']===false &&
+        f111AdmissionCount($app,'tenant-f126')===1,
+        'F1-126 new signed nonce creates exactly one project after provider recovery');
+    f111Check(f111Denied(fn()=> $newIntakeA->admitSigned($postCommitRecovery)),
+        'F1-126 replay of recovered create is denied across DB connections');
 } finally {
     if ($oldV3===false)putenv('SITES_F125_REQUIRE_COMMERCIAL_EPOCH_SIGNED');
     else putenv('SITES_F125_REQUIRE_COMMERCIAL_EPOCH_SIGNED='.$oldV3);
@@ -650,5 +739,5 @@ try {
     else putenv('SITES_F118_REQUIRE_EPOCH_SIGNED='.$oldV2);
 }
 
-echo "\n$checks F1-111–F1-125 two-database signed intake assertions passed.\n";
+echo "\n$checks F1-111–F1-126 two-database signed intake assertions passed.\n";
 echo "Disposable PG18, fake HMAC, no live Portal IAM, HTTP, client data, go-live or publication.\n";
