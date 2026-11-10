@@ -81,7 +81,7 @@ return new class extends Migration {
             // customer acceptance or signed review decision.
             <<<'SQL'
 CREATE FUNCTION sites_reject_draft_mutation() RETURNS trigger LANGUAGE plpgsql AS
-$ BEGIN RAISE EXCEPTION 'sites_drafts append-only'; END; $
+'BEGIN RAISE EXCEPTION ''sites_drafts append-only''; END;'
 SQL,
             "CREATE TRIGGER sites_drafts_no_change
                 BEFORE UPDATE OR DELETE ON sites_drafts FOR EACH ROW
