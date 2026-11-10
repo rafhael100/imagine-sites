@@ -20,6 +20,8 @@ on:
       - 'tests/f111-pg-durable-signed-intake.php'
       - 'docs/SITES-F1-111-TWO-PG-REPLAY-INTAKE.md'
       - 'src/Security/SyntheticSignedCommand.php'
+      - 'src/Security/SyntheticVersionedSignedCommand.php'
+      - 'docs/SITES-F1-118-SIGNED-KEY-EPOCH-V2.md'
       - 'src/Security/ReplayStore.php'
       - 'tests/f94-pg-authorized-project-admission.php'
       - 'tests/f95-pg-verified-draft-revisions.php'
@@ -164,6 +166,7 @@ jobs:
           php -l src/Integration/LabPinnedPortalSigningKeyAuthorityGateway.php
           php -l src/Integration/PortalSigningKeyEpochSource.php
           php -l src/Integration/DenyingPortalSigningKeyEpochSource.php
+          php -l src/Security/SyntheticVersionedSignedCommand.php
           php -l tests/f111-pg-durable-signed-intake.php
           SITES_F1_14_PG_LAB=1 SITES_F110_SIGNED_PROJECT_LAB=1 php tests/f111-pg-durable-signed-intake.php
       - name: Prove rollback cannot drop the admissions ledger
