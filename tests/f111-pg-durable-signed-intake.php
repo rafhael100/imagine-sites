@@ -31,6 +31,7 @@ spl_autoload_register(static function(string $class):void {
 use Imagine\Sites\Domain\PolicyDecision;
 use Imagine\Sites\Integration\LabSignedProjectIntake;
 use Imagine\Sites\Integration\PortalSigningKeySource;
+use Imagine\Sites\Integration\PortalSigningKeyEpochSource;
 use Imagine\Sites\Integration\PortalProjectAuthorityGateway;
 use Imagine\Sites\Integration\SiteProjectCommand;
 use Imagine\Sites\Persistence\LabAuthorizedProjectAdmissionStore;
@@ -71,6 +72,22 @@ final class F115FictionalSigningKeySource implements PortalSigningKeySource
         if ($this->fail) throw new RuntimeException('F115 synthetic key source unavailable');
         return $issuer==='imagine-portal' && $audience==='imagine-sites'
             ? $this->key : null;
+    }
+}
+
+/** F1-117: fake key epoch, never a trusted operational provider. */
+final class F117FictionalEpochSource implements PortalSigningKeyEpochSource
+{
+    public ?int $epoch=1;
+    public bool $fail=false;
+    public int $calls=0;
+
+    public function currentEpochFor(string $issuer,string $audience):?int
+    {
+        ++$this->calls;
+        if ($this->fail) throw new RuntimeException('Lab key epoch unavailable');
+        return $issuer==='imagine-portal' && $audience==='imagine-sites'
+            ? $this->epoch : null;
     }
 }
 
@@ -129,8 +146,9 @@ $command=new SiteProjectCommand(
 $gateway=new F111FictionalOrderGateway($command);
 $key='DO-NOT-USE-F1-111-SYNTHETIC-ONLY-KEY-123456789';
 $signingKeys=new F115FictionalSigningKeySource($key);
-$intakeA=new LabSignedProjectIntake($app,$gateway,$fenceA,$signingKeys);
-$intakeB=new LabSignedProjectIntake($app,$gateway,$fenceB,$signingKeys);
+$signingEpoch=new F117FictionalEpochSource();
+$intakeA=new LabSignedProjectIntake($app,$gateway,$fenceA,$signingKeys,$signingEpoch);
+$intakeB=new LabSignedProjectIntake($app,$gateway,$fenceB,$signingKeys,$signingEpoch);
 $now=time();
 $sign=static fn(SiteProjectCommand $cmd,string $nonce):array =>
     SyntheticSignedCommand::sign($cmd,$key,$nonce,$now-1,$now+60);
@@ -326,6 +344,7 @@ f111Check($intakeB->admitSigned($failedKeySigned)['idempotentReplay']===true,
 $oldSigned=$sign($command,'f115-rotation-key-0004');
 $rotatedKey='DO-NOT-USE-F1-115-ROTATED-SYNTHETIC-KEY-123456789';
 $signingKeys->key=$rotatedKey;
+++$signingEpoch->epoch;
 f111Check(f111Denied(fn()=> $intakeA->admitSigned($oldSigned)) &&
     f111AdmissionCount($app,'tenant-f111')===1,
     'F1-115 stale signature is rejected after pinned key rotation');
@@ -338,6 +357,7 @@ f111Check($intakeB->admitSigned($newSigned)['idempotentReplay']===true &&
 f111Check(f111Denied(fn()=> $intakeA->admitSigned($newSigned)),
     'F1-115 replay protection still holds across sessions after key rotation');
 $signingKeys->key=$key;
+++$signingEpoch->epoch;
 
 $notPortal=$sign($command,'f115-issuer-gate-0005');
 $notPortal['issuer']='unknown-service';
@@ -376,5 +396,57 @@ f111Check($intakeB->admitSigned($f116Refresh)['idempotentReplay']===true &&
     f111AdmissionCount($app,'tenant-f111')===1,
     'F1-116 fresh signed nonce and revalidated key recover exact idempotent replay');
 
-echo "\n$checks F1-111–F1-116 two-database signed intake assertions passed.\n";
+// F1-117: default epoch source MUST deny even if a signing key exists
+// and a previously verified candidate project is still eligible.
+$noEpochIntake=new LabSignedProjectIntake($app,$gateway,$fenceA,$signingKeys);
+$noEpochSigned=$sign($command,'f117-no-signing-epoch-0001');
+f111Check(f111Denied(fn()=> $noEpochIntake->admitSigned($noEpochSigned)) &&
+    f111AdmissionCount($app,'tenant-f111')===1,
+    'F1-117 missing independent key epoch denies before project admission');
+f111Check($intakeB->admitSigned($noEpochSigned)['idempotentReplay']===true,
+    'F1-117 default epoch denial does not consume the nonce');
+
+$epochUnavailableSigned=$sign($command,'f117-epoch-offline-0002');
+$signingEpoch->fail=true;
+try {
+    f111Check(f111Denied(fn()=> $intakeA->admitSigned($epochUnavailableSigned)) &&
+        f111AdmissionCount($app,'tenant-f111')===1,
+        'F1-117 key epoch provider error fails closed before nonce consumption');
+} finally {
+    $signingEpoch->fail=false;
+}
+f111Check($intakeB->admitSigned($epochUnavailableSigned)['idempotentReplay']===true,
+    'F1-117 unavailable generation did not consume nonce');
+
+$abaSigned=$sign($command,'f117-aba-durable-replay-0003');
+$beforeAba=$signingKeys->calls;
+$initialEpoch=$signingEpoch->epoch;
+$signingKeys->onLookup=static function() use($signingKeys,$signingEpoch,$beforeAba,$key):void {
+    if ($signingKeys->calls===$beforeAba+3) {
+        $signingKeys->key='DO-NOT-USE-F117-TEMPORARY-ROTATION-KEY-123456789';
+        $signingKeys->key=$key;
+        ++$signingEpoch->epoch;
+    }
+};
+try {
+    f111Check(f111Denied(fn()=> $intakeA->admitSigned($abaSigned)) &&
+        f111AdmissionCount($app,'tenant-f111')===1 &&
+        !$app->inTransaction(),
+        'F1-117 A-B-A signing key change denies before idempotent replay COMMIT');
+    f111Check($signingEpoch->epoch===$initialEpoch+1 &&
+        $signingKeys->key===$key &&
+        $signingKeys->calls===$beforeAba+3,
+        'F1-117 same bytes and bumped generation prove anti-ABA epoch check');
+} finally {
+    $signingKeys->onLookup=null;
+    $signingKeys->key=$key;
+}
+f111Check(f111Denied(fn()=> $intakeB->admitSigned($abaSigned)),
+    'F1-117 replay nonce remains consumed even when epoch changed before COMMIT');
+$epochRetry=$sign($command,'f117-current-epoch-new-nonce-0004');
+f111Check($intakeB->admitSigned($epochRetry)['idempotentReplay']===true &&
+    f111AdmissionCount($app,'tenant-f111')===1,
+    'F1-117 current epoch with fresh signed nonce recovers exact idempotent replay');
+
+echo "\n$checks F1-111–F1-117 two-database signed intake assertions passed.\n";
 echo "Disposable PG18, fake HMAC, no live Portal IAM, HTTP, client data, go-live or publication.\n";

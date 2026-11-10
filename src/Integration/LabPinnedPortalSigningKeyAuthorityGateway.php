@@ -18,6 +18,9 @@ final class LabPinnedPortalSigningKeyAuthorityGateway implements PortalProjectAu
         private readonly PortalProjectAuthorityGateway $delegate,
         private readonly PortalSigningKeySource $signingKeys,
         private readonly string $verifiedKey,
+        private readonly PortalSigningKeyEpochSource $signingKeyEpochs =
+            new DenyingPortalSigningKeyEpochSource(),
+        private readonly int $verifiedEpoch = 0,
     ) {}
 
     public function verify(SiteProjectCommand $command): PolicyDecision
@@ -34,8 +37,16 @@ final class LabPinnedPortalSigningKeyAuthorityGateway implements PortalProjectAu
                 return new PolicyDecision(false, ['portal_signing_key_revoked_or_rotated']);
             }
 
-            // Do not cache the grant: the underlying store will invoke
-            // verify() at entry and again just before the project COMMIT.
+            $currentEpoch=$this->signingKeyEpochs->currentEpochFor(
+                'imagine-portal', 'imagine-sites'
+            );
+            if (!is_int($currentEpoch) || $currentEpoch < 1 ||
+                $currentEpoch !== $this->verifiedEpoch) {
+                return new PolicyDecision(false, ['portal_signing_key_epoch_changed']);
+            }
+
+            // Never cache a grant: the admission store invokes this
+            // wrapper at entry and immediately before the project COMMIT.
             return $this->delegate->verify($command);
         } catch (Throwable) {
             return new PolicyDecision(false, ['portal_signing_key_check_unavailable']);

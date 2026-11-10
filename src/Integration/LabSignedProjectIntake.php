@@ -29,6 +29,8 @@ final class LabSignedProjectIntake
             new DenyingReplayStore(),
         private readonly PortalSigningKeySource $signingKeys =
             new DenyingPortalSigningKeySource(),
+        private readonly PortalSigningKeyEpochSource $signingKeyEpochs =
+            new DenyingPortalSigningKeyEpochSource(),
     ) {}
 
     /**
@@ -70,6 +72,19 @@ final class LabSignedProjectIntake
         if (!is_string($syntheticKey) || strlen($syntheticKey) < 32) {
             throw new DomainException('lab_portal_signing_key_unavailable');
         }
+        // F1-117: pin a positive signing-key epoch separately from bytes.
+        // If a key rotates A->B->A before COMMIT, unchanged HMAC bytes
+        // alone must not hide the generation change.
+        try {
+            $signingEpoch = $this->signingKeyEpochs->currentEpochFor(
+                'imagine-portal', 'imagine-sites'
+            );
+        } catch (\Throwable $e) {
+            throw new DomainException('lab_portal_signing_epoch_unavailable', previous: $e);
+        }
+        if (!is_int($signingEpoch) || $signingEpoch < 1) {
+            throw new DomainException('lab_portal_signing_epoch_unavailable');
+        }
         $command = SyntheticSignedCommand::verify(
             $envelope, $syntheticKey, time(), $this->replay
         );
@@ -81,7 +96,8 @@ final class LabSignedProjectIntake
         // invalidate BOTH candidate admission checks, including the
         // second decision immediately before the PostgreSQL COMMIT.
         $currentAuthority=new LabPinnedPortalSigningKeyAuthorityGateway(
-            $this->authority, $this->signingKeys, $syntheticKey
+            $this->authority, $this->signingKeys, $syntheticKey,
+            $this->signingKeyEpochs, $signingEpoch
         );
         return (new LabAuthorizedProjectAdmissionStore(
             $this->db, $currentAuthority

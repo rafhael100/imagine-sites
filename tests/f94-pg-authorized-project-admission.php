@@ -36,6 +36,7 @@ use Imagine\Sites\Integration\CurrentPortalProjectAuthorizationSnapshot;
 use Imagine\Sites\Integration\SnapshotBoundPortalProjectAuthorityGateway;
 use Imagine\Sites\Integration\LabSignedProjectIntake;
 use Imagine\Sites\Integration\PortalSigningKeySource;
+use Imagine\Sites\Integration\PortalSigningKeyEpochSource;
 use Imagine\Sites\Security\ReplayStore;
 use Imagine\Sites\Security\SyntheticSignedCommand;
 use Imagine\Sites\Persistence\LabAuthorizedProjectAdmissionStore;
@@ -131,6 +132,22 @@ final class F115FictionalPortalSigningKeys implements PortalSigningKeySource
         if ($this->fail) throw new RuntimeException('Fictitious key service offline');
         return $issuer==='imagine-portal' && $audience==='imagine-sites'
             ? $this->key : null;
+    }
+}
+
+/** F1-117: fictional monotonic key generation, separate from key bytes. */
+final class F117FictionalSigningKeyEpochs implements PortalSigningKeyEpochSource
+{
+    public ?int $epoch=1;
+    public bool $fail=false;
+    public int $calls=0;
+
+    public function currentEpochFor(string $issuer,string $audience):?int
+    {
+        ++$this->calls;
+        if ($this->fail) throw new RuntimeException('F117 synthetic epoch unavailable');
+        return $issuer==='imagine-portal' && $audience==='imagine-sites'
+            ? $this->epoch : null;
     }
 }
 
@@ -507,6 +524,7 @@ $f110Command=$command(
 $f110Site=LabAuthorizedProjectAdmissionStore::siteRefFor($f110Command);
 $f110Key='DO-NOT-USE-F1-110-SYNTHETIC-ONLY-KEY-123456789';
 $f110Keys=new F115FictionalPortalSigningKeys($f110Key);
+$f117Epoch=new F117FictionalSigningKeyEpochs();
 $f110Now=time();
 $f110Sign=static fn(string $nonce):array =>
     SyntheticSignedCommand::sign(
@@ -514,7 +532,7 @@ $f110Sign=static fn(string $nonce):array =>
     );
 $f110Authority=new F94FictionalAuthority();
 $f110Fence=new F110MemoryReplayFence();
-$f110Intake=new LabSignedProjectIntake($app,$f110Authority,$f110Fence,$f110Keys);
+$f110Intake=new LabSignedProjectIntake($app,$f110Authority,$f110Fence,$f110Keys,$f117Epoch);
 $f110Original=$f110Sign('f110-unique-nonce-0001');
 
 putenv('SITES_F110_SIGNED_PROJECT_LAB=0');
@@ -584,7 +602,7 @@ f94Assert($f110Intake->admitSigned($f110Restored)['idempotentReplay']===true &&
 // F1-110: exercise the FULL lab chain with the candidate F1-102/105
 // current Portal project snapshot and independent epoch gate as well.
 putenv('SITES_F102_PROJECT_SNAPSHOT_LAB=1');
-$f110SnapshotIntake=new LabSignedProjectIntake($app,$f103Gateway,$f110Fence,$f110Keys);
+$f110SnapshotIntake=new LabSignedProjectIntake($app,$f103Gateway,$f110Fence,$f110Keys,$f117Epoch);
 $f110SnapshotSigned=SyntheticSignedCommand::sign(
     $f103Command,$f110Key,'f110-snapshot-nonce-0007',$f110Now-1,$f110Now+60
 );
@@ -638,6 +656,47 @@ f94Assert($f110Intake->admitSigned($f116Retry)['idempotentReplay']===false &&
     f94Count($app,'tenant-f116','sites_projects')===1 &&
     f94Count($app,'tenant-f116','sites_project_admissions')===1,
     'F1-116 fresh trusted key and nonce allow one new nonpublishable project');
+
+// F1-117: a signing key may rotate A->B->A within an operation,
+// restoring IDENTICAL bytes. Its independent monotonic epoch still
+// changes and MUST deny the final pre-COMMIT grant.
+$f117New=$command(
+    'tenant-f117','operation-f117','order-f117',
+    'contract-f117',1,'onepage','idempotency-f117'
+);
+$f117Signed=SyntheticSignedCommand::sign(
+    $f117New,$f110Key,'f117-signing-aba-before-commit-0001',time()-1,time()+60
+);
+$f117Lookups=$f110Keys->calls;
+$f117InitialEpoch=$f117Epoch->epoch;
+$f110Keys->onLookup=static function() use($f110Keys,$f117Epoch,$f117Lookups):void {
+    if ($f110Keys->calls===$f117Lookups+3) {
+        $f110Keys->key='DO-NOT-USE-F117-TEMPORARY-SYNTHETIC-KEY-123456789';
+        $f110Keys->key='DO-NOT-USE-F1-110-SYNTHETIC-ONLY-KEY-123456789';
+        ++$f117Epoch->epoch;
+    }
+};
+try {
+    f94Assert(f94Denied(fn()=> $f110Intake->admitSigned($f117Signed)) &&
+        f94Count($app,'tenant-f117','sites_projects')===0 &&
+        f94Count($app,'tenant-f117','sites_project_admissions')===0 &&
+        !$app->inTransaction(),
+        'F1-117 detects A-B-A restored signing key by changed generation at commit');
+    f94Assert($f117Epoch->epoch===$f117InitialEpoch+1 &&
+        $f110Keys->key===$f110Key &&
+        $f110Keys->calls===$f117Lookups+3,
+        'F1-117 raw key bytes match but pinned key generation differs');
+} finally {
+    $f110Keys->onLookup=null;
+    $f110Keys->key=$f110Key;
+}
+$f117Retry=SyntheticSignedCommand::sign(
+    $f117New,$f110Key,'f117-new-generation-fresh-nonce-0002',time()-1,time()+60
+);
+f94Assert($f110Intake->admitSigned($f117Retry)['idempotentReplay']===false &&
+    f94Count($app,'tenant-f117','sites_projects')===1 &&
+    f94Count($app,'tenant-f117','sites_project_admissions')===1,
+    'F1-117 new request pins current epoch and creates exactly one lab project');
 
 putenv('SITES_F110_SIGNED_PROJECT_LAB');
 
