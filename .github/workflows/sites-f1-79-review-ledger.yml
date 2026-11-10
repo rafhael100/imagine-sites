@@ -7,6 +7,8 @@ on:
       - 'src/Production/SyntheticInternalReviewDecision.php'
       - 'src/Production/SyntheticInternalReviewDossier.php'
       - 'tests/f79-pg-internal-review-ledger.php'
+      - 'src/Persistence/LabPersistedReviewEvidence.php'
+      - 'tests/f80-pg-review-readback.php'
       - '.github/workflows/sites-f1-79-review-ledger.yml'
       - 'docs/SITES-F1-79-PG-REVIEW-LEDGER.md'
 permissions:
@@ -66,6 +68,9 @@ jobs:
           php -l src/Persistence/LabInternalReviewDecisionStore.php
           php -l tests/f79-pg-internal-review-ledger.php
           php tests/f79-pg-internal-review-ledger.php
+          php -l src/Persistence/LabPersistedReviewEvidence.php
+          php -l tests/f80-pg-review-readback.php
+          php tests/f80-pg-review-readback.php
       - name: Restriction notice
         if: always()
         run: echo 'F1-79 disposable fictional PG18 lab only. Not service IAM, backup-revocation proof, Portal acceptance or deployment.'
