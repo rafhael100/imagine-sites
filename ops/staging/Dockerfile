@@ -28,7 +28,8 @@ RUN groupadd --gid 10001 siteslab \
     && chmod 0600 apps/sites/.env \
     && cd apps/sites \
     && COMPOSER_ALLOW_SUPERUSER=1 composer install --no-interaction --prefer-dist --no-progress \
-    && chown -R 10001:10001 storage bootstrap/cache
+    && chown -R 10001:10001 storage bootstrap/cache \
+    && chown 10001:10001 .env
 
 USER 10001:10001
 WORKDIR /workspace/apps/sites
