@@ -8,6 +8,10 @@ on:
       - 'src/Integration/SiteProjectCommand.php'
       - 'src/Integration/PortalProjectAuthorityGateway.php'
       - 'src/Integration/LabSignedProjectIntake.php'
+      - 'src/Security/LabPostgresReplayStore.php'
+      - 'labs/security/f1-12-nonce-schema.sql'
+      - 'tests/f111-pg-durable-signed-intake.php'
+      - 'docs/SITES-F1-111-TWO-PG-REPLAY-INTAKE.md'
       - 'src/Security/SyntheticSignedCommand.php'
       - 'src/Security/ReplayStore.php'
       - 'tests/f94-pg-authorized-project-admission.php'
@@ -87,6 +91,11 @@ jobs:
             sudo apt-get update -qq
             sudo apt-get install -y postgresql-client
           fi
+      - name: Create a second disposable PostgreSQL database for nonce replay
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -d postgres -c 'CREATE DATABASE sites_auth_replay_lab'
+          PGDATABASE=sites_auth_replay_lab psql -X -v ON_ERROR_STOP=1 -f labs/security/f1-12-nonce-schema.sql
       - name: Prove the F1-93 migration cannot run with its opt-in disabled
         working-directory: apps/sites
         run: |
@@ -141,6 +150,12 @@ jobs:
           php -l src/Persistence/LabVerifiedLatestDraftReader.php
           php -l tests/f95-pg-verified-draft-revisions.php
           php tests/f95-pg-verified-draft-revisions.php
+      - name: Test durable nonce and project ledger across two disposable PostgreSQL databases
+        run: |
+          set -euo pipefail
+          php -l src/Integration/LabSignedProjectIntake.php
+          php -l tests/f111-pg-durable-signed-intake.php
+          SITES_F1_14_PG_LAB=1 SITES_F110_SIGNED_PROJECT_LAB=1 php tests/f111-pg-durable-signed-intake.php
       - name: Prove rollback cannot drop the admissions ledger
         working-directory: apps/sites
         run: |
