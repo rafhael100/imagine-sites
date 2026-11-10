@@ -8,6 +8,12 @@ on:
       - 'src/Integration/SiteProjectCommand.php'
       - 'src/Integration/PortalProjectAuthorityGateway.php'
       - 'src/Integration/LabSignedProjectIntake.php'
+      - 'src/Integration/PortalProjectCommercialEpochSource.php'
+      - 'src/Integration/DenyingPortalProjectCommercialEpochSource.php'
+      - 'src/Integration/LabPinnedCommercialEpochAuthorityGateway.php'
+      - 'src/Security/SyntheticCommercialEpochSignedCommand.php'
+      - 'src/Security/LabPreflightNoPersistReplayStore.php'
+      - 'docs/SITES-F1-125-V3-COMMERCIAL-EPOCH-PG-ADMISSION.md'
       - 'src/Integration/LabPinnedPortalSigningKeyAuthorityGateway.php'
       - 'src/Integration/PortalSigningKeySource.php'
       - 'src/Integration/DenyingPortalSigningKeySource.php'
@@ -168,6 +174,11 @@ jobs:
           php -l src/Integration/PortalSigningKeyEpochSource.php
           php -l src/Integration/DenyingPortalSigningKeyEpochSource.php
           php -l src/Security/SyntheticVersionedSignedCommand.php
+          php -l src/Security/SyntheticCommercialEpochSignedCommand.php
+          php -l src/Security/LabPreflightNoPersistReplayStore.php
+          php -l src/Integration/PortalProjectCommercialEpochSource.php
+          php -l src/Integration/DenyingPortalProjectCommercialEpochSource.php
+          php -l src/Integration/LabPinnedCommercialEpochAuthorityGateway.php
           php -l tests/f111-pg-durable-signed-intake.php
           SITES_F1_14_PG_LAB=1 SITES_F110_SIGNED_PROJECT_LAB=1 php tests/f111-pg-durable-signed-intake.php
       - name: Prove rollback cannot drop the admissions ledger
