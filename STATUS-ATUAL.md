@@ -2,9 +2,16 @@
 
 ## Atualização — 10/11/2026 (linha supervisionada de desenvolvimento)
 
+### Marco atual F1-91 — PR agregado #124
+
+- [PR #124](https://github.com/rafhael100/imagine-sites/pull/124): consolidação de desenvolvimento até F1-91, em revisão para `dev`, sem merge ou liberação de produção. A CI do último commit deve ser validada antes de promoção.
+- **F1-90:** a tela local não simula mais aprovação interna por GET; `internal_review` revisão 2, dossiê SHA-256 e QA pendentes, sem API pública. Validado anteriormente em 21 workflows e 36/36 jobs no PR #122.
+- **F1-91:** `composer validate` e auditoria `composer audit --locked` tanto do conjunto completo quanto das dependências de produção. No PR #123 o job aprovou e declarou `No security vulnerability advisories found` em ambas as consultas (10/11/2026), sujeito à atualização dos feeds e à nova execução no agregado.
+- Propostas agregadas anteriores #114, #117, #120 e #122 são histórico substituído, **não foram mescladas**. Identidade/aceite real Portal, CRM, Cloudflare/CDN, AppSec independente e VPS Leaseweb continuam não homologados. Os dez gates `BLOCKED` permanecem intactos.
+
 ### Continuidade F1-88..90 — 10/11/2026
 
-- [PR #120 — consolidação F1-45..89](https://github.com/rafhael100/imagine-sites/pull/120): proposta atual de revisão para `dev`, com **21 workflows e 36/36 jobs aprovados**, ainda sem merge e sem revisor independente.
+- [PR #120 — consolidação F1-45..89](https://github.com/rafhael100/imagine-sites/pull/120): **registro histórico substituído**; foi aprovado em 21 workflows e 36/36 jobs, e encerrado sem merge.
 - [PR #118 — F1-88](https://github.com/rafhael100/imagine-sites/pull/118): prova conjunta de dossiê e HTML privado em disco + decisão editorial persistida/relida com role PostgreSQL por tenant.
 - [PR #119 — F1-89](https://github.com/rafhael100/imagine-sites/pull/119): prova por GET dos bytes HTML efetivamente servidos em servidor HTTP de **loopback**, sem alegar observação Cloudflare remota.
 - [PR #121 — F1-90](https://github.com/rafhael100/imagine-sites/pull/121): a tela visual deixa de chamar a transição de **aprovação interna simulada** ao abrir a prévia, usando um dossiê ainda pendente de revisão, SHA-256 próprio e nenhum formulário/ação para aprovação/publicação. Validação CI desta alteração ainda subordinada ao PR.
