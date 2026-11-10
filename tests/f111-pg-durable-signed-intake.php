@@ -213,5 +213,31 @@ f111Check($intakeB->admitSigned($txSigned,$key)['idempotentReplay']===true &&
     f111AdmissionCount($app,'tenant-f111')===1,
     'F1-112 a rejected rollback-capable transaction never consumed the nonce');
 
-echo "\n$checks F1-111/F1-112 two-database signed intake assertions passed.\n";
+// F1-113: simulate temporary loss of INSERT permission on the disposable
+// nonce ledger. The gateway still allows the exact site command, but
+// intake must deny BEFORE any project query/write when nonce storage fails.
+// This modifies only the throwaway CI database and restores privileges.
+$outageSigned=$sign($command,'f113-nonce-insert-outage-0001');
+$nonceA->exec('RESET ROLE');
+$nonceA->exec(
+    'REVOKE INSERT ON auth_replay.nonce_consumptions FROM sites_auth_runtime'
+);
+try {
+    f111Check(f111Denied(fn()=> $intakeB->admitSigned($outageSigned,$key)) &&
+        f111AdmissionCount($app,'tenant-f111')===1,
+        'F1-113 unavailable nonce INSERT privilege denies authorized signed intake');
+} finally {
+    $nonceA->exec(
+        'GRANT INSERT ON auth_replay.nonce_consumptions TO sites_auth_runtime'
+    );
+    $nonceA->exec('SET ROLE sites_auth_runtime');
+}
+f111Check($intakeA->admitSigned($outageSigned,$key)['idempotentReplay']===true &&
+    f111AdmissionCount($app,'tenant-f111')===1,
+    'F1-113 replay store recovery permits original unconsumed nonce only once');
+f111Check(f111Denied(fn()=> $intakeB->admitSigned($outageSigned,$key)) &&
+    f111AdmissionCount($app,'tenant-f111')===1,
+    'F1-113 restored durable replay fence rejects the now consumed nonce');
+
+echo "\n$checks F1-111–F1-113 two-database signed intake assertions passed.\n";
 echo "Disposable PG18, fake HMAC, no live Portal IAM, HTTP, client data, go-live or publication.\n";
