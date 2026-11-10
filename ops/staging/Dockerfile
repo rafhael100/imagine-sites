@@ -18,11 +18,14 @@ COPY contracts/ ./contracts/
 # Composer's package:discover script may write bootstrap/cache. Create these
 # directories BEFORE installing dependencies; an empty directory is omitted
 # by the build-context ignore rules.
+# The runtime image creates an EMPTY lab-only .env; never copies one from the host.
 RUN groupadd --gid 10001 siteslab \
     && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin siteslab \
     && mkdir -p apps/sites/storage/framework/cache/data \
         apps/sites/storage/framework/views apps/sites/storage/framework/sessions \
         apps/sites/storage/logs apps/sites/bootstrap/cache \
+    && : > apps/sites/.env \
+    && chmod 0600 apps/sites/.env \
     && cd apps/sites \
     && COMPOSER_ALLOW_SUPERUSER=1 composer install --no-interaction --prefer-dist --no-progress \
     && chown -R 10001:10001 storage bootstrap/cache
