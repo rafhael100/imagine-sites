@@ -1,5 +1,13 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuidade supervisionada — F1-130 / F1-131 (10/11/2026)
+
+- [Sites PR #166 — F1-130](https://github.com/rafhael100/imagine-sites/pull/166): pré-teste sintético de retry de leads Sites–CRM ganhou fontes **independentes de época positiva e default DENY**. Exige época Sites e CRM estáveis antes/depois de verificar vínculo, destino CRM original, revisão, atividade e frescor, detectando A→B→A mesmo se os snapshots voltarem aos mesmos valores. Preserva T0 servidor alegado do recibo fictício e janela rígida **72h + 360h = 432h**. **4/4 workflows aprovados na HEAD de código**: PHP8.3/8.4 sintético, Laravel, safety e Docker.
+- [Sites PR #167 — F1-131](https://github.com/rafhael100/imagine-sites/pull/167): novo gerador estrito de envelope **apenas de metadados** (oito campos, sem PII/T0/consentimento), validado pelo código PHP real `SyntheticLeadEnvelopeV1Inspector` do CRM Imagine no SHA fixo `a2f29c8e19185e3451fe953f6fe9c9c9bcbbe3ef` (CRM draft PR #49). O CRM retorna sempre `STRUCTURE_ONLY_UNVERIFIED` sem direito de submissão, ACK ou entrega. Negativas cobrem campos extras, destino forjado, UUID inválido e versões divergentes. **5/5 workflows aprovados na HEAD de código**, incluindo cross-repo CRM PHP8.3/8.4, Laravel, testes sintéticos, safety e Docker.
+- O trabalho está restrito a fixtures e compatibilidade estrutural; **nenhuma chamada ao CRM, submissão de lead, endpoint, autenticação de origem, binding real, idempotência global, LGPD operacional ou recibo durável** foi implementada. O PR CRM #49 é proposta em draft. A issue [OP04 #36](https://github.com/rafhael100/imagine-sites/issues/36) mantém **todos** os critérios de produção pendentes, inclusive dois ingressos fisicamente independentes e SEG/DBA.
+- PRs draft empilhados, sem merge dev/main, deploy, publicação, cliente/PII, VPS, DNS, Cloudflare ou despesas adicionais. **10/10 gates operacionais de produção permanecem BLOCKED.**
+
+
 ## Continuidade supervisionada — F1-128 / F1-129 (10/11/2026)
 
 - [Sites PR #164 — F1-128](https://github.com/rafhael100/imagine-sites/pull/164): validadores HMAC v1/v2/v3 separados em `verifySignature` (verificação criptográfica/canônica sem storage) e `verify` (consumo definitivo do nonce). A pré-verificação comercial v3 não instancia mais replay store falso; a classe temporária `LabPreflightNoPersistReplayStore` foi desativada para retornar DENY. Com dois bancos PostgreSQL 18 efêmeros, os testes comprovam no laboratório que verificar a assinatura repetidamente não consome nonce, enquanto a admissão durável só o aceita uma vez. **Seis workflows distintos aprovados na HEAD mais recente do PR**, incluindo cross-repo PHP8.3/8.4, PostgreSQL18, Docker, Laravel, testes sintéticos e safety.
