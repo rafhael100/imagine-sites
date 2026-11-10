@@ -32,12 +32,14 @@ use Imagine\Sites\Domain\PolicyDecision;
 use Imagine\Sites\Integration\LabSignedProjectIntake;
 use Imagine\Sites\Integration\PortalSigningKeySource;
 use Imagine\Sites\Integration\PortalSigningKeyEpochSource;
+use Imagine\Sites\Integration\PortalProjectCommercialEpochSource;
 use Imagine\Sites\Integration\PortalProjectAuthorityGateway;
 use Imagine\Sites\Integration\SiteProjectCommand;
 use Imagine\Sites\Persistence\LabAuthorizedProjectAdmissionStore;
 use Imagine\Sites\Security\LabPostgresReplayStore;
 use Imagine\Sites\Security\SyntheticSignedCommand;
 use Imagine\Sites\Security\SyntheticVersionedSignedCommand;
+use Imagine\Sites\Security\SyntheticCommercialEpochSignedCommand;
 
 final class F111FictionalOrderGateway implements PortalProjectAuthorityGateway
 {
@@ -89,6 +91,29 @@ final class F117FictionalEpochSource implements PortalSigningKeyEpochSource
         if ($this->fail) throw new RuntimeException('Lab key epoch unavailable');
         return $issuer==='imagine-portal' && $audience==='imagine-sites'
             ? $this->epoch : null;
+    }
+}
+
+/** F1-125: fake per-order commercial epoch, never an IAM source. */
+final class F125FictionalCommercialEpochSource implements PortalProjectCommercialEpochSource
+{
+    public ?int $epoch=5;
+    public bool $offline=false;
+    public int $calls=0;
+    public ?Closure $onRead=null;
+
+    public function __construct(
+        public string $tenantRef,
+        public string $orderRef
+    ) {}
+
+    public function currentEpochFor(SiteProjectCommand $command):?int
+    {
+        ++$this->calls;
+        if ($this->onRead!==null) ($this->onRead)();
+        if ($this->offline) throw new RuntimeException('F125 synthetic commercial epoch outage');
+        return $command->tenantRef===$this->tenantRef &&
+            $command->orderRef===$this->orderRef ? $this->epoch : null;
     }
 }
 
@@ -535,5 +560,95 @@ else putenv('SITES_F118_ALLOW_LEGACY_V1_LAB='.$oldF120Legacy);
 if ($oldVersionFlag===false) putenv('SITES_F118_REQUIRE_EPOCH_SIGNED');
 else putenv('SITES_F118_REQUIRE_EPOCH_SIGNED='.$oldVersionFlag);
 
-echo "\n$checks F1-111–F1-120 two-database signed intake assertions passed.\n";
+// F1-125: real disposable two-PostgreSQL integration of authenticated
+// commercial epoch v3. No default provider or implicit v2/v1 downgrade.
+$oldV3=getenv('SITES_F125_REQUIRE_COMMERCIAL_EPOCH_SIGNED');
+$oldV1=getenv('SITES_F118_ALLOW_LEGACY_V1_LAB');
+$oldV2=getenv('SITES_F118_REQUIRE_EPOCH_SIGNED');
+putenv('SITES_F125_REQUIRE_COMMERCIAL_EPOCH_SIGNED=1');
+putenv('SITES_F118_ALLOW_LEGACY_V1_LAB=0');
+putenv('SITES_F118_REQUIRE_EPOCH_SIGNED=0');
+try {
+    $newCommand=new SiteProjectCommand(
+        '1','operation-f125','tenant-f125','order-f125',
+        'contract-f125',1,'landing_page','idempotency-f125'
+    );
+    $newAuthority=new F111FictionalOrderGateway($newCommand);
+    $commercial=new F125FictionalCommercialEpochSource(
+        $newCommand->tenantRef,$newCommand->orderRef
+    );
+    $v3A=new LabSignedProjectIntake(
+        $app,$newAuthority,$fenceA,$signingKeys,$signingEpoch,$commercial
+    );
+    $v3B=new LabSignedProjectIntake(
+        $app,$newAuthority,$fenceB,$signingKeys,$signingEpoch,$commercial
+    );
+    $signV3=static fn(string $nonce,int $commercialEpoch):array =>
+        SyntheticCommercialEpochSignedCommand::sign(
+            $newCommand,$key,$nonce,$now-1,$now+60,
+            $signingEpoch->epoch,$commercialEpoch
+        );
+
+    $defaultV3=new LabSignedProjectIntake(
+        $app,$newAuthority,$fenceA,$signingKeys,$signingEpoch
+    );
+    $defaultV3Envelope=$signV3('f125-default-source-denied-0001',$commercial->epoch);
+    f111Check(f111Denied(fn()=> $defaultV3->admitSigned($defaultV3Envelope)) &&
+        f111AdmissionCount($app,'tenant-f125')===0,
+        'F1-125 default commercial epoch source denies v3 before nonce consumption');
+
+    $staleV3=$signV3('f125-old-commercial-epoch-0002',$commercial->epoch);
+    ++$commercial->epoch;
+    f111Check(f111Denied(fn()=> $v3A->admitSigned($staleV3)) &&
+        f111AdmissionCount($app,'tenant-f125')===0,
+        'F1-125 signed stale commercial grant denied before nonce and project write');
+    $freshV3=$signV3('f125-old-commercial-epoch-0002',$commercial->epoch);
+    f111Check($v3B->admitSigned($freshV3)['idempotentReplay']===false &&
+        f111AdmissionCount($app,'tenant-f125')===1,
+        'F1-125 refreshed grant epoch and unconsumed nonce create exactly one project');
+    f111Check(f111Denied(fn()=> $v3A->admitSigned($freshV3)),
+        'F1-125 another PDO session rejects a consumed v3-signed nonce');
+
+    $badCommercialV3=$signV3('f125-forged-commercial-epoch-0003',$commercial->epoch);
+    ++$badCommercialV3['commercialEpoch'];
+    f111Check(f111Denied(fn()=> $v3A->admitSigned($badCommercialV3)),
+        'F1-125 tampered commercial authorization revision fails HMAC');
+
+    $v2Legacy= SyntheticVersionedSignedCommand::sign(
+        $newCommand,$key,'f125-downgrade-0004',$now-1,$now+60,$signingEpoch->epoch
+    );
+    f111Check(f111Denied(fn()=> $v3A->admitSigned($v2Legacy)),
+        'F1-125 v3 intake refuses an otherwise valid v2 envelope');
+
+    $revokedBeforeCommit=$signV3('f125-precommit-epoch-0005',$commercial->epoch);
+    $before=$commercial->calls;
+    $commercial->onRead=static function() use($commercial,$before):void {
+        if ($commercial->calls===$before+3) ++$commercial->epoch;
+    };
+    try {
+        f111Check(f111Denied(fn()=> $v3A->admitSigned($revokedBeforeCommit)) &&
+            f111AdmissionCount($app,'tenant-f125')===1 &&
+            !$app->inTransaction(),
+            'F1-125 commercial grant changed at final COMMIT check rolls back replay');
+        f111Check($commercial->calls===$before+3,
+            'F1-125 current commercial epoch checked before nonce, on entry and at commit');
+    } finally {
+        $commercial->onRead=null;
+    }
+    f111Check(f111Denied(fn()=> $v3B->admitSigned($revokedBeforeCommit)),
+        'F1-125 failed project transaction cannot reuse already consumed nonce');
+    $afterRestore=$signV3('f125-post-revoke-new-nonce-0006',$commercial->epoch);
+    f111Check($v3B->admitSigned($afterRestore)['idempotentReplay']===true &&
+        f111AdmissionCount($app,'tenant-f125')===1,
+        'F1-125 new signed nonce and current grant restore exact idempotent result');
+} finally {
+    if ($oldV3===false)putenv('SITES_F125_REQUIRE_COMMERCIAL_EPOCH_SIGNED');
+    else putenv('SITES_F125_REQUIRE_COMMERCIAL_EPOCH_SIGNED='.$oldV3);
+    if ($oldV1===false)putenv('SITES_F118_ALLOW_LEGACY_V1_LAB');
+    else putenv('SITES_F118_ALLOW_LEGACY_V1_LAB='.$oldV1);
+    if ($oldV2===false)putenv('SITES_F118_REQUIRE_EPOCH_SIGNED');
+    else putenv('SITES_F118_REQUIRE_EPOCH_SIGNED='.$oldV2);
+}
+
+echo "\n$checks F1-111–F1-125 two-database signed intake assertions passed.\n";
 echo "Disposable PG18, fake HMAC, no live Portal IAM, HTTP, client data, go-live or publication.\n";
