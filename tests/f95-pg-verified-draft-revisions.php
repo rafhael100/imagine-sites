@@ -289,6 +289,37 @@ try {
         if($otherApp->inTransaction())$otherApp->rollBack();
     }
 
+    // F1-98: readers share the same advisory lock key as writers.
+    // Verify PostgreSQL's real two-connection lock compatibility rather
+    // than claiming the local filesystem is transactional.
+    $app->beginTransaction();
+    $otherApp->beginTransaction();
+    try {
+        $readLock=$app->prepare(
+            'SELECT pg_advisory_xact_lock_shared(hashtextextended(:key,0))'
+        );
+        $readLock->execute(['key'=>$lockKey]);
+        $readLock->closeCursor();
+        $tryExclusive=$otherApp->prepare(
+            'SELECT pg_try_advisory_xact_lock(hashtextextended(:key,0))'
+        );
+        $tryExclusive->execute(['key'=>$lockKey]);
+        f95Assert(in_array($tryExclusive->fetchColumn(),[false,'f','0'],true),
+            'F1-98 shared reader lock blocks a concurrent same-site exclusive writer');
+        $tryShared=$otherApp->prepare(
+            'SELECT pg_try_advisory_xact_lock_shared(hashtextextended(:key,0))'
+        );
+        $tryShared->execute(['key'=>$lockKey]);
+        f95Assert(in_array($tryShared->fetchColumn(),[true,'t','1'],true),
+            'F1-98 independent same-site readers can hold shared locks simultaneously');
+        $tryExclusive->execute(['key'=>$otherLockKey]);
+        f95Assert(in_array($tryExclusive->fetchColumn(),[true,'t','1'],true),
+            'F1-98 a reader does not block an independent tenant/site writer');
+    } finally {
+        if($app->inTransaction())$app->rollBack();
+        if($otherApp->inTransaction())$otherApp->rollBack();
+    }
+
     $two=$store->append($command,$second,$dir2,2);
     f95Assert($two['draftRevision']===2 &&
         $two['idempotentReplay']===false &&
