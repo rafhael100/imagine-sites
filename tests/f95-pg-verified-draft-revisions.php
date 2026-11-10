@@ -320,12 +320,46 @@ try {
         if($otherApp->inTransaction())$otherApp->rollBack();
     }
 
+    // F1-101: a valid first gateway answer must not commit a new
+    // revision if the fictional grant is revoked on final recheck.
+    $newWriteCalls=$gate->calls;
+    $gate->onVerify=static function() use ($gate,$newWriteCalls):void {
+        if ($gate->calls === $newWriteCalls+2) $gate->allowed=false;
+    };
+    try {
+        f95Assert(f95Denied(fn()=> $store->append($command,$second,$dir2,2)) &&
+            f95DraftCount($app,'tenant-f95-a')===1 &&
+            !$app->inTransaction(),
+            'F1-101 revoked final grant rolls back new revision before commit');
+        f95Assert($gate->calls===$newWriteCalls+2,
+            'F1-101 new revision checks authority at entry and before commit');
+    } finally {
+        $gate->allowed=true;
+        $gate->onVerify=null;
+    }
+
     $two=$store->append($command,$second,$dir2,2);
     f95Assert($two['draftRevision']===2 &&
         $two['idempotentReplay']===false &&
         $two['artifactDigest']===$second->artifact->digest &&
         f95DraftCount($app,'tenant-f95-a')===2,
         'next sequential material draft revision is appended without mutation');
+    // Replays also need a current grant at the final commit boundary.
+    $replayCalls=$gate->calls;
+    $gate->onVerify=static function() use ($gate,$replayCalls):void {
+        if ($gate->calls === $replayCalls+2) $gate->allowed=false;
+    };
+    try {
+        f95Assert(f95Denied(fn()=> $store->append($command,$second,$dir2,2)) &&
+            f95DraftCount($app,'tenant-f95-a')===2 &&
+            !$app->inTransaction(),
+            'F1-101 revoked final grant rejects idempotent replay without mutation');
+        f95Assert($gate->calls===$replayCalls+2,
+            'F1-101 replay performs a second authority check');
+    } finally {
+        $gate->onVerify=null;
+        $gate->allowed=true;
+    }
     f95Assert($store->append($command,$second,$dir2,2)['idempotentReplay']===true,
         'current revision 2 supports exact idempotent retry');
     f95Assert(f95Denied(fn()=> $store->append($command,$first,$dir1,1)),
