@@ -154,6 +154,21 @@ final class LabVerifiedLatestDraftReader
             if (SyntheticPrivateDraftVerifier::verifyDirectory($directory) !== $proof) {
                 throw new DomainException('lab_latest_draft_reader_files_changed');
             }
+
+            // F1-100: authorization is time-sensitive. The initial grant
+            // cannot stand in for a second decision at the end of readback.
+            // This is still a fictional gateway, not Portal IAM.
+            try {
+                if (!(new SiteProjectAdmission($this->authority))
+                    ->evaluate($command)->allowed) {
+                    throw new DomainException('lab_latest_draft_reader_final_authority_denied');
+                }
+            } catch (Throwable $e) {
+                throw new DomainException(
+                    'lab_latest_draft_reader_final_authority_denied',
+                    previous: $e
+                );
+            }
             $this->db->commit();
             return [
                 'schemaVersion'=>'sites.synthetic.latest-verified-draft.v1',

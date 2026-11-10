@@ -376,6 +376,28 @@ try {
         $latest['publishable']===false &&
         !array_key_exists('html',$latest),
         'F1-96 readback never implies official client approval or exposes HTML');
+
+    // F1-100: the mock Portal grant is revoked between the first and the
+    // final verification. A stale first decision must never yield a result.
+    $beforeFinalRevoke=$gate->calls;
+    $gate->onVerify=static function() use ($gate,$beforeFinalRevoke):void {
+        if ($gate->calls === $beforeFinalRevoke + 2) {
+            $gate->allowed=false;
+        }
+    };
+    try {
+        f95Assert(f95Denied(fn()=> $reader->read($command,$dir2)) &&
+            f95DraftCount($app,'tenant-f95-a')===2 &&
+            !$app->inTransaction(),
+            'F1-100 revocation before final authorization denies readback and rolls back');
+        f95Assert($gate->calls===$beforeFinalRevoke+2,
+            'F1-100 reads perform two independent fictional authority checks');
+    } finally {
+        $gate->onVerify=null;
+        $gate->allowed=true;
+    }
+    f95Assert($reader->read($command,$dir2)===$latest,
+        'F1-100 a fresh grant permits the exact current verified read');
     f95Assert(f95Denied(fn()=> $reader->read($command,$dir1)),
         'F1-96 older revision 1 cannot masquerade as the current revision 2');
     f95Assert(f95Denied(fn()=> $reader->read($command,$dirForeign)),
