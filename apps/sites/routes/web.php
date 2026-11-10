@@ -52,3 +52,208 @@ Route::post('/_lab/sites/v1/create-project', static function (Request $request) 
         'fingerprint'=>$cmd->semanticFingerprint(),
     ],202);
 })->name('sites.lab.create-project');
+
+
+/**
+ * F1-38 synthetic visual review, unregistered outside in-process CLI tests.
+ * No customer identity, approval, upload, public HTTP, storage or provider.
+ */
+Route::get('/_lab/sites/v1/review', static function (Request $request) {
+    if (getenv('SITES_SYNTHETIC_HTTP') !== '1' ||
+        getenv('SITES_SYNTHETIC_REVIEW_UI') !== '1' ||
+        !in_array($request->ip(),['127.0.0.1','::1'],true)) {
+        return response('Not found',404);
+    }
+    // Laravel may map an explicitly blank query value to its default after
+    // request normalization. A supplied blank filter must fail closed.
+    $query=$request->query();
+    foreach (['product','device','preset'] as $name) {
+        if (array_key_exists($name,$query) &&
+            (!is_string($query[$name]) || $query[$name]==='')) {
+            return response('Not found',404);
+        }
+    }
+    $product=$request->query('product','onepage');
+    $device=$request->query('device','desktop');
+    $preset=$request->query('preset','classic');
+    if (!is_string($product) || !is_string($device) || !is_string($preset) ||
+        !in_array($product,['onepage','landing_page'],true) ||
+        !in_array($device,['desktop','mobile'],true) ||
+        !in_array($preset,['classic','modern','warm'],true)) {
+        return response('Not found',404);
+    }
+    try {
+        $source=base_path('../../fixtures/sites/f1-37-copy.synthetic.json');
+        if (!is_file($source)) return response('Not found',404);
+        $copy=json_decode((string)file_get_contents($source),true,16,JSON_THROW_ON_ERROR);
+        $copyBrief=\Imagine\Sites\Production\StructuredCopyCandidate::assemble(
+            $product,'Marca Fictícia Imagine',$copy
+        );
+        // The selected style is a strict local preset, never AI-supplied CSS.
+        $brief=new \Imagine\Sites\Production\SiteBrief(
+            $copyBrief->productCode,$copyBrief->brand,$copyBrief->headline,
+            $copyBrief->description,$copyBrief->callToAction,
+            $copyBrief->benefits,$preset
+        );
+        $artifact=(new \Imagine\Sites\Production\StaticSiteRenderer())->render($brief);
+        if (!\Imagine\Sites\Production\InertPreviewAudit::isSafe($artifact->html)) {
+            return response('Not found',404);
+        }
+        $workflow=\Imagine\Sites\Production\SyntheticProductionWorkflow::create(
+            'tenant-fixture','site-fixture','workflow-f38-'.$product.($preset==='classic'?'':'-'.$preset)
+        );
+        $workflow=$workflow->advance('agent','start_draft',0);
+        $workflow=$workflow->advance('agent','submit_draft',1,$artifact->digest);
+        $workflow=$workflow->advance('imagine_reviewer','approve_internal',2,$artifact->digest);
+        $releaseRef='release-f38-'.$product.($preset==='classic'?'':'-'.$preset);
+        $proposal=$workflow->portalReviewCandidate($releaseRef,$artifact->digest,3);
+        if (!\Imagine\Sites\Production\SyntheticReviewCandidateGuard::matchesLocalSnapshot(
+            $proposal,$workflow,$releaseRef
+        )) return response('Not found',404);
+        $manifest=new \Imagine\Sites\Domain\ReleaseManifest(
+            'tenant-fixture','site-fixture',$releaseRef,$artifact->digest
+        );
+        $bundle=new \Imagine\Sites\Production\SyntheticReleaseBundle($manifest,$artifact);
+        if (!\Imagine\Sites\Production\SyntheticReleaseBundle::verifyFiles(
+            $bundle->files,$manifest
+        ) || $proposal['publishable']!==false ||
+            $proposal['officialClientAcceptance']!==false) {
+            return response('Not found',404);
+        }
+        $qa=\Imagine\Sites\Production\SyntheticPreviewQaReport::inspect($artifact);
+        if (!$qa->passedStructuralChecks) {
+            return response('Not found',404);
+        }
+        $editorial=\Imagine\Sites\Production\SyntheticEditorialReviewReport::inspect($brief,$artifact);
+        $page=view('labs.review',[
+            'product'=>$product,'device'=>$device,'preset'=>$preset,
+            'galleryMode'=>getenv('SITES_SYNTHETIC_EXPORT')==='1','brief'=>$brief,
+            'previewHtml'=>$artifact->html,'digest'=>$artifact->digest,
+            'proposal'=>$proposal,'qaChecks'=>$qa->checks,
+            'editorialChecks'=>$editorial->checks,
+            'editorialSuggestions'=>$editorial->suggestions
+        ])->render();
+    } catch (\Throwable) {
+        return response('Not found',404);
+    }
+    return response($page,200,[
+        'Content-Type'=>'text/html; charset=UTF-8',
+        'Cache-Control'=>'private, no-store, max-age=0',
+        'X-Content-Type-Options'=>'nosniff',
+        'X-Frame-Options'=>'DENY',
+        'Referrer-Policy'=>'no-referrer',
+        'X-Robots-Tag'=>'noindex, nofollow, noarchive',
+        'Permissions-Policy'=>'camera=(), microphone=(), geolocation=()',
+        'Content-Security-Policy'=>"default-src 'none'; script-src 'none'; ".
+          "style-src 'unsafe-inline'; frame-src 'self' about:; img-src data:; ".
+          "connect-src 'none'; form-action 'none'; object-src 'none'; ".
+          "base-uri 'none'; frame-ancestors 'none'",
+    ]);
+})->name('sites.lab.review');
+
+
+/**
+ * F1-69: private, read-only demonstration of a changed site copy returning
+ * to internal drafting. No client content, identity, storage, or publishing.
+ * Protected by the parent CLI/testing registration guard as well.
+ */
+Route::get('/_lab/sites/v1/content-revision', static function (Request $request) {
+    if (getenv('SITES_SYNTHETIC_HTTP') !== '1' ||
+        getenv('SITES_SYNTHETIC_REVIEW_UI') !== '1' ||
+        !in_array($request->ip(), ['127.0.0.1','::1'], true)) {
+        return response('Not found', 404);
+    }
+    $query=$request->query();
+    if (array_keys($query) !== ['product','preset','field'] ||
+        !is_string($query['product']) ||
+        !is_string($query['preset']) ||
+        !is_string($query['field'])) {
+        return response('Not found', 404);
+    }
+    $product=$query['product'];
+    $preset=$query['preset'];
+    $field=$query['field'];
+    if (!in_array($product,['onepage','landing_page'],true) ||
+        !in_array($preset,['classic','modern','warm'],true) ||
+        !in_array($field,['brand','headline','description','callToAction','benefits'],true)) {
+        return response('Not found', 404);
+    }
+    try {
+        $values=[
+            'brand'=>'Marca Fictícia Imagine',
+            'headline'=>'Apresentação de serviços para pequenas empresas',
+            'description'=>'Demonstração privada, inteiramente sintética, para revisão da comunicação comercial.',
+            'callToAction'=>'Conheça os benefícios',
+            'benefits'=>['Clareza','Atendimento','Organização'],
+        ];
+        $before=new \Imagine\Sites\Production\SiteBrief(
+            $product,$values['brand'],$values['headline'],$values['description'],
+            $values['callToAction'],$values['benefits'],$preset
+        );
+        $renderer=new \Imagine\Sites\Production\StaticSiteRenderer();
+        $oldArtifact=$renderer->render($before);
+        $workflow=\Imagine\Sites\Production\SyntheticProductionWorkflow::create(
+            'tenant-lab','site-lab','f69-'.$product.'-'.$preset
+        )->advance('agent','start_draft',0)
+            ->advance('agent','submit_draft',1,$oldArtifact->digest)
+            ->advance('imagine_reviewer','approve_internal',2,$oldArtifact->digest);
+        $previousRelease='release-f69-'.$product.'-'.$preset.'-old';
+        $oldCandidate=$workflow->portalReviewCandidate(
+            $previousRelease,$oldArtifact->digest,3
+        );
+        $newValues=[
+            'brand'=>'Nova Marca Fictícia Imagine',
+            'headline'=>'Nova apresentação para pequenas empresas',
+            'description'=>'Texto revisado, também fictício, para conferir o fluxo de revisão de conteúdo.',
+            'callToAction'=>'Explore as alternativas',
+            'benefits'=>['Clareza','Orientação','Atendimento'],
+        ];
+        $values[$field]=$newValues[$field];
+        $after=new \Imagine\Sites\Production\SiteBrief(
+            $product,$values['brand'],$values['headline'],$values['description'],
+            $values['callToAction'],$values['benefits'],$preset
+        );
+        $release='release-f69-'.$product.'-'.$preset.'-'.$field;
+        $plan=\Imagine\Sites\Production\SyntheticContentRevisionPlan::begin(
+            $workflow,$before,$oldArtifact,$previousRelease,$after,$release,
+            'imagine_reviewer',3
+        );
+        if (!\Imagine\Sites\Production\SyntheticReviewCandidateGuard::matchesLocalSnapshot(
+            $oldCandidate,$workflow,$previousRelease
+        ) ||
+            \Imagine\Sites\Production\SyntheticReviewCandidateGuard::matchesLocalSnapshot(
+                $oldCandidate,$plan->draftWorkflow,$previousRelease
+            ) ||
+            $plan->draftWorkflow->state !== \Imagine\Sites\Production\SyntheticProductionWorkflow::DRAFTING ||
+            $plan->draftWorkflow->artifactDigest !== null ||
+            $plan->changedFields !== [$field]) {
+            return response('Not found',404);
+        }
+        // State is ephemeral; real Portal authority/revocation is NOT tested.
+        return response()->json([
+            'schemaVersion'=>'sites.synthetic.content-revision-lab.v1',
+            'syntheticOnly'=>true,
+            'product'=>$product,
+            'preset'=>$preset,
+            'changedFields'=>$plan->changedFields,
+            'previousDigest'=>$plan->previousDigest,
+            'nextDigest'=>$plan->nextArtifact->digest,
+            'previousReleaseRef'=>$plan->previousReleaseRef,
+            'nextReleaseRef'=>$plan->nextReleaseRef,
+            'nextRevision'=>$plan->draftWorkflow->revision,
+            'nextState'=>$plan->draftWorkflow->state,
+            'oldCandidateMatchesNewSnapshot'=>false,
+            'newReviewRequired'=>true,
+            'operationallyVerified'=>false,
+            'publishable'=>false,
+            'officialClientAcceptance'=>false,
+        ],200,[
+            'Cache-Control'=>'private, no-store, max-age=0',
+            'X-Content-Type-Options'=>'nosniff',
+            'X-Robots-Tag'=>'noindex, nofollow, noarchive',
+            'Referrer-Policy'=>'no-referrer',
+        ]);
+    } catch (\Throwable) {
+        return response('Not found',404);
+    }
+})->name('sites.lab.content-revision');
