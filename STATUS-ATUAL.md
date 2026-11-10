@@ -1,5 +1,13 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuidade supervisionada — F1-126 e F1-127 (10/11/2026)
+
+- [Sites PR #162 — F1-126](https://github.com/rafhael100/imagine-sites/pull/162): cenário de indisponibilidade de revisão comercial em **três fases** de admissão HMAC v3: antes da reserva do nonce, após a reserva e no pré-COMMIT de um novo projeto. Com duas bases PostgreSQL 18 descartáveis, comprova rollback, recuperações distintas e uso obrigatório de novo nonce após a reserva. **Quatro workflows aprovados**, incluindo PostgreSQL18 PHP8.3/8.4, Laravel, sintéticos e safety.
+- [Sites PR #163 — F1-127](https://github.com/rafhael100/imagine-sites/pull/163): corrigiu o risco de confundir o `LabPreflightNoPersistReplayStore`, que **nunca registra nonces**, com um armazenamento definitivo `ReplayStore`. Em modo v3 o intake agora exige a classe restrita `LabPostgresReplayStore` antes de consultar a autoridade. Testes recusam o preflight e um stub sempre-ALLOW, sem consulta comercial nem mutação de projeto; confirmam que o nonce permanece disponível no PostgreSQL e será consumido uma só vez. PostgreSQL18 PHP8.3/8.4, Laravel, sintéticos e safety aprovados na HEAD de código; Docker estava em execução na última consulta.
+- Os dois PRs permanecem empilhados e em **draft**, sem merge em dev/main ou deploy. A política de tipo de storage é exclusiva do **laboratório CLI/testing PostgreSQL 18**, não uma especificação final da infraestrutura de produção; o sistema não tem Portal IAM real, fonte de autorização monetônica durável, credenciais S2S, vault, observabilidade ou parecer AppSec independente.
+- **10/10 gates de produção permanecem BLOCKED**. Nenhuma alteração de VPS, Cloudflare, DNS, dados de clientes ou novos custos.
+
+
 ## Continuidade supervisionada — F1-123..125 e Portal F1-15..16 (10/11/2026)
 
 - [Portal PR #270 / F1-15](https://github.com/rafhael100/imagine-portal/pull/270): fonte independente de geração de autorização comercial por pedido, padrão DENY, evita revogação/restauração A→B→A durante emissão. **Dois workflows concluídos com sucesso** (testes do Portal e Laravel/PHP 8.3/8.4).
