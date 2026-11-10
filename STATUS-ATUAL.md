@@ -1,5 +1,13 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuidade supervisionada — F1-115 / F1-116 (10/11/2026)
+
+- [PR #151 — F1-115](https://github.com/rafhael100/imagine-sites/pull/151): removeu a chave HMAC fornecida pelo chamador da entrada assinada; o serviço consulta `PortalSigningKeySource` independente, por padrão DENY, com emissor/audiência fixos. Testes de revogação, erro e rotação com duas conexões/bases PostgreSQL; **cinco workflows distintos concluídos com sucesso**, incluindo PostgreSQL18 PHP8.3/8.4 e Docker.
+- [PR #152 — F1-116](https://github.com/rafhael100/imagine-sites/pull/152): o gateway candidato reconsulta a chave de assinatura na admissão inicial e antes do commit, retornando DENY se alterada. Testes de revogação exatamente no pré-COMMIT comprovam rollback de projeto+admissão e replay idempotente apenas com nonce novo. Os cinco workflows distintos executados na primeira HEAD do PR concluíram com sucesso; revisão independente ainda pendente.
+- [Pauta AppSec independente](https://github.com/rafhael100/imagine-sites/blob/fix/sites-f1-116-final-signing-key-recheck-2026-11-10/docs/SITES-F1-116-INDEPENDENT-APPSEC-REVIEW-PACKET.md): evidências, riscos não cobertos e critérios concretos de revisão do OP01 [#33](https://github.com/rafhael100/imagine-sites/issues/33) e OP02 [#34](https://github.com/rafhael100/imagine-sites/issues/34). Nenhum parecer independente ou integração real foi concluído.
+- Todos os PRs permanecem empilhados como drafts, sem merge em dev/main, deploy, dados reais, VPS/Cloudflare, domínio ou despesas. Chave fictícia HMAC e fontes em memória não são identidade oficial do Portal, e a GUC de tenant do PostgreSQL não é IAM. **10/10 gates de produção BLOCKED.**
+
+
 ## Continuidade supervisionada — F1-112..114 (10/11/2026)
 
 - [PR #148 — F1-112](https://github.com/rafhael100/imagine-sites/pull/148): o armazenador de nonces `LabPostgresReplayStore` revalida **em cada consumo** o contexto CLI/testing, a flag de laboratório, a base e a role PostgreSQL restrita, os privilégios de `pg_roles` e a ausência de transação controlada externamente. Testes negativos rejeitam `RESET ROLE`, revogação de flag, execução fora de testing e transação com possibilidade de rollback. **Seis workflows distintos concluíram com sucesso**, incluindo F1-14 e F1-94 PHP8.3/8.4.
