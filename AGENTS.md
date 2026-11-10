@@ -14,4 +14,4 @@ Escopo: motor independente para Onepages e Landing Pages, produzidos e gerenciad
 9. Testes negativos: cross-tenant, revogação, release diferente da aprovada, replay, provider 202 sem release observada, restore com dados expirados.
 10. P0-DOC01..14, RF-PEND-01, RF-PEND-04 permanecem abertos até evidência própria.
 
-Código PHP 8.3+ em src/Domain é **somente laboratório**. Laravel/PostgreSQL entram em fase posterior controlada; usar php tests/run.php. Registrar SHAs/evidência e pendências no STATUS-ATUAL.md.
+**Estado F1-93:** o motor PHP 8.3+ e o Laravel já existem e há uma primeira migração de projetos/revisões para PostgreSQL 18, mas ela funciona **somente em testes descartáveis**, com `APP_ENV=testing` e `SITES_F93_SCHEMA_LAB=1`. Nunca rodar migração operacional ou habilitar IAM/webhooks sem autorização específica. `SET LOCAL imagine_sites.tenant_ref` não autentica empresa: exige identidade real do Portal e ausência de SQL arbitrário. Usar `php tests/run.php`, os testes Laravel e os workflows de PostgreSQL 18. Registrar SHAs/evidência e pendências em STATUS-ATUAL.md.
