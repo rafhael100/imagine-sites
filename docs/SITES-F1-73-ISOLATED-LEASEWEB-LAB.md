@@ -1,6 +1,6 @@
 # F1-73 — Perfil Docker isolado para futuros testes na VPS Leaseweb
 
-**Estado: preparado em código; NÃO executado nem homologado.** A VPS ainda não está conectada a esta conversa. Este perfil foi criado para facilitar a futura validação em ambiente de desenvolvimento Ubuntu 24.04, preservando a separação dos projetos Imagine.
+**Estado: construído e executado no laboratório GitHub Actions F1-83 (PR #110); NÃO executado nem homologado na VPS Leaseweb.** A VPS ainda não está conectada a esta conversa. Este perfil foi criado para facilitar a futura validação em ambiente de desenvolvimento Ubuntu 24.04, preservando a separação dos projetos Imagine.
 
 ## Estrutura
 
@@ -18,6 +18,6 @@
 
 ## Limitações abertas
 
-A imagem não foi construída/executada em Docker nesta tarefa; tags de imagens devem ser fixadas por digest e submetidas a inventário/vulnerabilidades antes da homologação. Dependências externas de build podem necessitar acesso a registries e gerar consumo de rede, sujeito à aprovação de custo. O stack atual não é servidor HTTP; não implementa API real nem hospedagem. O banco é **somente de laboratório** e não equivale ao PostgreSQL operacional exigido por OP02.
+A imagem passou por build e testes Docker em um runner descartável do GitHub Actions F1-83, mas não foi construída/executada na VPS Leaseweb. Tags de imagens devem ser fixadas por digest e submetidas a inventário/vulnerabilidades antes da homologação. Dependências externas de build podem necessitar acesso a registries e gerar consumo de rede, sujeito à aprovação de custo. O stack atual não é servidor HTTP; não implementa API real nem hospedagem. O banco é **somente de laboratório** e não equivale ao PostgreSQL operacional exigido por OP02.
 
 **Pendências sem alteração:** SITES-OP01..05, SITES-GATE #38, identidade Portal, backups/restore, domínio técnico, Cloudflare, CRM real, AppSec/LGPD e 10 gates `BLOCKED`. Sem deploy, criação de VPS, alteração de DNS, dados pessoais, merges ou novos custos autorizados automaticamente.
