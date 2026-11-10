@@ -32,6 +32,7 @@ use Imagine\Sites\Integration\PortalProjectAuthorityGateway;
 use Imagine\Sites\Integration\SiteProjectCommand;
 use Imagine\Sites\Persistence\LabAuthorizedProjectAdmissionStore as Admission;
 use Imagine\Sites\Persistence\LabVerifiedDraftRevisionStore as DraftStore;
+use Imagine\Sites\Persistence\LabVerifiedLatestDraftReader as Latest;
 use Imagine\Sites\Production\SyntheticInternalReviewDossier as Dossier;
 use Imagine\Sites\Production\SyntheticPrivateDraftVerifier as Verifier;
 use Imagine\Sites\Production\SyntheticPrivateDraftWriter as Writer;
@@ -226,6 +227,45 @@ try {
         'revoked gateway cannot append a revision while project remains');
     $gate->allowed=true;
 
+    // Deterministic two-connection proof of the transaction advisory lock:
+    // while writer A holds the tenant/site lock, writer B cannot acquire it.
+    // This tests real PostgreSQL locking without racy sleeps or child forks.
+    $otherApp = new PDO(
+        'pgsql:host=127.0.0.1;port=5432;dbname=sites_f94_lab;connect_timeout=5',
+        'sites_f94_app',(string)getenv('SITES_F94_APP_PASSWORD'),
+        [PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_EMULATE_PREPARES=>false]
+    );
+    $lockKey=strlen($command->tenantRef).':'.$command->tenantRef.':'.$site;
+    $otherLockKey=strlen('tenant-f95-other').':tenant-f95-other:'.$site;
+    $app->beginTransaction();
+    $otherApp->beginTransaction();
+    try {
+        $lock=$app->prepare(
+            'SELECT pg_advisory_xact_lock(hashtextextended(:key,0))'
+        );
+        $lock->execute(['key'=>$lockKey]);
+        $lock->closeCursor();
+        $try=$otherApp->prepare(
+            'SELECT pg_try_advisory_xact_lock(hashtextextended(:key,0))'
+        );
+        $try->execute(['key'=>$lockKey]);
+        $busy=$try->fetchColumn();
+        f95Assert(in_array($busy,[false,'f','0'],true),
+            'second PostgreSQL connection cannot acquire held tenant/site write lock');
+        $try->execute(['key'=>$otherLockKey]);
+        $independent=$try->fetchColumn();
+        f95Assert(in_array($independent,[true,'t','1'],true),
+            'different tenant/site retains a separately available advisory lock');
+        $app->commit();
+        $try->execute(['key'=>$lockKey]);
+        $free=$try->fetchColumn();
+        f95Assert(in_array($free,[true,'t','1'],true),
+            'the lock becomes available after the first transaction commits');
+    } finally {
+        if($app->inTransaction())$app->rollBack();
+        if($otherApp->inTransaction())$otherApp->rollBack();
+    }
+
     $two=$store->append($command,$second,$dir2,2);
     f95Assert($two['draftRevision']===2 &&
         $two['idempotentReplay']===false &&
@@ -256,9 +296,72 @@ try {
         f95DraftCount($app,'tenant-f95-other')===0,
         'all negative tests left two valid private revisions in correct tenant');
 
+    // F1-96: a read-only verification against the SAME persisted revision
+    // ledger; only the current revision may be presented for internal review.
+    $reader=new Latest($app,$gate);
+    putenv('SITES_F96_LATEST_READBACK_LAB=0');
+    f95Assert(f95Denied(fn()=> $reader->read($command,$dir2)),
+        'F1-96 readback is disabled without separate opt-in');
+    putenv('SITES_F96_LATEST_READBACK_LAB=1');
+    f95Assert(f95Denied(fn()=> (new Latest($app))->read($command,$dir2)),
+        'F1-96 default gateway denies private preview readback');
+    $latest=$reader->read($command,$dir2);
+    f95Assert($latest['schemaVersion']==='sites.synthetic.latest-verified-draft.v1' &&
+        $latest['tenantRef']===$command->tenantRef &&
+        $latest['siteRef']===$site &&
+        $latest['draftRevision']===2 &&
+        $latest['workflowRef']==='workflow-f95-a2' &&
+        $latest['releaseRef']==='release-f95-a2' &&
+        $latest['artifactDigest']===$second->artifact->digest &&
+        $latest['dossierDigest']===Dossier::fromDraft($second)->digest &&
+        $latest['storedRowAndPrivateFilesMatch']===true,
+        'F1-96 latest persisted record matches independently reopened private files');
+    f95Assert($latest['internalReviewRequired']===true &&
+        $latest['externalPortalAuthorityRequired']===true &&
+        $latest['officialClientAcceptance']===false &&
+        $latest['publishable']===false &&
+        !array_key_exists('html',$latest),
+        'F1-96 readback never implies official client approval or exposes HTML');
+    f95Assert(f95Denied(fn()=> $reader->read($command,$dir1)),
+        'F1-96 older revision 1 cannot masquerade as the current revision 2');
+    f95Assert(f95Denied(fn()=> $reader->read($command,$dirForeign)),
+        'F1-96 another tenant private dossier cannot be displayed');
+    f95Assert(f95Denied(fn()=> $reader->read($command,$base.'/missing-package')),
+        'F1-96 missing disk package fails closed, no DB-only preview');
+
+    $html2=$dir2.'/index.html';
+    $original2=(string)file_get_contents($html2);
+    file_put_contents($html2,$original2."\n");
+    f95Assert(f95Denied(fn()=> $reader->read($command,$dir2)),
+        'F1-96 altered post-persist HTML cannot be accepted as matching DB');
+    file_put_contents($html2,$original2);
+
+    $gate->allowed=false;
+    f95Assert(f95Denied(fn()=> $reader->read($command,$dir2)),
+        'F1-96 revoked fictional authority blocks even exact read-only replay');
+    $gate->allowed=true;
+
+    f95Assert(f95Denied(fn()=> (new Latest($admin,$gate))->read($command,$dir2)),
+        'F1-96 privileged database role is never an allowed viewer');
+    $app->beginTransaction();
+    try {
+        f95Assert(f95Denied(fn()=> $reader->read($command,$dir2)),
+            'F1-96 caller-owned transaction is refused');
+    } finally {
+        $app->rollBack();
+    }
+    f95Assert(
+        $reader->read($command,$dir2)===$latest &&
+        f95DraftCount($app,'tenant-f95-a')===2 &&
+        (int)$app->query('SELECT COUNT(*) FROM sites_drafts')->fetchColumn()===0,
+        'F1-96 repeat verified read never mutates revisions or leaks tenant context');
+
+    echo "F1-96 latest-readback negative checks included in F1-95 suite.\n";
+
     echo "\n$checks F1-95 verified private draft PostgreSQL18 assertions passed.\n";
 } finally {
     putenv('SITES_F95_DRAFT_LEDGER_LAB');
+    putenv('SITES_F96_LATEST_READBACK_LAB');
     foreach([$dir1,$dir2,$dirForeign] as $directory)f95Clean($directory);
     @rmdir($base);
 }

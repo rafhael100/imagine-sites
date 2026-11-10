@@ -10,6 +10,8 @@ on:
       - 'tests/f94-pg-authorized-project-admission.php'
       - 'tests/f95-pg-verified-draft-revisions.php'
       - 'src/Persistence/LabVerifiedDraftRevisionStore.php'
+      - 'src/Persistence/LabVerifiedLatestDraftReader.php'
+      - 'docs/SITES-F1-96-LATEST-PRIVATE-READBACK.md'
       - 'src/Production/SyntheticPrivateDraftVerifier.php'
       - 'src/Production/SyntheticPrivateDraftWriter.php'
       - 'docs/SITES-F1-95-VERIFIED-DRAFT-LEDGER.md'
@@ -53,6 +55,7 @@ jobs:
       SITES_F93_SCHEMA_LAB: '1'
       SITES_F94_PROJECT_ADMISSION_LAB: '1'
       SITES_F95_DRAFT_LEDGER_LAB: '1'
+      SITES_F96_LATEST_READBACK_LAB: '1'
       SITES_F94_APP_PASSWORD: f94-synthetic-application-disposable-only
       PGHOST: 127.0.0.1
       PGPORT: '5432'
@@ -132,6 +135,7 @@ jobs:
           set -euo pipefail
           php tests/f94-pg-authorized-project-admission.php
           php -l src/Persistence/LabVerifiedDraftRevisionStore.php
+          php -l src/Persistence/LabVerifiedLatestDraftReader.php
           php -l tests/f95-pg-verified-draft-revisions.php
           php tests/f95-pg-verified-draft-revisions.php
       - name: Prove rollback cannot drop the admissions ledger
