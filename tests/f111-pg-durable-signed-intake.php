@@ -764,6 +764,67 @@ try {
         'F1-127 rejected fake replay stores never consume the real durable nonce');
     f111Check(f111Denied(fn()=> $newIntakeA->admitSigned($protectedEnvelope)),
         'F1-127 proper PostgreSQL nonce store still denies cross-session replay');
+
+    // F1-128: authenticated preflight must be a pure verification API,
+    // without any ReplayStore. A second check of an already consumed
+    // nonce succeeds AS A SIGNATURE ONLY; admission remains denied.
+    $checked= SyntheticCommercialEpochSignedCommand::verifySignature(
+        $protectedEnvelope,$key,$signingEpoch->epoch,$newCommercial->epoch,$now
+    );
+    $checkedAgain= SyntheticCommercialEpochSignedCommand::verifySignature(
+        $protectedEnvelope,$key,$signingEpoch->epoch,$newCommercial->epoch,$now
+    );
+    f111Check($checked->semanticFingerprint()===$brandNew->semanticFingerprint() &&
+        $checkedAgain->semanticFingerprint()===$brandNew->semanticFingerprint() &&
+        f111Denied(fn()=> $newIntakeB->admitSigned($protectedEnvelope)),
+        'F1-128 HMAC v3 preflight stays repeatable without granting consumed nonce');
+
+    $v1Proof=SyntheticSignedCommand::sign(
+        $brandNew,$key,'f128-v1-preflight-no-nonce-0001',$now-1,$now+60
+    );
+    $v2Proof=SyntheticVersionedSignedCommand::sign(
+        $brandNew,$key,'f128-v2-preflight-no-nonce-0002',
+        $now-1,$now+60,$signingEpoch->epoch
+    );
+    f111Check(SyntheticSignedCommand::verifySignature(
+        $v1Proof,$key,$now
+    )->semanticFingerprint()===$brandNew->semanticFingerprint() &&
+        SyntheticVersionedSignedCommand::verifySignature(
+            $v2Proof,$key,$signingEpoch->epoch,$now
+        )->semanticFingerprint()===$brandNew->semanticFingerprint(),
+        'F1-128 legacy v1/v2 cryptographic-only checks preserve canonical semantics');
+
+    // The retired preflight shim is no longer allowed to accept ANY
+    // nonce, even with the v3 testing flag enabled.
+    $retiredShim=new LabPreflightNoPersistReplayStore();
+    f111Check(!$retiredShim->rememberOnce(
+        'imagine-portal','f128-legacy-shim-deny-0003',$now+60
+    ), 'F1-128 retired nonpersistent replay adapter unconditionally denies');
+
+    // Before durable consumption, repeated signature-only checks of
+    // the SAME valid new nonce must not reserve it. The strict v3
+    // intake can then consume it once and reject the other PDO session.
+    $freshPreflight=$newSigned('f128-pure-preflight-then-consume-0004');
+    $countBeforePreflight=$newCommercial->calls;
+    f111Check(SyntheticCommercialEpochSignedCommand::verifySignature(
+        $freshPreflight,$key,$signingEpoch->epoch,$newCommercial->epoch,$now
+    )->semanticFingerprint()===$brandNew->semanticFingerprint() &&
+        SyntheticCommercialEpochSignedCommand::verifySignature(
+            $freshPreflight,$key,$signingEpoch->epoch,$newCommercial->epoch,$now
+        )->semanticFingerprint()===$brandNew->semanticFingerprint() &&
+        $newCommercial->calls===$countBeforePreflight,
+        'F1-128 repeated preflight invokes no commercial provider or replay store');
+    f111Check($newIntakeA->admitSigned($freshPreflight)['idempotentReplay']===true &&
+        f111Denied(fn()=> $newIntakeB->admitSigned($freshPreflight)),
+        'F1-128 PG18 remains the only durable replay fence after pure preflight');
+
+    $invalidPreflight=$newSigned('f128-corrupted-mac-0005');
+    $invalidPreflight['mac']=str_repeat('a',64);
+    f111Check(f111Denied(fn()=>
+        SyntheticCommercialEpochSignedCommand::verifySignature(
+            $invalidPreflight,$key,$signingEpoch->epoch,$newCommercial->epoch,$now
+        )),
+        'F1-128 signature-only path rejects modified commercial HMAC');
 } finally {
     if ($oldV3===false)putenv('SITES_F125_REQUIRE_COMMERCIAL_EPOCH_SIGNED');
     else putenv('SITES_F125_REQUIRE_COMMERCIAL_EPOCH_SIGNED='.$oldV3);
@@ -773,5 +834,5 @@ try {
     else putenv('SITES_F118_REQUIRE_EPOCH_SIGNED='.$oldV2);
 }
 
-echo "\n$checks F1-111–F1-127 two-database signed intake assertions passed.\n";
+echo "\n$checks F1-111–F1-128 two-database signed intake assertions passed.\n";
 echo "Disposable PG18, fake HMAC, no live Portal IAM, HTTP, client data, go-live or publication.\n";
