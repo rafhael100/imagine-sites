@@ -1,5 +1,13 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuidade supervisionada — F1-110 e F1-111 (10/11/2026)
+
+- [PR #146 — F1-110](https://github.com/rafhael100/imagine-sites/pull/146): fluxo CLI/testing `LabSignedProjectIntake` encadeia envelope de comando com HMAC sintética, nonce consumido pelo `ReplayStore`, gateway de autorização independente e admissão transacional de projeto em PostgreSQL18. Foram incluídos testes para payload alterado, nonce repetido, autorização negada/revogada, repetição idempotente e compatibilidade com snapshot/epoch F1-102/105. Os cinco workflows observados terminaram com sucesso, incluindo matriz PG18 PHP8.3/8.4 e Docker. Nenhuma operação real é habilitada.
+- [PR #147 — F1-111](https://github.com/rafhael100/imagine-sites/pull/147): execução integrada com **duas bases de dados descartáveis** no mesmo serviço PostgreSQL CI, separando o ledger de projetos do armazenamento de nonce F1-12/F1-14. Duas conexões PDO distintas demonstram replay recusado entre sessões; assinatura nova e autorização fictícia permitem somente admissão idempotente; nega adulteração de tenant, revogação e escopo externo. CI na HEAD ainda requer confirmação antes de classificar como validada.
+- As duas entregas continuam empilhadas sobre #145 e anteriores, em branches isoladas e PRs draft. Não houve merge em dev/main, deploy, integração real Portal IAM, ativação de VPS, DNS, dados pessoais, aceite do cliente ou despesas novas.
+- A conta SQL do tenant e a HMAC de laboratório não conferem identidade operacional; o contexto GUC do PostgreSQL pode ser forjado por SQL direto. Nonce e gravação de projeto em bancos diferentes não possuem commit distribuído. A origem confiável, gestão de chaves, revogação operacional, backup/HA e revisão independente AppSec ainda estão pendentes. **10/10 gates de produção permanecem BLOCKED.**
+
+
 ## Continuidade supervisionada — F1-107..109 (10/11/2026)
 
 - [PR #143 — F1-107](https://github.com/rafhael100/imagine-sites/pull/143): `fromCanonicalJson` recusa chaves duplicadas, byte encoding não canônico, whitespace, JSON inválido e mais de 4096 bytes. PHP8.3/8.4, Laravel, testes sintéticos, segurança e Docker concluídos com sucesso. **Não verifica assinatura nem IAM.**
