@@ -344,6 +344,7 @@ f111Check($intakeB->admitSigned($failedKeySigned)['idempotentReplay']===true,
 $oldSigned=$sign($command,'f115-rotation-key-0004');
 $rotatedKey='DO-NOT-USE-F1-115-ROTATED-SYNTHETIC-KEY-123456789';
 $signingKeys->key=$rotatedKey;
+++$signingEpoch->epoch;
 f111Check(f111Denied(fn()=> $intakeA->admitSigned($oldSigned)) &&
     f111AdmissionCount($app,'tenant-f111')===1,
     'F1-115 stale signature is rejected after pinned key rotation');
@@ -356,6 +357,7 @@ f111Check($intakeB->admitSigned($newSigned)['idempotentReplay']===true &&
 f111Check(f111Denied(fn()=> $intakeA->admitSigned($newSigned)),
     'F1-115 replay protection still holds across sessions after key rotation');
 $signingKeys->key=$key;
+++$signingEpoch->epoch;
 
 $notPortal=$sign($command,'f115-issuer-gate-0005');
 $notPortal['issuer']='unknown-service';
