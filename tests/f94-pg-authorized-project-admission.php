@@ -35,6 +35,7 @@ use Imagine\Sites\Integration\CurrentPortalProjectAuthorizationEpochSource;
 use Imagine\Sites\Integration\CurrentPortalProjectAuthorizationSnapshot;
 use Imagine\Sites\Integration\SnapshotBoundPortalProjectAuthorityGateway;
 use Imagine\Sites\Integration\LabSignedProjectIntake;
+use Imagine\Sites\Integration\PortalSigningKeySource;
 use Imagine\Sites\Security\ReplayStore;
 use Imagine\Sites\Security\SyntheticSignedCommand;
 use Imagine\Sites\Persistence\LabAuthorizedProjectAdmissionStore;
@@ -111,6 +112,23 @@ final class F110MemoryReplayFence implements ReplayStore
         if (isset($this->seen[$key]))return false;
         $this->seen[$key]=true;
         return true;
+    }
+}
+
+/** F1-115: fictional in-memory trust source, never a production key vault. */
+final class F115FictionalPortalSigningKeys implements PortalSigningKeySource
+{
+    public bool $fail=false;
+    public int $calls=0;
+
+    public function __construct(public ?string $key) {}
+
+    public function currentKeyFor(string $issuer,string $audience):?string
+    {
+        ++$this->calls;
+        if ($this->fail) throw new RuntimeException('Fictitious key service offline');
+        return $issuer==='imagine-portal' && $audience==='imagine-sites'
+            ? $this->key : null;
     }
 }
 
@@ -486,6 +504,7 @@ $f110Command=$command(
 );
 $f110Site=LabAuthorizedProjectAdmissionStore::siteRefFor($f110Command);
 $f110Key='DO-NOT-USE-F1-110-SYNTHETIC-ONLY-KEY-123456789';
+$f110Keys=new F115FictionalPortalSigningKeys($f110Key);
 $f110Now=time();
 $f110Sign=static fn(string $nonce):array =>
     SyntheticSignedCommand::sign(
@@ -493,11 +512,11 @@ $f110Sign=static fn(string $nonce):array =>
     );
 $f110Authority=new F94FictionalAuthority();
 $f110Fence=new F110MemoryReplayFence();
-$f110Intake=new LabSignedProjectIntake($app,$f110Authority,$f110Fence);
+$f110Intake=new LabSignedProjectIntake($app,$f110Authority,$f110Fence,$f110Keys);
 $f110Original=$f110Sign('f110-unique-nonce-0001');
 
 putenv('SITES_F110_SIGNED_PROJECT_LAB=0');
-f94Assert(f94Denied(fn()=> $f110Intake->admitSigned($f110Original,$f110Key)) &&
+f94Assert(f94Denied(fn()=> $f110Intake->admitSigned($f110Original)) &&
     $f110Fence->calls===0 && $f110Authority->checks===0 &&
     f94Count($app,'tenant-f110','sites_projects')===0,
     'F1-110 disabled lab refuses signed intake before consuming nonce/authority/DB');
@@ -506,21 +525,21 @@ putenv('SITES_F110_SIGNED_PROJECT_LAB=1');
 $f110Authority->allowed=true;
 f94Assert(f94Denied(fn()=> (new LabSignedProjectIntake(
     $app,$f110Authority
-))->admitSigned($f110Original,$f110Key)) &&
+))->admitSigned($f110Original)) &&
     f94Count($app,'tenant-f110','sites_projects')===0,
     'F1-110 default denying replay store prevents signed admission');
 $f110Authority->allowed=false;
-f94Assert(f94Denied(fn()=> $f110Intake->admitSigned($f110Original,$f110Key)) &&
+f94Assert(f94Denied(fn()=> $f110Intake->admitSigned($f110Original)) &&
     $f110Fence->calls===1 &&
     f94Count($app,'tenant-f110','sites_project_admissions')===0,
     'F1-110 valid HMAC and nonce still fail without independent authority');
 $f110Authority->allowed=true;
-f94Assert(f94Denied(fn()=> $f110Intake->admitSigned($f110Original,$f110Key)) &&
+f94Assert(f94Denied(fn()=> $f110Intake->admitSigned($f110Original)) &&
     f94Count($app,'tenant-f110','sites_projects')===0,
     'F1-110 previously consumed denied nonce cannot be reused after new grant');
 
 $f110Second=$f110Sign('f110-unique-nonce-0002');
-$f110Created=$f110Intake->admitSigned($f110Second,$f110Key);
+$f110Created=$f110Intake->admitSigned($f110Second);
 f94Assert($f110Created['tenantRef']==='tenant-f110' &&
     $f110Created['siteRef']===$f110Site &&
     $f110Created['idempotentReplay']===false &&
@@ -531,45 +550,45 @@ f94Assert($f110Created['tenantRef']==='tenant-f110' &&
     f94Count($app,'tenant-f110','sites_project_admissions')===1,
     'F1-110 fresh signed fictional command creates exactly one nonpublishable project');
 
-f94Assert(f94Denied(fn()=> $f110Intake->admitSigned($f110Second,$f110Key)) &&
+f94Assert(f94Denied(fn()=> $f110Intake->admitSigned($f110Second)) &&
     f94Count($app,'tenant-f110','sites_project_admissions')===1,
     'F1-110 exact signed envelope replay is rejected before the SQL ledger');
 
 $f110Third=$f110Sign('f110-unique-nonce-0003');
-f94Assert($f110Intake->admitSigned($f110Third,$f110Key)['idempotentReplay']===true &&
+f94Assert($f110Intake->admitSigned($f110Third)['idempotentReplay']===true &&
     f94Count($app,'tenant-f110','sites_project_admissions')===1,
     'F1-110 newly signed nonce can safely replay identical idempotent project');
 
 $f110Tampered=$f110Sign('f110-unique-nonce-0004');
 $f110Tampered['payload']['tenantRef']='tenant-f110-other';
-f94Assert(f94Denied(fn()=> $f110Intake->admitSigned($f110Tampered,$f110Key)) &&
+f94Assert(f94Denied(fn()=> $f110Intake->admitSigned($f110Tampered)) &&
     f94Count($app,'tenant-f110-other','sites_project_admissions')===0,
     'F1-110 changing signed tenant invalidates MAC without cross-tenant effects');
 
 $f110Authority->allowed=false;
 $f110Revoked=$f110Sign('f110-unique-nonce-0005');
-f94Assert(f94Denied(fn()=> $f110Intake->admitSigned($f110Revoked,$f110Key)) &&
+f94Assert(f94Denied(fn()=> $f110Intake->admitSigned($f110Revoked)) &&
     f94Count($app,'tenant-f110','sites_project_admissions')===1,
     'F1-110 revoked authority denies a new signed nonce without mutation');
 $f110Authority->allowed=true;
-f94Assert(f94Denied(fn()=> $f110Intake->admitSigned($f110Revoked,$f110Key)),
+f94Assert(f94Denied(fn()=> $f110Intake->admitSigned($f110Revoked)),
     'F1-110 restoring a grant cannot reactivate a consumed revoked nonce');
 
 $f110Restored=$f110Sign('f110-unique-nonce-0006');
-f94Assert($f110Intake->admitSigned($f110Restored,$f110Key)['idempotentReplay']===true &&
+f94Assert($f110Intake->admitSigned($f110Restored)['idempotentReplay']===true &&
     f94Count($app,'tenant-f110','sites_project_admissions')===1,
     'F1-110 refreshed signature and fictional grant allow same safe idempotent replay');
 
 // F1-110: exercise the FULL lab chain with the candidate F1-102/105
 // current Portal project snapshot and independent epoch gate as well.
 putenv('SITES_F102_PROJECT_SNAPSHOT_LAB=1');
-$f110SnapshotIntake=new LabSignedProjectIntake($app,$f103Gateway,$f110Fence);
+$f110SnapshotIntake=new LabSignedProjectIntake($app,$f103Gateway,$f110Fence,$f110Keys);
 $f110SnapshotSigned=SyntheticSignedCommand::sign(
     $f103Command,$f110Key,'f110-snapshot-nonce-0007',$f110Now-1,$f110Now+60
 );
 try {
     f94Assert(
-        $f110SnapshotIntake->admitSigned($f110SnapshotSigned,$f110Key)['idempotentReplay']===true &&
+        $f110SnapshotIntake->admitSigned($f110SnapshotSigned)['idempotentReplay']===true &&
         f94Count($app,'tenant-f103-c','sites_project_admissions')===1,
         'F1-110 signed Portal candidate, current snapshot, epoch and PG admission interoperate');
     $f103EpochSource->epoch=6;
@@ -577,7 +596,7 @@ try {
         $f103Command,$f110Key,'f110-snapshot-nonce-0008',$f110Now-1,$f110Now+60
     );
     f94Assert(f94Denied(fn()=>
-        $f110SnapshotIntake->admitSigned($f110StaleSigned,$f110Key)) &&
+        $f110SnapshotIntake->admitSigned($f110StaleSigned)) &&
         f94Count($app,'tenant-f103-c','sites_project_admissions')===1,
         'F1-110 a newer revocation epoch blocks an otherwise valid signed command');
 } finally {
