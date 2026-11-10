@@ -2,9 +2,17 @@
 
 ## Atualização — 10/11/2026 (linha supervisionada de desenvolvimento)
 
-### Marco atual F1-91 — PR agregado #124
+### Marco atual F1-93 — PR agregado #127
 
-- [PR #124](https://github.com/rafhael100/imagine-sites/pull/124): consolidação de desenvolvimento até F1-91, em revisão para `dev`, sem merge ou liberação de produção. A CI do último commit deve ser validada antes de promoção.
+- [PR #127](https://github.com/rafhael100/imagine-sites/pull/127): consolidação de F1-45 a F1-93 para revisão técnica independente em `dev`. **Sem merge em `dev`/`main`**, sem implantação/cliente real e sem alteração de gates. Exige validação integral do CI da HEAD final e revisão AppSec independente.
+- [PR #125 — F1-92](https://github.com/rafhael100/imagine-sites/pull/125): correção da validação do snapshot do Portal usando o mesmo instante confiável do envelope HMAC v2; testes de expiração, revogação e nonce. **Seis workflows acionados aprovados**.
+- [PR #126 — F1-93](https://github.com/rafhael100/imagine-sites/pull/126): migração Laravel real cria `sites_projects`/`sites_drafts` em PostgreSQL 18 efêmero, RLS FORCE, constraints de produto/revisão/hash e trigger contra UPDATE/DELETE. **PHP 8.3 e 8.4 aprovados**, 16 checagens por job, role não privilegiada, cross-tenant, transação sem vazamento e rollback destrutivo proibido. O trigger SQL precisou de correção de delimitador e depois passou.
+- **Limite de segurança explícito:** o valor `imagine_sites.tenant_ref` em `SET LOCAL` pode ser manipulado por acesso SQL direto; **não é identidade nem autorização por empresa**. Só usar com conexão restrita, código autenticado pelo Portal e sem SQL arbitrário. A migração nega execução fora de `APP_ENV=testing` + `SITES_F93_SCHEMA_LAB=1`.
+- O PR #124 passou previamente **22 workflows e 37/37 jobs**, porém é proposta anterior e NÃO foi mesclado. Dev/main e os dez gates `BLOCKED` seguem inalterados. VPS, CRM, IA e Cloudflare reais, domínio, backup, LGPD/AppSec e aceite expresso do cliente seguem pendentes.
+
+### Marco anterior F1-91 — PR agregado #124 (histórico)
+
+- [PR #124](https://github.com/rafhael100/imagine-sites/pull/124): registro histórico até F1-91, aprovado anteriormente em 22 workflows e 37/37 jobs. Substituído pela revisão de #127, **sem merge ou liberação de produção**.
 - **F1-90:** a tela local não simula mais aprovação interna por GET; `internal_review` revisão 2, dossiê SHA-256 e QA pendentes, sem API pública. Validado anteriormente em 21 workflows e 36/36 jobs no PR #122.
 - **F1-91:** `composer validate` e auditoria `composer audit --locked` tanto do conjunto completo quanto das dependências de produção. No PR #123 o job aprovou e declarou `No security vulnerability advisories found` em ambas as consultas (10/11/2026), sujeito à atualização dos feeds e à nova execução no agregado.
 - Propostas agregadas anteriores #114, #117, #120 e #122 são histórico substituído, **não foram mescladas**. Identidade/aceite real Portal, CRM, Cloudflare/CDN, AppSec independente e VPS Leaseweb continuam não homologados. Os dez gates `BLOCKED` permanecem intactos.

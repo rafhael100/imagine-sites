@@ -1,0 +1,121 @@
+name: Sites F1-93 Laravel PostgreSQL 18 core schema - disposable DB only
+on:
+  pull_request:
+    paths:
+      - 'apps/sites/database/migrations/**'
+      - 'apps/sites/composer.json'
+      - 'apps/sites/composer.lock'
+      - 'tests/f93-pg-laravel-core-schema.php'
+      - '.github/workflows/sites-f1-93-pg-schema.yml'
+      - 'docs/SITES-F1-93-PG-LARAVEL-SCHEMA.md'
+permissions:
+  contents: read
+jobs:
+  postgres18-laravel-migration-rls:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: f93-synthetic-admin-disposable-only
+          POSTGRES_DB: sites_f93_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sites_f93_lab"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      SITES_F93_SCHEMA_LAB: '1'
+      SITES_F93_APP_PASSWORD: f93-synthetic-application-disposable-only
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: sites_f93_lab
+      DB_USERNAME: postgres
+      DB_PASSWORD: f93-synthetic-admin-disposable-only
+      DB_SSLMODE: disable
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGDATABASE: sites_f93_lab
+      PGUSER: postgres
+      PGPASSWORD: f93-synthetic-admin-disposable-only
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer:v2
+          extensions: mbstring,pdo,pdo_pgsql,dom,xml
+          coverage: none
+      - name: Install locked framework dependencies without deployment
+        working-directory: apps/sites
+        run: |
+          set -euo pipefail
+          composer install --no-interaction --prefer-dist --no-progress
+      - name: Install PostgreSQL client if missing
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Prove migration is disabled without its explicit lab opt-in
+        working-directory: apps/sites
+        run: |
+          set -euo pipefail
+          if SITES_F93_SCHEMA_LAB=0 php artisan migrate --force --no-interaction; then
+            echo 'Unsafe: unapproved migration succeeded without opt-in'
+            exit 1
+          fi
+          test "$(psql -X -tAc "SELECT to_regclass('public.sites_projects') IS NULL")" = t
+      - name: Apply REAL Laravel migration only on disposable PG18
+        working-directory: apps/sites
+        run: |
+          set -euo pipefail
+          php -l database/migrations/2026_11_10_000001_create_sites_core.php
+          php artisan migrate --force --no-interaction
+          php artisan migrate:status
+      - name: Provision isolated LAB test role with SELECT INSERT only
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+          REVOKE CREATE ON DATABASE sites_f93_lab FROM PUBLIC;
+          CREATE ROLE sites_f93_app
+            LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS
+            PASSWORD 'f93-synthetic-application-disposable-only';
+          GRANT CONNECT ON DATABASE sites_f93_lab TO sites_f93_app;
+          GRANT USAGE ON SCHEMA public TO sites_f93_app;
+          GRANT SELECT, INSERT ON TABLE sites_projects, sites_drafts TO sites_f93_app;
+          SQL
+      - name: Test real PostgreSQL tenant RLS and immutable draft ledger
+        run: |
+          set -euo pipefail
+          php -l tests/f93-pg-laravel-core-schema.php
+          php tests/f93-pg-laravel-core-schema.php
+      - name: Explicitly prohibit destructive schema rollback
+        working-directory: apps/sites
+        run: |
+          set -euo pipefail
+          if php artisan migrate:rollback --force --no-interaction; then
+            echo 'Unsafe: destructive down() unexpectedly succeeded'
+            exit 1
+          fi
+          test "$(psql -X -tAc "SELECT to_regclass('public.sites_projects') IS NOT NULL")" = t
+      - name: Scope of test
+        if: always()
+        run: |
+          echo 'F1-93 tested an opt-in Laravel migration in disposable PG18 only.'
+          echo 'No Portal IAM, untrusted SQL access, production DB, real tenant data, Cloudflare or deployment.'
