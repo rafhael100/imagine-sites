@@ -70,7 +70,7 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
 <main>
 <div class="intro">
   <div><div class="kicker">Produção de sites / Revisão</div><h1>Confira a prévia antes de avançar</h1><p class="sub">Experiência de demonstração. Nenhuma ação aprova ou publica um site.</p></div>
-  <span class="status">Aceite oficial pendente no Portal</span>
+  <span class="status">Revisão interna pendente · Aceite oficial pendente no Portal</span>
 </div>
 <div class="layout">
   <aside class="sidebar" aria-label="Painel de revisão">
@@ -95,8 +95,8 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
       <ol class="steps">
         <li><span class="icon" aria-hidden="true">✓</span><b>Conteúdo estruturado</b><small>Briefing fictício validado</small></li>
         <li><span class="icon" aria-hidden="true">✓</span><b>Prévia HTML gerada</b><small>Hash e auditoria offline</small></li>
-        <li><span class="icon" aria-hidden="true">✓</span><b>Revisão interna simulada</b><small>Versão exata em laboratório</small></li>
-        <li><span class="icon" aria-hidden="true">!</span><b>Aceite do cliente pendente</b><small>Exclusivo do Portal</small></li>
+        <li><span class="icon" aria-hidden="true">!</span><b>Revisão interna pendente</b><small>Dossiê disponível, nenhuma decisão registrada</small></li>
+        <li><span class="icon" aria-hidden="true">!</span><b>Aceite do cliente pendente</b><small>Somente após revisão interna, exclusivo do Portal</small></li>
       </ol>
     </section>
     <section class="card" id="detalhes" aria-labelledby="detail-title"><h2 id="detail-title">Identidade da versão</h2>
@@ -104,9 +104,11 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
         <div><dt>Produto</dt><dd>{{ $product==='onepage' ? 'Onepage' : 'Landing Page' }}</dd></div>
         <div><dt>Tema</dt><dd>{{ ucfirst($preset) }}</dd></div>
         <div><dt>Marca de teste</dt><dd>{{ $brief->brand }}</dd></div>
-        <div><dt>Release</dt><dd><code>{{ $proposal['releaseRef'] }}</code></dd></div>
-        <div><dt>Revisão</dt><dd>{{ $proposal['workflowRevision'] }}</dd></div>
+        <div><dt>Release</dt><dd><code>{{ $reviewSnapshot['releaseRef'] }}</code></dd></div>
+        <div><dt>Revisão</dt><dd>{{ $reviewSnapshot['workflowRevision'] }}</dd></div>
         <div><dt>SHA-256 do HTML</dt><dd><code id="artifact-digest">{{ $digest }}</code></dd></div>
+        <div><dt>Estado interno</dt><dd id="review-state">Revisão interna pendente</dd></div>
+        <div><dt>SHA-256 do dossiê</dt><dd><code id="dossier-digest">{{ $dossierDigest }}</code></dd></div>
         <div><dt>Publicável</dt><dd>Não</dd></div>
         <div><dt>Aceite oficial</dt><dd>Não registrado</dd></div>
       </dl>
@@ -131,7 +133,7 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
       </div>
       <div class="editorial-summary" id="editorial" aria-labelledby="editorial-title">
         <strong id="editorial-title">Revisão editorial orientativa</strong>
-        <p class="sub">Sugestões automáticas não substituem a aprovação humana nem autorizam publicação.</p>
+        <p class="sub">Sugestões automáticas não substituem a aprovação humana nem autorizam publicação. {{ count($requiredAcknowledgments) }} observação(ões) pendente(s) de reconhecimento.</p>
         @forelse($editorialSuggestions as $suggestion)
           <p class="editorial-note">{{ $suggestion }}</p>
         @empty
