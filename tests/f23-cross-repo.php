@@ -70,14 +70,20 @@ final class EphemeralF23ReplayFence implements ReplayStore
 
 final class F23ContractSource implements PortalSiteContractSource
 {
+    public bool $eligible=true;
+    public int $revision=3;
+    public string $tenantRef='tenant-fictional-001';
+    public int $reads=0;
+
     public function __construct(private readonly string $product) {}
 
     public function findAuthorizedSiteOrder(string $orderRef): ?SiteContractSnapshot
     {
-        if ($orderRef !== 'order-fictional-001') return null;
+        ++$this->reads;
+        if (!$this->eligible || $orderRef !== 'order-fictional-001') return null;
         return new SiteContractSnapshot(
-            'tenant-fictional-001', 'order-fictional-001',
-            'contract-fictional-001', 3, $this->product
+            $this->tenantRef, 'order-fictional-001',
+            'contract-fictional-001', $this->revision, $this->product
         );
     }
 }
@@ -121,7 +127,8 @@ function f23Denied(callable $fn): bool
 $key = 'DO-NOT-USE-SYNTHETIC-TEST-KEY-IN-PRODUCTION-123456789';
 $now = 1790000000;
 foreach (['onepage','landing_page'] as $index => $product) {
-    $encoder = new SitesCreateProjectEncoder(new F23ContractSource($product));
+    $orderSource=new F23ContractSource($product);
+    $encoder = new SitesCreateProjectEncoder($orderSource);
     $wirePayload = $encoder->build(
         'order-fictional-001',
         'operation-fictional-00'.$index,
@@ -220,6 +227,56 @@ foreach (['onepage','landing_page'] as $index => $product) {
             $newIssuerEnvelope,$key,$newEpoch,$now,new EphemeralF23ReplayFence()
         )->semanticFingerprint()===$sitesCommand->semanticFingerprint(),
         'F1-121 new trusted epoch is accepted after candidate rotation '.$product);
+
+    // F1-122: the REAL Portal F1-14 issuer re-reads the commercial
+    // contract AFTER signing. Revocation, revision changes or tenant
+    // reassignment during issuance must not return any envelope.
+    $trustedFixture->reads=0;
+    $trustedFixture->onRead=static function() use($trustedFixture,$orderSource):void {
+        if ($trustedFixture->reads===2) $orderSource->eligible=false;
+    };
+    f23Assert(f23Denied(fn()=> $trustedIssuer->issue(
+        'order-fictional-001','operation-fictional-00'.$index,
+        'idempotency-fictional-00'.$index,
+        'f122-revoked-order-000'.$index,$now,$now+60
+    )) && $orderSource->eligible===false,
+        'F1-122 Portal contract revoked mid-emission cannot sign a project '.$product);
+    $trustedFixture->onRead=null;
+    $orderSource->eligible=true;
+
+    $trustedFixture->reads=0;
+    $trustedFixture->onRead=static function() use($trustedFixture,$orderSource):void {
+        if ($trustedFixture->reads===2) ++$orderSource->revision;
+    };
+    f23Assert(f23Denied(fn()=> $trustedIssuer->issue(
+        'order-fictional-001','operation-fictional-00'.$index,
+        'idempotency-fictional-00'.$index,
+        'f122-contract-revised-000'.$index,$now,$now+60
+    )), 'F1-122 Portal contract revision change denies a stale envelope '.$product);
+    $trustedFixture->onRead=null;
+    $orderSource->revision=3;
+
+    $trustedFixture->reads=0;
+    $trustedFixture->onRead=static function() use($trustedFixture,$orderSource):void {
+        if ($trustedFixture->reads===2) $orderSource->tenantRef='tenant-f122-other';
+    };
+    f23Assert(f23Denied(fn()=> $trustedIssuer->issue(
+        'order-fictional-001','operation-fictional-00'.$index,
+        'idempotency-fictional-00'.$index,
+        'f122-tenant-reassigned-000'.$index,$now,$now+60
+    )), 'F1-122 tenant reassignment denies cross-company project envelope '.$product);
+    $trustedFixture->onRead=null;
+    $orderSource->tenantRef='tenant-fictional-001';
+
+    $recovered=$trustedIssuer->issue(
+        'order-fictional-001','operation-fictional-00'.$index,
+        'idempotency-fictional-00'.$index,
+        'f122-recovered-order-000'.$index,$now,$now+60
+    );
+    f23Assert(SyntheticVersionedSignedCommand::verify(
+        $recovered,$key,$newEpoch,$now,new EphemeralF23ReplayFence()
+    )->semanticFingerprint()===$sitesCommand->semanticFingerprint(),
+        'F1-122 restored latest commercial scope emits a valid Portal v2 envelope '.$product);
     f23Assert(f23Denied(fn()=>
         SyntheticVersionedSignedCommand::verify(
             $portalV2,$key,$epochV2,$now,$fenceV2
