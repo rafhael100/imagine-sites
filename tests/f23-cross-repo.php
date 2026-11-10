@@ -32,6 +32,7 @@ spl_autoload_register(static function (string $class) use ($portalDirectory): vo
     $sources = [
         'App\\Domain\\SitesIntegration\\' =>
             $portalDirectory.'/apps/portal/app/Domain/SitesIntegration/',
+        'Imagine\\Sites\\Domain\\' => __DIR__.'/../src/Domain/',
         'Imagine\\Sites\\Integration\\' => __DIR__.'/../src/Integration/',
         'Imagine\\Sites\\Security\\' => __DIR__.'/../src/Security/',
     ];
