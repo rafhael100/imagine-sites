@@ -7,7 +7,7 @@ spl_autoload_register(static function(string $class):void {
     $prefix='Imagine\\Sites\\';
     if(!str_starts_with($class,$prefix))return;
     $relative=substr($class,strlen($prefix));
-    if(!preg_match('/\A(?:Production|Domain)\\[A-Za-z][A-Za-z0-9]*\z/D',$relative)) {
+    if(!preg_match('/\A(?:Production|Domain)\\\\[A-Za-z][A-Za-z0-9]*\z/D',$relative)) {
         throw new RuntimeException('Invalid fixture class');
     }
     require __DIR__.'/../src/'.str_replace('\\','/',$relative).'.php';
