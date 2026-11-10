@@ -195,6 +195,7 @@ final class SyntheticPrivateDraftVerifier
             'schemaVersion' => 'sites.synthetic.private-draft-verification.v1',
             'tenantRef' => $release->tenantRef,
             'siteRef' => $release->siteRef,
+            'workflowRef' => $dossier['workflowRef'],
             'releaseRef' => $release->releaseRef,
             'artifactDigest' => $artifact->digest,
             'bundleDigest' => $bundleDigest,
