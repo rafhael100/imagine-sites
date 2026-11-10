@@ -104,6 +104,21 @@ putenv('SITES_F1_14_PG_LAB=1');
 checkLab($secondStore->rememberOnce('imagine-portal',$nonceFlag,$now+60),
     'F1-112 disabled instance did not persist a nonce while permission was off');
 
+$nonceEnv='nonce-f112-environment-denied-0009';
+$previousAppEnv=getenv('APP_ENV');
+putenv('APP_ENV=production');
+try {
+    checkLab(!$store->rememberOnce('imagine-portal',$nonceEnv,$now+60),
+        'F1-112 initialized adapter refuses a non-testing application environment');
+    checkLab(rejected(fn()=>new LabPostgresReplayStore($db)),
+        'F1-112 adapter constructor refuses to run outside testing');
+} finally {
+    if ($previousAppEnv===false) putenv('APP_ENV');
+    else putenv('APP_ENV='.$previousAppEnv);
+}
+checkLab($secondStore->rememberOnce('imagine-portal',$nonceEnv,$now+60),
+    'F1-112 environment denial never persisted a nonce');
+
 $nonceTx='nonce-f112-rollback-forbidden-0007';
 $db->beginTransaction();
 try {
