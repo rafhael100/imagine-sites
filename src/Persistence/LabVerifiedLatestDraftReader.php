@@ -87,6 +87,19 @@ final class LabVerifiedLatestDraftReader
                 throw new DomainException('lab_latest_draft_reader_context_failure');
             }
 
+            // F1-98: cooperate with the F1-95 exclusive writer lock.
+            // Concurrent readers may share this lock, but an append using
+            // the same tenant/site key cannot interleave with this readback.
+            // This is not a filesystem lease or a distributed snapshot.
+            $lock = $this->db->prepare(
+                'SELECT pg_advisory_xact_lock_shared(
+                    hashtextextended(:tenant_site, 0))'
+            );
+            $lock->execute([
+                'tenant_site' => strlen($command->tenantRef).':'.$command->tenantRef.':'.$site,
+            ]);
+            $lock->closeCursor();
+
             // A scoped admission is required even for reads. A row with a
             // matching siteRef alone cannot establish a trusted order link.
             $admission=$this->db->prepare(
