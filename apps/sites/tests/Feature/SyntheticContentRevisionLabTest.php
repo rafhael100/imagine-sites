@@ -30,7 +30,7 @@ final class SyntheticContentRevisionLabTest extends TestCase
                 foreach(['brand','headline','description','callToAction','benefits'] as $field) {
                     $response=$this->get('/_lab/sites/v1/content-revision?product='.
                         $product.'&preset='.$preset.'&field='.$field)->assertOk();
-                    $response->assertHeader('Cache-Control','private, no-store, max-age=0');
+                    $response->assertHeader('Cache-Control','max-age=0, no-store, private');
                     $response->assertHeader('X-Robots-Tag','noindex, nofollow, noarchive');
                     $body=$response->json();
                     self::assertSame('sites.synthetic.content-revision-lab.v1',$body['schemaVersion']);
