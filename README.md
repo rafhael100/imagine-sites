@@ -6,12 +6,14 @@ Motor independente de **Onepages e Landing Pages criadas e administradas pela Im
 
 **Protótipo técnico de laboratório; NÃO é serviço operacional ou publicável.** A fundação inclui Laravel/PHP 8.3+, HTML estático inerte, testes de revisão e design, scripts com PostgreSQL 18 descartável, dossiês privados e um laboratório Docker/Compose isolado. Nada disso comprova autenticação real de cliente, publicação Cloudflare, disponibilidade de infraestrutura, integração CRM ou conformidade legal.
 
-- [PR #129 — consolidação F1-45 até F1-94](https://github.com/rafhael100/imagine-sites/pull/129): proposta atual para revisão técnica independente em `dev`; **não mesclada em `dev`/`main`**. Os PRs #127/#124 são históricos anteriores, sem merge.
+- [PR #132 — consolidação F1-45 até F1-96](https://github.com/rafhael100/imagine-sites/pull/132): proposta atual para revisão técnica independente em `dev`; **sem merge em `dev`/`main`**. Os agregados #129/#127 são históricos anteriores.
 - [F1-90 — prévia sem aprovação interna implícita](https://github.com/rafhael100/imagine-sites/pull/121): abrir o preview mantém o rascunho em `internal_review` e apresenta o dossiê pendente.
 - [F1-91 — auditoria de dependências Composer](https://github.com/rafhael100/imagine-sites/pull/123): auditoria de advisories do `composer.lock` completo e do grafo operacional, executada no CI sem atualizar bibliotecas.
 - [F1-92 — relógio único da autorização Portal](https://github.com/rafhael100/imagine-sites/pull/125): corrige comparação temporal do envelope/revogação, com testes de expiração.
 - [F1-93 — primeira migração Laravel PostgreSQL](https://github.com/rafhael100/imagine-sites/pull/126): cria tabelas de projetos/revisões sob RLS FORCE em PG18 efêmero; **somente teste**, requer `APP_ENV=testing` e `SITES_F93_SCHEMA_LAB=1`. A sessão RLS NÃO autentica um cliente.
-- [F1-94 — admissão de projetos com idempotência](https://github.com/rafhael100/imagine-sites/pull/128): segunda migração e serviço transacional para registrar projeto + operação, com gateway de autoridade DENY por padrão, conflitos bloqueados e 25 assertivas em cada PHP. **Somente testes; sem API, Portal real ou liberação de produção.**
+- [F1-94 — admissão de projetos com idempotência](https://github.com/rafhael100/imagine-sites/pull/128): segunda migração e serviço transacional para registrar projeto + operação, com gateway de autoridade DENY por padrão e conflitos bloqueados.
+- [F1-95 — persistência de revisões verificadas](https://github.com/rafhael100/imagine-sites/pull/130): verifica os quatro arquivos do rascunho privado e grava hashes/versões na tabela Laravel `sites_drafts`, com sequência e bloqueio de duplicidade.
+- [F1-96 — leitura da revisão vigente](https://github.com/rafhael100/imagine-sites/pull/131): releitura privada de hashes de banco e arquivos, negando versões antigas, arquivos alterados ou autoridade revogada. **37 testes na suíte PG18 PHP8.3/8.4; sem API ou identidade real.**
 - [Prontidão operacional](config/operational-readiness.json): **10/10 gates BLOCKED**. Não autoriza merge em produção, consentimento, cobrança, aceite, publicação ou marcação ENTREGUE.
 
 ## Recursos disponíveis somente em laboratório
@@ -20,6 +22,7 @@ Motor independente de **Onepages e Landing Pages criadas e administradas pela Im
 - Rascunhos com manifesto SHA-256, estado de revisão interna pendente, dossiê editorial e testes de alteração de conteúdo/tema. Um hash **não é uma assinatura ou aprovação humana**.
 - PostgreSQL descartável para reproduzir RLS, replay, concorrência, evidência de revisão e rollback de backup com checkpoint externo ao banco de teste.
 - Migração Laravel real em ambiente descartável com `sites_projects` e `sites_drafts`, RLS reforçado, chaves compostas e revisão append-only; **não executável em produção** até revisão/homologação da infraestrutura.
+- Adição transacional de revisões privadas com leitura verificada da versão mais recente, sem guardar HTML/briefing no banco e **sem endpoint de cliente**.
 - Admissão idempotente persistida em `sites_project_admissions` com chave de operação/empresa/site, entrada autenticável apenas por futuro Portal e recusa por padrão; **GUC de tenant não é autenticação**, e o usuário SQL jamais deve ser disponibilizado aos clientes.
 - Laravel e Docker/Compose em modo CLI/testing, sem portas públicas; a conta PostgreSQL do app no laboratório é sem SUPERUSER. O ambiente Leaseweb **não foi homologado**.
 
