@@ -5,15 +5,14 @@ declare(strict_types=1);
 namespace Imagine\Sites\Security;
 
 /**
- * F1-125: ONLY for cryptographic preflight of a candidate HMAC v3
- * envelope before a trusted per-order epoch can be queried. This never
- * reserves a nonce and MUST NOT be used as an admission replay store.
+ * F1-128 retired/deny-only shim retained to prove F1-127 fail-closed
+ * miswiring. Signature preflight no longer uses ANY ReplayStore.
+ * It must NEVER accept or remember nonces, even with lab flags.
  */
 final class LabPreflightNoPersistReplayStore implements ReplayStore
 {
     public function rememberOnce(string $issuer,string $nonce,int $expiresAt):bool
     {
-        return PHP_SAPI==='cli' && getenv('APP_ENV')==='testing' &&
-            getenv('SITES_F125_REQUIRE_COMMERCIAL_EPOCH_SIGNED')==='1';
+        return false;
     }
 }
