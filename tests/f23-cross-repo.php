@@ -12,6 +12,9 @@ use App\Domain\SitesIntegration\SiteContractSnapshot;
 use App\Domain\SitesIntegration\SitesCreateProjectEncoder;
 use App\Domain\SitesIntegration\SyntheticSitesEnvelopeSigner;
 use App\Domain\SitesIntegration\SyntheticSitesVersionedEnvelopeSigner;
+use App\Domain\SitesIntegration\CandidatePortalSitesSigningMaterial;
+use App\Domain\SitesIntegration\PortalSitesSigningMaterialSource;
+use App\Domain\SitesIntegration\LabPortalSitesVersionedIssuer;
 use Imagine\Sites\Integration\SiteProjectCommand;
 use Imagine\Sites\Integration\CurrentPortalProjectAuthorizationSnapshot as ProjectSnapshot;
 use Imagine\Sites\Integration\SnapshotBoundPortalProjectAuthorityGateway;
@@ -79,6 +82,27 @@ final class F23ContractSource implements PortalSiteContractSource
     }
 }
 
+/** F1-121 synthetic source: not a real Portal key authority. */
+final class F121FictionalSigningSource implements PortalSitesSigningMaterialSource
+{
+    public int $reads=0;
+    public ?Closure $onRead=null;
+    public bool $offline=false;
+
+    public function __construct(
+        public ?CandidatePortalSitesSigningMaterial $value
+    ) {}
+
+    public function currentFor(string $issuer,string $audience):?CandidatePortalSitesSigningMaterial
+    {
+        ++$this->reads;
+        if ($this->onRead!==null) ($this->onRead)();
+        if ($this->offline) throw new RuntimeException('F121 synthetic key service unavailable');
+        if ($issuer!=='imagine-portal' || $audience!=='imagine-sites') return null;
+        return $this->value;
+    }
+}
+
 $count = 0;
 function f23Assert(bool $valid, string $description): void
 {
@@ -135,6 +159,67 @@ foreach (['onepage','landing_page'] as $index => $product) {
     );
     f23Assert($verifiedV2->semanticFingerprint()===$sitesCommand->semanticFingerprint(),
         'F1-119 real Portal v2 HMAC accepted by exact Sites contract and scope '.$product);
+
+    // F1-121: make a REAL independent Portal candidate issuer fetch both
+    // key and epoch from a default-deny source, rather than accepting
+    // those parameters from the caller. Verify the result in Sites.
+    $trustedFixture=new F121FictionalSigningSource(
+        new CandidatePortalSitesSigningMaterial(
+            'imagine-portal','imagine-sites',$key,$epochV2
+        )
+    );
+    $trustedIssuer=new LabPortalSitesVersionedIssuer($encoder,$trustedFixture);
+    $issuedByBoundary=$trustedIssuer->issue(
+        'order-fictional-001',
+        'operation-fictional-00'.$index,
+        'idempotency-fictional-00'.$index,
+        $nonceV2,$now,$now+60
+    );
+    f23Assert($issuedByBoundary===$sitesV2 && $trustedFixture->reads===2,
+        'F1-121 trust-boundary Portal emission is byte identical to Sites v2 '.$product);
+    $boundaryVerified=SyntheticVersionedSignedCommand::verify(
+        $issuedByBoundary,$key,$epochV2,$now,new EphemeralF23ReplayFence()
+    );
+    f23Assert($boundaryVerified->semanticFingerprint()===$sitesCommand->semanticFingerprint(),
+        'F1-121 trust-boundary Portal v2 passes Sites semantic scope checks '.$product);
+
+    // Failing source must not leak an envelope; a new current source
+    // must produce one only after service-trust recovery.
+    $trustedFixture->offline=true;
+    f23Assert(f23Denied(fn()=> $trustedIssuer->issue(
+        'order-fictional-001','operation-fictional-00'.$index,
+        'idempotency-fictional-00'.$index,
+        'f121-source-offline-000'.$index,$now,$now+60
+    )), 'F1-121 signer refuses a missing service authority '.$product);
+    $trustedFixture->offline=false;
+
+    // Rotate the trusted epoch BETWEEN the two key-source reads while
+    // keeping the same bytes. The old signed result must not escape.
+    $trustedFixture->reads=0;
+    $trustedFixture->onRead=static function() use($trustedFixture,$key,$epochV2):void {
+        if ($trustedFixture->reads===2) {
+            $trustedFixture->value=new CandidatePortalSitesSigningMaterial(
+                'imagine-portal','imagine-sites',$key,$epochV2+1
+            );
+        }
+    };
+    f23Assert(f23Denied(fn()=> $trustedIssuer->issue(
+        'order-fictional-001','operation-fictional-00'.$index,
+        'idempotency-fictional-00'.$index,
+        'f121-rotating-epoch-000'.$index,$now,$now+60
+    )), 'F1-121 rotation during issuance denies the v2 envelope '.$product);
+    $trustedFixture->onRead=null;
+    $newEpoch=$epochV2+1;
+    $newIssuerEnvelope=$trustedIssuer->issue(
+        'order-fictional-001','operation-fictional-00'.$index,
+        'idempotency-fictional-00'.$index,
+        'f121-rotating-epoch-000'.$index,$now,$now+60
+    );
+    f23Assert($newIssuerEnvelope['keyEpoch']===$newEpoch &&
+        SyntheticVersionedSignedCommand::verify(
+            $newIssuerEnvelope,$key,$newEpoch,$now,new EphemeralF23ReplayFence()
+        )->semanticFingerprint()===$sitesCommand->semanticFingerprint(),
+        'F1-121 new trusted epoch is accepted after candidate rotation '.$product);
     f23Assert(f23Denied(fn()=>
         SyntheticVersionedSignedCommand::verify(
             $portalV2,$key,$epochV2,$now,$fenceV2
@@ -225,6 +310,13 @@ foreach (['onepage','landing_page'] as $index => $product) {
         SyntheticSignedCommand::verify($portalSigned,$key,$now+60,new EphemeralF23ReplayFence())),
         'exact expiry denied for '.$product);
 }
+// Without a trusted signing authority and without an official
+// commercial source, a freshly built Portal issuer is always DENY.
+f23Assert(f23Denied(fn()=> (new LabPortalSitesVersionedIssuer())->issue(
+    'order-fictional-001','operation-fictional-900','idempotency-fictional-900',
+    'f121-default-deny-0001',$now,$now+60
+)), 'F1-121 default Portal issuer does not sign unauthenticated orders');
+
 $defaultEncoder = new SitesCreateProjectEncoder();
 f23Assert(f23Denied(fn() =>
     $defaultEncoder->build('order-fictional-001','operation-fictional-999','idem-fictional-999')),
