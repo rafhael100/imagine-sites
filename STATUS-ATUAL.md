@@ -1,5 +1,14 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuidade supervisionada — F1-107..109 (10/11/2026)
+
+- [PR #143 — F1-107](https://github.com/rafhael100/imagine-sites/pull/143): `fromCanonicalJson` recusa chaves duplicadas, byte encoding não canônico, whitespace, JSON inválido e mais de 4096 bytes. PHP8.3/8.4, Laravel, testes sintéticos, segurança e Docker concluídos com sucesso. **Não verifica assinatura nem IAM.**
+- [PR #144 — F1-108](https://github.com/rafhael100/imagine-sites/pull/144): estende `tests/f23-cross-repo.php` para comprovar compatibilidade do comando real de uma **revisão pública fixada** do Portal com o snapshot estrito do Sites para Onepage e Landing Page. Um erro de autoload do teste foi encontrado e corrigido; a matriz cross-repo PHP8.3/8.4 foi aprovada, além de Laravel, sintéticos e safety. Não se trata da branch corrente do Portal nem de IAM operacional.
+- [PR #145 — F1-109](https://github.com/rafhael100/imagine-sites/pull/145): centraliza a versão e campos do decoder de autorização e adiciona sentinela CI contra divergência entre JSON Schema e PHP, incluindo status, campos obrigatórios, tipos, contrato CreateProject, TTL e campos proibidos. **CI da HEAD mais recente deve ser conferido antes de integração.**
+- Estes PRs estão empilhados sobre #142 e anteriores, em branches isoladas e como rascunhos. Exigem revisão independente antes de qualquer merge.
+- **10/10 gates de produção seguem BLOCKED**: sem autenticação real do Portal, assinatura, prova de aceite, integração pública, Cloudflare, VPS homologada, cliente, DNS, deploy, alterações dev/main ou custos adicionais.
+
+
 ## Continuidade supervisionada — F1-105 / F1-106 (10/11/2026)
 
 - [PR #141 — F1-105](https://github.com/rafhael100/imagine-sites/pull/141): o gateway candidato Portal→Sites passou a exigir revisão atual da autorização por fonte independente de epoch; snapshot elegível ainda válido não pode ser reutilizado quando a revisão consultada diverge. Fonte ausente, inválida ou indisponível nega por padrão. Testes no CLI PHP 8.3/8.4 e no PostgreSQL 18 descartável cobrem revogação, epoch divergente e alteração de epoch entre a autorização inicial e o commit. Os cinco workflows distintos executados na HEAD F1-105 concluíram com sucesso; sem merge.
