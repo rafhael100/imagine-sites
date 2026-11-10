@@ -1,0 +1,54 @@
+# F1-73: opt-in, internal-only test sandbox. NEVER production/homologation evidence.
+name: imagine-sites-lab
+
+services:
+  sites-lab-db:
+    image: postgres:18
+    profiles: ["lab"]
+    restart: "no"
+    environment:
+      POSTGRES_DB: sites_lab
+      POSTGRES_USER: siteslab
+      POSTGRES_PASSWORD: ${SITES_LAB_DB_PASSWORD:?Set an ephemeral password outside GitHub/chat}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U siteslab -d sites_lab"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    networks: [sites-lab-isolated]
+    volumes:
+      - sites-lab-data:/var/lib/postgresql
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 128
+    mem_limit: 512m
+
+  sites-lab-tests:
+    build:
+      context: ../..
+      dockerfile: ops/staging/Dockerfile
+    profiles: ["lab"]
+    restart: "no"
+    depends_on:
+      sites-lab-db:
+        condition: service_healthy
+    environment:
+      APP_ENV: testing
+      APP_DEBUG: "false"
+      DB_CONNECTION: pgsql
+      DB_HOST: sites-lab-db
+      DB_PORT: "5432"
+      DB_DATABASE: sites_lab
+      DB_USERNAME: siteslab
+      DB_PASSWORD: ${SITES_LAB_DB_PASSWORD:?Set an ephemeral password outside GitHub/chat}
+    networks: [sites-lab-isolated]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    pids_limit: 128
+    mem_limit: 768m
+
+networks:
+  sites-lab-isolated:
+    internal: true
+
+volumes:
+  sites-lab-data:
