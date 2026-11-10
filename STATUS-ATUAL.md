@@ -1,5 +1,14 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuidade supervisionada — F1-119 / F1-120 (10/11/2026)
+
+- [Portal PR #258 / F1-12](https://github.com/rafhael100/imagine-portal/pull/258): criado **emissor PHP v2 independente** de envelope HMAC com `keyEpoch` no Imagine Portal, empilhado sobre o candidato histórico Portal #105. Os workflows Node.js e Laravel/PHP 8.3/8.4 passaram. Não é emissor IAM operacional do Portal nem está em main/dev.
+- [Sites PR #155 / F1-119](https://github.com/rafhael100/imagine-sites/pull/155): `tests/f23-cross-repo.php` usa as classes reais da revisão pública **fixa** do Portal `855212e93649235715202390f296444d91b6609e`, compara todo o envelope emitido e verificado em Sites para Onepage/Landing Page e exige recusa de v1 como v2, HMAC alterada, revisão de chave antiga e nonce repetido. **Quatro workflows distintos aprovados**, incluindo cross-repo PHP8.3/8.4, Laravel, sintéticos e safety.
+- [Sites PR #156 / F1-120](https://github.com/rafhael100/imagine-sites/pull/156): nenhuma versão de envelope é aceita implicitamente: `SITES_F118_REQUIRE_EPOCH_SIGNED=1` habilita v2, `SITES_F118_ALLOW_LEGACY_V1_LAB=1` habilita v1 **somente em testes CLI**, e ausência/ambas as opções negam antes de consumir nonce. PG18 PHP8.3/8.4, Laravel, sintéticos e safety aprovados na primeira execução; Docker estava em validação na última consulta. Sem endpoint e sem promoção de v1.
+- Os três PRs permanecem drafts empilhados em branches isoladas. **Não** há serviço oficial de autorização Portal, identidade mutuamente autenticada, vault/geração monotônica real, chave de produção, aceite do cliente ou liberação de site. O Portal atual na linha principal não foi alterado. A integração HTTP/HTTPS de homologação e revisão AppSec independente ainda são necessárias.
+- Nenhum merge em dev/main, deploy, DNS, VPS, dados reais ou gasto adicional. **10/10 gates operacionais de produção permanecem BLOCKED.**
+
+
 ## Continuidade supervisionada — F1-117 / F1-118 (10/11/2026)
 
 - [PR #153 — F1-117](https://github.com/rafhael100/imagine-sites/pull/153): a assinatura HMAC candidata foi ligada a uma fonte independente de época monotônica de chave (`PortalSigningKeyEpochSource`), cujo padrão é DENY. Uma rotação A→B→A durante o commit é detectada pela mudança da revisão mesmo com segredo final igual, com rollback de projeto/admissão e testes em duas bases efêmeras PG18. **Cinco workflows distintos concluídos com sucesso**: PostgreSQL18 PHP8.3/8.4, Laravel, Docker, testes sintéticos e safety.
