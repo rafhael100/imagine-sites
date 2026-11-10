@@ -559,6 +559,31 @@ $f110Restored=$f110Sign('f110-unique-nonce-0006');
 f94Assert($f110Intake->admitSigned($f110Restored,$f110Key)['idempotentReplay']===true &&
     f94Count($app,'tenant-f110','sites_project_admissions')===1,
     'F1-110 refreshed signature and fictional grant allow same safe idempotent replay');
+
+// F1-110: exercise the FULL lab chain with the candidate F1-102/105
+// current Portal project snapshot and independent epoch gate as well.
+putenv('SITES_F102_PROJECT_SNAPSHOT_LAB=1');
+$f110SnapshotIntake=new LabSignedProjectIntake($app,$f103Gateway,$f110Fence);
+$f110SnapshotSigned=SyntheticSignedCommand::sign(
+    $f103Command,$f110Key,'f110-snapshot-nonce-0007',$f110Now-1,$f110Now+60
+);
+try {
+    f94Assert(
+        $f110SnapshotIntake->admitSigned($f110SnapshotSigned,$f110Key)['idempotentReplay']===true &&
+        f94Count($app,'tenant-f103-c','sites_project_admissions')===1,
+        'F1-110 signed Portal candidate, current snapshot, epoch and PG admission interoperate');
+    $f103EpochSource->epoch=6;
+    $f110StaleSigned=SyntheticSignedCommand::sign(
+        $f103Command,$f110Key,'f110-snapshot-nonce-0008',$f110Now-1,$f110Now+60
+    );
+    f94Assert(f94Denied(fn()=>
+        $f110SnapshotIntake->admitSigned($f110StaleSigned,$f110Key)) &&
+        f94Count($app,'tenant-f103-c','sites_project_admissions')===1,
+        'F1-110 a newer revocation epoch blocks an otherwise valid signed command');
+} finally {
+    $f103EpochSource->epoch=5;
+    putenv('SITES_F102_PROJECT_SNAPSHOT_LAB');
+}
 putenv('SITES_F110_SIGNED_PROJECT_LAB');
 
 echo "\n$checks F1-94 persisted, authorization-gated project admission assertions passed.\n";
