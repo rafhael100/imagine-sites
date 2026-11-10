@@ -119,7 +119,7 @@ final class LabVerifiedDraftRevisionStore
                     hashtextextended(:tenant_site, 0))'
             );
             $lock->execute([
-                'tenant_site' => $command->tenantRef."\0".$siteRef,
+                'tenant_site' => strlen($command->tenantRef).':'.$command->tenantRef.':'.$siteRef,
             ]);
             $lock->closeCursor();
 
