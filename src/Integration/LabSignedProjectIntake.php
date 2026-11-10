@@ -12,6 +12,7 @@ use Imagine\Sites\Security\SyntheticSignedCommand;
 use Imagine\Sites\Security\SyntheticVersionedSignedCommand;
 use Imagine\Sites\Security\SyntheticCommercialEpochSignedCommand;
 use Imagine\Sites\Security\LabPreflightNoPersistReplayStore;
+use Imagine\Sites\Security\LabPostgresReplayStore;
 use PDO;
 
 /**
@@ -62,6 +63,14 @@ final class LabSignedProjectIntake
         $requireV3=getenv('SITES_F125_REQUIRE_COMMERCIAL_EPOCH_SIGNED') === '1';
         if ((int)$requireV2+(int)$allowLegacyV1+(int)$requireV3 !== 1) {
             throw new DomainException('lab_signed_project_envelope_mode_denied');
+        }
+        // F1-127: the preflight no-persist store implements ReplayStore
+        // only to validate the HMAC before looking up an order. It would
+        // always accept repeated nonces in v3 CLI/testing. Only the
+        // restricted, disposable PostgreSQL nonce fence may be injected
+        // as the FINAL replay store for v3 candidate admission.
+        if ($requireV3 && !($this->replay instanceof LabPostgresReplayStore)) {
+            throw new DomainException('lab_v3_durable_replay_store_required');
         }
 
         // This verifier is strictly synthetic. A real command would need

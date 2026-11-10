@@ -37,6 +37,8 @@ use Imagine\Sites\Integration\PortalProjectAuthorityGateway;
 use Imagine\Sites\Integration\SiteProjectCommand;
 use Imagine\Sites\Persistence\LabAuthorizedProjectAdmissionStore;
 use Imagine\Sites\Security\LabPostgresReplayStore;
+use Imagine\Sites\Security\LabPreflightNoPersistReplayStore;
+use Imagine\Sites\Security\ReplayStore;
 use Imagine\Sites\Security\SyntheticSignedCommand;
 use Imagine\Sites\Security\SyntheticVersionedSignedCommand;
 use Imagine\Sites\Security\SyntheticCommercialEpochSignedCommand;
@@ -730,6 +732,38 @@ try {
         'F1-126 new signed nonce creates exactly one project after provider recovery');
     f111Check(f111Denied(fn()=> $newIntakeA->admitSigned($postCommitRecovery)),
         'F1-126 replay of recovered create is denied across DB connections');
+
+    // F1-127: never substitute the preflight non-persistent store, or
+    // any arbitrary in-memory success stub, for the restricted durable
+    // PostgreSQL replay store in actual v3 candidate admission.
+    $badReplay=new LabPreflightNoPersistReplayStore();
+    $wrongStoreIntake=new LabSignedProjectIntake(
+        $app,$newAuthority,$badReplay,$signingKeys,$signingEpoch,$newCommercial
+    );
+    $insecureStub=new class implements ReplayStore {
+        public int $calls=0;
+        public function rememberOnce(string $issuer,string $nonce,int $expiresAt):bool
+        {
+            ++$this->calls;
+            return true;
+        }
+    };
+    $stubIntake=new LabSignedProjectIntake(
+        $app,$newAuthority,$insecureStub,$signingKeys,$signingEpoch,$newCommercial
+    );
+    $protectedEnvelope=$newSigned('f127-miswired-store-nonce-0001');
+    $sourceBefore=$newCommercial->calls;
+    f111Check(f111Denied(fn()=> $wrongStoreIntake->admitSigned($protectedEnvelope)) &&
+        f111Denied(fn()=> $stubIntake->admitSigned($protectedEnvelope)) &&
+        $insecureStub->calls===0 &&
+        $newCommercial->calls===$sourceBefore &&
+        f111AdmissionCount($app,'tenant-f126')===1,
+        'F1-127 rejects no-persist and always-allow replay adapters before any authorization call');
+    f111Check($newIntakeB->admitSigned($protectedEnvelope)['idempotentReplay']===true &&
+        f111AdmissionCount($app,'tenant-f126')===1,
+        'F1-127 rejected fake replay stores never consume the real durable nonce');
+    f111Check(f111Denied(fn()=> $newIntakeA->admitSigned($protectedEnvelope)),
+        'F1-127 proper PostgreSQL nonce store still denies cross-session replay');
 } finally {
     if ($oldV3===false)putenv('SITES_F125_REQUIRE_COMMERCIAL_EPOCH_SIGNED');
     else putenv('SITES_F125_REQUIRE_COMMERCIAL_EPOCH_SIGNED='.$oldV3);
@@ -739,5 +773,5 @@ try {
     else putenv('SITES_F118_REQUIRE_EPOCH_SIGNED='.$oldV2);
 }
 
-echo "\n$checks F1-111–F1-126 two-database signed intake assertions passed.\n";
+echo "\n$checks F1-111–F1-127 two-database signed intake assertions passed.\n";
 echo "Disposable PG18, fake HMAC, no live Portal IAM, HTTP, client data, go-live or publication.\n";

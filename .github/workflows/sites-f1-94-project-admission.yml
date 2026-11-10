@@ -15,6 +15,7 @@ on:
       - 'src/Security/LabPreflightNoPersistReplayStore.php'
       - 'docs/SITES-F1-125-V3-COMMERCIAL-EPOCH-PG-ADMISSION.md'
       - 'docs/SITES-F1-126-COMMERCIAL-EPOCH-OUTAGE-MATRIX.md'
+      - 'docs/SITES-F1-127-DURABLE-V3-REPLAY-STORE.md'
       - 'src/Integration/LabPinnedPortalSigningKeyAuthorityGateway.php'
       - 'src/Integration/PortalSigningKeySource.php'
       - 'src/Integration/DenyingPortalSigningKeySource.php'
