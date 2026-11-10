@@ -8,13 +8,15 @@ A segunda migração `2026_11_10_000002_create_sites_project_admissions.php` cri
 
 `LabAuthorizedProjectAdmissionStore::admit` recebe o comando tipado, o identificador de site gerado internamente e um `PortalProjectAuthorityGateway` independente. Seu gateway padrão nega todas as chamadas. O processo exige `APP_ENV=testing`, CLI e `SITES_F94_PROJECT_ADMISSION_LAB=1`, banco de nome fixo `sites_f94_lab` e login restrito `sites_f94_app`, sem superusuário ou `BYPASSRLS`. Uma decisão negativa interrompe o procedimento **antes de qualquer consulta ou transação**.
 
+Antes da consulta de autorização, `siteRefFor($command)` deriva o identificador de site fictício de empresa + pedido + contrato, com domínio separado e hash SHA-256; `admit` recusa um `siteRef` diferente do calculado. Isso evita que um chamador do serviço escolha arbitrariamente outro site não vinculado ao pedido. **O identificador não é prova criptográfica de titularidade nem segredo;** uma implementação real deverá emitir referências de projeto no serviço Sites autenticado e vinculado ao Portal.
+
 Após autorização sintética explícita, a operação cria a transação, define o contexto do tenant com `set_config(..., true)` somente nessa transação e pesquisa a chave de idempotência sob RLS. Se houver registro anterior, ela exige correspondência exata de empresa, site, operação, pedido, contrato, revisão, produto e fingerprint; somente assim retorna uma resposta idempotente, sem gravar outro registro. Se não houver, insere projeto e admissão na **mesma transação**. Conflitos de chaves, falhas ou operações concorrentes não são convertidas em sucesso: o banco faz rollback e o chamador pode tentar novamente com a **mesma operação autorizada**, sujeita a nova checagem de autoridade.
 
 O resultado é sempre informativo, com `labOnly=true`, `portalIdentityOperational=false`, `officialClientAcceptance=false` e `publishable=false`. Nenhum endpoint HTTP foi adicionado.
 
 ## Verificação
 
-O workflow `sites-f1-94-project-admission.yml` executa as duas migrações Laravel em PostgreSQL 18 efêmero, testa a negativa por falta de opt-in e repete o teste com PHP 8.3/8.4. Após criar uma conta com `SELECT/INSERT` apenas, valida o bloqueio por padrão, falta de autorização, criação transacional, repetição exata, conflitos por chave/operação/site, empresa cruzada, revogação do gateway antes de repetição, role administrador recusada, rollback, contexto de banco sem vazamento e proibição de rollback destrutivo. A base é descartada no fim do CI.
+O workflow `sites-f1-94-project-admission.yml` executa as duas migrações Laravel em PostgreSQL 18 efêmero, testa a negativa por falta de opt-in e repete o teste com PHP 8.3/8.4. Após criar uma conta com `SELECT/INSERT` apenas, valida o bloqueio por padrão, falta de autorização, criação transacional, referência de site não vinculada ao pedido, repetição exata, conflitos por chave/operação/site, empresa cruzada, revogação do gateway antes de repetição, role administrador recusada, rollback, contexto de banco sem vazamento e proibição de rollback destrutivo. A base é descartada no fim do CI.
 
 ## Limitação crítica de segurança
 
