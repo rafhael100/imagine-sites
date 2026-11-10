@@ -601,13 +601,24 @@ Artisan::command('sites:assemble-draft-fixture {product=onepage} {preset=classic
             $summary['workflowState']!=='internal_review') {
             throw new \DomainException('Internal-only draft invariant violated.');
         }
+        $dossier=\Imagine\Sites\Production\SyntheticInternalReviewDossier::fromDraft(
+            $assembly
+        );
+        if ($dossier->record['reviewerDecisionStatus']!=='pending' ||
+            $dossier->record['publishable']!==false ||
+            $dossier->record['officialClientAcceptance']!==false) {
+            throw new \DomainException('Review dossier cannot implicitly approve a draft.');
+        }
+        $summary['reviewDossierDigest']=$dossier->digest;
         $files=$assembly->bundle->files+[
             'internal-review-draft.json'=>json_encode(
                 $summary,JSON_THROW_ON_ERROR|JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE
             )."\n",
+            'internal-review-dossier.json'=>$dossier->json,
         ];
         if (array_keys($files)!==[
             'index.html','release-manifest.json','internal-review-draft.json',
+            'internal-review-dossier.json',
         ]) {
             throw new \DomainException('Unexpected local output file inventory.');
         }
