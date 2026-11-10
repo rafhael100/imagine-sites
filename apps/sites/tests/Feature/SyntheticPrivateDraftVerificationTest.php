@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use DomainException;
 use Illuminate\Support\Facades\Artisan;
 use Imagine\Sites\Production\SyntheticPrivateDraftVerifier;
 use Tests\TestCase;
@@ -137,6 +138,49 @@ final class SyntheticPrivateDraftVerificationTest extends TestCase
         file_put_contents($summaryPath,$summaryOriginal);
         file_put_contents($dossierPath,$dossierOriginal);
         self::assertSame(0,Artisan::call('sites:verify-draft-fixture'));
+    }
+
+    public function test_symlinked_parent_and_hardlinked_package_file_are_denied():void
+    {
+        putenv('SITES_SYNTHETIC_VERIFY=1');
+        $dir=$this->create();
+        $private=dirname($dir);
+        $alias=dirname($private).'/sites-f99-alias-'.bin2hex(random_bytes(6));
+        self::assertTrue(symlink($private,$alias));
+        try {
+            try {
+                SyntheticPrivateDraftVerifier::verifyDirectory($alias.'/'.basename($dir));
+                self::fail('A symlinked ancestor must not be trusted');
+            } catch (DomainException $e) {
+                self::assertSame('private_draft_symlink_path_denied',$e->getMessage());
+            }
+        } finally {
+            @unlink($alias);
+        }
+
+        // Keep the original valid bytes, but introduce a second pathname
+        // for the same inode outside the four-file package inventory.
+        $file=$dir.'/index.html';
+        $outside=sys_get_temp_dir().'/sites-f99-hardlink-'.bin2hex(random_bytes(6));
+        self::assertTrue(rename($file,$outside));
+        try {
+            self::assertTrue(link($outside,$file));
+            try {
+                try {
+                    SyntheticPrivateDraftVerifier::verifyDirectory($dir);
+                    self::fail('A multiply linked private HTML inode must be denied');
+                } catch (DomainException $e) {
+                    self::assertSame('private_draft_hardlinked_file_denied_index.html',
+                        $e->getMessage());
+                }
+            } finally {
+                @unlink($file);
+            }
+        } finally {
+            self::assertTrue(rename($outside,$file));
+        }
+        self::assertSame(0,Artisan::call('sites:verify-draft-fixture'),
+            'The original package must pass after restoring a single hard link');
     }
 
     public function test_symlinks_extra_files_and_wrong_flags_are_denied():void

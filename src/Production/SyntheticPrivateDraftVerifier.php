@@ -40,8 +40,20 @@ final class SyntheticPrivateDraftVerifier
     /** @return array<string,mixed> Verified, non-authoritative metadata only. */
     public static function verifyDirectory(string $directory): array
     {
-        if ($directory === '' || is_link($directory) || !is_dir($directory)) {
+        if ($directory === '' || !is_dir($directory)) {
             throw new DomainException('private_draft_directory_unavailable');
+        }
+        // F1-99: rejecting only a symlink at the leaf directory misses
+        // aliases in its ancestors (e.g. a symlinked private parent).
+        // This is a laboratory path check, not an atomic openat boundary.
+        $part = $directory;
+        while (true) {
+            if (is_link($part)) {
+                throw new DomainException('private_draft_symlink_path_denied');
+            }
+            $parent = dirname($part);
+            if ($parent === $part) break;
+            $part = $parent;
         }
         $entries = scandir($directory);
         if ($entries === false || $entries !== array_merge(['.', '..'], self::FILES)) {
@@ -53,6 +65,14 @@ final class SyntheticPrivateDraftVerifier
             $limit = $name === 'index.html' ? 150000 : 32768;
             if (is_link($path) || !is_file($path) || !is_readable($path)) {
                 throw new DomainException('private_draft_unsafe_file_'.$name);
+            }
+            // F1-99: a hard-linked regular file can also be modified
+            // through an external path while preserving all original bytes.
+            // Require a sole link for every file of this private lab bundle.
+            clearstatcache(true, $path);
+            $stat = @lstat($path);
+            if (!is_array($stat) || ($stat['nlink'] ?? null) !== 1) {
+                throw new DomainException('private_draft_hardlinked_file_denied_'.$name);
             }
             $size = filesize($path);
             if (!is_int($size) || $size < 1 || $size > $limit) {
