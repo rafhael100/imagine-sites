@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - 'tests/f23-cross-repo.php'
+      - 'src/Integration/CurrentPortalProjectAuthorizationSnapshot.php'
+      - 'src/Integration/SiteProjectCommand.php'
+      - 'src/Integration/SnapshotBoundPortalProjectAuthorityGateway.php'
       - '.github/workflows/sites-f1-23-cross-repo-contract.yml'
       - 'docs/SITES-F1-23-PORTAL-CROSS-REPO-COMPAT.md'
 
