@@ -1,0 +1,50 @@
+name: Sites F1-131 CRM lead envelope parity (metadata only)
+on:
+  pull_request:
+    paths:
+      - 'src/Integration/SyntheticCrmLeadEnvelopeV1Draft.php'
+      - 'tests/f131-crm-lead-envelope-cross-repo.php'
+      - '.github/workflows/sites-f1-131-crm-lead-parity.yml'
+      - 'docs/SITES-F1-131-CRM-ENVELOPE-CROSS-REPO.md'
+permissions:
+  contents: read
+jobs:
+  crm-metadata-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout exact independent CRM laboratory revision
+        uses: actions/checkout@v4
+        with:
+          repository: rafhael100/imagine-crm
+          ref: a2f29c8e19185e3451fe953f6fe9c9c9bcbbe3ef
+          path: crm-candidate
+          persist-credentials: false
+      - name: Select isolated PHP version
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          coverage: none
+      - name: Pin CRM source and verify no production adapters
+        run: |
+          set -euo pipefail
+          test "$(git -C crm-candidate rev-parse HEAD)" = a2f29c8e19185e3451fe953f6fe9c9c9bcbbe3ef
+          test -f crm-candidate/app/Core/Leads/SyntheticLeadEnvelopeV1Inspector.php
+          test -f crm-candidate/app/Core/Leads/SyntheticLeadEnvelopeV1Assessment.php
+          php -l src/Integration/SyntheticCrmLeadEnvelopeV1Draft.php
+          php -l crm-candidate/app/Core/Leads/SyntheticLeadEnvelopeV1Inspector.php
+          php -l crm-candidate/app/Core/Leads/SyntheticLeadEnvelopeV1Assessment.php
+          php -l tests/f131-crm-lead-envelope-cross-repo.php
+      - name: Prove independent Sites metadata proposal stays DENY at CRM
+        run: |
+          set -euo pipefail
+          php tests/f131-crm-lead-envelope-cross-repo.php
+          echo 'Synthetic metadata only. Never infer CRM authorization or durable delivery.'
