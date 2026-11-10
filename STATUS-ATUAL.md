@@ -2,7 +2,15 @@
 
 ## Atualização — 10/11/2026 (linha supervisionada de desenvolvimento)
 
-- **Proposta consolidada de revisão:** [PR #114](https://github.com/rafhael100/imagine-sites/pull/114) reúne a linha F1-45..F1-85, com **21 workflows distintos e 36/36 jobs aprovados** no head `940c9dc`, incluindo Laravel PHP 8.3/8.4, PostgreSQL 18, cópia/restauração de banco descartável, Chromium e execução real de laboratório Docker com usuário PostgreSQL sem superuser. **PR aberto para revisão técnica independente, não mesclado em `dev` nem `main`**.
+### Continuidade F1-88..90 — 10/11/2026
+
+- [PR #120 — consolidação F1-45..89](https://github.com/rafhael100/imagine-sites/pull/120): proposta atual de revisão para `dev`, com **21 workflows e 36/36 jobs aprovados**, ainda sem merge e sem revisor independente.
+- [PR #118 — F1-88](https://github.com/rafhael100/imagine-sites/pull/118): prova conjunta de dossiê e HTML privado em disco + decisão editorial persistida/relida com role PostgreSQL por tenant.
+- [PR #119 — F1-89](https://github.com/rafhael100/imagine-sites/pull/119): prova por GET dos bytes HTML efetivamente servidos em servidor HTTP de **loopback**, sem alegar observação Cloudflare remota.
+- [PR #121 — F1-90](https://github.com/rafhael100/imagine-sites/pull/121): a tela visual deixa de chamar a transição de **aprovação interna simulada** ao abrir a prévia, usando um dossiê ainda pendente de revisão, SHA-256 próprio e nenhum formulário/ação para aprovação/publicação. Validação CI desta alteração ainda subordinada ao PR.
+- O PR agregado histórico #114 foi **encerrado sem merge**, substituído pelas propostas posteriores. `dev`/`main` e os dez gates `BLOCKED` permanecem inalterados. Isso ainda NÃO é Portal autenticado, evidência de cliente, CRM, HTTPS/CDN real, VPS homologada ou autorização operacional.
+
+- **Registro histórico (substituído):** [PR #114](https://github.com/rafhael100/imagine-sites/pull/114) reunia a linha F1-45..F1-85, com **21 workflows distintos e 36/36 jobs aprovados** no head `940c9dc`, incluindo Laravel PHP 8.3/8.4, PostgreSQL 18, cópia/restauração de banco descartável, Chromium e execução real de laboratório Docker com usuário PostgreSQL sem superuser. **PR posteriormente encerrado sem merge, substituído por #120; nenhum destes códigos foi integrado em `dev` ou `main`**.
 - **F1-86:** [PR #115](https://github.com/rafhael100/imagine-sites/pull/115) implementa verificação **após gravação em disco** do pacote privado de revisão com quatro arquivos, hashes e conteúdo canônico, sem links simbólicos/arquivos extras, mais comando Laravel de leitura somente e negativos. Submetido à validação CI, dependente da linha F1-85.
 - **Estado real:** as classes e testes de laboratório não concedem identidade do Portal, aceite do cliente, Cloudflare, IA/n8n real, CRM, backup da VPS, avaliação AppSec independente ou go-live. **10/10 gates operacionais continuam `BLOCKED`**, issues #33–#38 abertas. Não houve publicação, DNS ou alteração de produção nesta linha.
 - Documentação atualizada em [README.md](README.md), incluindo comandos fictícios do gerador e do verificador. Os registros anteriores abaixo preservam o histórico de PRs individuais e não indicam que etapas ainda em draft foram mescladas.
