@@ -87,7 +87,7 @@ Route::get('/_lab/sites/v1/review', static function (Request $request) {
         if (!is_file($source)) return response('Not found',404);
         $copy=json_decode((string)file_get_contents($source),true,16,JSON_THROW_ON_ERROR);
         // Build the same structured draft used in the independent dossier
-        // and disk/DB labs. A visual GET must NEVER call approve_internal.
+        // and disk/DB labs. A visual GET must never transition review status.
         $releaseRef='release-f38-'.$product.($preset==='classic'?'':'-'.$preset);
         $draft=\Imagine\Sites\Production\SyntheticStructuredDraftAssembly::build(
             $product,'Marca Fictícia Imagine',$preset,$copy,
