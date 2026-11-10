@@ -132,6 +132,9 @@ final class LabAuthorizedProjectAdmissionStore
                     )) {
                     throw new DomainException('lab_project_admission_idempotency_conflict');
                 }
+                // F1-104: current authority is required even after a
+                // read-only idempotent replay lookup and comparison.
+                $this->assertFinalAuthority($command);
                 $this->db->commit();
                 return self::result($command, $siteRef, $fingerprint, true);
             }
@@ -168,6 +171,9 @@ final class LabAuthorizedProjectAdmissionStore
                 'fingerprint' => $fingerprint,
             ]);
 
+            // F1-104: a grant revoked during the transaction must roll back
+            // both the project row and the admission row.
+            $this->assertFinalAuthority($command);
             $this->db->commit();
             return self::result($command, $siteRef, $fingerprint, false);
         } catch (Throwable $e) {
@@ -184,6 +190,22 @@ final class LabAuthorizedProjectAdmissionStore
                 $e instanceof PDOException
                     ? 'lab_project_admission_constraint_or_concurrency_denied'
                     : 'lab_project_admission_write_denied',
+                previous: $e
+            );
+        }
+    }
+
+    /** Synthetic second gateway check; not a substitute for live Portal IAM. */
+    private function assertFinalAuthority(SiteProjectCommand $command): void
+    {
+        try {
+            if (!(new SiteProjectAdmission($this->authority))
+                ->evaluate($command)->allowed) {
+                throw new DomainException('lab_project_admission_final_authority_denied');
+            }
+        } catch (Throwable $e) {
+            throw new DomainException(
+                'lab_project_admission_final_authority_denied',
                 previous: $e
             );
         }
