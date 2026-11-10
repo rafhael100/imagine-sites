@@ -1,5 +1,13 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuidade supervisionada — Portal F1-14 / Sites F1-122 (10/11/2026)
+
+- [Portal PR #267 — F1-14](https://github.com/rafhael100/imagine-portal/pull/267): `LabPortalSitesVersionedIssuer` agora consulta o contrato/pedido comercial **duas vezes**, incluindo a última consulta antes de devolver HMAC v2. Mudança de elegibilidade, revisão ou empresa entre as consultas resulta DENY; testes do Portal e Laravel PHP8.3/8.4 passaram nos dois workflows.
+- [Sites PR #158 — F1-122](https://github.com/rafhael100/imagine-sites/pull/158): CI cross-repo lê a revisão Portal fixa `2be656bdbf5a6d6fa00e563fd5b5e4942b54cd2c`, prova para Onepage e Landing Page que **revogação, nova revisão contratual ou mudança de empresa durante emissão** não devolvem envelope. Após restabelecimento fictício, o Portal pode emitir nova assinatura verificada pelo Sites. Quatro workflows concluídos com sucesso na HEAD de código, incluindo cross-repo PHP8.3/8.4, Laravel, testes sintéticos e safety.
+- As fontes comerciais, de chave e época continuam em memória e não são IAM/vault oficiais; nem o emissor Portal F1-14 nem o receptor Sites F1-122 são endpoints operacionais. A segunda leitura não é transação atômica e não impede revogação posterior. Requer autenticação mútua, fonte contratual real, auditoria, homologação HTTPS e revisão AppSec independente.
+- **10/10 gates operacionais continuam BLOCKED.** Todos os PRs são drafts empilhados; nenhum merge em dev/main, deploy, cliente, PII, DNS, VPS/Cloudflare ou nova despesa.
+
+
 ## Continuidade supervisionada — Portal F1-13 e Sites F1-121 (10/11/2026)
 
 - [Portal PR #264 — F1-13](https://github.com/rafhael100/imagine-portal/pull/264): `LabPortalSitesVersionedIssuer` constrói comando com fonte comercial Portal em DENY por padrão, obtém **chave e época em um mesmo registro** de `PortalSitesSigningMaterialSource` independente, e reconsulta a fonte após assinar para negar troca do segredo ou da revisão durante a emissão. O método de entrada NÃO recebe segredo ou `keyEpoch` do solicitante. Testes Laravel PHP8.3/8.4 e Node.js aprovados nos dois workflows observados. A fonte continua fixture sintética sem IAM real.
