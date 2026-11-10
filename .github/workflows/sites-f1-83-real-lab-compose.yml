@@ -5,6 +5,7 @@ on:
       - 'ops/staging/Dockerfile'
       - 'ops/staging/Dockerfile.dockerignore'
       - 'ops/staging/compose.yml'
+      - 'ops/staging/postgres-init/**'
       - 'ci/f73_staging_lab_contract.py'
       - 'ci/f74_docker_lab_boundary.py'
       - 'apps/sites/**'
@@ -20,6 +21,7 @@ jobs:
     env:
       # This is PUBLIC TEST DATA, not a secret and never used in production.
       SITES_LAB_DB_PASSWORD: github-ci-fictional-disposable-db-only
+      SITES_LAB_DB_ADMIN_PASSWORD: github-ci-fictional-disposable-admin-only
     steps:
       - uses: actions/checkout@v4
         with:
@@ -45,6 +47,10 @@ jobs:
       - name: Run Laravel tests on an internal-only Compose network
         run: |
           set -euo pipefail
+          # Verify a REAL network connection using the restricted app role.
+          # F84 does only a TEMP table roundtrip inside a rollback transaction.
+          docker compose -f ops/staging/compose.yml --profile lab run --rm \
+            -e SITES_F84_LAB=1 sites-lab-tests php scripts/verify-isolated-db.php
           docker compose -f ops/staging/compose.yml --profile lab run --rm sites-lab-tests
           db="$(docker compose -f ops/staging/compose.yml --profile lab ps -q sites-lab-db)"
           test -n "$db"
