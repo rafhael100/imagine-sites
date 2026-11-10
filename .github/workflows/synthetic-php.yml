@@ -54,3 +54,4 @@ jobs:
           php tests/f71-structured-draft.php
           php tests/f75-canonical-bundle.php
           php tests/f76-internal-review-evidence.php
+          php tests/f77-review-dossier.php
