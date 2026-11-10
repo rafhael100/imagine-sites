@@ -109,7 +109,9 @@ final class SyntheticReviewHandoffEpochEnvelope
         try {
             $snapshot=$source->findCurrentFor($workflow->tenantRef,$workflow->siteRef);
             if (!$snapshot instanceof CurrentPortalReviewSnapshot ||
-                !SnapshotReviewBindingPolicy::allows($workflow,$candidate,$snapshot,time()) ||
+                !// Use the SAME trusted verifier clock already used for issued/expiry
+                // checks. Never accept this clock from an HTTP request.
+                SnapshotReviewBindingPolicy::allows($workflow,$candidate,$snapshot,$now) ||
                 $snapshot->authorizationRevision!==$envelope['authorizationRevision']) {
                 throw new DomainException('Current authority epoch denied.');
             }
