@@ -39,6 +39,7 @@ use Imagine\Sites\Integration\PortalSigningKeySource;
 use Imagine\Sites\Integration\PortalSigningKeyEpochSource;
 use Imagine\Sites\Security\ReplayStore;
 use Imagine\Sites\Security\SyntheticSignedCommand;
+use Imagine\Sites\Security\SyntheticVersionedSignedCommand;
 use Imagine\Sites\Persistence\LabAuthorizedProjectAdmissionStore;
 
 final class F94FictionalAuthority implements PortalProjectAuthorityGateway
@@ -697,6 +698,52 @@ f94Assert($f110Intake->admitSigned($f117Retry)['idempotentReplay']===false &&
     f94Count($app,'tenant-f117','sites_projects')===1 &&
     f94Count($app,'tenant-f117','sites_project_admissions')===1,
     'F1-117 new request pins current epoch and creates exactly one lab project');
+
+// F1-118: opt-in HMAC v2 includes the key generation itself.
+// Even if the same secret bytes are restored before intake starts,
+// a message signed under an older generation MUST be denied and must
+// not consume the nonce.
+$oldF118Flag=getenv('SITES_F118_REQUIRE_EPOCH_SIGNED');
+putenv('SITES_F118_REQUIRE_EPOCH_SIGNED=1');
+try {
+    $f118Legacy=SyntheticSignedCommand::sign(
+        $f117New,$f110Key,'f118-legacy-v1-deny-0001',time()-1,time()+60
+    );
+    f94Assert(f94Denied(fn()=> $f110Intake->admitSigned($f118Legacy)) &&
+        f94Count($app,'tenant-f117','sites_project_admissions')===1,
+        'F1-118 opt-in rejects v1 envelopes that do not authenticate epoch');
+
+    $f118Epoch=$f117Epoch->epoch;
+    $f118Old=SyntheticVersionedSignedCommand::sign(
+        $f117New,$f110Key,'f118-stale-v2-epoch-0002',time()-1,time()+60,$f118Epoch
+    );
+    // A->B->A was completed BEFORE intake begins, so key bytes
+    // match the original signer but trusted epoch moved forward.
+    $f110Keys->key='DO-NOT-USE-F118-TEMPORARY-KEY-123456789';
+    $f110Keys->key=$f110Key;
+    ++$f117Epoch->epoch;
+    f94Assert(f94Denied(fn()=> $f110Intake->admitSigned($f118Old)) &&
+        f94Count($app,'tenant-f117','sites_project_admissions')===1,
+        'F1-118 stale signed epoch is denied despite restored original secret');
+    $f118Fresh=SyntheticVersionedSignedCommand::sign(
+        $f117New,$f110Key,'f118-stale-v2-epoch-0002',
+        time()-1,time()+60,$f117Epoch->epoch
+    );
+    f94Assert($f110Intake->admitSigned($f118Fresh)['idempotentReplay']===true &&
+        f94Count($app,'tenant-f117','sites_project_admissions')===1,
+        'F1-118 re-signed current epoch can consume formerly rejected nonce once');
+
+    $f118Tampered=SyntheticVersionedSignedCommand::sign(
+        $f117New,$f110Key,'f118-tamper-epoch-0003',
+        time()-1,time()+60,$f117Epoch->epoch
+    );
+    $f118Tampered['keyEpoch']++;
+    f94Assert(f94Denied(fn()=> $f110Intake->admitSigned($f118Tampered)),
+        'F1-118 tampering with authenticated epoch fails closed');
+} finally {
+    if ($oldF118Flag===false) putenv('SITES_F118_REQUIRE_EPOCH_SIGNED');
+    else putenv('SITES_F118_REQUIRE_EPOCH_SIGNED='.$oldF118Flag);
+}
 
 putenv('SITES_F110_SIGNED_PROJECT_LAB');
 
