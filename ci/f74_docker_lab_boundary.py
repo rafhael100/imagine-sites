@@ -99,12 +99,32 @@ def inspect_rendered(value: object) -> None:
     if test_volumes:
         raise ValueError("test container should have no attached filesystem")
     db_volumes = db.get("volumes") or []
-    if len(db_volumes) != 1 or (
+    if len(db_volumes) != 2 or (
         db_volumes[0].get("type") != "volume"
         or db_volumes[0].get("source") != "sites-lab-data"
         or db_volumes[0].get("target") != "/var/lib/postgresql"
+    ) or (
+        db_volumes[1].get("type") != "bind"
+        or not isinstance(db_volumes[1].get("source"), str)
+        or not db_volumes[1]["source"].endswith(
+            "/ops/staging/postgres-init/01-create-lab-role.sh"
+        )
+        or db_volumes[1].get("target") != "/docker-entrypoint-initdb.d/01-create-lab-role.sh"
+        or db_volumes[1].get("read_only") is not True
     ):
-        raise ValueError("DB must use its one named disposable volume")
+        raise ValueError("DB must have one volume and one exact read-only role-init fixture")
+    admin_env = db.get("environment", {})
+    app_env = test.get("environment", {})
+    if (admin_env.get("POSTGRES_USER") != "postgres"
+        or admin_env.get("POSTGRES_DB") != "sites_lab"
+        or app_env.get("DB_USERNAME") != "siteslab"
+        or app_env.get("DB_DATABASE") != "sites_lab"
+        or "SITES_LAB_DB_PASSWORD" not in admin_env
+        or not isinstance(admin_env.get("POSTGRES_PASSWORD"), str)
+        or not isinstance(admin_env.get("SITES_LAB_DB_PASSWORD"), str)
+        or admin_env.get("POSTGRES_PASSWORD") == admin_env.get("SITES_LAB_DB_PASSWORD")
+        or app_env.get("DB_PASSWORD") != admin_env.get("SITES_LAB_DB_PASSWORD")):
+        raise ValueError("app and admin PG credentials must be distinct with restricted app role")
     for name, service in services.items():
         env = service.get("environment", {})
         if not isinstance(env, dict):
@@ -121,16 +141,28 @@ def fixture() -> dict:
     }
     db = {
         **base, "image": "postgres:18",
-        "environment": {"POSTGRES_PASSWORD": "SYNTHETIC-ONLY"},
-        "volumes": [{
-            "type": "volume", "source": "sites-lab-data",
-            "target": "/var/lib/postgresql",
-        }],
+        "environment": {
+            "POSTGRES_USER": "postgres", "POSTGRES_DB": "sites_lab",
+            "POSTGRES_PASSWORD": "SYNTHETIC-ADMIN-ONLY",
+            "SITES_LAB_DB_PASSWORD": "SYNTHETIC-APP-ONLY",
+        },
+        "volumes": [
+            {"type": "volume", "source": "sites-lab-data",
+             "target": "/var/lib/postgresql"},
+            {"type": "bind",
+             "source": "/workspace/ops/staging/postgres-init/01-create-lab-role.sh",
+             "target": "/docker-entrypoint-initdb.d/01-create-lab-role.sh",
+             "read_only": True},
+        ],
     }
     test = {
         **base, "cap_drop": ["ALL"],
         "build": {"dockerfile": "ops/staging/Dockerfile"},
-        "environment": {"DB_PASSWORD": "SYNTHETIC-ONLY", "APP_ENV": "testing"},
+        "environment": {
+            "DB_PASSWORD": "SYNTHETIC-APP-ONLY",
+            "DB_USERNAME": "siteslab", "DB_DATABASE": "sites_lab",
+            "APP_ENV": "testing",
+        },
     }
     return {
         "services": {"sites-lab-db": db, "sites-lab-tests": test},
@@ -169,6 +201,10 @@ def self_test(ignore: str, dockerfile: str) -> None:
         lambda s: s["services"]["sites-lab-tests"].update({"cap_drop": []}),
         lambda s: s["services"]["sites-lab-tests"].update({"volumes": [{"type": "bind"}]}),
         lambda s: s["services"]["sites-lab-db"].update({"image": "postgres:latest"}),
+        lambda s: s["services"]["sites-lab-db"]["environment"].update({"POSTGRES_USER": "siteslab"}),
+        lambda s: s["services"]["sites-lab-db"]["environment"].update({"POSTGRES_PASSWORD": "SYNTHETIC-APP-ONLY"}),
+        lambda s: s["services"]["sites-lab-db"]["volumes"][1].update({"read_only": False}),
+        lambda s: s["services"]["sites-lab-tests"]["environment"].update({"DB_USERNAME": "postgres"}),
     ):
         corrupted = fixture()
         change(corrupted)
