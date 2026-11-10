@@ -1,5 +1,14 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuidade supervisionada — 10/11/2026 (F1-97..99)
+
+- [PR #133 — F1-97](https://github.com/rafhael100/imagine-sites/pull/133): rechecagem dos quatro arquivos privados no replay idempotente, antes do COMMIT; simulação de alteração durante avaliação de autoridade e restauração. Suítes CI relevantes concluídas com sucesso. Sem merge.
+- [PR #134 — F1-98](https://github.com/rafhael100/imagine-sites/pull/134): leitor da revisão vigente adquire lock compartilhado por empresa/site na mesma chave do gravador F1-95. PostgreSQL18, Laravel, guardas, testes sintéticos e Docker isolado concluídos com sucesso. Sem merge.
+- [PR #135 — F1-99](https://github.com/rafhael100/imagine-sites/pull/135): verificador de arquivos privados nega caminho com qualquer ancestral simbólico e arquivo com hardlink (nlink diferente de 1). Testes negativos novos de symlink parental e hardlink externo. **CI da HEAD ainda requer verificação de todos os jobs relevantes; não é aprovação para integração**.
+- A progressão é de PRs empilhados: #135 depende de #134, que depende de #133 e da consolidação #132. Todos seguem em revisão; não modificar dev/main, não fazer deploy, não publicar HTML para clientes.
+- Ressalvas: a GUC PostgreSQL é controlável por SQL direto, não é IAM. Locks só coordenam processos cooperantes; verificação de caminho não impede troca TOCTOU; arquivos não são snapshot distribuído nem prova de aceite. **10/10 gates operacionais permanecem BLOCKED**.
+
+
 ## Atualização — 10/11/2026 (linha supervisionada de desenvolvimento)
 
 ### Marco atual F1-96 — PR agregado #132
