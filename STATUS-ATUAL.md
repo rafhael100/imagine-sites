@@ -1,5 +1,13 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Evolução supervisionada — F1-103 e F1-104 (10/11/2026)
+
+- [PR #139 — F1-103](https://github.com/rafhael100/imagine-sites/pull/139): a política candidata F1-102 de snapshot Portal, com vínculo exato empresa/contrato/operação/idempotência e TTL limitado, foi conectada **somente no teste PG18 descartável** ao serviço de admissão de projetos. Sem snapshot, com grant expirado/revogado, ou com operação diferente, não admite; decisão corrente fictícia permite gravar ou fazer replay idempotente. Testes PG18 PHP8.3/8.4 aprovados; sem IAM real.
+- [PR #140 — F1-104](https://github.com/rafhael100/imagine-sites/pull/140): rechecagem do gateway de autorização imediatamente antes do COMMIT tanto para projeto+admissão quanto para replay; revogação intermediária faz rollback e preserva o ledger. Testes de PostgreSQL18 PHP8.3/8.4, Laravel, domínio e gate de segurança aprovados na HEAD de código antes da atualização documental; CI final de HEAD precisa ser conferido. Nenhum merge.
+- Branches empilhadas: #140 depende #139, #138, #137, #136, #135, #134, #133 e agregado #132. Revisão independente AppSec ainda não concluída.
+- Este avanço não habilita Portal IAM oficial, assinatura, aceite do cliente, CRM/AI Agents reais, Cloudflare, VPS, domínio, deploy nem dados de cliente. `imagine_sites.tenant_ref` é forjável por SQL direto; as checagens não comprovam identidade. **10/10 gates operacionais BLOCKED** e sem custos/merges/publicação.
+
+
 ## Continuidade supervisionada — F1-100..102 (10/11/2026)
 
 - F1-100: rechecagem da autorização Portal *fictícia* antes do commit de consulta da revisão vigente, com teste de revogação intermediária e rollback; [PR #136](https://github.com/rafhael100/imagine-sites/pull/136). Os cinco workflows distintos executados concluíram com sucesso, sem aprovação operacional.
