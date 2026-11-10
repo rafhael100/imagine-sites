@@ -91,29 +91,32 @@ $original = $command(
     'tenant-f94-a', 'operation-f94-001', 'order-f94-001',
     'contract-f94-001', 1, 'onepage', 'idem-f94-001'
 );
+$siteA=LabAuthorizedProjectAdmissionStore::siteRefFor($original);
+f94Assert(preg_match('/\Asite-[a-f0-9]{32}\z/D', $siteA) === 1,
+    'site reference is minted from trusted contract and order inputs');
 $fixture = new F94FictionalAuthority();
 $store = new LabAuthorizedProjectAdmissionStore($app, $fixture);
 
 putenv('SITES_F94_PROJECT_ADMISSION_LAB=0');
-f94Assert(f94Denied(fn()=> $store->admit($original, 'site-f94-001')) &&
+f94Assert(f94Denied(fn()=> $store->admit($original, $siteA)) &&
     $fixture->checks===0,
     'disabled lab flag denies before authority or database access');
 putenv('SITES_F94_PROJECT_ADMISSION_LAB=1');
 
 f94Assert(f94Denied(fn()=> (new LabAuthorizedProjectAdmissionStore($app))
-    ->admit($original, 'site-f94-001')),
+    ->admit($original, $siteA)),
     'default trusted-authority gateway is always DENY');
-f94Assert(f94Denied(fn()=> $store->admit($original, 'site-f94-001')),
+f94Assert(f94Denied(fn()=> $store->admit($original, $siteA)),
     'explicitly denied fictional Portal authority cannot create a project');
 f94Assert(f94Count($app,'tenant-f94-a','sites_projects')===0 &&
     f94Count($app,'tenant-f94-a','sites_project_admissions')===0,
     'denied commands do not leave database rows');
 
 $fixture->allowed=true;
-$created=$store->admit($original,'site-f94-001');
+$created=$store->admit($original,$siteA);
 f94Assert($created['schemaVersion']==='sites.synthetic.project-admission-result.v1' &&
     $created['tenantRef']==='tenant-f94-a' &&
-    $created['siteRef']==='site-f94-001' &&
+    $created['siteRef']===$siteA &&
     $created['operationId']==='operation-f94-001' &&
     $created['productCode']==='onepage' &&
     $created['semanticFingerprint']===$original->semanticFingerprint() &&
@@ -128,7 +131,7 @@ f94Assert(f94Count($app,'tenant-f94-a','sites_projects')===1 &&
     f94Count($app,'tenant-f94-a','sites_project_admissions')===1,
     'one project and one admission record persisted under tenant A');
 
-$retry=$store->admit($original,'site-f94-001');
+$retry=$store->admit($original,$siteA);
 f94Assert($retry['idempotentReplay']===true &&
     $retry['semanticFingerprint']===$created['semanticFingerprint'] &&
     f94Count($app,'tenant-f94-a','sites_projects')===1 &&
@@ -139,22 +142,22 @@ $alteredOrder=$command(
     'tenant-f94-a','operation-f94-001','order-f94-different',
     'contract-f94-001',1,'onepage','idem-f94-001'
 );
-f94Assert(f94Denied(fn()=> $store->admit($alteredOrder, 'site-f94-001')),
+f94Assert(f94Denied(fn()=> $store->admit($alteredOrder, LabAuthorizedProjectAdmissionStore::siteRefFor($alteredOrder))),
     'same key with changed order or semantic fingerprint is rejected');
 $alteredOp=$command(
     'tenant-f94-a','operation-f94-changed','order-f94-001',
     'contract-f94-001',1,'onepage','idem-f94-001'
 );
-f94Assert(f94Denied(fn()=> $store->admit($alteredOp, 'site-f94-001')),
+f94Assert(f94Denied(fn()=> $store->admit($alteredOp, $siteA)),
     'same idempotency key cannot switch the operation');
 f94Assert(f94Denied(fn()=> $store->admit($original, 'site-f94-changed')),
-    'same idempotency key cannot switch the site');
+    'caller-supplied site not bound to authorized order and contract is denied');
 
 $newIdem=$command(
-    'tenant-f94-a','operation-f94-002','order-f94-002',
-    'contract-f94-002',1,'onepage','idem-f94-002'
+    'tenant-f94-a','operation-f94-002','order-f94-001',
+    'contract-f94-001',1,'onepage','idem-f94-002'
 );
-f94Assert(f94Denied(fn()=> $store->admit($newIdem, 'site-f94-001')) &&
+f94Assert(f94Denied(fn()=> $store->admit($newIdem, $siteA)) &&
     f94Count($app,'tenant-f94-a','sites_project_admissions')===1,
     'second operation cannot bind an already admitted site and leaves no partial write');
 
@@ -162,7 +165,7 @@ $sameOpNewSite=$command(
     'tenant-f94-a','operation-f94-001','order-f94-003',
     'contract-f94-003',1,'onepage','idem-f94-new'
 );
-f94Assert(f94Denied(fn()=> $store->admit($sameOpNewSite, 'site-f94-new')) &&
+f94Assert(f94Denied(fn()=> $store->admit($sameOpNewSite, LabAuthorizedProjectAdmissionStore::siteRefFor($sameOpNewSite))) &&
     f94Count($app,'tenant-f94-a','sites_projects')===1,
     'reusing operation ID with different idempotency fails atomically');
 
@@ -170,7 +173,10 @@ $other=$command(
     'tenant-f94-b','operation-f94-001','order-f94-001',
     'contract-f94-001',1,'landing_page','idem-f94-001'
 );
-$second=$store->admit($other,'site-f94-001');
+$siteB=LabAuthorizedProjectAdmissionStore::siteRefFor($other);
+f94Assert($siteB!==$siteA,
+    'tenant-specific Site IDs cannot coincide for the same order and contract');
+$second=$store->admit($other,$siteB);
 f94Assert($second['tenantRef']==='tenant-f94-b' &&
     $second['productCode']==='landing_page' &&
     f94Count($app,'tenant-f94-b','sites_project_admissions')===1 &&
@@ -234,13 +240,13 @@ f94Assert($foreignKeyDenied &&
     'foreign key requires the project to exist in the SAME tenant before admission');
 
 $fixture->allowed=false;
-f94Assert(f94Denied(fn()=> $store->admit($original,'site-f94-001')) &&
+f94Assert(f94Denied(fn()=> $store->admit($original,$siteA)) &&
     f94Count($app,'tenant-f94-a','sites_project_admissions')===1,
     'revoked fictional gateway denies even an otherwise valid idempotent retry');
 $fixture->allowed=true;
 f94Assert(f94Denied(fn()=> (
     new LabAuthorizedProjectAdmissionStore($admin, $fixture)
-)->admit($original,'site-f94-001')),
+)->admit($original,$siteA)),
     'administrator role is rejected even if the fictional gateway allows');
 f94Assert(f94Denied(fn()=> $store->admit($original,'../site-f94-invalid')),
     'untrusted site reference is not passed into SQL or filesystem');
@@ -248,7 +254,7 @@ f94Assert(f94Denied(fn()=> $store->admit($original,'../site-f94-invalid')),
 $checksBefore=$fixture->checks;
 $app->beginTransaction();
 try {
-    f94Assert(f94Denied(fn()=> $store->admit($original,'site-f94-001')) &&
+    f94Assert(f94Denied(fn()=> $store->admit($original,$siteA)) &&
         $fixture->checks===$checksBefore+1,
         'caller-owned transaction is refused, avoiding context-leak ownership confusion');
 } finally {
