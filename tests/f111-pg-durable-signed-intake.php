@@ -37,6 +37,7 @@ use Imagine\Sites\Integration\SiteProjectCommand;
 use Imagine\Sites\Persistence\LabAuthorizedProjectAdmissionStore;
 use Imagine\Sites\Security\LabPostgresReplayStore;
 use Imagine\Sites\Security\SyntheticSignedCommand;
+use Imagine\Sites\Security\SyntheticVersionedSignedCommand;
 
 final class F111FictionalOrderGateway implements PortalProjectAuthorityGateway
 {
@@ -448,5 +449,57 @@ f111Check($intakeB->admitSigned($epochRetry)['idempotentReplay']===true &&
     f111AdmissionCount($app,'tenant-f111')===1,
     'F1-117 current epoch with fresh signed nonce recovers exact idempotent replay');
 
-echo "\n$checks F1-111–F1-117 two-database signed intake assertions passed.\n";
+// F1-118: an authenticated keyEpoch in HMAC v2 prevents a signed
+// command from an OLD generation being replayed AFTER A->B->A
+// restoration, even when the current secret bytes equal the old ones.
+$oldVersionFlag=getenv('SITES_F118_REQUIRE_EPOCH_SIGNED');
+putenv('SITES_F118_REQUIRE_EPOCH_SIGNED=1');
+try {
+    $legacySigned=$sign($command,'f118-durable-v1-denied-0001');
+    f111Check(f111Denied(fn()=> $intakeA->admitSigned($legacySigned)) &&
+        f111AdmissionCount($app,'tenant-f111')===1,
+        'F1-118 explicit v2 opt-in rejects old HMAC envelope before nonce consumption');
+
+    $beforeRotateEpoch=$signingEpoch->epoch;
+    $staleV2=SyntheticVersionedSignedCommand::sign(
+        $command,$key,'f118-durable-stale-epoch-0002',
+        $now-1,$now+60,$beforeRotateEpoch
+    );
+    $signingKeys->key='DO-NOT-USE-F118-TEMPORARY-ROTATION-KEY-123456789';
+    $signingKeys->key=$key;
+    ++$signingEpoch->epoch;
+    f111Check(f111Denied(fn()=> $intakeA->admitSigned($staleV2)) &&
+        f111AdmissionCount($app,'tenant-f111')===1,
+        'F1-118 old signed key epoch denied after A-B-A rotation before intake');
+    $currentV2=SyntheticVersionedSignedCommand::sign(
+        $command,$key,'f118-durable-stale-epoch-0002',
+        $now-1,$now+60,$signingEpoch->epoch
+    );
+    f111Check($intakeB->admitSigned($currentV2)['idempotentReplay']===true &&
+        f111AdmissionCount($app,'tenant-f111')===1,
+        'F1-118 new signed epoch admits once with same previously unconsumed nonce');
+    f111Check(f111Denied(fn()=> $intakeA->admitSigned($currentV2)),
+        'F1-118 second PDO session cannot reuse a v2-signed nonce');
+
+    $badV2=SyntheticVersionedSignedCommand::sign(
+        $command,$key,'f118-durable-tampered-epoch-0003',
+        $now-1,$now+60,$signingEpoch->epoch
+    );
+    $badV2['keyEpoch']++;
+    f111Check(f111Denied(fn()=> $intakeA->admitSigned($badV2)),
+        'F1-118 alteration of signed epoch is rejected before nonce INSERT');
+
+    $goodV2=SyntheticVersionedSignedCommand::sign(
+        $command,$key,'f118-durable-tampered-epoch-0003',
+        $now-1,$now+60,$signingEpoch->epoch
+    );
+    f111Check($intakeB->admitSigned($goodV2)['idempotentReplay']===true &&
+        f111AdmissionCount($app,'tenant-f111')===1,
+        'F1-118 unchanged valid signed epoch can still consume previously denied nonce');
+} finally {
+    if ($oldVersionFlag===false) putenv('SITES_F118_REQUIRE_EPOCH_SIGNED');
+    else putenv('SITES_F118_REQUIRE_EPOCH_SIGNED='.$oldVersionFlag);
+}
+
+echo "\n$checks F1-111–F1-118 two-database signed intake assertions passed.\n";
 echo "Disposable PG18, fake HMAC, no live Portal IAM, HTTP, client data, go-live or publication.\n";
