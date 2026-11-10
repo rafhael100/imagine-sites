@@ -11,7 +11,6 @@ use Imagine\Sites\Security\ReplayStore;
 use Imagine\Sites\Security\SyntheticSignedCommand;
 use Imagine\Sites\Security\SyntheticVersionedSignedCommand;
 use Imagine\Sites\Security\SyntheticCommercialEpochSignedCommand;
-use Imagine\Sites\Security\LabPreflightNoPersistReplayStore;
 use Imagine\Sites\Security\LabPostgresReplayStore;
 use PDO;
 
@@ -122,9 +121,12 @@ final class LabSignedProjectIntake
             if (!is_int($claimedEpoch) || $claimedEpoch<1) {
                 throw new DomainException('lab_commercial_epoch_invalid');
             }
-            $preflight= SyntheticCommercialEpochSignedCommand::verify(
-                $envelope,$syntheticKey,$signingEpoch,$claimedEpoch,
-                time(),new LabPreflightNoPersistReplayStore()
+            // F1-128: verifySignature() validates the authenticated
+            // command without creating a fake "always accept" replay
+            // adapter. Only the later verify(..., $this->replay) is
+            // allowed to consume a nonce in the restricted PG18 store.
+            $preflight=SyntheticCommercialEpochSignedCommand::verifySignature(
+                $envelope,$syntheticKey,$signingEpoch,$claimedEpoch,time()
             );
             try {
                 $commercialEpoch=$this->commercialEpochs->currentEpochFor($preflight);

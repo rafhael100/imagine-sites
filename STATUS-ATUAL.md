@@ -1,5 +1,13 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuidade supervisionada — F1-128 (10/11/2026)
+
+- [Sites PR #164 — F1-128](https://github.com/rafhael100/imagine-sites/pull/164): refatorou os verificadores sintéticos HMAC v1/v2/v3 para **separar a validação estrita de assinatura e comando** (`verifySignature`, sem nenhum ReplayStore) do passo definitivo de consumo único (`verify(..., ReplayStore)`). `LabSignedProjectIntake` usa a pré-verificação sem armazenamento temporário de nonces, consulta a revisão comercial e só então registra o nonce no `LabPostgresReplayStore` restrito. `LabPreflightNoPersistReplayStore` foi desativado, retornando sempre DENY.
+- A regressão PostgreSQL 18 PHP8.3/8.4 verifica pré-validação repetível sem consumo, suporte v1/v2, alteração de HMAC v3 recusada, idempotência e replay negado entre duas conexões. **Seis workflows distintos concluídos com sucesso** na HEAD de código: PostgreSQL18, cross-repo Portal→Sites, sintéticos, Laravel, Docker isolado e safety.
+- O trabalho permanece exclusivamente de **laboratório CLI/testing**, com fontes de chave/época/pedido fictícias, sem IAM oficial, OAuth/mTLS, vault, emissão operacional Portal, teste HTTPS, homologação na VPS ou parecer AppSec independente. A validação pura HMAC **não é autorização** e jamais deve substituir o consumo durável de nonce.
+- PR draft empilhado sobre #163 e anteriores, sem merge em dev/main, deploy, DNS, Cloudflare, dados pessoais, servidor VPS nem custos. **10/10 gates operacionais continuam BLOCKED.**
+
+
 ## Continuidade supervisionada — F1-126 e F1-127 (10/11/2026)
 
 - [Sites PR #162 — F1-126](https://github.com/rafhael100/imagine-sites/pull/162): cenário de indisponibilidade de revisão comercial em **três fases** de admissão HMAC v3: antes da reserva do nonce, após a reserva e no pré-COMMIT de um novo projeto. Com duas bases PostgreSQL 18 descartáveis, comprova rollback, recuperações distintas e uso obrigatório de novo nonce após a reserva. **Quatro workflows aprovados**, incluindo PostgreSQL18 PHP8.3/8.4, Laravel, sintéticos e safety.

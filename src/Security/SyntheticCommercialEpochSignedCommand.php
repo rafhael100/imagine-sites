@@ -40,9 +40,13 @@ final class SyntheticCommercialEpochSignedCommand
         return $unsigned;
     }
 
-    public static function verify(
+    /**
+     * Validate v3 HMAC, key/commercial epochs and canonical command only.
+     * No ReplayStore is instantiated or called in this preflight path.
+     */
+    public static function verifySignature(
         array $envelope,string $secret,int $expectedKeyEpoch,
-        int $expectedCommercialEpoch,int $now,?ReplayStore $replay=null
+        int $expectedCommercialEpoch,int $now
     ):SiteProjectCommand {
         if (array_keys($envelope)!==self::FIELDS ||
             $envelope['schemaVersion']!=='3' ||
@@ -69,8 +73,25 @@ final class SyntheticCommercialEpochSignedCommand
         $unsigned['mac']=hash_hmac(
             'sha256',json_encode($unsigned,self::FLAGS),$secret
         );
-        return SyntheticVersionedSignedCommand::verify(
-            $unsigned,$secret,$expectedKeyEpoch,$now,$replay
+        return SyntheticVersionedSignedCommand::verifySignature(
+            $unsigned,$secret,$expectedKeyEpoch,$now
         );
+    }
+
+    /** Only this admission path atomically consumes the replay nonce. */
+    public static function verify(
+        array $envelope,string $secret,int $expectedKeyEpoch,
+        int $expectedCommercialEpoch,int $now,?ReplayStore $replay=null
+    ):SiteProjectCommand {
+        $command=self::verifySignature(
+            $envelope,$secret,$expectedKeyEpoch,$expectedCommercialEpoch,$now
+        );
+        $replay ??= new DenyingReplayStore();
+        if (!$replay->rememberOnce(
+            $envelope['issuer'],$envelope['nonce'],$envelope['expiresAt']
+        )) {
+            throw new DomainException('Untrusted or replayed command nonce.');
+        }
+        return $command;
     }
 }

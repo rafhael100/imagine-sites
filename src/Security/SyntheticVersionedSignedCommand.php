@@ -52,12 +52,12 @@ final class SyntheticVersionedSignedCommand
         return $unsigned;
     }
 
-    public static function verify(
+    /** Authenticate a v2 envelope without touching a replay store. */
+    public static function verifySignature(
         array $envelope,
         string $secret,
         int $expectedEpoch,
         int $now,
-        ?ReplayStore $replayStore=null,
     ): SiteProjectCommand {
         if (array_keys($envelope)!==self::FIELDS ||
             $envelope['schemaVersion']!=='2' ||
@@ -89,8 +89,26 @@ final class SyntheticVersionedSignedCommand
             'sha256',json_encode($unsigned,self::JSON_FLAGS),$secret
         );
         $unsigned['mac']=$mac;
-        return SyntheticSignedCommand::verify(
-            $unsigned,$secret,$now,$replayStore
+        return SyntheticSignedCommand::verifySignature(
+            $unsigned,$secret,$now
         );
+    }
+
+    /** Enforce nonce uniqueness only after strict v2 verification. */
+    public static function verify(
+        array $envelope,
+        string $secret,
+        int $expectedEpoch,
+        int $now,
+        ?ReplayStore $replayStore=null,
+    ): SiteProjectCommand {
+        $command=self::verifySignature($envelope,$secret,$expectedEpoch,$now);
+        $replayStore ??= new DenyingReplayStore();
+        if (!$replayStore->rememberOnce(
+            $envelope['issuer'],$envelope['nonce'],$envelope['expiresAt']
+        )) {
+            throw new DomainException('Untrusted or replayed command nonce.');
+        }
+        return $command;
     }
 }
