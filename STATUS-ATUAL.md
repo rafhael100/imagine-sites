@@ -1,5 +1,13 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuidade supervisionada — Portal F1-13 e Sites F1-121 (10/11/2026)
+
+- [Portal PR #264 — F1-13](https://github.com/rafhael100/imagine-portal/pull/264): `LabPortalSitesVersionedIssuer` constrói comando com fonte comercial Portal em DENY por padrão, obtém **chave e época em um mesmo registro** de `PortalSitesSigningMaterialSource` independente, e reconsulta a fonte após assinar para negar troca do segredo ou da revisão durante a emissão. O método de entrada NÃO recebe segredo ou `keyEpoch` do solicitante. Testes Laravel PHP8.3/8.4 e Node.js aprovados nos dois workflows observados. A fonte continua fixture sintética sem IAM real.
+- [Sites PR #157 — F1-121](https://github.com/rafhael100/imagine-sites/pull/157): a suíte cross-repo usa checkout Portal fixado na revisão pública `b2bfd8e8c3e5f646764b4b3d91ce34612886d452`; com Onepage e Landing Page, compara byte a byte a MAC v2 emitida pela nova fronteira do Portal e aceita pelo Sites. Nega fonte indisponível, alteração de `keyEpoch` entre as duas leituras e ausência de fonte comercial. **Quatro workflows distintos concluídos com sucesso**, incluindo cross-repo PHP8.3/8.4, Laravel, testes sintéticos e safety.
+- As duas alterações continuam em PRs **draft e empilhados**; não foram mescladas. A origem de chaves/época NÃO é key vault, IAM, OAuth, mTLS, revisão monotônica em banco, aceite real nem autorização de domínio/cliente. A dupla leitura não é commit distribuído e não elimina revogação após assinatura. A revisão AppSec independente e o teste HTTPS de homologação ainda são pendências.
+- **10/10 gates operacionais permanecem BLOCKED**, sem deploy, merge em main/dev, publicação, dados reais, VPS/Cloudflare, DNS nem gasto novo.
+
+
 ## Continuidade supervisionada — F1-119 / F1-120 (10/11/2026)
 
 - [Portal PR #258 / F1-12](https://github.com/rafhael100/imagine-portal/pull/258): criado **emissor PHP v2 independente** de envelope HMAC com `keyEpoch` no Imagine Portal, empilhado sobre o candidato histórico Portal #105. Os workflows Node.js e Laravel/PHP 8.3/8.4 passaram. Não é emissor IAM operacional do Portal nem está em main/dev.
