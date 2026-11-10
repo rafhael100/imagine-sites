@@ -16,6 +16,7 @@ on:
       - 'docs/SITES-F1-125-V3-COMMERCIAL-EPOCH-PG-ADMISSION.md'
       - 'docs/SITES-F1-126-COMMERCIAL-EPOCH-OUTAGE-MATRIX.md'
       - 'docs/SITES-F1-127-DURABLE-V3-REPLAY-STORE.md'
+      - 'docs/SITES-F1-128-REPLAY-FREE-CRYPTO-PREFLIGHT.md'
       - 'src/Integration/LabPinnedPortalSigningKeyAuthorityGateway.php'
       - 'src/Integration/PortalSigningKeySource.php'
       - 'src/Integration/DenyingPortalSigningKeySource.php'
@@ -175,6 +176,7 @@ jobs:
           php -l src/Integration/LabPinnedPortalSigningKeyAuthorityGateway.php
           php -l src/Integration/PortalSigningKeyEpochSource.php
           php -l src/Integration/DenyingPortalSigningKeyEpochSource.php
+          php -l src/Security/SyntheticSignedCommand.php
           php -l src/Security/SyntheticVersionedSignedCommand.php
           php -l src/Security/SyntheticCommercialEpochSignedCommand.php
           php -l src/Security/LabPreflightNoPersistReplayStore.php
