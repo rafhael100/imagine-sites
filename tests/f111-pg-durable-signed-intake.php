@@ -471,6 +471,11 @@ try {
     f111Check(f111Denied(fn()=> $intakeA->admitSigned($staleV2)) &&
         f111AdmissionCount($app,'tenant-f111')===1,
         'F1-118 old signed key epoch denied after A-B-A rotation before intake');
+    $forgedCurrent=$staleV2;
+    $forgedCurrent['keyEpoch']=$signingEpoch->epoch;
+    f111Check(f111Denied(fn()=> $intakeA->admitSigned($forgedCurrent)) &&
+        f111AdmissionCount($app,'tenant-f111')===1,
+        'F1-118 rewriting old signed epoch to current without MAC re-signing is denied');
     $currentV2=SyntheticVersionedSignedCommand::sign(
         $command,$key,'f118-durable-stale-epoch-0002',
         $now-1,$now+60,$signingEpoch->epoch
