@@ -49,6 +49,7 @@ jobs:
           php tests/f51-style-presets.php
           php tests/f54-style-revision.php
           php tests/f55-crm-lead-preflight.php
+          php tests/f130-crm-binding-epoch-preflight.php
           php tests/f63-editorial.php
           php tests/f68-content-revision.php
           php tests/f71-structured-draft.php
