@@ -11,6 +11,8 @@ on:
       - 'tests/f80-pg-review-readback.php'
       - 'src/Application/LabEvidenceBoundReviewProposal.php'
       - 'tests/f81-pg-evidence-review-proposal.php'
+      - 'src/Persistence/LabReviewLedgerCheckpoint.php'
+      - 'tests/f82-pg-restore-checkpoint.php'
       - '.github/workflows/sites-f1-79-review-ledger.yml'
       - 'docs/SITES-F1-79-PG-REVIEW-LEDGER.md'
 permissions:
@@ -76,6 +78,36 @@ jobs:
           php -l src/Application/LabEvidenceBoundReviewProposal.php
           php -l tests/f81-pg-evidence-review-proposal.php
           php tests/f81-pg-evidence-review-proposal.php
+          php -l src/Persistence/LabReviewLedgerCheckpoint.php
+          php -l tests/f82-pg-restore-checkpoint.php
+      - name: Capture external checkpoint and logical backup in PG18
+        env:
+          PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          php tests/f82-pg-restore-checkpoint.php baseline
+          test -n "$PG_CONTAINER"
+          docker exec -e PGPASSWORD=f79-lab-ephemeral-fixture-only "$PG_CONTAINER" \
+            pg_dump -U postgres -d sites_f79_lab -n review_f79 -Fc \
+            > "$RUNNER_TEMP/sites-f82-before-append.dump"
+          test -s "$RUNNER_TEMP/sites-f82-before-append.dump"
+      - name: Append decision after backup and create a newer external anchor
+        run: |
+          set -euo pipefail
+          php tests/f82-pg-restore-checkpoint.php append
+          php tests/f82-pg-restore-checkpoint.php extended
+      - name: Restore stale logical backup and DENY rollback against newer anchor
+        env:
+          PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          test -n "$PG_CONTAINER"
+          docker exec -i -e PGPASSWORD=f79-lab-ephemeral-fixture-only "$PG_CONTAINER" \
+            pg_restore -U postgres -d sites_f79_lab --clean --if-exists --no-owner \
+            < "$RUNNER_TEMP/sites-f82-before-append.dump"
+          php tests/f82-pg-restore-checkpoint.php restored
+          rm -f "$RUNNER_TEMP/sites-f82-before-append.dump" \
+            /tmp/sites-f82-baseline-anchor.json /tmp/sites-f82-extended-anchor.json
       - name: Restriction notice
         if: always()
         run: echo 'F1-79 disposable fictional PG18 lab only. Not service IAM, backup-revocation proof, Portal acceptance or deployment.'
