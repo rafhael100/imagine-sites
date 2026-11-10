@@ -17,7 +17,8 @@ final class LabPostgresReplayStore implements ReplayStore
 {
     public function __construct(private readonly PDO $db)
     {
-        if (PHP_SAPI !== 'cli' || getenv('SITES_F1_14_PG_LAB') !== '1') {
+        if (PHP_SAPI !== 'cli' || getenv('APP_ENV') !== 'testing' ||
+            getenv('SITES_F1_14_PG_LAB') !== '1') {
             throw new DomainException('Replay bridge disabled outside isolated CLI laboratory.');
         }
 
@@ -49,7 +50,8 @@ final class LabPostgresReplayStore implements ReplayStore
         // keep accepting nonces after the caller changes its role, drops
         // the lab flag, or starts a transaction it could later roll back.
         // A rolled-back nonce is NOT a durable replay fence.
-        if (PHP_SAPI !== 'cli' || getenv('SITES_F1_14_PG_LAB') !== '1') {
+        if (PHP_SAPI !== 'cli' || getenv('APP_ENV') !== 'testing' ||
+            getenv('SITES_F1_14_PG_LAB') !== '1') {
             return false;
         }
 
