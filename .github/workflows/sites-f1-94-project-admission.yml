@@ -8,6 +8,11 @@ on:
       - 'src/Integration/SiteProjectCommand.php'
       - 'src/Integration/PortalProjectAuthorityGateway.php'
       - 'tests/f94-pg-authorized-project-admission.php'
+      - 'tests/f95-pg-verified-draft-revisions.php'
+      - 'src/Persistence/LabVerifiedDraftRevisionStore.php'
+      - 'src/Production/SyntheticPrivateDraftVerifier.php'
+      - 'src/Production/SyntheticPrivateDraftWriter.php'
+      - 'docs/SITES-F1-95-VERIFIED-DRAFT-LEDGER.md'
       - '.github/workflows/sites-f1-93-pg-schema.yml'
       - '.github/workflows/sites-f1-94-project-admission.yml'
       - 'docs/SITES-F1-94-TRANSACTIONAL-ADMISSION.md'
@@ -47,6 +52,7 @@ jobs:
       DB_SSLMODE: disable
       SITES_F93_SCHEMA_LAB: '1'
       SITES_F94_PROJECT_ADMISSION_LAB: '1'
+      SITES_F95_DRAFT_LEDGER_LAB: '1'
       SITES_F94_APP_PASSWORD: f94-synthetic-application-disposable-only
       PGHOST: 127.0.0.1
       PGPORT: '5432'
@@ -125,6 +131,9 @@ jobs:
         run: |
           set -euo pipefail
           php tests/f94-pg-authorized-project-admission.php
+          php -l ../../src/Persistence/LabVerifiedDraftRevisionStore.php
+          php -l ../../tests/f95-pg-verified-draft-revisions.php
+          php ../../tests/f95-pg-verified-draft-revisions.php
       - name: Prove rollback cannot drop the admissions ledger
         working-directory: apps/sites
         run: |
