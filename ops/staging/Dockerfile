@@ -24,7 +24,7 @@ RUN groupadd --gid 10001 siteslab \
         apps/sites/storage/framework/views apps/sites/storage/framework/sessions \
         apps/sites/storage/logs apps/sites/bootstrap/cache \
     && cd apps/sites \
-    && COMPOSER_ALLOW_SUPERUSER=1 composer install --no-interaction --prefer-dist --no-progress --no-audit \
+    && COMPOSER_ALLOW_SUPERUSER=1 composer install --no-interaction --prefer-dist --no-progress \
     && chown -R 10001:10001 storage bootstrap/cache
 
 USER 10001:10001
