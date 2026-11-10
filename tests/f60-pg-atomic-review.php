@@ -89,7 +89,8 @@ $negatives=[
     ['site'=>'site-f49-b'],['workflow'=>'workflow-other'],
     ['revision'=>4],['release'=>'release-other'],
     ['digest'=>str_repeat('d',64)],['epoch'=>8],
-    ['expires'=>time()-1],['expires'=>time()+121],
+    // Keep negative expiry fixtures well outside SQL clock boundaries.
+    ['expires'=>time()-10],['expires'=>time()+150],
     ['nonce'=>'bad'],['tenant'=>'../tenant'],
     ['site'=>'site-f49-a;DROP TABLE fake;--'],
 ];
