@@ -18,6 +18,7 @@ spl_autoload_register(static function(string $class):void {
 
 use Imagine\Sites\Integration\CurrentPortalProjectAuthorizationSnapshot as Snapshot;
 use Imagine\Sites\Integration\CurrentPortalProjectAuthorizationSource as Source;
+use Imagine\Sites\Integration\CurrentPortalProjectAuthorizationEpochSource as EpochSource;
 use Imagine\Sites\Integration\SiteProjectAdmission;
 use Imagine\Sites\Integration\SiteProjectCommand;
 use Imagine\Sites\Integration\SnapshotBoundPortalProjectAuthorityGateway as Gateway;
@@ -33,6 +34,22 @@ final class F102FictionalSource implements Source
         ++$this->calls;
         if ($this->fail) throw new RuntimeException('Fictitious Portal unavailable');
         return $this->current;
+    }
+}
+
+/** Separate fictional epoch provider. In production, this MUST be trusted. */
+final class F105FictionalEpochSource implements EpochSource
+{
+    public ?int $epoch=3;
+    public bool $fail=false;
+    public int $calls=0;
+
+    public function currentEpochFor(string $tenantRef,string $orderRef):?int
+    {
+        ++$this->calls;
+        if ($this->fail) throw new RuntimeException('Fictitious epoch unavailable');
+        if ($tenantRef !== 'tenant-f102' || $orderRef !== 'order-f102') return null;
+        return $this->epoch;
     }
 }
 
@@ -60,7 +77,8 @@ $command = new SiteProjectCommand(
     'contract-f102',3,'onepage','idempotency-f102'
 );
 $source=new F102FictionalSource();
-$gateway=new Gateway($source);
+$epochSource=new F105FictionalEpochSource();
+$gateway=new Gateway($source,$epochSource);
 $now=time();
 $source->current=f102Snapshot($command,'eligible',$now-1,$now+20);
 $previousEnv=getenv('APP_ENV');
@@ -77,6 +95,11 @@ try {
     putenv('SITES_F102_PROJECT_SNAPSHOT_LAB=1');
     f102Check((new Gateway())->verify($command)->allowed===false,
         'the default source denies, even in a testing laboratory');
+
+    f102Check(!(new Gateway($source))->verify($command)->allowed,
+        'F1-105 an available snapshot without a separate epoch provider cannot authorize');
+    f102Check($epochSource->calls===0,
+        'F1-105 disabled/default gateway does not read the epoch provider');
 
     $policy=(new SiteProjectAdmission($gateway))->evaluate($command);
     f102Check($policy->allowed && $policy->reasons===[],
@@ -141,6 +164,35 @@ try {
     $source->current=f102Snapshot($command,'eligible',$now-1,$now+20);
     f102Check($gateway->verify($command)->allowed,
         'a newly retrieved matching active snapshot is evaluated independently');
+
+    // F1-105: a previously eligible revision 3 stays short-lived but is
+    // rejected immediately when the independent epoch moves forward.
+    $epochSource->epoch=4;
+    f102Check(!$gateway->verify($command)->allowed,
+        'F1-105 newer revocation epoch fences an otherwise unexpired eligible snapshot');
+    $epochSource->epoch=2;
+    f102Check(!$gateway->verify($command)->allowed,
+        'F1-105 older epoch cannot justify a newer-looking grant');
+    $epochSource->epoch=null;
+    f102Check(!$gateway->verify($command)->allowed,
+        'F1-105 unavailable epoch fails closed');
+    $epochSource->epoch=0;
+    f102Check(!$gateway->verify($command)->allowed,
+        'F1-105 invalid zero epoch fails closed');
+    $epochSource->fail=true;
+    f102Check(!$gateway->verify($command)->allowed,
+        'F1-105 epoch provider exception cannot grant');
+    $epochSource->fail=false;
+
+    // A matching fresh snapshot and epoch may authorize the same command
+    // again; an epoch number alone is never a client acceptance token.
+    $source->current=new Snapshot($command,4,'eligible',$now-1,$now+20);
+    $epochSource->epoch=4;
+    f102Check($gateway->verify($command)->allowed,
+        'F1-105 only a matching fresh eligible revision and current epoch can pass');
+    $source->current=new Snapshot($command,4,'revoked',$now-1,$now+20);
+    f102Check(!$gateway->verify($command)->allowed,
+        'F1-105 matching epoch never overrides revoked snapshot status');
 } finally {
     if ($previousEnv === false) putenv('APP_ENV');
     else putenv('APP_ENV='.$previousEnv);

@@ -31,6 +31,7 @@ use Imagine\Sites\Domain\PolicyDecision;
 use Imagine\Sites\Integration\PortalProjectAuthorityGateway;
 use Imagine\Sites\Integration\SiteProjectCommand;
 use Imagine\Sites\Integration\CurrentPortalProjectAuthorizationSource;
+use Imagine\Sites\Integration\CurrentPortalProjectAuthorizationEpochSource;
 use Imagine\Sites\Integration\CurrentPortalProjectAuthorizationSnapshot;
 use Imagine\Sites\Integration\SnapshotBoundPortalProjectAuthorityGateway;
 use Imagine\Sites\Persistence\LabAuthorizedProjectAdmissionStore;
@@ -68,6 +69,24 @@ final class F103SyntheticSnapshotSource implements CurrentPortalProjectAuthoriza
             $bound->tenantRef === $tenantRef &&
             $bound->orderRef === $orderRef
             ? $this->record : null;
+    }
+}
+
+/** F1-105: separate, fake current epoch view for the isolated PG18 test. */
+final class F105SyntheticCurrentEpochSource implements CurrentPortalProjectAuthorizationEpochSource
+{
+    public ?int $epoch=2;
+    public bool $unavailable=false;
+    public int $calls=0;
+    public ?Closure $onRead=null;
+
+    public function currentEpochFor(string $tenantRef,string $orderRef):?int
+    {
+        ++$this->calls;
+        if ($this->onRead !== null) ($this->onRead)();
+        if ($this->unavailable ||
+            $tenantRef !== 'tenant-f103-c' || $orderRef !== 'order-f103-c') return null;
+        return $this->epoch;
     }
 }
 
@@ -347,7 +366,8 @@ $f103Command=$command(
 );
 $f103Site=LabAuthorizedProjectAdmissionStore::siteRefFor($f103Command);
 $f103Source=new F103SyntheticSnapshotSource();
-$f103Gateway=new SnapshotBoundPortalProjectAuthorityGateway($f103Source);
+$f103EpochSource=new F105SyntheticCurrentEpochSource();
+$f103Gateway=new SnapshotBoundPortalProjectAuthorityGateway($f103Source,$f103EpochSource);
 $f103Store=new LabAuthorizedProjectAdmissionStore($app,$f103Gateway);
 putenv('SITES_F102_PROJECT_SNAPSHOT_LAB=0');
 f94Assert(f94Denied(fn()=> $f103Store->admit($f103Command,$f103Site)) &&
@@ -372,6 +392,32 @@ f94Assert($f103Created['idempotentReplay']===false &&
     f94Count($app,'tenant-f103-c','sites_project_admissions')===1,
     'F1-103 exactly bound short-lived fictional snapshot creates one PG admission');
 
+// A revision change in the epoch source DURING a replay must be observed
+// by the F1-104 final authorization check, even if the first check allowed.
+$f105FirstEpochCall=$f103EpochSource->calls;
+$f103EpochSource->onRead=static function() use ($f103EpochSource,$f105FirstEpochCall):void {
+    if ($f103EpochSource->calls===$f105FirstEpochCall+2) {
+        $f103EpochSource->epoch=3;
+    }
+};
+try {
+    f94Assert(f94Denied(fn()=> $f103Store->admit($f103Command,$f103Site)) &&
+        f94Count($app,'tenant-f103-c','sites_project_admissions')===1 &&
+        !$app->inTransaction(),
+        'F1-105 changed epoch at final authority check denies replay with rollback');
+    f94Assert($f103EpochSource->calls===$f105FirstEpochCall+2,
+        'F1-105 transaction asks the epoch source separately at entry and commit');
+} finally {
+    $f103EpochSource->onRead=null;
+    $f103EpochSource->epoch=2;
+}
+
+$f103EpochSource->epoch=3;
+// The old eligible snapshot has not expired yet but the independent epoch
+// has advanced: it must not permit project replay after revocation.
+f94Assert(f94Denied(fn()=> $f103Store->admit($f103Command,$f103Site)) &&
+    f94Count($app,'tenant-f103-c','sites_project_admissions')===1,
+    'F1-105 epoch fence rejects old eligible grant before its TTL expires');
 $f103Source->record=new CurrentPortalProjectAuthorizationSnapshot(
     $f103Command,3,'revoked',$nowF103-1,$nowF103+20
 );
@@ -379,6 +425,7 @@ f94Assert(f94Denied(fn()=> $f103Store->admit($f103Command,$f103Site)) &&
     f94Count($app,'tenant-f103-c','sites_project_admissions')===1,
     'F1-103 revoked latest snapshot denies even an existing idempotent replay');
 
+$f103EpochSource->epoch=4;
 $f103Source->record=new CurrentPortalProjectAuthorizationSnapshot(
     $f103Command,4,'eligible',$nowF103-20,$nowF103-1
 );
@@ -386,6 +433,7 @@ f94Assert(f94Denied(fn()=> $f103Store->admit($f103Command,$f103Site)) &&
     f94Count($app,'tenant-f103-c','sites_project_admissions')===1,
     'F1-103 expired grant cannot be replayed into PostgreSQL');
 
+$f103EpochSource->epoch=5;
 $f103Source->record=new CurrentPortalProjectAuthorizationSnapshot(
     $f103Command,5,'eligible',$nowF103-1,$nowF103+20
 );
@@ -399,6 +447,11 @@ f94Assert(f94Denied(fn()=> $f103Store->admit($f103Wrong,$f103Site)) &&
 f94Assert($f103Store->admit($f103Command,$f103Site)['idempotentReplay']===true &&
     f94Count($app,'tenant-f103-c','sites_project_admissions')===1,
     'F1-103 current exact snapshot permits safe no-write replay');
+$f103EpochSource->unavailable=true;
+f94Assert(f94Denied(fn()=> $f103Store->admit($f103Command,$f103Site)) &&
+    f94Count($app,'tenant-f103-c','sites_project_admissions')===1,
+    'F1-105 epoch outage denies PG replay without modifying admissions');
+$f103EpochSource->unavailable=false;
 putenv('SITES_F102_PROJECT_SNAPSHOT_LAB');
 
 echo "\n$checks F1-94 persisted, authorization-gated project admission assertions passed.\n";
