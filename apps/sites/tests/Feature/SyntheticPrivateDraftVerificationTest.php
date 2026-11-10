@@ -83,8 +83,9 @@ final class SyntheticPrivateDraftVerificationTest extends TestCase
                     self::assertSame(0,Artisan::call('sites:verify-draft-fixture',[
                         'product'=>$product,'preset'=>$preset,'variant'=>$variant,
                     ]));
-                    self::assertStringContainsString('HUMAN REVIEW PENDING',Artisan::output());
-                    self::assertStringContainsString('publishable: NO',Artisan::output());
+                    $output=Artisan::output();
+                    self::assertStringContainsString('HUMAN REVIEW PENDING',$output);
+                    self::assertStringContainsString('publishable: NO',$output);
                     foreach(self::NAMES as $name) {
                         self::assertSame($before[$name],hash_file('sha256',$dir.'/'.$name),
                             'Verification must never modify draft files');
