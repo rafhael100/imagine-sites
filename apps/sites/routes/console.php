@@ -657,3 +657,53 @@ Artisan::command('sites:assemble-draft-fixture {product=onepage} {preset=classic
     $this->line('Release: '.$assembly->manifest->releaseRef);
     return Command::SUCCESS;
 })->purpose('Export a fictional, private structured draft without approval or publication');
+
+
+/**
+ * F1-86: independently re-read the FOUR files of a fictional draft exported by
+ * F1-72/F1-77. The product/theme/variant are fixed allowlisted options;
+ * there is NO arbitrary user path, upload, approval, write or publication.
+ */
+Artisan::command('sites:verify-draft-fixture {product=onepage} {preset=classic} {variant=basic}', function (): int {
+    if (PHP_SAPI !== 'cli' || !app()->environment('testing') ||
+        getenv('SITES_SYNTHETIC_VERIFY') !== '1') {
+        $this->error('Private draft verification requires explicit CLI testing mode.');
+        return Command::FAILURE;
+    }
+    $product=(string)$this->argument('product');
+    $preset=(string)$this->argument('preset');
+    $variant=(string)$this->argument('variant');
+    if (!in_array($product,['onepage','landing_page'],true) ||
+        !in_array($preset,['classic','modern','warm'],true) ||
+        !in_array($variant,['basic','focused'],true)) {
+        $this->error('Invalid fictional draft selector.');
+        return Command::FAILURE;
+    }
+    $private=storage_path('app/private');
+    if (is_link($private) || !is_dir($private)) {
+        $this->error('Private draft storage is absent or unsafe.');
+        return Command::FAILURE;
+    }
+    $directory=$private.'/sites-f1-72-'.$product.'-'.$preset.'-'.$variant;
+    try {
+        $proof=\Imagine\Sites\Production\SyntheticPrivateDraftVerifier::verifyDirectory(
+            $directory
+        );
+        if ($proof['publishable']!==false ||
+            $proof['officialClientAcceptance']!==false ||
+            $proof['reviewerDecisionStatus']!=='pending') {
+            throw new \DomainException('Verification cannot grant release authority');
+        }
+    } catch (\Throwable) {
+        $this->error('Private draft verification DENIED — no approval or publication.');
+        return Command::FAILURE;
+    }
+    // The result has no signature or trusted identity; do not use as a Portal
+    // authorization or store it as an official customer acceptance event.
+    $this->line('PASS: PRIVATE SYNTHETIC DRAFT VERIFIED; HUMAN REVIEW PENDING.');
+    $this->line('Release: '.$proof['releaseRef']);
+    $this->line('HTML SHA-256: '.$proof['artifactDigest']);
+    $this->line('Dossier SHA-256: '.$proof['dossierDigest']);
+    $this->line('Client acceptance: NO; publishable: NO.');
+    return Command::SUCCESS;
+})->purpose('Read-only validation of four fictional draft files; cannot approve or publish');
