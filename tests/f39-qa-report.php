@@ -33,7 +33,7 @@ foreach (['onepage','landing_page'] as $product) {
     $artifact=$renderer->render($brief);
     $report=QA::inspect($artifact);
     f39Assert($report->passedStructuralChecks,'valid '.$product.' template passes structural checks');
-    f39Assert(count($report->checks)===7,'exact expected check inventory: '.$product);
+    f39Assert(count($report->checks)===9,'F1-129 exact structural/accessibility check inventory: '.$product);
     f39Assert(!in_array(false,$report->checks,true),'all individual checks pass: '.$product);
 }
 $base=$renderer->render(new SiteBrief('onepage','Marca Fictícia Imagine',
@@ -45,6 +45,11 @@ $mutations=[
     'missing main landmark'=>str_replace('<main id="principal">','<div id="principal">',$base),
     'duplicate heading'=>str_replace('</main>','<h1>Extra</h1></main>',$base),
     'broken internal anchor'=>str_replace('href="#contato"','href="#missing"',$base),
+    'section heading missing'=>str_replace('aria-labelledby="benefits-title"','aria-labelledby="unknown-title"',$base),
+    'section heading from another section'=>str_replace('aria-labelledby="benefits-title"','aria-labelledby="contact-title"',$base),
+    'section heading empty'=>str_replace('id="benefits-title">Por que escolher Marca Fictícia Imagine?','id="benefits-title">',$base),
+    'empty CTA accessible name'=>str_replace('>Saiba mais</a>','></a>',$base),
+    'empty navigation accessible name'=>str_replace('>Benefícios</a>','></a>',$base),
     'external navigation'=>str_replace('href="#contato"','href="https://invalid.example"',$base),
     'missing viewport'=>str_replace('name="viewport"','name="wrong-viewport"',$base),
     'robots indexable'=>str_replace('noindex, nofollow','index, follow',$base),
