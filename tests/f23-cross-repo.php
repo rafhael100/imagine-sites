@@ -11,11 +11,13 @@ use App\Domain\SitesIntegration\PortalSiteContractSource;
 use App\Domain\SitesIntegration\SiteContractSnapshot;
 use App\Domain\SitesIntegration\SitesCreateProjectEncoder;
 use App\Domain\SitesIntegration\SyntheticSitesEnvelopeSigner;
+use App\Domain\SitesIntegration\SyntheticSitesVersionedEnvelopeSigner;
 use Imagine\Sites\Integration\SiteProjectCommand;
 use Imagine\Sites\Integration\CurrentPortalProjectAuthorizationSnapshot as ProjectSnapshot;
 use Imagine\Sites\Integration\SnapshotBoundPortalProjectAuthorityGateway;
 use Imagine\Sites\Security\ReplayStore;
 use Imagine\Sites\Security\SyntheticSignedCommand;
+use Imagine\Sites\Security\SyntheticVersionedSignedCommand;
 
 if (PHP_SAPI !== 'cli' || getenv('SITES_F1_23_CROSS_REPO') !== '1') {
     fwrite(STDERR, "Cross-repo contract test is disabled outside explicit CLI lab.\n");
@@ -114,6 +116,63 @@ foreach (['onepage','landing_page'] as $index => $product) {
     );
     f23Assert($portalSigned === $sitesSigned,
         'actual Portal and Sites signer produce byte-equivalent candidate envelope '.$product);
+
+    // F1-119: the REAL independently implemented Portal v2 signer,
+    // pinned to a public PR SHA, must match the Sites F1-118 verifier.
+    $nonceV2='f119-crossrepo-v2-opaque-00'.$index;
+    $epochV2=7;
+    $portalV2=SyntheticSitesVersionedEnvelopeSigner::sign(
+        $wirePayload,$key,$nonceV2,$now,$now+60,$epochV2
+    );
+    $sitesV2=SyntheticVersionedSignedCommand::sign(
+        $sitesCommand,$key,$nonceV2,$now,$now+60,$epochV2
+    );
+    f23Assert($portalV2===$sitesV2,
+        'F1-119 real pinned Portal and Sites produce identical epoch-signed v2 envelopes '.$product);
+    $fenceV2=new EphemeralF23ReplayFence();
+    $verifiedV2=SyntheticVersionedSignedCommand::verify(
+        $portalV2,$key,$epochV2,$now,$fenceV2
+    );
+    f23Assert($verifiedV2->semanticFingerprint()===$sitesCommand->semanticFingerprint(),
+        'F1-119 real Portal v2 HMAC accepted by exact Sites contract and scope '.$product);
+    f23Assert(f23Denied(fn()=>
+        SyntheticVersionedSignedCommand::verify(
+            $portalV2,$key,$epochV2,$now,$fenceV2
+        )),
+        'F1-119 v2 replay is denied on a second use '.$product);
+
+    // A newer independently consulted generation must reject a message
+    // signed under the old key epoch BEFORE consuming its nonce.
+    $oldNonce='f119-epoch-fenced-opaque-00'.$index;
+    $oldV2=SyntheticSitesVersionedEnvelopeSigner::sign(
+        $wirePayload,$key,$oldNonce,$now,$now+60,$epochV2
+    );
+    $freshEpoch=$epochV2+1;
+    $epochFence=new EphemeralF23ReplayFence();
+    f23Assert(f23Denied(fn()=>
+        SyntheticVersionedSignedCommand::verify(
+            $oldV2,$key,$freshEpoch,$now,$epochFence
+        )),
+        'F1-119 stale Portal signing epoch denied before nonce consumption '.$product);
+    $newV2=SyntheticSitesVersionedEnvelopeSigner::sign(
+        $wirePayload,$key,$oldNonce,$now,$now+60,$freshEpoch
+    );
+    f23Assert(SyntheticVersionedSignedCommand::verify(
+        $newV2,$key,$freshEpoch,$now,$epochFence
+    )->semanticFingerprint()===$sitesCommand->semanticFingerprint(),
+        'F1-119 new Portal epoch reuses unconsumed nonce under fresh signature '.$product);
+    $tamperedV2=$oldV2;
+    $tamperedV2['keyEpoch']=$freshEpoch;
+    f23Assert(f23Denied(fn()=>
+        SyntheticVersionedSignedCommand::verify(
+            $tamperedV2,$key,$freshEpoch,$now,new EphemeralF23ReplayFence()
+        )),
+        'F1-119 unsigned change of Portal keyEpoch invalidates the HMAC '.$product);
+    f23Assert(f23Denied(fn()=>
+        SyntheticVersionedSignedCommand::verify(
+            $portalSigned,$key,$epochV2,$now,new EphemeralF23ReplayFence()
+        )),
+        'F1-119 legacy v1 cannot be accepted as a v2 command '.$product);
 
     $fence = new EphemeralF23ReplayFence();
     $verified = SyntheticSignedCommand::verify($portalSigned,$key,$now,$fence);
