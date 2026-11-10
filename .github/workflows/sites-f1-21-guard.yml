@@ -28,6 +28,7 @@ jobs:
       - name: Validate rendered Compose laboratory isolation (no containers started)
         env:
           SITES_LAB_DB_PASSWORD: CI-FIXTURE-NOT-A-REAL-SECRET
+          SITES_LAB_DB_ADMIN_PASSWORD: CI-FIXTURE-SEPARATE-SUPERUSER-PASSWORD
         run: |
           set -euo pipefail
           docker compose -f ops/staging/compose.yml --profile lab config --format json | python3 ci/f74_docker_lab_boundary.py --rendered-stdin
