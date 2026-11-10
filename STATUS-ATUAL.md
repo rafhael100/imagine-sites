@@ -1,5 +1,13 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuidade supervisionada — F1-128 / F1-129 (10/11/2026)
+
+- [Sites PR #164 — F1-128](https://github.com/rafhael100/imagine-sites/pull/164): validadores HMAC v1/v2/v3 separados em `verifySignature` (verificação criptográfica/canônica sem storage) e `verify` (consumo definitivo do nonce). A pré-verificação comercial v3 não instancia mais replay store falso; a classe temporária `LabPreflightNoPersistReplayStore` foi desativada para retornar DENY. Com dois bancos PostgreSQL 18 efêmeros, os testes comprovam no laboratório que verificar a assinatura repetidamente não consome nonce, enquanto a admissão durável só o aceita uma vez. **Seis workflows distintos aprovados na HEAD mais recente do PR**, incluindo cross-repo PHP8.3/8.4, PostgreSQL18, Docker, Laravel, testes sintéticos e safety.
+- [Sites PR #165 — F1-129](https://github.com/rafhael100/imagine-sites/pull/165): a prévia HTML inerte Onepage/Landing Page recebeu **dois novos checks de QA sem alteração do renderer**: seção `aria-labelledby` deve referenciar título h1/h2 não vazio dentro da própria seção; links e CTAs devem ter texto/label acessível. Foram adicionadas cinco mutações negativas, mantendo testes de scripts, âncoras, IDs únicos e `noindex`. **Quatro workflows distintos aprovados**: PHP 8.3/8.4 sintético, Laravel, segurança e Docker isolado. Não constitui auditoria WCAG ou aprovação humana.
+- Ambos PRs permanecem **draft e empilhados**, não mesclados em dev/main. O código de assinatura e as páginas continuam em laboratório sintético; sem emissão operacional autenticada pelo Portal, IAM, vault, epoch comercial durável, HTTPS homologado, checklist real de publicação ou revisão independente AppSec. A pré-validação sem nonce não equivale a autorização de projeto.
+- **10/10 gates operacionais de produção permanecem BLOCKED.** Nenhum deploy, site publicado, cliente, PII, VPS/Cloudflare, DNS ou novas despesas.
+
+
 ## Continuidade supervisionada — F1-128 (10/11/2026)
 
 - [Sites PR #164 — F1-128](https://github.com/rafhael100/imagine-sites/pull/164): refatorou os verificadores sintéticos HMAC v1/v2/v3 para **separar a validação estrita de assinatura e comando** (`verifySignature`, sem nenhum ReplayStore) do passo definitivo de consumo único (`verify(..., ReplayStore)`). `LabSignedProjectIntake` usa a pré-verificação sem armazenamento temporário de nonces, consulta a revisão comercial e só então registra o nonce no `LabPostgresReplayStore` restrito. `LabPreflightNoPersistReplayStore` foi desativado, retornando sempre DENY.
