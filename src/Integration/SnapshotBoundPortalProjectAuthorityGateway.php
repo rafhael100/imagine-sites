@@ -18,6 +18,8 @@ final class SnapshotBoundPortalProjectAuthorityGateway implements PortalProjectA
     public function __construct(
         private readonly CurrentPortalProjectAuthorizationSource $source =
             new DenyingCurrentPortalProjectAuthorizationSource(),
+        private readonly CurrentPortalProjectAuthorizationEpochSource $epochSource =
+            new DenyingCurrentPortalProjectAuthorizationEpochSource(),
     ) {}
 
     public function verify(SiteProjectCommand $command): PolicyDecision
@@ -36,6 +38,18 @@ final class SnapshotBoundPortalProjectAuthorityGateway implements PortalProjectA
             }
             if (!$snapshot->isCurrentFor($command, time())) {
                 return new PolicyDecision(false, ['portal_project_snapshot_stale_or_mismatched']);
+            }
+
+            // F1-105: a short-lived eligible snapshot cannot be reused after
+            // a newer Portal authorization/revocation epoch is observed.
+            // This source MUST be independent and current in any future
+            // operational implementation; unknown/error is fail-closed.
+            $epoch=$this->epochSource->currentEpochFor(
+                $command->tenantRef, $command->orderRef
+            );
+            if (!is_int($epoch) || $epoch < 1 ||
+                $epoch !== $snapshot->authorizationRevision) {
+                return new PolicyDecision(false, ['portal_project_epoch_unavailable_or_stale']);
             }
             return new PolicyDecision(true, []);
         } catch (Throwable) {
