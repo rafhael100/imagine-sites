@@ -82,9 +82,7 @@ def inspect_rendered(value: object) -> None:
                     "extra_hosts", "secrets", "configs"):
             if key in service and service[key]:
                 raise ValueError(f"{name} has forbidden field: {key}")
-        if service.get("privileged") is True or (
-            service.get("read_only") is False and False
-        ):
+        if service.get("privileged") is True:
             raise ValueError("privileged container not allowed")
         if "no-new-privileges:true" not in service.get("security_opt", []):
             raise ValueError("no-new-privileges must be active")
