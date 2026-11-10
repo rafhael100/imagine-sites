@@ -9,6 +9,7 @@ use Imagine\Sites\Persistence\LabAuthorizedProjectAdmissionStore;
 use Imagine\Sites\Security\DenyingReplayStore;
 use Imagine\Sites\Security\ReplayStore;
 use Imagine\Sites\Security\SyntheticSignedCommand;
+use Imagine\Sites\Security\SyntheticVersionedSignedCommand;
 use PDO;
 
 /**
@@ -85,9 +86,19 @@ final class LabSignedProjectIntake
         if (!is_int($signingEpoch) || $signingEpoch < 1) {
             throw new DomainException('lab_portal_signing_epoch_unavailable');
         }
-        $command = SyntheticSignedCommand::verify(
-            $envelope, $syntheticKey, time(), $this->replay
-        );
+        // F1-118 opt-in: authenticate the signing-key epoch INSIDE the
+        // v2 HMAC, not only via a contemporaneous independent lookup.
+        // The default v1 path remains restricted to the legacy CLI lab
+        // until the real Portal contract is negotiated and reviewed.
+        if (getenv('SITES_F118_REQUIRE_EPOCH_SIGNED') === '1') {
+            $command=SyntheticVersionedSignedCommand::verify(
+                $envelope,$syntheticKey,$signingEpoch,time(),$this->replay
+            );
+        } else {
+            $command=SyntheticSignedCommand::verify(
+                $envelope,$syntheticKey,time(),$this->replay
+            );
+        }
         $siteRef = LabAuthorizedProjectAdmissionStore::siteRefFor($command);
 
         // This method independently rechecks the Portal-candidate gateway
