@@ -11,7 +11,7 @@ use Tests\TestCase;
 /** F1-72: offline build of synthetic, non-approved private draft artifacts. */
 final class SyntheticStructuredDraftCommandTest extends TestCase
 {
-    private function output(string $product,string $preset,string $variant):string
+    private function fixtureDirectory(string $product,string $preset,string $variant):string
     {
         return storage_path('app/private/sites-f1-72-'.$product.'-'.$preset.'-'.$variant);
     }
@@ -21,7 +21,7 @@ final class SyntheticStructuredDraftCommandTest extends TestCase
         foreach(['onepage','landing_page'] as $product) {
             foreach(['classic','modern','warm'] as $preset) {
                 foreach(['basic','focused'] as $variant) {
-                    $dir=$this->output($product,$preset,$variant);
+                    $dir=$this->fixtureDirectory($product,$preset,$variant);
                     if (is_link($dir)) { @unlink($dir); continue; }
                     if (!is_dir($dir)) continue;
                     foreach(['index.html','release-manifest.json','internal-review-draft.json'] as $name) {
@@ -45,7 +45,7 @@ final class SyntheticStructuredDraftCommandTest extends TestCase
                     self::assertSame(0,Artisan::call('sites:assemble-draft-fixture',[
                         'product'=>$product,'preset'=>$preset,'variant'=>$variant,
                     ]));
-                    $dir=$this->output($product,$preset,$variant);
+                    $dir=$this->fixtureDirectory($product,$preset,$variant);
                     self::assertDirectoryExists($dir);
                     $files=scandir($dir);
                     self::assertSame([
@@ -86,7 +86,7 @@ final class SyntheticStructuredDraftCommandTest extends TestCase
     {
         putenv('SITES_SYNTHETIC_DRAFT');
         self::assertSame(1,Artisan::call('sites:assemble-draft-fixture'));
-        self::assertDirectoryDoesNotExist($this->output('onepage','classic','basic'));
+        self::assertDirectoryDoesNotExist($this->fixtureDirectory('onepage','classic','basic'));
         putenv('SITES_SYNTHETIC_DRAFT=1');
         foreach([
             ['product'=>'../../escaped','preset'=>'classic','variant'=>'basic'],
@@ -98,7 +98,7 @@ final class SyntheticStructuredDraftCommandTest extends TestCase
         self::assertSame(0,Artisan::call('sites:assemble-draft-fixture',[
             'product'=>'onepage','preset'=>'classic','variant'=>'basic',
         ]));
-        $path=$this->output('onepage','classic','basic').'/index.html';
+        $path=$this->fixtureDirectory('onepage','classic','basic').'/index.html';
         $before=hash_file('sha256',$path);
         self::assertSame(1,Artisan::call('sites:assemble-draft-fixture',[
             'product'=>'onepage','preset'=>'classic','variant'=>'basic',
@@ -109,7 +109,7 @@ final class SyntheticStructuredDraftCommandTest extends TestCase
     public function test_symlink_output_is_never_followed():void
     {
         putenv('SITES_SYNTHETIC_DRAFT=1');
-        $path=$this->output('landing_page','warm','focused');
+        $path=$this->fixtureDirectory('landing_page','warm','focused');
         $marker=storage_path('app/private/sites-f72-marker.txt');
         file_put_contents($marker,'UNCHANGED');
         self::assertTrue(symlink($marker,$path));
