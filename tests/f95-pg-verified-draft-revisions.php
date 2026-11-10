@@ -227,6 +227,45 @@ try {
         'revoked gateway cannot append a revision while project remains');
     $gate->allowed=true;
 
+    // Deterministic two-connection proof of the transaction advisory lock:
+    // while writer A holds the tenant/site lock, writer B cannot acquire it.
+    // This tests real PostgreSQL locking without racy sleeps or child forks.
+    $otherApp = new PDO(
+        'pgsql:host=127.0.0.1;port=5432;dbname=sites_f94_lab;connect_timeout=5',
+        'sites_f94_app',(string)getenv('SITES_F94_APP_PASSWORD'),
+        [PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_EMULATE_PREPARES=>false]
+    );
+    $lockKey=strlen($command->tenantRef).':'.$command->tenantRef.':'.$site;
+    $otherLockKey=strlen('tenant-f95-other').':tenant-f95-other:'.$site;
+    $app->beginTransaction();
+    $otherApp->beginTransaction();
+    try {
+        $lock=$app->prepare(
+            'SELECT pg_advisory_xact_lock(hashtextextended(:key,0))'
+        );
+        $lock->execute(['key'=>$lockKey]);
+        $lock->closeCursor();
+        $try=$otherApp->prepare(
+            'SELECT pg_try_advisory_xact_lock(hashtextextended(:key,0))'
+        );
+        $try->execute(['key'=>$lockKey]);
+        $busy=$try->fetchColumn();
+        f95Assert(in_array($busy,[false,'f','0'],true),
+            'second PostgreSQL connection cannot acquire held tenant/site write lock');
+        $try->execute(['key'=>$otherLockKey]);
+        $independent=$try->fetchColumn();
+        f95Assert(in_array($independent,[true,'t','1'],true),
+            'different tenant/site retains a separately available advisory lock');
+        $app->commit();
+        $try->execute(['key'=>$lockKey]);
+        $free=$try->fetchColumn();
+        f95Assert(in_array($free,[true,'t','1'],true),
+            'the lock becomes available after the first transaction commits');
+    } finally {
+        if($app->inTransaction())$app->rollBack();
+        if($otherApp->inTransaction())$otherApp->rollBack();
+    }
+
     $two=$store->append($command,$second,$dir2,2);
     f95Assert($two['draftRevision']===2 &&
         $two['idempotentReplay']===false &&
