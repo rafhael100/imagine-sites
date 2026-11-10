@@ -120,12 +120,14 @@ final class F115FictionalPortalSigningKeys implements PortalSigningKeySource
 {
     public bool $fail=false;
     public int $calls=0;
+    public ?Closure $onLookup=null;
 
     public function __construct(public ?string $key) {}
 
     public function currentKeyFor(string $issuer,string $audience):?string
     {
         ++$this->calls;
+        if ($this->onLookup !== null) ($this->onLookup)();
         if ($this->fail) throw new RuntimeException('Fictitious key service offline');
         return $issuer==='imagine-portal' && $audience==='imagine-sites'
             ? $this->key : null;
@@ -603,6 +605,40 @@ try {
     $f103EpochSource->epoch=5;
     putenv('SITES_F102_PROJECT_SNAPSHOT_LAB');
 }
+// F1-116: the signing key may be revoked AFTER the signed command
+// passes HMAC verification and AFTER entry authorization, but BEFORE
+// a new project+admission would COMMIT. Roll back BOTH rows.
+$f116New=$command(
+    'tenant-f116','operation-f116','order-f116',
+    'contract-f116',1,'onepage','idempotency-f116'
+);
+$f116Signed=SyntheticSignedCommand::sign(
+    $f116New,$f110Key,'f116-revoke-before-commit-0001',time()-1,time()+60
+);
+$f116Before=$f110Keys->calls;
+$f110Keys->onLookup=static function() use ($f110Keys,$f116Before):void {
+    if ($f110Keys->calls===$f116Before+3) $f110Keys->key=null;
+};
+try {
+    f94Assert(f94Denied(fn()=> $f110Intake->admitSigned($f116Signed)) &&
+        f94Count($app,'tenant-f116','sites_projects')===0 &&
+        f94Count($app,'tenant-f116','sites_project_admissions')===0 &&
+        !$app->inTransaction(),
+        'F1-116 final key revocation rolls back project and admission records');
+    f94Assert($f110Keys->calls===$f116Before+3,
+        'F1-116 key checked for HMAC and both admission decisions');
+} finally {
+    $f110Keys->key=$f110Key;
+    $f110Keys->onLookup=null;
+}
+$f116Retry=SyntheticSignedCommand::sign(
+    $f116New,$f110Key,'f116-fresh-key-and-nonce-0002',time()-1,time()+60
+);
+f94Assert($f110Intake->admitSigned($f116Retry)['idempotentReplay']===false &&
+    f94Count($app,'tenant-f116','sites_projects')===1 &&
+    f94Count($app,'tenant-f116','sites_project_admissions')===1,
+    'F1-116 fresh trusted key and nonce allow one new nonpublishable project');
+
 putenv('SITES_F110_SIGNED_PROJECT_LAB');
 
 echo "\n$checks F1-94 persisted, authorization-gated project admission assertions passed.\n";
