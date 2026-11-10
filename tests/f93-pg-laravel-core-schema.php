@@ -55,16 +55,18 @@ function f93Count(PDO $db, string $tenant, string $table): int {
         if ($db->inTransaction()) $db->rollBack();
     }
 }
+$pgFalse = static fn(mixed $v): bool => in_array($v, [false,'f','0'], true);
+$pgTrue = static fn(mixed $v): bool => in_array($v, [true,'t','1'], true);
 $role=$app->query(
     "SELECT current_user,rolsuper,rolbypassrls,rolcreatedb,rolcreaterole
      FROM pg_roles WHERE rolname=current_user"
 )->fetch(PDO::FETCH_ASSOC);
 f93Assert(
     $role['current_user'] === 'sites_f93_app' &&
-    $role['rolsuper'] === false &&
-    $role['rolbypassrls'] === false &&
-    $role['rolcreatedb'] === false &&
-    $role['rolcreaterole'] === false,
+    $pgFalse($role['rolsuper']) &&
+    $pgFalse($role['rolbypassrls']) &&
+    $pgFalse($role['rolcreatedb']) &&
+    $pgFalse($role['rolcreaterole']),
     'application connects using a restricted independent PostgreSQL login'
 );
 f93Assert((int)$app->query('SHOW server_version_num')->fetchColumn() >= 180000 &&
@@ -75,16 +77,16 @@ $r=$app->query(
      FROM pg_class WHERE relname IN ('sites_projects','sites_drafts')
        AND relkind='r' ORDER BY relname"
 )->fetchAll(PDO::FETCH_ASSOC);
-f93Assert(count($r)===2 && $r[0]['relrowsecurity'] && $r[0]['relforcerowsecurity'] &&
-    $r[1]['relrowsecurity'] && $r[1]['relforcerowsecurity'],
+f93Assert(count($r)===2 && $pgTrue($r[0]['relrowsecurity']) && $pgTrue($r[0]['relforcerowsecurity']) &&
+    $pgTrue($r[1]['relrowsecurity']) && $pgTrue($r[1]['relforcerowsecurity']),
     'both real Laravel tables enforce FORCE RLS');
 
-f93Assert(!$app->query(
+f93Assert($pgFalse($app->query(
     "SELECT has_schema_privilege(current_user, 'public', 'CREATE')"
-)->fetchColumn() &&
-    !$app->query(
+)->fetchColumn()) &&
+    $pgFalse($app->query(
         "SELECT has_database_privilege(current_user, 'sites_f93_lab', 'CREATE')"
-    )->fetchColumn(),
+    )->fetchColumn()),
     'application cannot perform DDL or create new tables');
 
 // With no transaction-local trusted tenant, both tables default DENY.
