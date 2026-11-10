@@ -142,6 +142,18 @@ METRICS = r"""(() => {
 })()"""
 
 
+def read_local_devtools_port(port_file: Path) -> int | None:
+    """DevToolsActivePort can exist briefly while Chrome is still writing it."""
+    try:
+        lines = port_file.read_text(encoding="utf-8").splitlines()
+    except (FileNotFoundError, OSError, UnicodeError):
+        return None
+    if len(lines) < 2 or not lines[0].isdigit() or not lines[1].startswith("/devtools/browser/"):
+        return None
+    port = int(lines[0])
+    return port if 1 <= port <= 65535 else None
+
+
 def run(gallery: Path, browser: str) -> None:
     manifest = json.loads((gallery/"gallery-manifest.json").read_text())
     assert manifest["syntheticOnly"] is True
@@ -161,18 +173,38 @@ def run(gallery: Path, browser: str) -> None:
         chrome = subprocess.Popen(args, stdout=subprocess.DEVNULL,
                                   stderr=subprocess.DEVNULL)
         try:
-            port_file = profile/"DevToolsActivePort"
-            for _ in range(100):
-                if port_file.exists():
-                    break
+            # Verify parser resilience to the *partial* file that Chrome
+            # sometimes exposes before it has written the port and endpoint.
+            assert read_local_devtools_port(Path(temp)/"missing-port") is None
+            partial = profile/"DevToolsActivePort"
+            port = None
+            for _ in range(200):
                 if chrome.poll() is not None:
                     raise RuntimeError("Browser exited before DevTools startup")
+                port = read_local_devtools_port(partial)
+                if port is not None:
+                    break
                 time.sleep(.1)
-            if not port_file.exists():
-                raise TimeoutError("Chrome DevTools unavailable")
-            port = int(port_file.read_text().splitlines()[0])
-            with urlopen(f"http://127.0.0.1:{port}/json/list", timeout=3) as reply:
-                tabs = json.loads(reply.read())
+            if port is None:
+                raise TimeoutError("Chrome DevTools port file was never complete")
+            tabs = None
+            for _ in range(50):
+                try:
+                    with urlopen(f"http://127.0.0.1:{port}/json/list", timeout=3) as reply:
+                        candidate = json.loads(reply.read())
+                    if isinstance(candidate, list) and any(
+                        isinstance(tab, dict) and tab.get("type") == "page"
+                        for tab in candidate
+                    ):
+                        tabs = candidate
+                        break
+                except (OSError, ValueError):
+                    pass
+                if chrome.poll() is not None:
+                    raise RuntimeError("Browser exited before DevTools endpoint was ready")
+                time.sleep(.1)
+            if tabs is None:
+                raise TimeoutError("Chrome DevTools page endpoint was never ready")
             page = next(tab for tab in tabs if tab["type"] == "page")
             endpoint = page["webSocketDebuggerUrl"].split(f":{port}", 1)[1]
             client = CDP(port, endpoint)
