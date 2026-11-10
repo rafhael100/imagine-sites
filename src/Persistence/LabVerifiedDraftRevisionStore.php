@@ -176,6 +176,9 @@ final class LabVerifiedDraftRevisionStore
                 if (SyntheticPrivateDraftVerifier::verifyDirectory($directory) !== $proof) {
                     throw new DomainException('lab_draft_revision_replay_bytes_changed');
                 }
+                // F1-101: a retry must not rely on the grant observed before
+                // querying the ledger and checking private files.
+                $this->assertFinalAuthority($command);
                 $this->db->commit();
                 return self::result($command, $draft, $proof, $expectedRevision, true);
             }
@@ -208,6 +211,9 @@ final class LabVerifiedDraftRevisionStore
                 'dossier'=>$proof['dossierDigest'],
                 'state'=>'pending_internal',
             ]);
+            // Fail closed if the mock grant is revoked before the write
+            // becomes durable. A denial rolls back the inserted row.
+            $this->assertFinalAuthority($command);
             $this->db->commit();
             return self::result($command, $draft, $proof, $expectedRevision, false);
         } catch (Throwable $e) {
@@ -217,6 +223,26 @@ final class LabVerifiedDraftRevisionStore
                 $e instanceof PDOException
                     ? 'lab_draft_revision_pg_constraint_or_concurrency_denied'
                     : 'lab_draft_revision_write_failed',
+                previous: $e
+            );
+        }
+    }
+
+    /**
+     * F1-101: second independent Portal-candidate decision immediately
+     * before COMMIT for both new revisions and exact idempotent replays.
+     * This is synthetic, not an operational authenticated IAM adapter.
+     */
+    private function assertFinalAuthority(SiteProjectCommand $command): void
+    {
+        try {
+            if (!(new SiteProjectAdmission($this->authority))
+                ->evaluate($command)->allowed) {
+                throw new DomainException('lab_draft_revision_final_authority_denied');
+            }
+        } catch (Throwable $e) {
+            throw new DomainException(
+                'lab_draft_revision_final_authority_denied',
                 previous: $e
             );
         }
