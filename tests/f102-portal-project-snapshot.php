@@ -251,6 +251,37 @@ try {
     $bad['validUntil']=$now+40;
     f102Check(f102Invalid(fn()=>Snapshot::fromArray($bad)),
         'F1-106 candidate decoder enforces 30-second validity limit');
+
+    // F1-107: reject ambiguous/noncanonical raw JSON before type validation.
+    $canonical=json_encode(
+        $wire,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES
+    );
+    f102Check(Snapshot::fromCanonicalJson($canonical)->isCurrentFor($command,$now),
+        'F1-107 canonical exact JSON decodes into the same scoped candidate');
+    f102Check(f102Invalid(fn()=>Snapshot::fromCanonicalJson($canonical."\n")),
+        'F1-107 trailing newline is not canonical');
+    $spaced=str_replace(',"boundCommand"', ', "boundCommand"', $canonical);
+    f102Check($spaced!==$canonical &&
+        f102Invalid(fn()=>Snapshot::fromCanonicalJson($spaced)),
+        'F1-107 noncanonical spaces are refused');
+    $duplicate=str_replace(
+        '"status":"eligible"', '"status":"eligible","status":"revoked"', $canonical
+    );
+    f102Check($duplicate!==$canonical &&
+        f102Invalid(fn()=>Snapshot::fromCanonicalJson($duplicate)),
+        'F1-107 duplicate status keys cannot silently override eligibility');
+    $escaped=str_replace(
+        'authorizationRevision', '\\u0061uthorizationRevision', $canonical
+    );
+    f102Check($escaped!==$canonical &&
+        f102Invalid(fn()=>Snapshot::fromCanonicalJson($escaped)),
+        'F1-107 alternate Unicode escaping cannot bypass exact canonical bytes');
+    f102Check(f102Invalid(fn()=>Snapshot::fromCanonicalJson(
+        str_repeat(' ',4097).$canonical
+    )), 'F1-107 oversized payload is rejected before decoding');
+    f102Check(f102Invalid(fn()=>Snapshot::fromCanonicalJson('[]')) &&
+        f102Invalid(fn()=>Snapshot::fromCanonicalJson('{"status":')),
+        'F1-107 array root and malformed JSON both fail closed');
 } finally {
     if ($previousEnv === false) putenv('APP_ENV');
     else putenv('APP_ENV='.$previousEnv);
