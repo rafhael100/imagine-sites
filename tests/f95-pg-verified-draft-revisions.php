@@ -42,10 +42,14 @@ final class F95FictionalPortalGateway implements PortalProjectAuthorityGateway
 {
     public bool $allowed=false;
     public int $calls=0;
+    public ?Closure $onVerify=null;
 
     public function verify(SiteProjectCommand $command): PolicyDecision
     {
         ++$this->calls;
+        if ($this->onVerify !== null) {
+            ($this->onVerify)();
+        }
         return new PolicyDecision(
             $this->allowed,
             $this->allowed ? [] : ['f95_authority_not_granted']
@@ -202,6 +206,25 @@ try {
         $replay['artifactDigest']===$one['artifactDigest'] &&
         f95DraftCount($app,'tenant-f95-a')===1,
         'exact latest revision replay is idempotent and does not rewrite data');
+
+    // F1-97: deliberately change the package AFTER the first disk check,
+    // while the fictional authority is being evaluated. The idempotent
+    // branch must re-read disk before reporting success or committing.
+    $replayHtml=$dir1.'/index.html';
+    $replayOriginal=(string)file_get_contents($replayHtml);
+    $gate->onVerify=static function() use ($replayHtml,$replayOriginal):void {
+        file_put_contents($replayHtml,$replayOriginal."\n");
+    };
+    try {
+        f95Assert(f95Denied(fn()=> $store->append($command,$first,$dir1,1)) &&
+            f95DraftCount($app,'tenant-f95-a')===1,
+            'F1-97 idempotent replay denies package changed after first disk verification');
+    } finally {
+        $gate->onVerify=null;
+        file_put_contents($replayHtml,$replayOriginal);
+    }
+    f95Assert($store->append($command,$first,$dir1,1)['idempotentReplay']===true,
+        'F1-97 restored exact package permits idempotent replay');
 
     f95Assert(f95Denied(fn()=> $store->append($command,$second,$dir2,1)) &&
         f95DraftCount($app,'tenant-f95-a')===1,

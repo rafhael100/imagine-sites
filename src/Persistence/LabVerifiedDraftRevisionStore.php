@@ -169,6 +169,13 @@ final class LabVerifiedDraftRevisionStore
                     $latest['review_state'] !== 'pending_internal') {
                     throw new DomainException('lab_draft_revision_idempotency_conflict');
                 }
+                // F1-97: an idempotent retry must also re-open private bytes
+                // inside the transaction. The first proof was taken before
+                // authority and database checks; never report a stale match
+                // if its package changed during those checks.
+                if (SyntheticPrivateDraftVerifier::verifyDirectory($directory) !== $proof) {
+                    throw new DomainException('lab_draft_revision_replay_bytes_changed');
+                }
                 $this->db->commit();
                 return self::result($command, $draft, $proof, $expectedRevision, true);
             }
