@@ -93,7 +93,7 @@ final readonly class SyntheticPreviewQaReport
                         break;
                     }
                     $label=$section->getAttribute('aria-labelledby');
-                    if (!preg_match('/\\A[A-Za-z][A-Za-z0-9_-]*\\z/D',$label)) {
+                    if (!preg_match('/\A[A-Za-z][A-Za-z0-9_-]*\z/D',$label)) {
                         $sectionLabelsOk=false;
                         break;
                     }
