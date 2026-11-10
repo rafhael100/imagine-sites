@@ -27,6 +27,42 @@ final readonly class CurrentPortalProjectAuthorizationSnapshot
         }
     }
 
+    /**
+     * F1-106: strict decoding of a candidate authorization record.
+     * Schema validation only: no issuer verification, signature, IAM or
+     * trusted source is established by a correctly shaped array.
+     *
+     * @param array<string,mixed> $candidate
+     */
+    public static function fromArray(array $candidate): self
+    {
+        $required=[
+            'schemaVersion','boundCommand','authorizationRevision',
+            'status','checkedAt','validUntil'
+        ];
+        $actual=array_keys($candidate);
+        sort($actual);
+        $sorted=$required;
+        sort($sorted);
+        if ($actual !== $sorted ||
+            ($candidate['schemaVersion'] ?? null) !== 'sites.portal-project-authorization.v1' ||
+            !is_array($candidate['boundCommand']) ||
+            !is_int($candidate['authorizationRevision']) ||
+            !is_string($candidate['status']) ||
+            !is_int($candidate['checkedAt']) ||
+            !is_int($candidate['validUntil'])) {
+            throw new InvalidArgumentException('Invalid candidate project authorization record.');
+        }
+
+        return new self(
+            SiteProjectCommand::fromArray($candidate['boundCommand']),
+            $candidate['authorizationRevision'],
+            $candidate['status'],
+            $candidate['checkedAt'],
+            $candidate['validUntil']
+        );
+    }
+
     public function isCurrentFor(SiteProjectCommand $command, int $now): bool
     {
         $bound = $this->boundCommand;
