@@ -193,6 +193,64 @@ try {
     $source->current=new Snapshot($command,4,'revoked',$now-1,$now+20);
     f102Check(!$gateway->verify($command)->allowed,
         'F1-105 matching epoch never overrides revoked snapshot status');
+
+    // F1-106: strictly decode the candidate wire shape, before a trusted
+    // source adapter could ever consider any identity or grant evidence.
+    $wire=[
+        'schemaVersion'=>'sites.portal-project-authorization.v1',
+        'boundCommand'=>[
+            'schemaVersion'=>$command->schemaVersion,
+            'operationId'=>$command->operationId,
+            'tenantRef'=>$command->tenantRef,
+            'orderRef'=>$command->orderRef,
+            'contractRef'=>$command->contractRef,
+            'contractRevision'=>$command->contractRevision,
+            'productCode'=>$command->productCode,
+            'idempotencyKey'=>$command->idempotencyKey,
+        ],
+        'authorizationRevision'=>4,
+        'status'=>'eligible',
+        'checkedAt'=>$now-1,
+        'validUntil'=>$now+20,
+    ];
+    $decoded=Snapshot::fromArray(json_decode(
+        json_encode($wire,JSON_THROW_ON_ERROR),true,16,JSON_THROW_ON_ERROR
+    ));
+    f102Check($decoded->isCurrentFor($command,$now) &&
+        $decoded->authorizationRevision===4,
+        'F1-106 exact candidate record decodes without granting identity');
+    $bad=$wire;
+    $bad['publishable']=true;
+    f102Check(f102Invalid(fn()=>Snapshot::fromArray($bad)),
+        'F1-106 extra publication field is rejected');
+    $bad=$wire;
+    unset($bad['validUntil']);
+    f102Check(f102Invalid(fn()=>Snapshot::fromArray($bad)),
+        'F1-106 missing expiration is rejected');
+    $bad=$wire;
+    $bad['authorizationRevision']='4';
+    f102Check(f102Invalid(fn()=>Snapshot::fromArray($bad)),
+        'F1-106 string authorization revision is rejected');
+    $bad=$wire;
+    $bad['checkedAt']=true;
+    f102Check(f102Invalid(fn()=>Snapshot::fromArray($bad)),
+        'F1-106 boolean timestamp is rejected');
+    $bad=$wire;
+    $bad['boundCommand']['idempotencyKey']=false;
+    f102Check(f102Invalid(fn()=>Snapshot::fromArray($bad)),
+        'F1-106 wrong nested command field type is rejected');
+    $bad=$wire;
+    $bad['boundCommand']['tenantRef']='tenant-f102-other';
+    f102Check(!Snapshot::fromArray($bad)->isCurrentFor($command,$now),
+        'F1-106 syntactically valid other tenant cannot inherit project scope');
+    $bad=$wire;
+    $bad['schemaVersion']='sites.portal-project-authorization.v2';
+    f102Check(f102Invalid(fn()=>Snapshot::fromArray($bad)),
+        'F1-106 unsupported record schema is rejected');
+    $bad=$wire;
+    $bad['validUntil']=$now+40;
+    f102Check(f102Invalid(fn()=>Snapshot::fromArray($bad)),
+        'F1-106 candidate decoder enforces 30-second validity limit');
 } finally {
     if ($previousEnv === false) putenv('APP_ENV');
     else putenv('APP_ENV='.$previousEnv);
