@@ -106,7 +106,8 @@ $negatives=[
     ['status'=>'revoked'],
     ['status'=>'suspended'],
     ['checkedAt'=>$now-31,'validUntil'=>$now-1],
-    ['checkedAt'=>$now+6,'validUntil'=>$now+29],
+    // Keep future timestamp well outside the +5s grace even if CI crosses a second boundary.
+    ['checkedAt'=>$now+25,'validUntil'=>$now+29],
 ];
 foreach($negatives as $i=>$patch) {
     $source->current=$make($patch);
