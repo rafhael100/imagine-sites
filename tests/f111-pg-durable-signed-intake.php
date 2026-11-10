@@ -239,5 +239,34 @@ f111Check(f111Denied(fn()=> $intakeB->admitSigned($outageSigned,$key)) &&
     f111AdmissionCount($app,'tenant-f111')===1,
     'F1-113 restored durable replay fence rejects the now consumed nonce');
 
-echo "\n$checks F1-111–F1-113 two-database signed intake assertions passed.\n";
+// F1-114: failure happens AFTER the nonce database has committed, but
+// BEFORE the project transaction can read its append-only admission ledger.
+// The original nonce must remain consumed: it is not a cross-DB transaction.
+$projectAdmin=new PDO(
+    'pgsql:host=127.0.0.1;port=5432;dbname=sites_f94_lab;connect_timeout=5',
+    'postgres',(string)getenv('DB_PASSWORD'),$opts
+);
+$projectOutageSigned=$sign($command,'f114-project-read-outage-0001');
+$projectAdmin->exec(
+    'REVOKE SELECT ON public.sites_project_admissions FROM sites_f94_app'
+);
+try {
+    f111Check(f111Denied(fn()=> $intakeA->admitSigned($projectOutageSigned,$key)),
+        'F1-114 project ledger read outage denies a newly signed valid command');
+} finally {
+    $projectAdmin->exec(
+        'GRANT SELECT ON public.sites_project_admissions TO sites_f94_app'
+    );
+}
+f111Check(f111AdmissionCount($app,'tenant-f111')===1,
+    'F1-114 failed project transaction left the admission ledger unchanged');
+f111Check(f111Denied(fn()=> $intakeB->admitSigned($projectOutageSigned,$key)) &&
+    f111AdmissionCount($app,'tenant-f111')===1,
+    'F1-114 nonce remains consumed when later project database access fails');
+$projectRecoverySigned=$sign($command,'f114-recovery-new-nonce-0002');
+f111Check($intakeB->admitSigned($projectRecoverySigned,$key)['idempotentReplay']===true &&
+    f111AdmissionCount($app,'tenant-f111')===1,
+    'F1-114 recovery requires a new signed nonce and preserves project idempotency');
+
+echo "\n$checks F1-111–F1-114 two-database signed intake assertions passed.\n";
 echo "Disposable PG18, fake HMAC, no live Portal IAM, HTTP, client data, go-live or publication.\n";
