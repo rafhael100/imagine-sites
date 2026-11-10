@@ -11,6 +11,10 @@ on:
       - 'tests/f80-pg-review-readback.php'
       - 'src/Application/LabEvidenceBoundReviewProposal.php'
       - 'tests/f81-pg-evidence-review-proposal.php'
+      - 'src/Application/LabDiskAndDatabaseBoundReviewHandoff.php'
+      - 'src/Production/SyntheticPrivateDraftVerifier.php'
+      - 'src/Production/SyntheticPrivateDraftWriter.php'
+      - 'tests/f88-pg-disk-db-review-handoff.php'
       - 'src/Persistence/LabReviewLedgerCheckpoint.php'
       - 'tests/f82-pg-restore-checkpoint.php'
       - '.github/workflows/sites-f1-79-review-ledger.yml'
@@ -41,6 +45,7 @@ jobs:
           --health-retries 12
     env:
       SITES_F79_PG_LAB: '1'
+      SITES_F88_DISK_DB_LAB: '1'
       PGHOST: 127.0.0.1
       PGPORT: '5432'
       PGUSER: postgres
@@ -78,6 +83,11 @@ jobs:
           php -l src/Application/LabEvidenceBoundReviewProposal.php
           php -l tests/f81-pg-evidence-review-proposal.php
           php tests/f81-pg-evidence-review-proposal.php
+          php -l src/Production/SyntheticPrivateDraftVerifier.php
+          php -l src/Production/SyntheticPrivateDraftWriter.php
+          php -l src/Application/LabDiskAndDatabaseBoundReviewHandoff.php
+          php -l tests/f88-pg-disk-db-review-handoff.php
+          php tests/f88-pg-disk-db-review-handoff.php
           php -l src/Persistence/LabReviewLedgerCheckpoint.php
           php -l tests/f82-pg-restore-checkpoint.php
       - name: Capture external checkpoint and logical backup in PG18
