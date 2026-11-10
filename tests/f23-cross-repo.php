@@ -8,6 +8,7 @@ declare(strict_types=1);
  * Laravel HTTP, credential, official contract, database or customer data.
  */
 use App\Domain\SitesIntegration\PortalSiteContractSource;
+use App\Domain\SitesIntegration\PortalSiteCommercialEpochSource;
 use App\Domain\SitesIntegration\SiteContractSnapshot;
 use App\Domain\SitesIntegration\SitesCreateProjectEncoder;
 use App\Domain\SitesIntegration\SyntheticSitesEnvelopeSigner;
@@ -109,6 +110,21 @@ final class F121FictionalSigningSource implements PortalSitesSigningMaterialSour
     }
 }
 
+/** F1-123 fictional independent order-authorization generation. */
+final class F123FictionalCommercialEpochs implements PortalSiteCommercialEpochSource
+{
+    public ?int $epoch=5;
+    public bool $offline=false;
+    public int $reads=0;
+
+    public function currentEpochFor(string $orderRef): ?int
+    {
+        ++$this->reads;
+        if ($this->offline) throw new RuntimeException('F123 synthetic epoch source offline');
+        return $orderRef==='order-fictional-001' ? $this->epoch : null;
+    }
+}
+
 $count = 0;
 function f23Assert(bool $valid, string $description): void
 {
@@ -175,7 +191,10 @@ foreach (['onepage','landing_page'] as $index => $product) {
             'imagine-portal','imagine-sites',$key,$epochV2
         )
     );
-    $trustedIssuer=new LabPortalSitesVersionedIssuer($encoder,$trustedFixture);
+    $commercialEpochs=new F123FictionalCommercialEpochs();
+    $trustedIssuer=new LabPortalSitesVersionedIssuer(
+        $encoder,$trustedFixture,$commercialEpochs
+    );
     $issuedByBoundary=$trustedIssuer->issue(
         'order-fictional-001',
         'operation-fictional-00'.$index,
@@ -277,6 +296,48 @@ foreach (['onepage','landing_page'] as $index => $product) {
         $recovered,$key,$newEpoch,$now,new EphemeralF23ReplayFence()
     )->semanticFingerprint()===$sitesCommand->semanticFingerprint(),
         'F1-122 restored latest commercial scope emits a valid Portal v2 envelope '.$product);
+
+    // F1-123: a commercial permission revoked and restored to the
+    // identical snapshot BEFORE the final read cannot be noticed via
+    // command bytes alone. The independent epoch must still deny.
+    $trustedFixture->reads=0;
+    $preEpoch=$commercialEpochs->epoch;
+    $trustedFixture->onRead=static function() use(
+        $trustedFixture,$orderSource,$commercialEpochs
+    ):void {
+        if ($trustedFixture->reads===2) {
+            $orderSource->eligible=false;
+            $orderSource->eligible=true;
+            ++$commercialEpochs->epoch;
+        }
+    };
+    f23Assert(f23Denied(fn()=> $trustedIssuer->issue(
+        'order-fictional-001','operation-fictional-00'.$index,
+        'idempotency-fictional-00'.$index,
+        'f123-commercial-aba-00'.$index,$now,$now+60
+    )) && $orderSource->eligible===true &&
+        $commercialEpochs->epoch===$preEpoch+1,
+        'F1-123 identical commercial snapshot with changed auth epoch denies '.$product);
+    $trustedFixture->onRead=null;
+
+    // Missing or unreachable authority is default DENY. Recovery with
+    // latest revision can issue a new HMAC v2 the Sites verifier accepts.
+    $commercialEpochs->offline=true;
+    f23Assert(f23Denied(fn()=> $trustedIssuer->issue(
+        'order-fictional-001','operation-fictional-00'.$index,
+        'idempotency-fictional-00'.$index,
+        'f123-commercial-epoch-offline-00'.$index,$now,$now+60
+    )), 'F1-123 unavailable independent commercial epoch fails closed '.$product);
+    $commercialEpochs->offline=false;
+    $recoveredEpoch=$trustedIssuer->issue(
+        'order-fictional-001','operation-fictional-00'.$index,
+        'idempotency-fictional-00'.$index,
+        'f123-recovered-commercial-epoch-00'.$index,$now,$now+60
+    );
+    f23Assert(SyntheticVersionedSignedCommand::verify(
+        $recoveredEpoch,$key,$newEpoch,$now,new EphemeralF23ReplayFence()
+    )->semanticFingerprint()===$sitesCommand->semanticFingerprint(),
+        'F1-123 restored current commercial epoch yields valid Portal->Sites envelope '.$product);
     f23Assert(f23Denied(fn()=>
         SyntheticVersionedSignedCommand::verify(
             $portalV2,$key,$epochV2,$now,$fenceV2
