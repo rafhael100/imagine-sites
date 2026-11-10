@@ -86,51 +86,41 @@ Route::get('/_lab/sites/v1/review', static function (Request $request) {
         $source=base_path('../../fixtures/sites/f1-37-copy.synthetic.json');
         if (!is_file($source)) return response('Not found',404);
         $copy=json_decode((string)file_get_contents($source),true,16,JSON_THROW_ON_ERROR);
-        $copyBrief=\Imagine\Sites\Production\StructuredCopyCandidate::assemble(
-            $product,'Marca Fictícia Imagine',$copy
-        );
-        // The selected style is a strict local preset, never AI-supplied CSS.
-        $brief=new \Imagine\Sites\Production\SiteBrief(
-            $copyBrief->productCode,$copyBrief->brand,$copyBrief->headline,
-            $copyBrief->description,$copyBrief->callToAction,
-            $copyBrief->benefits,$preset
-        );
-        $artifact=(new \Imagine\Sites\Production\StaticSiteRenderer())->render($brief);
-        if (!\Imagine\Sites\Production\InertPreviewAudit::isSafe($artifact->html)) {
-            return response('Not found',404);
-        }
-        $workflow=\Imagine\Sites\Production\SyntheticProductionWorkflow::create(
-            'tenant-fixture','site-fixture','workflow-f38-'.$product.($preset==='classic'?'':'-'.$preset)
-        );
-        $workflow=$workflow->advance('agent','start_draft',0);
-        $workflow=$workflow->advance('agent','submit_draft',1,$artifact->digest);
-        $workflow=$workflow->advance('imagine_reviewer','approve_internal',2,$artifact->digest);
+        // Build the same structured draft used in the independent dossier
+        // and disk/DB labs. A visual GET must never transition review status.
         $releaseRef='release-f38-'.$product.($preset==='classic'?'':'-'.$preset);
-        $proposal=$workflow->portalReviewCandidate($releaseRef,$artifact->digest,3);
-        if (!\Imagine\Sites\Production\SyntheticReviewCandidateGuard::matchesLocalSnapshot(
-            $proposal,$workflow,$releaseRef
-        )) return response('Not found',404);
-        $manifest=new \Imagine\Sites\Domain\ReleaseManifest(
-            'tenant-fixture','site-fixture',$releaseRef,$artifact->digest
+        $draft=\Imagine\Sites\Production\SyntheticStructuredDraftAssembly::build(
+            $product,'Marca Fictícia Imagine',$preset,$copy,
+            'tenant-fixture','site-fixture',
+            'workflow-f38-'.$product.($preset==='classic'?'':'-'.$preset),
+            $releaseRef
         );
-        $bundle=new \Imagine\Sites\Production\SyntheticReleaseBundle($manifest,$artifact);
-        if (!\Imagine\Sites\Production\SyntheticReleaseBundle::verifyFiles(
-            $bundle->files,$manifest
-        ) || $proposal['publishable']!==false ||
-            $proposal['officialClientAcceptance']!==false) {
+        $artifact=$draft->artifact;
+        $qa=$draft->structuralReport;
+        $editorial=$draft->editorialReport;
+        $dossier=\Imagine\Sites\Production\SyntheticInternalReviewDossier::fromDraft(
+            $draft
+        );
+        $reviewSnapshot=$draft->reviewSummary();
+        if ($draft->workflow->state !==
+                \Imagine\Sites\Production\SyntheticProductionWorkflow::INTERNAL_REVIEW ||
+            $draft->workflow->revision !== 2 ||
+            $reviewSnapshot['workflowState'] !== 'internal_review' ||
+            $reviewSnapshot['internalReviewRequired'] !== true ||
+            $reviewSnapshot['officialClientAcceptance'] !== false ||
+            $reviewSnapshot['publishable'] !== false ||
+            $dossier->record['reviewerDecisionStatus'] !== 'pending' ||
+            $dossier->record['publishable'] !== false ||
+            $dossier->record['officialClientAcceptance'] !== false) {
             return response('Not found',404);
         }
-        $qa=\Imagine\Sites\Production\SyntheticPreviewQaReport::inspect($artifact);
-        if (!$qa->passedStructuralChecks) {
-            return response('Not found',404);
-        }
-        $editorial=\Imagine\Sites\Production\SyntheticEditorialReviewReport::inspect($brief,$artifact);
         $page=view('labs.review',[
             'product'=>$product,'device'=>$device,'preset'=>$preset,
-            'galleryMode'=>getenv('SITES_SYNTHETIC_EXPORT')==='1','brief'=>$brief,
+            'galleryMode'=>getenv('SITES_SYNTHETIC_EXPORT')==='1','brief'=>$draft->brief,
             'previewHtml'=>$artifact->html,'digest'=>$artifact->digest,
-            'proposal'=>$proposal,'qaChecks'=>$qa->checks,
-            'editorialChecks'=>$editorial->checks,
+            'reviewSnapshot'=>$reviewSnapshot,'dossierDigest'=>$dossier->digest,
+            'requiredAcknowledgments'=>$dossier->record['requiredReviewerAcknowledgments'],
+            'qaChecks'=>$qa->checks,'editorialChecks'=>$editorial->checks,
             'editorialSuggestions'=>$editorial->suggestions
         ])->render();
     } catch (\Throwable) {
