@@ -24,7 +24,7 @@ final class SyntheticStructuredDraftCommandTest extends TestCase
                     $dir=$this->fixtureDirectory($product,$preset,$variant);
                     if (is_link($dir)) { @unlink($dir); continue; }
                     if (!is_dir($dir)) continue;
-                    foreach(['index.html','release-manifest.json','internal-review-draft.json'] as $name) {
+                    foreach(['index.html','release-manifest.json','internal-review-draft.json','internal-review-dossier.json'] as $name) {
                         @unlink($dir.'/'.$name);
                     }
                     @rmdir($dir);
@@ -49,14 +49,36 @@ final class SyntheticStructuredDraftCommandTest extends TestCase
                     self::assertDirectoryExists($dir);
                     $files=scandir($dir);
                     self::assertSame([
-                        '.','..','index.html','internal-review-draft.json','release-manifest.json',
+                        '.','..','index.html','internal-review-dossier.json','internal-review-draft.json','release-manifest.json',
                     ],$files);
                     $html=(string)file_get_contents($dir.'/index.html');
                     $manifest=json_decode((string)file_get_contents(
                         $dir.'/release-manifest.json'),true,16,JSON_THROW_ON_ERROR);
                     $summary=json_decode((string)file_get_contents(
                         $dir.'/internal-review-draft.json'),true,16,JSON_THROW_ON_ERROR);
+                    $dossierBytes=(string)file_get_contents($dir.'/internal-review-dossier.json');
+                    $dossier=json_decode($dossierBytes,true,16,JSON_THROW_ON_ERROR);
                     $digest=hash('sha256',$html);
+                    self::assertSame(hash('sha256',$dossierBytes),$summary['reviewDossierDigest']);
+                    self::assertSame('sites.synthetic.internal-review-dossier.v1',
+                        $dossier['schemaVersion']);
+                    self::assertSame($digest,$dossier['artifactDigest']);
+                    self::assertSame($summary['releaseRef'],$dossier['releaseRef']);
+                    self::assertSame($summary['workflowRevision'],$dossier['workflowRevision']);
+                    self::assertSame('pending',$dossier['reviewerDecisionStatus']);
+                    self::assertTrue($dossier['explicitInternalReviewRequired']);
+                    self::assertTrue($dossier['portalAuthorityRequired']);
+                    self::assertFalse($dossier['officialClientAcceptance']);
+                    self::assertFalse($dossier['publishable']);
+                    self::assertIsArray($dossier['qaChecks']);
+                    self::assertNotContains(false,$dossier['qaChecks']);
+                    self::assertIsArray($dossier['editorialChecks']);
+                    self::assertIsArray($dossier['requiredReviewerAcknowledgments']);
+                    self::assertSame(
+                        array_keys(array_filter($dossier['editorialChecks'],
+                            static fn($pass)=>$pass!==true)),
+                        $dossier['requiredReviewerAcknowledgments']
+                    );
                     self::assertTrue(InertPreviewAudit::isSafe($html));
                     self::assertSame($digest,$manifest['artifactDigest']);
                     self::assertSame($digest,$summary['artifactDigest']);
