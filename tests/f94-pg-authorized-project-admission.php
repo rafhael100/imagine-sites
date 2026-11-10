@@ -39,10 +39,12 @@ final class F94FictionalAuthority implements PortalProjectAuthorityGateway
 {
     public bool $allowed = false;
     public int $checks = 0;
+    public ?Closure $onVerify = null;
 
     public function verify(SiteProjectCommand $command): PolicyDecision
     {
         ++$this->checks;
+        if ($this->onVerify !== null) ($this->onVerify)();
         return new PolicyDecision(
             $this->allowed,
             $this->allowed ? [] : ['fictional_gateway_is_denied']
@@ -135,6 +137,24 @@ f94Assert(f94Count($app,'tenant-f94-a','sites_projects')===0 &&
     'denied commands do not leave database rows');
 
 $fixture->allowed=true;
+// F1-104: revoke the fictional grant between the first and last
+// authorization checks on a new project. Both rows must roll back.
+$f104NewCalls=$fixture->checks;
+$fixture->onVerify=static function() use ($fixture,$f104NewCalls):void {
+    if ($fixture->checks===$f104NewCalls+2) $fixture->allowed=false;
+};
+try {
+    f94Assert(f94Denied(fn()=> $store->admit($original,$siteA)) &&
+        f94Count($app,'tenant-f94-a','sites_projects')===0 &&
+        f94Count($app,'tenant-f94-a','sites_project_admissions')===0 &&
+        !$app->inTransaction(),
+        'F1-104 final revocation rolls back both project and admission');
+    f94Assert($fixture->checks===$f104NewCalls+2,
+        'F1-104 new admission checks independent authority twice');
+} finally {
+    $fixture->allowed=true;
+    $fixture->onVerify=null;
+}
 $created=$store->admit($original,$siteA);
 f94Assert($created['schemaVersion']==='sites.synthetic.project-admission-result.v1' &&
     $created['tenantRef']==='tenant-f94-a' &&
@@ -159,6 +179,25 @@ f94Assert($retry['idempotentReplay']===true &&
     f94Count($app,'tenant-f94-a','sites_projects')===1 &&
     f94Count($app,'tenant-f94-a','sites_project_admissions')===1,
     'same exact idempotency key returns existing result with zero duplicate writes');
+
+// Even an exact existing operation must not reuse a now-revoked grant.
+$f104RetryCalls=$fixture->checks;
+$fixture->onVerify=static function() use ($fixture,$f104RetryCalls):void {
+    if ($fixture->checks===$f104RetryCalls+2) $fixture->allowed=false;
+};
+try {
+    f94Assert(f94Denied(fn()=> $store->admit($original,$siteA)) &&
+        f94Count($app,'tenant-f94-a','sites_project_admissions')===1 &&
+        !$app->inTransaction(),
+        'F1-104 revocation before replay commit denies without mutating ledger');
+    f94Assert($fixture->checks===$f104RetryCalls+2,
+        'F1-104 idempotent replay checks current grant twice');
+} finally {
+    $fixture->onVerify=null;
+    $fixture->allowed=true;
+}
+f94Assert($store->admit($original,$siteA)['idempotentReplay']===true,
+    'F1-104 restored grant permits exact idempotent project replay');
 
 $alteredOrder=$command(
     'tenant-f94-a','operation-f94-001','order-f94-different',
