@@ -30,6 +30,9 @@ spl_autoload_register(static function (string $class): void {
 use Imagine\Sites\Domain\PolicyDecision;
 use Imagine\Sites\Integration\PortalProjectAuthorityGateway;
 use Imagine\Sites\Integration\SiteProjectCommand;
+use Imagine\Sites\Integration\CurrentPortalProjectAuthorizationSource;
+use Imagine\Sites\Integration\CurrentPortalProjectAuthorizationSnapshot;
+use Imagine\Sites\Integration\SnapshotBoundPortalProjectAuthorityGateway;
 use Imagine\Sites\Persistence\LabAuthorizedProjectAdmissionStore;
 
 final class F94FictionalAuthority implements PortalProjectAuthorityGateway
@@ -44,6 +47,25 @@ final class F94FictionalAuthority implements PortalProjectAuthorityGateway
             $this->allowed,
             $this->allowed ? [] : ['fictional_gateway_is_denied']
         );
+    }
+}
+
+/**
+ * F1-103: a separate synthetic Portal source (no network, tokens or IAM).
+ * Only the exact tenant/order pair can retrieve this in-memory snapshot.
+ */
+final class F103SyntheticSnapshotSource implements CurrentPortalProjectAuthorizationSource
+{
+    public ?CurrentPortalProjectAuthorizationSnapshot $record=null;
+
+    public function findCurrentFor(
+        string $tenantRef,string $orderRef
+    ): ?CurrentPortalProjectAuthorizationSnapshot {
+        $bound=$this->record?->boundCommand;
+        return $bound !== null &&
+            $bound->tenantRef === $tenantRef &&
+            $bound->orderRef === $orderRef
+            ? $this->record : null;
     }
 }
 
@@ -277,6 +299,68 @@ try {
 }
 f94Assert((int)$app->query('SELECT count(*) FROM sites_project_admissions')->fetchColumn()===0,
     'forged transaction-local tenant does not survive rollback');
+
+// F1-103: bind the F1-102 snapshot adapter to the REAL restricted PG18
+// admission store. No external Portal connection or real user approval.
+$f103Command=$command(
+    'tenant-f103-c','operation-f103-c','order-f103-c',
+    'contract-f103-c',2,'landing_page','idem-f103-c'
+);
+$f103Site=LabAuthorizedProjectAdmissionStore::siteRefFor($f103Command);
+$f103Source=new F103SyntheticSnapshotSource();
+$f103Gateway=new SnapshotBoundPortalProjectAuthorityGateway($f103Source);
+$f103Store=new LabAuthorizedProjectAdmissionStore($app,$f103Gateway);
+putenv('SITES_F102_PROJECT_SNAPSHOT_LAB=0');
+f94Assert(f94Denied(fn()=> $f103Store->admit($f103Command,$f103Site)) &&
+    f94Count($app,'tenant-f103-c','sites_projects')===0,
+    'F1-103 disabled snapshot gateway refuses real PG project admission');
+putenv('SITES_F102_PROJECT_SNAPSHOT_LAB=1');
+f94Assert(f94Denied(fn()=> $f103Store->admit($f103Command,$f103Site)) &&
+    f94Count($app,'tenant-f103-c','sites_project_admissions')===0,
+    'F1-103 missing snapshot denies before any PG admission row');
+
+$nowF103=time();
+$f103Source->record=new CurrentPortalProjectAuthorizationSnapshot(
+    $f103Command,2,'eligible',$nowF103-1,$nowF103+20
+);
+$f103Created=$f103Store->admit($f103Command,$f103Site);
+f94Assert($f103Created['idempotentReplay']===false &&
+    $f103Created['labOnly']===true &&
+    $f103Created['portalIdentityOperational']===false &&
+    $f103Created['officialClientAcceptance']===false &&
+    $f103Created['publishable']===false &&
+    f94Count($app,'tenant-f103-c','sites_projects')===1 &&
+    f94Count($app,'tenant-f103-c','sites_project_admissions')===1,
+    'F1-103 exactly bound short-lived fictional snapshot creates one PG admission');
+
+$f103Source->record=new CurrentPortalProjectAuthorizationSnapshot(
+    $f103Command,3,'revoked',$nowF103-1,$nowF103+20
+);
+f94Assert(f94Denied(fn()=> $f103Store->admit($f103Command,$f103Site)) &&
+    f94Count($app,'tenant-f103-c','sites_project_admissions')===1,
+    'F1-103 revoked latest snapshot denies even an existing idempotent replay');
+
+$f103Source->record=new CurrentPortalProjectAuthorizationSnapshot(
+    $f103Command,4,'eligible',$nowF103-20,$nowF103-1
+);
+f94Assert(f94Denied(fn()=> $f103Store->admit($f103Command,$f103Site)) &&
+    f94Count($app,'tenant-f103-c','sites_project_admissions')===1,
+    'F1-103 expired grant cannot be replayed into PostgreSQL');
+
+$f103Source->record=new CurrentPortalProjectAuthorizationSnapshot(
+    $f103Command,5,'eligible',$nowF103-1,$nowF103+20
+);
+$f103Wrong=$command(
+    'tenant-f103-c','operation-f103-other','order-f103-c',
+    'contract-f103-c',2,'landing_page','idem-f103-c'
+);
+f94Assert(f94Denied(fn()=> $f103Store->admit($f103Wrong,$f103Site)) &&
+    f94Count($app,'tenant-f103-c','sites_project_admissions')===1,
+    'F1-103 matching tenant/order cannot authorize changed operation');
+f94Assert($f103Store->admit($f103Command,$f103Site)['idempotentReplay']===true &&
+    f94Count($app,'tenant-f103-c','sites_project_admissions')===1,
+    'F1-103 current exact snapshot permits safe no-write replay');
+putenv('SITES_F102_PROJECT_SNAPSHOT_LAB');
 
 echo "\n$checks F1-94 persisted, authorization-gated project admission assertions passed.\n";
 echo "Synthetic gateway only; no real Portal IAM, SQL access for clients or go-live.\n";
