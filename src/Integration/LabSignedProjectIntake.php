@@ -69,7 +69,7 @@ final class LabSignedProjectIntake
         // always accept repeated nonces in v3 CLI/testing. Only the
         // restricted, disposable PostgreSQL nonce fence may be injected
         // as the FINAL replay store for v3 candidate admission.
-        if ($requireV3 && !$this->replay instanceof LabPostgresReplayStore) {
+        if ($requireV3 && !($this->replay instanceof LabPostgresReplayStore)) {
             throw new DomainException('lab_v3_durable_replay_store_required');
         }
 
