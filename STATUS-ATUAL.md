@@ -1,5 +1,13 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuidade supervisionada — F1-105 / F1-106 (10/11/2026)
+
+- [PR #141 — F1-105](https://github.com/rafhael100/imagine-sites/pull/141): o gateway candidato Portal→Sites passou a exigir revisão atual da autorização por fonte independente de epoch; snapshot elegível ainda válido não pode ser reutilizado quando a revisão consultada diverge. Fonte ausente, inválida ou indisponível nega por padrão. Testes no CLI PHP 8.3/8.4 e no PostgreSQL 18 descartável cobrem revogação, epoch divergente e alteração de epoch entre a autorização inicial e o commit. Os cinco workflows distintos executados na HEAD F1-105 concluíram com sucesso; sem merge.
+- [PR #142 — F1-106](https://github.com/rafhael100/imagine-sites/pull/142): contrato candidato JSON Schema v1 e `fromArray` estrito para o registro do snapshot, com versão obrigatória, seis campos exatos, comando vinculado, tipos e TTL. Testes PHP8.3/8.4 contra campos extras, formatos inválidos, empresas diferentes e expiração. Aguardar CI final da própria HEAD.
+- Os dois PRs são empilhados e ainda dependem de #140 e linhas anteriores; revisão independente AppSec, contrato real do Portal, IAM autenticado e revogação operacional permanecem pendentes.
+- Fontes de snapshot e epoch são **fictícias**; duas fontes igualmente obsoletas não comprovam autorização corrente. A GUC de tenant do PostgreSQL pode ser forjada com SQL direto; não disponibilizar acesso arbitrário ao banco. **10/10 gates operacionais BLOCKED**, nenhuma publicação, merge em dev/main, PII, DNS, despesa ou uso da VPS.
+
+
 ## Evolução supervisionada — F1-103 e F1-104 (10/11/2026)
 
 - [PR #139 — F1-103](https://github.com/rafhael100/imagine-sites/pull/139): a política candidata F1-102 de snapshot Portal, com vínculo exato empresa/contrato/operação/idempotência e TTL limitado, foi conectada **somente no teste PG18 descartável** ao serviço de admissão de projetos. Sem snapshot, com grant expirado/revogado, ou com operação diferente, não admite; decisão corrente fictícia permite gravar ou fazer replay idempotente. Testes PG18 PHP8.3/8.4 aprovados; sem IAM real.
