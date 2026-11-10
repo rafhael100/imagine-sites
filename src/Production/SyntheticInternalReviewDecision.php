@@ -41,6 +41,7 @@ final readonly class SyntheticInternalReviewDecision
         string $reviewedBundleDigest,
         array $acknowledgedEditorialKeys,
         ?string $reworkReason = null,
+        ?string $reviewedDossierDigest = null,
     ): self {
         if ($actorRole !== 'imagine_reviewer' ||
             $draft->workflow->state !== SyntheticProductionWorkflow::INTERNAL_REVIEW ||
@@ -69,6 +70,16 @@ final readonly class SyntheticInternalReviewDecision
                 $draft->bundle->files['release-manifest.json']
             ))) {
             throw new DomainException('internal_review_exact_source_bundle_required');
+        }
+
+        // An internal decision must be bound to the exact pending checklist
+        // presented for this same immutable draft. This is a synthetic hash,
+        // NOT proof a human actually saw it or a trusted signature.
+        $dossier = SyntheticInternalReviewDossier::fromDraft($draft);
+        if ($reviewedDossierDigest === null ||
+            !preg_match('/\A[a-f0-9]{64}\z/D', $reviewedDossierDigest) ||
+            !hash_equals($dossier->digest, $reviewedDossierDigest)) {
+            throw new DomainException('internal_review_checklist_digest_mismatch');
         }
 
         $freshQa = SyntheticPreviewQaReport::inspect($draft->artifact);
@@ -121,6 +132,7 @@ final readonly class SyntheticInternalReviewDecision
             'reviewedWorkflowRevision' => $expectedRevision,
             'reviewedArtifactDigest' => $reviewedArtifactDigest,
             'reviewedBundleDigest' => $reviewedBundleDigest,
+            'reviewedDossierDigest' => $reviewedDossierDigest,
             'decisionRef' => $decisionRef,
             'syntheticReviewerRef' => $reviewerRef,
             'action' => $action,

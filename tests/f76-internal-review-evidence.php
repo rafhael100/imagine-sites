@@ -14,6 +14,7 @@ spl_autoload_register(static function (string $class): void {
 });
 use Imagine\Sites\Production\SyntheticStructuredDraftAssembly as Assembly;
 use Imagine\Sites\Production\SyntheticInternalReviewDecision as Decision;
+use Imagine\Sites\Production\SyntheticInternalReviewDossier as Dossier;
 use Imagine\Sites\Production\SyntheticProductionWorkflow as Workflow;
 
 $checks=0;
@@ -54,12 +55,14 @@ foreach (['onepage','landing_page'] as $product) {
             foreach ($draft->editorialReport->checks as $key=>$ok) {
                 if ($ok !== true) $warnings[]=$key;
             }
+            $dossierDigest=Dossier::fromDraft($draft)->digest;
             $decide=static fn(string $role,string $decision,int $version,
-                string $digest,string $bundle,array $acked,?string $reason=null)=>
+                string $digest,string $bundle,array $acked,?string $reason=null,
+                ?string $dossierOverride=null)=>
                 Decision::decide(
                     $draft,$role,'reviewer-f76-'.$product.'-'.$style,
                     'decision-f76-'.$label,$decision,$version,
-                    $digest,$bundle,$acked,$reason
+                    $digest,$bundle,$acked,$reason,$dossierOverride??$dossierDigest
                 );
             $digest=$draft->artifact->digest;
             $bundle=$draft->bundle->bundleDigest;
@@ -81,6 +84,15 @@ foreach (['onepage','landing_page'] as $product) {
             f76Check(f76Denied(fn()=>$decide(
                 'imagine_reviewer','approve_internal',2,$digest,str_repeat('c',64),$warnings)),
                 "$product/$style/$label: wrong bundle bytes denied");
+            f76Check(f76Denied(fn()=>$decide(
+                'imagine_reviewer','approve_internal',2,$digest,$bundle,$warnings,
+                null,str_repeat('e',64))),
+                "$product/$style/$label: different review dossier digest denied");
+            f76Check(f76Denied(fn()=>Decision::decide(
+                $draft,'imagine_reviewer','reviewer-f76-'.$product.'-'.$style,
+                'decision-f76-'.$label,'approve_internal',2,
+                $digest,$bundle,$warnings)),
+                "$product/$style/$label: missing dossier hash denied");
             f76Check(f76Denied(fn()=>$decide(
                 'imagine_reviewer','approve_internal',2,$digest,$bundle,['unrecognized'])),
                 "$product/$style/$label: unknown editorial acknowledgment denied");
@@ -110,7 +122,8 @@ foreach (['onepage','landing_page'] as $product) {
             f76Check($accepted->reviewDigest===$again->reviewDigest &&
                 preg_match('/\A[a-f0-9]{64}\z/D',$accepted->reviewDigest)===1,
                 "$product/$style/$label: review record is reproducibly content-addressed");
-            f76Check($record['reviewedBundleDigest']===$bundle &&
+            f76Check($record['reviewedDossierDigest']===$dossierDigest &&
+                $record['reviewedBundleDigest']===$bundle &&
                 $record['reviewedArtifactDigest']===$digest &&
                 $record['acknowledgedEditorialKeys']===$warnings &&
                 $record['syntheticOnly']===true &&
