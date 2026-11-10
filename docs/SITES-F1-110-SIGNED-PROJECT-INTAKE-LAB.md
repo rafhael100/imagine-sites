@@ -17,7 +17,7 @@ O nonce sintético é **consumido antes** da autorização e da transação. Se 
 
 ## Prova automatizada
 
-`tests/f94-pg-authorized-project-admission.php` integra um armazenador de nonce em memória (somente para este teste), o gateway fictício e a admissão PostgreSQL18. Exercita flag desligada sem efeitos, armazenador padrão negando, ausência de autorização, nonce consumido impedindo segunda tentativa, criação de único projeto Onepage, replay exato negado, nova assinatura permitida para idempotência, adulteração da empresa rompendo o MAC, revogação e restabelecimento do gateway e revalidação com novo nonce. A suíte executa em PHP 8.3 e 8.4 no workflow F1-94.
+`tests/f94-pg-authorized-project-admission.php` integra um armazenador de nonce em memória (somente para este teste), o gateway fictício e a admissão PostgreSQL18. Exercita flag desligada sem efeitos, armazenador padrão negando, ausência de autorização, nonce consumido impedindo segunda tentativa, criação de único projeto Onepage, replay exato negado, nova assinatura permitida para idempotência, adulteração da empresa rompendo o MAC, revogação e restabelecimento do gateway e revalidação com novo nonce. Também exercita o gateway de snapshot/epoch das F1-102/105, que só permite replay quando o registro fictício e a revisão corrente coincidem; avançar o epoch bloqueia até um novo comando validamente assinado. A suíte executa em PHP 8.3 e 8.4 no workflow F1-94.
 
 ## Bloqueios operacionais
 
