@@ -28,6 +28,21 @@ final class LabAuthorizedProjectAdmissionStore
             new DenyingPortalProjectAuthorityGateway(),
     ) {}
 
+    /**
+     * A fictional site reference is MINTED from the authorized contract and
+     * order identity. It is an opaque identifier, NEVER an authorization proof.
+     * Future real Site IDs must be issued by an authenticated Sites service.
+     */
+    public static function siteRefFor(SiteProjectCommand $command): string
+    {
+        return 'site-'.substr(hash('sha256', implode("\0", [
+            'imagine-sites-lab-project.v1',
+            $command->tenantRef,
+            $command->orderRef,
+            $command->contractRef,
+        ])), 0, 32);
+    }
+
     /** @return array<string,mixed> Non-publishable metadata; no Portal acceptance. */
     public function admit(SiteProjectCommand $command, string $siteRef): array
     {
@@ -36,6 +51,10 @@ final class LabAuthorizedProjectAdmissionStore
             getenv('SITES_F94_PROJECT_ADMISSION_LAB') !== '1' ||
             !preg_match('/\A[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\z/D', $siteRef)) {
             throw new DomainException('lab_project_admission_disabled_or_invalid_site');
+        }
+
+        if (!hash_equals(self::siteRefFor($command), $siteRef)) {
+            throw new DomainException('lab_project_admission_site_not_bound_to_order');
         }
 
         // No database read, transaction, idempotency consumption or write
