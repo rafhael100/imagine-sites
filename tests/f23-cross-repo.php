@@ -12,6 +12,8 @@ use App\Domain\SitesIntegration\SiteContractSnapshot;
 use App\Domain\SitesIntegration\SitesCreateProjectEncoder;
 use App\Domain\SitesIntegration\SyntheticSitesEnvelopeSigner;
 use Imagine\Sites\Integration\SiteProjectCommand;
+use Imagine\Sites\Integration\CurrentPortalProjectAuthorizationSnapshot as ProjectSnapshot;
+use Imagine\Sites\Integration\SnapshotBoundPortalProjectAuthorityGateway;
 use Imagine\Sites\Security\ReplayStore;
 use Imagine\Sites\Security\SyntheticSignedCommand;
 
@@ -116,6 +118,40 @@ foreach (['onepage','landing_page'] as $index => $product) {
     $verified = SyntheticSignedCommand::verify($portalSigned,$key,$now,$fence);
     f23Assert($verified->semanticFingerprint() === $sitesCommand->semanticFingerprint(),
         'Sites accepts candidate Portal signature and keeps same domain fingerprint');
+
+    // F1-108: use the ACTUAL Portal encoder wire command inside the NEW
+    // strict Sites candidate snapshot decoder. The signed command and
+    // candidate authorization remain separate artifacts: neither proves
+    // current Portal IAM approval.
+    $snapshotWire=[
+        'schemaVersion'=>'sites.portal-project-authorization.v1',
+        'boundCommand'=>$wirePayload,
+        'authorizationRevision'=>2,
+        'status'=>'eligible',
+        'checkedAt'=>$now-1,
+        'validUntil'=>$now+20,
+    ];
+    $snapshotJson=json_encode(
+        $snapshotWire,
+        JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES
+    );
+    $snapshot=ProjectSnapshot::fromCanonicalJson($snapshotJson);
+    f23Assert($snapshot->isCurrentFor($verified,$now) &&
+        $snapshot->boundCommand->semanticFingerprint()===$verified->semanticFingerprint(),
+        'F1-108 real Portal command fits strict Sites snapshot shape for '.$product);
+    $snapshotChanged=$snapshotWire;
+    $snapshotChanged['boundCommand']['contractRevision']++;
+    $changedJson=json_encode(
+        $snapshotChanged,
+        JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES
+    );
+    f23Assert(!ProjectSnapshot::fromCanonicalJson($changedJson)
+        ->isCurrentFor($verified,$now),
+        'F1-108 changed Portal contract revision cannot inherit exact snapshot for '.$product);
+    f23Assert(!(new SnapshotBoundPortalProjectAuthorityGateway())
+        ->verify($sitesCommand)->allowed,
+        'F1-108 even a valid candidate snapshot never enables default Portal IAM');
+
     f23Assert(f23Denied(fn() =>
         SyntheticSignedCommand::verify($portalSigned,$key,$now,$fence)),
         'candidate replay denied for '.$product);
