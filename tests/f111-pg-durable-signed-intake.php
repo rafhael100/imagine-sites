@@ -286,5 +286,67 @@ f111Check($intakeB->admitSigned($projectRecoverySigned)['idempotentReplay']===tr
     f111AdmissionCount($app,'tenant-f111')===1,
     'F1-114 recovery requires a new signed nonce and preserves project idempotency');
 
-echo "\n$checks F1-111–F1-114 two-database signed intake assertions passed.\n";
+// F1-115: trust source must not come from the caller. It defaults DENY,
+// can revoke an existing key, and supports tested synthetic key rotation.
+// All denials occur before the nonce is committed to the separate PG ledger.
+$untrustedDefault=new LabSignedProjectIntake($app,$gateway,$fenceA);
+$defaultSigned=$sign($command,'f115-default-key-deny-0001');
+f111Check(f111Denied(fn()=> $untrustedDefault->admitSigned($defaultSigned)) &&
+    f111AdmissionCount($app,'tenant-f111')===1,
+    'F1-115 no injected signing key source cannot accept a signed project');
+f111Check($intakeB->admitSigned($defaultSigned)['idempotentReplay']===true,
+    'F1-115 default key denial does not consume the nonce');
+
+$revokedKeySigned=$sign($command,'f115-revoked-key-0002');
+$signingKeys->key=null;
+try {
+    f111Check(f111Denied(fn()=> $intakeA->admitSigned($revokedKeySigned)) &&
+        f111AdmissionCount($app,'tenant-f111')===1,
+        'F1-115 key removal denies an otherwise authentic signed message');
+} finally {
+    $signingKeys->key=$key;
+}
+f111Check($intakeB->admitSigned($revokedKeySigned)['idempotentReplay']===true,
+    'F1-115 revoked key denial does not burn the protected nonce');
+
+$failedKeySigned=$sign($command,'f115-source-error-0003');
+$signingKeys->fail=true;
+try {
+    f111Check(f111Denied(fn()=> $intakeA->admitSigned($failedKeySigned)) &&
+        f111AdmissionCount($app,'tenant-f111')===1,
+        'F1-115 trusted key source outage fails closed');
+} finally {
+    $signingKeys->fail=false;
+}
+f111Check($intakeB->admitSigned($failedKeySigned)['idempotentReplay']===true,
+    'F1-115 source outage does not consume the original nonce');
+
+$oldSigned=$sign($command,'f115-rotation-key-0004');
+$rotatedKey='DO-NOT-USE-F1-115-ROTATED-SYNTHETIC-KEY-123456789';
+$signingKeys->key=$rotatedKey;
+f111Check(f111Denied(fn()=> $intakeA->admitSigned($oldSigned)) &&
+    f111AdmissionCount($app,'tenant-f111')===1,
+    'F1-115 stale signature is rejected after pinned key rotation');
+$newSigned=SyntheticSignedCommand::sign(
+    $command,$rotatedKey,'f115-rotation-key-0004',$now-1,$now+60
+);
+f111Check($intakeB->admitSigned($newSigned)['idempotentReplay']===true &&
+    f111AdmissionCount($app,'tenant-f111')===1,
+    'F1-115 current pinned synthetic key can consume the unburned nonce');
+f111Check(f111Denied(fn()=> $intakeA->admitSigned($newSigned)),
+    'F1-115 replay protection still holds across sessions after key rotation');
+$signingKeys->key=$key;
+
+$notPortal=$sign($command,'f115-issuer-gate-0005');
+$notPortal['issuer']='unknown-service';
+$beforeIssuerCalls=$signingKeys->calls;
+f111Check(f111Denied(fn()=> $intakeA->admitSigned($notPortal)) &&
+    $signingKeys->calls===$beforeIssuerCalls &&
+    f111AdmissionCount($app,'tenant-f111')===1,
+    'F1-115 unknown issuer is denied without consulting the key registry');
+$portalOriginal=$sign($command,'f115-issuer-gate-0005');
+f111Check($intakeB->admitSigned($portalOriginal)['idempotentReplay']===true,
+    'F1-115 rejecting unknown issuer did not consume a Portal nonce');
+
+echo "\n$checks F1-111–F1-115 two-database signed intake assertions passed.\n";
 echo "Disposable PG18, fake HMAC, no live Portal IAM, HTTP, client data, go-live or publication.\n";
