@@ -6,8 +6,9 @@ Motor independente de **Onepages e Landing Pages criadas e administradas pela Im
 
 **Protótipo técnico de laboratório; NÃO é serviço operacional ou publicável.** A fundação inclui Laravel/PHP 8.3+, HTML estático inerte, testes de revisão e design, scripts com PostgreSQL 18 descartável, dossiês privados e um laboratório Docker/Compose isolado. Nada disso comprova autenticação real de cliente, publicação Cloudflare, disponibilidade de infraestrutura, integração CRM ou conformidade legal.
 
-- [PR #114 — linha até F1-85, pronta para revisão em dev](https://github.com/rafhael100/imagine-sites/pull/114). **Não mesclado em dev/main**; exige revisão de código e segurança independente.
-- [PR #115 — F1-86, verificador offline de pacote de revisão](https://github.com/rafhael100/imagine-sites/pull/115). Implementado em branch dependente, com CI próprio.
+- [PR #124 — consolidação F1-45 até F1-91](https://github.com/rafhael100/imagine-sites/pull/124): proposta atual para revisão técnica independente em `dev`; **não mesclada em `dev`/`main`**.
+- [F1-90 — prévia sem aprovação interna implícita](https://github.com/rafhael100/imagine-sites/pull/121): abrir o preview mantém o rascunho em `internal_review` e apresenta o dossiê pendente.
+- [F1-91 — auditoria de dependências Composer](https://github.com/rafhael100/imagine-sites/pull/123): auditoria de advisories do `composer.lock` completo e do grafo operacional, executada no CI sem atualizar bibliotecas.
 - [Prontidão operacional](config/operational-readiness.json): **10/10 gates BLOCKED**. Não autoriza merge em produção, consentimento, cobrança, aceite, publicação ou marcação ENTREGUE.
 
 ## Recursos disponíveis somente em laboratório
@@ -25,7 +26,7 @@ Na raiz do repositório, com PHP 8.3+ e extensões aplicáveis:
 php tests/run.php
 ```
 
-No aplicativo Laravel, com dependências já instaladas, execute `php artisan test --no-ansi`. O CI também executa matrizes PHP 8.3/8.4, Chromium, PostgreSQL 18 e Compose restrito em runner descartável.
+No aplicativo Laravel, com dependências já instaladas, execute `php artisan test --no-ansi`. O CI também executa matrizes PHP 8.3/8.4, Chromium, PostgreSQL 18 e Compose restrito em runner descartável. A F1-91 acrescenta `composer validate` e `composer audit --locked`, sem substituir a revisão independente AppSec.
 
 Para gerar e **reverificar** uma amostra fictícia (exemplo de shell Linux, sempre `APP_ENV=testing`, não use dados reais):
 
