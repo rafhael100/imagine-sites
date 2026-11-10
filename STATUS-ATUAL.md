@@ -1,5 +1,14 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuidade supervisionada — F1-100..102 (10/11/2026)
+
+- F1-100: rechecagem da autorização Portal *fictícia* antes do commit de consulta da revisão vigente, com teste de revogação intermediária e rollback; [PR #136](https://github.com/rafhael100/imagine-sites/pull/136). Os cinco workflows distintos executados concluíram com sucesso, sem aprovação operacional.
+- F1-101: rechecagem da mesma autoridade antes do commit tanto da nova gravação quanto de replay idempotente, com testes de revogação e rollback sobre PG18; [PR #137](https://github.com/rafhael100/imagine-sites/pull/137). Depende de #136; revisão CI na HEAD deve ser conferida antes de qualquer integração.
+- F1-102: snapshot candidato de autorização do projeto Portal-Sites, vinculado campo a campo a tenant, pedido, contrato/revisão, produto, operação e chave idempotente, status e TTL máximo de 30 segundos. Source default DENY, modo CLI/testing explícito, fonte fictícia em memória; suíte PHP8.3/8.4 incorporada. NÃO há IAM real ou autorização de produção.
+- As novas alterações são PRs empilhados em branches isoladas sobre as etapas F1-99..97 e o PR agregado #132. Nenhum merge em dev/main, deploy, publicação, dados pessoais ou despesas novas.
+- PostgreSQL tenant GUC não autentica recurso; a checagem em tempo limitado ainda pode ficar obsoleta depois; assinatura/aceite do cliente e revogação operacional seguem ausentes. **10/10 gates em config/operational-readiness.json permanecem BLOCKED.**
+
+
 ## Continuidade supervisionada — 10/11/2026 (F1-97..99)
 
 - [PR #133 — F1-97](https://github.com/rafhael100/imagine-sites/pull/133): rechecagem dos quatro arquivos privados no replay idempotente, antes do COMMIT; simulação de alteração durante avaliação de autoridade e restauração. Suítes CI relevantes concluídas com sucesso. Sem merge.
