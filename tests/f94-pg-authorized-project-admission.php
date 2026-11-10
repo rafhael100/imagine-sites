@@ -516,6 +516,11 @@ f94Assert(f94Denied(fn()=> $f103Store->admit($f103Command,$f103Site)) &&
 $f103EpochSource->unavailable=false;
 putenv('SITES_F102_PROJECT_SNAPSHOT_LAB');
 
+// F1-120: legacy v1 is permitted ONLY by this explicit test flag.
+// Normal construction without a mode denies; no automatic fallback.
+$oldF120Legacy=getenv('SITES_F118_ALLOW_LEGACY_V1_LAB');
+putenv('SITES_F118_ALLOW_LEGACY_V1_LAB=1');
+
 // F1-110: executable synthetic signed command -> replay fence ->
 // independent gateway -> exact minted site -> PostgreSQL admission.
 $f110Command=$command(
@@ -704,6 +709,7 @@ f94Assert($f110Intake->admitSigned($f117Retry)['idempotentReplay']===false &&
 // a message signed under an older generation MUST be denied and must
 // not consume the nonce.
 $oldF118Flag=getenv('SITES_F118_REQUIRE_EPOCH_SIGNED');
+putenv('SITES_F118_ALLOW_LEGACY_V1_LAB=0');
 putenv('SITES_F118_REQUIRE_EPOCH_SIGNED=1');
 try {
     $f118Legacy=SyntheticSignedCommand::sign(
@@ -743,8 +749,32 @@ try {
 } finally {
     if ($oldF118Flag===false) putenv('SITES_F118_REQUIRE_EPOCH_SIGNED');
     else putenv('SITES_F118_REQUIRE_EPOCH_SIGNED='.$oldF118Flag);
+    putenv('SITES_F118_ALLOW_LEGACY_V1_LAB=1');
 }
 
+// F1-120: neither version selected and conflicting modes are denied
+// before consuming a nonce; each can be retried once in explicit v1 mode.
+$f120NoMode=$f110Sign('f120-default-deny-nonce-0001');
+putenv('SITES_F118_ALLOW_LEGACY_V1_LAB=0');
+f94Assert(f94Denied(fn()=> $f110Intake->admitSigned($f120NoMode)) &&
+    f94Count($app,'tenant-f110','sites_project_admissions')===1,
+    'F1-120 missing mode flag does not silently fall back to v1');
+putenv('SITES_F118_ALLOW_LEGACY_V1_LAB=1');
+f94Assert($f110Intake->admitSigned($f120NoMode)['idempotentReplay']===true,
+    'F1-120 denied default mode did not consume legacy nonce');
+
+$f120Conflict=$f110Sign('f120-conflicting-modes-nonce-0002');
+putenv('SITES_F118_REQUIRE_EPOCH_SIGNED=1');
+f94Assert(f94Denied(fn()=> $f110Intake->admitSigned($f120Conflict)),
+    'F1-120 contradictory v1 and v2 flags deny instead of choosing a version');
+putenv('SITES_F118_REQUIRE_EPOCH_SIGNED=0');
+f94Assert($f110Intake->admitSigned($f120Conflict)['idempotentReplay']===true,
+    'F1-120 conflicting flags denial did not consume signed nonce');
+
+if ($oldF120Legacy===false) putenv('SITES_F118_ALLOW_LEGACY_V1_LAB');
+else putenv('SITES_F118_ALLOW_LEGACY_V1_LAB='.$oldF120Legacy);
+if ($oldF118Flag===false) putenv('SITES_F118_REQUIRE_EPOCH_SIGNED');
+else putenv('SITES_F118_REQUIRE_EPOCH_SIGNED='.$oldF118Flag);
 putenv('SITES_F110_SIGNED_PROJECT_LAB');
 
 echo "\n$checks F1-94 persisted, authorization-gated project admission assertions passed.\n";
