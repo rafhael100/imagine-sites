@@ -8,16 +8,19 @@ services:
     restart: "no"
     environment:
       POSTGRES_DB: sites_lab
-      POSTGRES_USER: siteslab
-      POSTGRES_PASSWORD: ${SITES_LAB_DB_PASSWORD:?Set an ephemeral password outside GitHub/chat}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${SITES_LAB_DB_ADMIN_PASSWORD:?Set a separate ephemeral superuser password}
+      SITES_LAB_DB_PASSWORD: ${SITES_LAB_DB_PASSWORD:?Set the restricted application password}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U siteslab -d sites_lab"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sites_lab"]
       interval: 5s
       timeout: 3s
       retries: 12
     networks: [sites-lab-isolated]
     volumes:
       - sites-lab-data:/var/lib/postgresql
+      # A single read-only, local, tracked init fixture; never secrets or host data.
+      - ./postgres-init/01-create-lab-role.sh:/docker-entrypoint-initdb.d/01-create-lab-role.sh:ro
     security_opt: ["no-new-privileges:true"]
     pids_limit: 128
     mem_limit: 512m
