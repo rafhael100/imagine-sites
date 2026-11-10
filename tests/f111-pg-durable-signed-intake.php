@@ -61,11 +61,13 @@ final class F115FictionalSigningKeySource implements PortalSigningKeySource
 {
     public bool $fail=false;
     public int $calls=0;
+    public ?Closure $onLookup=null;
     public function __construct(public ?string $key) {}
 
     public function currentKeyFor(string $issuer, string $audience): ?string
     {
         ++$this->calls;
+        if ($this->onLookup !== null) ($this->onLookup)();
         if ($this->fail) throw new RuntimeException('F115 synthetic key source unavailable');
         return $issuer==='imagine-portal' && $audience==='imagine-sites'
             ? $this->key : null;
@@ -348,5 +350,31 @@ $portalOriginal=$sign($command,'f115-issuer-gate-0005');
 f111Check($intakeB->admitSigned($portalOriginal)['idempotentReplay']===true,
     'F1-115 rejecting unknown issuer did not consume a Portal nonce');
 
-echo "\n$checks F1-111–F1-115 two-database signed intake assertions passed.\n";
+// F1-116: the independently pinned key is revoked between the first
+// authority check and the final pre-COMMIT check. Nonce was consumed in
+// another database, but no new project state is committed.
+$f116Signed=$sign($command,'f116-durable-final-key-0001');
+$f116Calls=$signingKeys->calls;
+$signingKeys->onLookup=static function() use($signingKeys,$f116Calls):void {
+    if ($signingKeys->calls===$f116Calls+3) $signingKeys->key=null;
+};
+try {
+    f111Check(f111Denied(fn()=> $intakeA->admitSigned($f116Signed)) &&
+        f111AdmissionCount($app,'tenant-f111')===1 &&
+        !$app->inTransaction(),
+        'F1-116 key revoked at final authorization refuses replay and rolls back');
+    f111Check($signingKeys->calls===$f116Calls+3,
+        'F1-116 signing key is resolved for MAC, entry and final admission');
+} finally {
+    $signingKeys->onLookup=null;
+    $signingKeys->key=$key;
+}
+f111Check(f111Denied(fn()=> $intakeB->admitSigned($f116Signed)),
+    'F1-116 nonce remains consumed after key revocation blocks the SQL commit');
+$f116Refresh=$sign($command,'f116-durable-new-nonce-0002');
+f111Check($intakeB->admitSigned($f116Refresh)['idempotentReplay']===true &&
+    f111AdmissionCount($app,'tenant-f111')===1,
+    'F1-116 fresh signed nonce and revalidated key recover exact idempotent replay');
+
+echo "\n$checks F1-111–F1-116 two-database signed intake assertions passed.\n";
 echo "Disposable PG18, fake HMAC, no live Portal IAM, HTTP, client data, go-live or publication.\n";
