@@ -63,6 +63,34 @@ final readonly class CurrentPortalProjectAuthorizationSnapshot
         );
     }
 
+    /**
+     * F1-107: refuse noncanonical or ambiguous JSON before processing a
+     * candidate record. Duplicate keys, altered whitespace, re-escaped
+     * characters and oversized payloads cannot be silently normalized.
+     * This does NOT verify any cryptographic signature or message issuer.
+     */
+    public static function fromCanonicalJson(string $raw): self
+    {
+        if ($raw === '' || strlen($raw) > 4096) {
+            throw new InvalidArgumentException('Invalid candidate authorization JSON size.');
+        }
+        try {
+            $decoded=json_decode($raw, true, 16, JSON_THROW_ON_ERROR);
+            if (!is_array($decoded) || array_is_list($decoded) ||
+                json_encode(
+                    $decoded,
+                    JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+                ) !== $raw) {
+                throw new InvalidArgumentException('Noncanonical candidate authorization JSON.');
+            }
+            return self::fromArray($decoded);
+        } catch (\JsonException $e) {
+            throw new InvalidArgumentException(
+                'Invalid candidate authorization JSON.', 0, $e
+            );
+        }
+    }
+
     public function isCurrentFor(SiteProjectCommand $command, int $now): bool
     {
         $bound = $this->boundCommand;
