@@ -22,6 +22,7 @@ on:
       - 'src/Security/SyntheticSignedCommand.php'
       - 'src/Security/SyntheticVersionedSignedCommand.php'
       - 'docs/SITES-F1-118-SIGNED-KEY-EPOCH-V2.md'
+      - 'docs/SITES-F1-120-EXPLICIT-ENVELOPE-VERSION.md'
       - 'src/Security/ReplayStore.php'
       - 'tests/f94-pg-authorized-project-admission.php'
       - 'tests/f95-pg-verified-draft-revisions.php'
