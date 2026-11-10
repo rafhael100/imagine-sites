@@ -1,5 +1,12 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Atualização — 10/11/2026 (linha supervisionada de desenvolvimento)
+
+- **Proposta consolidada de revisão:** [PR #114](https://github.com/rafhael100/imagine-sites/pull/114) reúne a linha F1-45..F1-85, com **21 workflows distintos e 36/36 jobs aprovados** no head `940c9dc`, incluindo Laravel PHP 8.3/8.4, PostgreSQL 18, cópia/restauração de banco descartável, Chromium e execução real de laboratório Docker com usuário PostgreSQL sem superuser. **PR aberto para revisão técnica independente, não mesclado em `dev` nem `main`**.
+- **F1-86:** [PR #115](https://github.com/rafhael100/imagine-sites/pull/115) implementa verificação **após gravação em disco** do pacote privado de revisão com quatro arquivos, hashes e conteúdo canônico, sem links simbólicos/arquivos extras, mais comando Laravel de leitura somente e negativos. Submetido à validação CI, dependente da linha F1-85.
+- **Estado real:** as classes e testes de laboratório não concedem identidade do Portal, aceite do cliente, Cloudflare, IA/n8n real, CRM, backup da VPS, avaliação AppSec independente ou go-live. **10/10 gates operacionais continuam `BLOCKED`**, issues #33–#38 abertas. Não houve publicação, DNS ou alteração de produção nesta linha.
+- Documentação atualizada em [README.md](README.md), incluindo comandos fictícios do gerador e do verificador. Os registros anteriores abaixo preservam o histórico de PRs individuais e não indicam que etapas ainda em draft foram mescladas.
+
 **09/11/2026 — integração de desenvolvimento e entrega de critérios de homologação.**
 
 - `dev` consolidou F1-01..22 via PRs #24–#29, mantendo `main` intacta.
