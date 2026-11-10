@@ -19,7 +19,7 @@ import tempfile
 import time
 from urllib.request import urlopen
 
-from f43_cdp import CDP
+from f43_cdp import CDP, read_local_devtools_port
 from f44_contrast import ratio
 from f62_hero_contrast import inspect_hero
 
@@ -105,15 +105,34 @@ def main():
         ],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
         try:
             portfile=profile/"DevToolsActivePort"
-            for _ in range(120):
-                if portfile.exists():break
+            # Chrome can expose the file before both lines are written and
+            # can be CPU delayed on shared CI runners. The same readiness
+            # parser is already used in the independent F1-43 CDP smoke.
+            port=None
+            for _ in range(200):
                 if chrome.poll() is not None:
                     raise RuntimeError("Local Chrome exited before DevTools startup")
+                port=read_local_devtools_port(portfile)
+                if port is not None:break
                 time.sleep(.1)
-            if not portfile.exists():raise TimeoutError("Local Chrome did not open DevTools")
-            port=int(portfile.read_text().splitlines()[0])
-            with urlopen(f"http://127.0.0.1:{port}/json/list",timeout=3) as reply:
-                tabs=json.loads(reply.read())
+            if port is None:raise TimeoutError("Local Chrome DevTools port never became complete")
+            tabs=None
+            for _ in range(50):
+                if chrome.poll() is not None:
+                    raise RuntimeError("Local Chrome exited before DevTools endpoint was ready")
+                try:
+                    with urlopen(f"http://127.0.0.1:{port}/json/list",timeout=3) as reply:
+                        candidate=json.loads(reply.read())
+                    if isinstance(candidate,list) and any(
+                        isinstance(tab,dict) and tab.get("type")=="page"
+                        for tab in candidate
+                    ):
+                        tabs=candidate
+                        break
+                except (OSError,ValueError):
+                    pass
+                time.sleep(.1)
+            if tabs is None:raise TimeoutError("Local Chrome CDP page endpoint never became ready")
             target=next(x for x in tabs if x["type"]=="page")
             endpoint=target["webSocketDebuggerUrl"].split(f":{port}",1)[1]
             client=CDP(port,endpoint)
