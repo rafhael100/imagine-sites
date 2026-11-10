@@ -1,5 +1,14 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuidade supervisionada — Portal F1-15/16 e Sites F1-123/124 (10/11/2026)
+
+- [Portal PR #270 — F1-15](https://github.com/rafhael100/imagine-portal/pull/270): fonte comercial independente de época positiva, padrão DENY, evita revogação/restauração A→B→A do mesmo pedido durante emissão. PHP8.3/8.4, Laravel e testes gerais do Portal aprovados em dois workflows.
+- [Sites PR #159 — F1-123](https://github.com/rafhael100/imagine-sites/pull/159): o workflow cross-repo usa Portal fixado no commit `24081214446da198ea551fb18ee35d6948f3da5d`, provando em Onepage/Landing Page que a mudança da época comercial nega emissão mesmo com snapshot idêntico. Quatro workflows distintos aprovados, incluindo cross-repo PHP8.3/8.4.
+- [Portal PR #273 — F1-16](https://github.com/rafhael100/imagine-portal/pull/273): envelope sintético HMAC **v3** com campo `commercialEpoch` autenticado, além do `keyEpoch`; nova emissão protegida `issueCommercialEpochSigned` sem receber épocas nem segredo do chamador. Testes gerais e Laravel aprovados.
+- [Sites PR #160 — F1-124](https://github.com/rafhael100/imagine-sites/pull/160): verificador sintético HMAC v3 exige época comercial corrente, autentica campo contra MAC e preserva nonce/contrato da v2. Cross-repo PHP8.3/8.4, Laravel, testes sintéticos e safety aprovados na HEAD com código; Docker isolado ainda estava em execução na última consulta. O verificador **não** usa fonte IAM real: as épocas esperadas vêm das fixtures.
+- PRs **draft e empilhados**, sem merge em dev/main, publicação, cliente, VPS, DNS, Cloudflare ou custo. Emissor e verificador v3 continuam apenas no laboratório; integração ao admission store PostgreSQL, fonte confiável e durável de autorização comercial, autenticação S2S, vault, revogação, auditoria, homologação HTTPS e parecer independente AppSec ainda não existem. **10/10 gates operacionais BLOCKED.**
+
+
 ## Continuidade supervisionada — Portal F1-14 / Sites F1-122 (10/11/2026)
 
 - [Portal PR #267 — F1-14](https://github.com/rafhael100/imagine-portal/pull/267): `LabPortalSitesVersionedIssuer` agora consulta o contrato/pedido comercial **duas vezes**, incluindo a última consulta antes de devolver HMAC v2. Mudança de elegibilidade, revisão ou empresa entre as consultas resulta DENY; testes do Portal e Laravel PHP8.3/8.4 passaram nos dois workflows.

@@ -5,6 +5,8 @@ on:
     paths:
       - 'tests/f23-cross-repo.php'
       - 'src/Security/SyntheticVersionedSignedCommand.php'
+      - 'src/Security/SyntheticCommercialEpochSignedCommand.php'
+      - 'docs/SITES-F1-124-COMMERCIAL-EPOCH-HMAC-V3-PARITY.md'
       - 'docs/SITES-F1-119-PORTAL-V2-HMAC-CROSS-REPO.md'
       - 'docs/SITES-F1-121-PORTAL-TRUST-SOURCE-CROSS-REPO.md'
       - 'docs/SITES-F1-122-PORTAL-COMMERCIAL-FINAL-FENCE.md'
@@ -37,7 +39,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: rafhael100/imagine-portal
-          ref: 24081214446da198ea551fb18ee35d6948f3da5d
+          ref: 8d1e20bc5c39dc4106b549c5e979351b5c766615
           path: portal-candidate
           persist-credentials: false
       - uses: shivammathur/setup-php@v2
@@ -49,9 +51,10 @@ jobs:
       - name: Verify pinned public source identity
         run: |
           set -euo pipefail
-          test "$(git -C portal-candidate rev-parse HEAD)" = 24081214446da198ea551fb18ee35d6948f3da5d
+          test "$(git -C portal-candidate rev-parse HEAD)" = 8d1e20bc5c39dc4106b549c5e979351b5c766615
           test -f portal-candidate/apps/portal/app/Domain/SitesIntegration/SyntheticSitesEnvelopeSigner.php
           test -f portal-candidate/apps/portal/app/Domain/SitesIntegration/SyntheticSitesVersionedEnvelopeSigner.php
+          test -f portal-candidate/apps/portal/app/Domain/SitesIntegration/SyntheticSitesCommercialEpochSignedEnvelopeSigner.php
           test -f portal-candidate/apps/portal/app/Domain/SitesIntegration/LabPortalSitesVersionedIssuer.php
           test -f portal-candidate/apps/portal/app/Domain/SitesIntegration/PortalSiteCommercialEpochSource.php
           test -f portal-candidate/apps/portal/app/Domain/SitesIntegration/DenyingPortalSiteCommercialEpochSource.php
@@ -62,8 +65,10 @@ jobs:
         run: |
           php -l tests/f23-cross-repo.php
           php -l src/Security/SyntheticVersionedSignedCommand.php
+          php -l src/Security/SyntheticCommercialEpochSignedCommand.php
           php -l portal-candidate/apps/portal/app/Domain/SitesIntegration/SyntheticSitesEnvelopeSigner.php
           php -l portal-candidate/apps/portal/app/Domain/SitesIntegration/SyntheticSitesVersionedEnvelopeSigner.php
+          php -l portal-candidate/apps/portal/app/Domain/SitesIntegration/SyntheticSitesCommercialEpochSignedEnvelopeSigner.php
           php -l portal-candidate/apps/portal/app/Domain/SitesIntegration/LabPortalSitesVersionedIssuer.php
           php -l portal-candidate/apps/portal/app/Domain/SitesIntegration/PortalSiteCommercialEpochSource.php
           php -l portal-candidate/apps/portal/app/Domain/SitesIntegration/DenyingPortalSiteCommercialEpochSource.php

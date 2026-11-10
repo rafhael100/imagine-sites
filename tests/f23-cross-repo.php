@@ -16,12 +16,14 @@ use App\Domain\SitesIntegration\SyntheticSitesVersionedEnvelopeSigner;
 use App\Domain\SitesIntegration\CandidatePortalSitesSigningMaterial;
 use App\Domain\SitesIntegration\PortalSitesSigningMaterialSource;
 use App\Domain\SitesIntegration\LabPortalSitesVersionedIssuer;
+use App\Domain\SitesIntegration\SyntheticSitesCommercialEpochSignedEnvelopeSigner;
 use Imagine\Sites\Integration\SiteProjectCommand;
 use Imagine\Sites\Integration\CurrentPortalProjectAuthorizationSnapshot as ProjectSnapshot;
 use Imagine\Sites\Integration\SnapshotBoundPortalProjectAuthorityGateway;
 use Imagine\Sites\Security\ReplayStore;
 use Imagine\Sites\Security\SyntheticSignedCommand;
 use Imagine\Sites\Security\SyntheticVersionedSignedCommand;
+use Imagine\Sites\Security\SyntheticCommercialEpochSignedCommand;
 
 if (PHP_SAPI !== 'cli' || getenv('SITES_F1_23_CROSS_REPO') !== '1') {
     fwrite(STDERR, "Cross-repo contract test is disabled outside explicit CLI lab.\n");
@@ -338,6 +340,67 @@ foreach (['onepage','landing_page'] as $index => $product) {
         $recoveredEpoch,$key,$newEpoch,$now,new EphemeralF23ReplayFence()
     )->semanticFingerprint()===$sitesCommand->semanticFingerprint(),
         'F1-123 restored current commercial epoch yields valid Portal->Sites envelope '.$product);
+
+    // F1-124: the REAL Portal v3 candidate authenticates commercialEpoch
+    // as well as keyEpoch inside the HMAC. Sites checks both independent
+    // generations BEFORE consuming nonce; v2 cannot be silently upgraded.
+    $f124Nonce='f124-v3-commercial-epoch-00'.$index;
+    $portalV3=$trustedIssuer->issueCommercialEpochSigned(
+        'order-fictional-001','operation-fictional-00'.$index,
+        'idempotency-fictional-00'.$index,
+        $f124Nonce,$now,$now+60
+    );
+    $expectedV3=SyntheticCommercialEpochSignedCommand::sign(
+        $sitesCommand,$key,$f124Nonce,$now,$now+60,
+        $newEpoch,$commercialEpochs->epoch
+    );
+    f23Assert($portalV3===$expectedV3 &&
+        $portalV3['schemaVersion']==='3',
+        'F1-124 independent Portal and Sites generate identical HMAC v3 '.$product);
+    $v3Fence=new EphemeralF23ReplayFence();
+    f23Assert(SyntheticCommercialEpochSignedCommand::verify(
+        $portalV3,$key,$newEpoch,$commercialEpochs->epoch,$now,$v3Fence
+    )->semanticFingerprint()===$sitesCommand->semanticFingerprint(),
+        'F1-124 actual Portal v3 grant epoch passes Sites command scope '.$product);
+    f23Assert(f23Denied(fn()=>
+        SyntheticCommercialEpochSignedCommand::verify(
+            $portalV3,$key,$newEpoch,$commercialEpochs->epoch,$now,$v3Fence
+        )), 'F1-124 HMAC v3 duplicate nonce is refused '.$product);
+
+    $staleV3Nonce='f124-stale-commercial-epoch-00'.$index;
+    $staleV3=$trustedIssuer->issueCommercialEpochSigned(
+        'order-fictional-001','operation-fictional-00'.$index,
+        'idempotency-fictional-00'.$index,
+        $staleV3Nonce,$now,$now+60
+    );
+    ++$commercialEpochs->epoch;
+    $epochV3Fence=new EphemeralF23ReplayFence();
+    f23Assert(f23Denied(fn()=>
+        SyntheticCommercialEpochSignedCommand::verify(
+            $staleV3,$key,$newEpoch,$commercialEpochs->epoch,$now,$epochV3Fence
+        )), 'F1-124 commercially revoked envelope refused before consuming nonce '.$product);
+
+    $forgedV3=$staleV3;
+    $forgedV3['commercialEpoch']=$commercialEpochs->epoch;
+    f23Assert(f23Denied(fn()=>
+        SyntheticCommercialEpochSignedCommand::verify(
+            $forgedV3,$key,$newEpoch,$commercialEpochs->epoch,$now,$epochV3Fence
+        )), 'F1-124 unauthorized commercial epoch mutation breaks HMAC '.$product);
+
+    $reissuedV3=$trustedIssuer->issueCommercialEpochSigned(
+        'order-fictional-001','operation-fictional-00'.$index,
+        'idempotency-fictional-00'.$index,
+        $staleV3Nonce,$now,$now+60
+    );
+    f23Assert(SyntheticCommercialEpochSignedCommand::verify(
+        $reissuedV3,$key,$newEpoch,$commercialEpochs->epoch,$now,$epochV3Fence
+    )->semanticFingerprint()===$sitesCommand->semanticFingerprint(),
+        'F1-124 current commercial epoch accepts previously unconsumed nonce '.$product);
+    f23Assert(f23Denied(fn()=>
+        SyntheticCommercialEpochSignedCommand::verify(
+            $recoveredEpoch,$key,$newEpoch,$commercialEpochs->epoch,$now,
+            new EphemeralF23ReplayFence()
+        )), 'F1-124 v2 without commercial epoch is always denied in v3 verifier '.$product);
     f23Assert(f23Denied(fn()=>
         SyntheticVersionedSignedCommand::verify(
             $portalV2,$key,$epochV2,$now,$fenceV2
