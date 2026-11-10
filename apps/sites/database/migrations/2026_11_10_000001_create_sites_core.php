@@ -79,8 +79,10 @@ return new class extends Migration {
                 )",
             // This is an append-only lab revision ledger, NOT an official
             // customer acceptance or signed review decision.
-            "CREATE FUNCTION sites_reject_draft_mutation() RETURNS trigger LANGUAGE plpgsql AS
-                $$BEGIN RAISE EXCEPTION 'sites_drafts append-only'; END$$",
+            <<<'SQL'
+CREATE FUNCTION sites_reject_draft_mutation() RETURNS trigger LANGUAGE plpgsql AS
+$ BEGIN RAISE EXCEPTION 'sites_drafts append-only'; END $
+SQL,
             "CREATE TRIGGER sites_drafts_no_change
                 BEFORE UPDATE OR DELETE ON sites_drafts FOR EACH ROW
                 EXECUTE FUNCTION sites_reject_draft_mutation()",
