@@ -124,5 +124,52 @@ f50Assert(f50Denied(fn()=>V2::verify($forged,$wf,'release-f50',$key,$now,
 f50Assert(f50Denied(fn()=>V2::verify($new,$wf,'release-f50',$key,$now+60,
     new F50Nonce(),$source)),'exact expiry boundary denied');
 
+// F1-92: fixed deterministic verifier clock. Before F1-92, the envelope
+// TTL used the supplied instant while the authority snapshot used time(),
+// giving contradictory decisions in a single request.
+$fixed=1700000000;
+$historical=V2::sign(
+    $wf,'release-f50',12,$key,'f50-fixed-clock-nonce-001',
+    $fixed,$fixed+90
+);
+$source->snapshot=new Snapshot(
+    'tenant-f50-a','site-f50-a','workflow-f50-a',3,'release-f50',
+    $digest,12,'reviewable',$fixed-4,$fixed+24
+);
+$fixedReplay=new F50Nonce();
+f50Assert(V2::verify(
+    $historical,$wf,'release-f50',$key,$fixed,$fixedReplay,$source
+)['publishable']===false,
+    'one caller-provided trusted test clock checks both envelope and current authority');
+f50Assert(f50Denied(fn()=>V2::verify(
+    $historical,$wf,'release-f50',$key,$fixed,$fixedReplay,$source
+)), 'the fixed-clock signed nonce is still single-use');
+
+$expiredSnapshotReplay=new F50Nonce();
+f50Assert(f50Denied(fn()=>V2::verify(
+    $historical,$wf,'release-f50',$key,$fixed+25,
+    $expiredSnapshotReplay,$source
+)) && $expiredSnapshotReplay->used===[],
+    'snapshot expired at trusted clock denies even if signed envelope is valid');
+$futureSnapshot=new Snapshot(
+    'tenant-f50-a','site-f50-a','workflow-f50-a',3,'release-f50',
+    $digest,12,'reviewable',$fixed+6,$fixed+30
+);
+$source->snapshot=$futureSnapshot;
+$futureReplay=new F50Nonce();
+f50Assert(f50Denied(fn()=>V2::verify(
+    $historical,$wf,'release-f50',$key,$fixed,$futureReplay,$source
+)) && $futureReplay->used===[],
+    'future snapshot checkedAt beyond allowed skew denies before nonce spend');
+$source->snapshot=new Snapshot(
+    'tenant-f50-a','site-f50-a','workflow-f50-a',3,'release-f50',
+    $digest,13,'revoked',$fixed-4,$fixed+24
+);
+$revokedReplay=new F50Nonce();
+f50Assert(f50Denied(fn()=>V2::verify(
+    $historical,$wf,'release-f50',$key,$fixed,$revokedReplay,$source
+)) && $revokedReplay->used===[],
+    'revoked epoch denies at exact fixed verifier clock');
+
 echo "\n$checkCount F1-50 epoch-bound review checks passed; ";
 echo "no client acceptance, IAM, operational Portal or publication.\n";
