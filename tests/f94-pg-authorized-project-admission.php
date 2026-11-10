@@ -181,6 +181,58 @@ f94Assert((int)$app->query('SELECT count(*) FROM sites_projects')->fetchColumn()
     (int)$app->query('SELECT count(*) FROM sites_project_admissions')->fetchColumn()===0,
     'tenant context SET LOCAL does not persist across requests');
 
+// A human/Portal decision is not editable by an application or migration
+// operator via UPDATE/DELETE of previously recorded admission facts.
+function f94SqlDenied(PDO $db, string $sql): bool {
+    try {
+        $db->beginTransaction();
+        $db->exec($sql);
+        $db->rollBack();
+        return false;
+    } catch (PDOException) {
+        if ($db->inTransaction()) $db->rollBack();
+        return true;
+    }
+}
+f94Assert(f94SqlDenied($admin,
+    "UPDATE sites_project_admissions
+     SET contract_revision=2 WHERE tenant_ref='tenant-f94-a'"),
+    'admission trigger prevents SQL UPDATE even by migration owner');
+f94Assert(f94SqlDenied($admin,
+    "DELETE FROM sites_project_admissions
+     WHERE tenant_ref='tenant-f94-a'"),
+    'admission trigger prevents SQL DELETE even by migration owner');
+f94Assert(f94Count($app,'tenant-f94-a','sites_project_admissions')===1 &&
+    f94Count($app,'tenant-f94-b','sites_project_admissions')===1,
+    'unauthorized mutation attempts preserve both tenant admission records');
+
+$foreignKeyDenied=false;
+try {
+    $app->beginTransaction();
+    $s=$app->prepare("SELECT set_config('imagine_sites.tenant_ref', ?, true)");
+    $s->execute(['tenant-f94-a']);
+    $stmt=$app->prepare(
+        'INSERT INTO sites_project_admissions
+           (tenant_ref,site_ref,operation_id,idempotency_key,order_ref,
+            contract_ref,contract_revision,product_code,semantic_fingerprint)
+         VALUES (:tenant,:site,:op,:idem,:ord,:contract,:revision,:product,:fingerprint)'
+    );
+    $stmt->execute([
+        'tenant'=>'tenant-f94-a','site'=>'site-f94-only-other-tenant',
+        'op'=>'op-f94-no-parent','idem'=>'idem-f94-no-parent',
+        'ord'=>'order-f94-no-parent','contract'=>'contract-f94-no-parent',
+        'revision'=>1,'product'=>'onepage',
+        'fingerprint'=>str_repeat('e',64),
+    ]);
+} catch (PDOException) {
+    $foreignKeyDenied=true;
+} finally {
+    if ($app->inTransaction()) $app->rollBack();
+}
+f94Assert($foreignKeyDenied &&
+    f94Count($app,'tenant-f94-a','sites_project_admissions')===1,
+    'foreign key requires the project to exist in the SAME tenant before admission');
+
 $fixture->allowed=false;
 f94Assert(f94Denied(fn()=> $store->admit($original,'site-f94-001')) &&
     f94Count($app,'tenant-f94-a','sites_project_admissions')===1,
