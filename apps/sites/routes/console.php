@@ -546,3 +546,103 @@ Artisan::command('sites:export-style-gallery-fixture', function (): int {
     $this->line('Each page includes SHA-256 digest and local links; publishable=false.');
     return Command::SUCCESS;
 })->purpose('Generate twelve inert private Onepage/Landing/theme/viewport review fixtures');
+
+
+/**
+ * F1-72: assemble an unapproved private draft from an explicitly selected
+ * FICTIONAL input. Never accepts user-supplied paths, credentials or network.
+ */
+Artisan::command('sites:assemble-draft-fixture {product=onepage} {preset=classic} {variant=basic}', function (): int {
+    if (PHP_SAPI !== 'cli' || !app()->environment('testing') ||
+        getenv('SITES_SYNTHETIC_DRAFT') !== '1') {
+        $this->error('Draft assembly requires explicit CLI synthetic testing mode.');
+        return Command::FAILURE;
+    }
+    $product=(string)$this->argument('product');
+    $preset=(string)$this->argument('preset');
+    $variant=(string)$this->argument('variant');
+    if (!in_array($product,['onepage','landing_page'],true) ||
+        !in_array($preset,['classic','modern','warm'],true) ||
+        !in_array($variant,['basic','focused'],true)) {
+        $this->error('Unsupported fixture product, preset or variant.');
+        return Command::FAILURE;
+    }
+
+    // Exact fixture paths only: no caller-provided file or directory.
+    $source=base_path('../../fixtures/sites/f1-72-'.$variant.'.synthetic.json');
+    $private=storage_path('app/private');
+    $directory=$private.'/sites-f1-72-'.$product.'-'.$preset.'-'.$variant;
+    if (is_link($private) || is_link($directory) ||
+        file_exists($directory) || is_dir($directory) ||
+        !is_file($source) || is_link($source)) {
+        $this->error('Missing input or private target already exists/unsafe.');
+        return Command::FAILURE;
+    }
+
+    try {
+        $raw=(string)file_get_contents($source);
+        if (strlen($raw)>4096 || strlen($raw)===0) {
+            throw new \DomainException('Input fixture outside strict budget.');
+        }
+        $copy=json_decode($raw,true,16,JSON_THROW_ON_ERROR);
+        if (!is_array($copy) || array_is_list($copy)) {
+            throw new \DomainException('Copy fixture must be a JSON object.');
+        }
+        $assembly=\Imagine\Sites\Production\SyntheticStructuredDraftAssembly::build(
+            $product,'Marca Fictícia Imagine',$preset,$copy,
+            'tenant-fixture','site-fixture',
+            'workflow-f72-'.$product.'-'.$preset.'-'.$variant,
+            'release-f72-'.$product.'-'.$preset.'-'.$variant,
+        );
+        $summary=$assembly->reviewSummary();
+        if ($summary['publishable']!==false ||
+            $summary['officialClientAcceptance']!==false ||
+            $summary['internalReviewRequired']!==true ||
+            $summary['workflowState']!=='internal_review') {
+            throw new \DomainException('Internal-only draft invariant violated.');
+        }
+        $files=$assembly->bundle->files+[
+            'internal-review-draft.json'=>json_encode(
+                $summary,JSON_THROW_ON_ERROR|JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE
+            )."\n",
+        ];
+        if (array_keys($files)!==[
+            'index.html','release-manifest.json','internal-review-draft.json',
+        ]) {
+            throw new \DomainException('Unexpected local output file inventory.');
+        }
+    } catch (\Throwable) {
+        $this->error('Synthetic draft validation failed.');
+        return Command::FAILURE;
+    }
+
+    if (!is_dir($private) && !mkdir($private,0700,true) && !is_dir($private)) {
+        $this->error('Unable to create private lab scratch.');
+        return Command::FAILURE;
+    }
+    if (is_link($private) || !mkdir($directory,0700)) {
+        $this->error('Unable to create a fresh private draft output.');
+        return Command::FAILURE;
+    }
+    @chmod($directory,0700);
+    foreach ($files as $filename=>$bytes) {
+        $output=$directory.'/'.$filename;
+        $stream=@fopen($output,'x');
+        if ($stream===false) {
+            $this->error('Unable to create private draft file.');
+            return Command::FAILURE;
+        }
+        $n=fwrite($stream,$bytes);
+        fclose($stream);
+        @chmod($output,0600);
+        if ($n!==strlen($bytes)) {
+            $this->error('Incomplete private draft file write.');
+            return Command::FAILURE;
+        }
+    }
+    $this->line('PRIVATE SYNTHETIC DRAFT — INTERNAL REVIEW REQUIRED; NOT DELIVERED.');
+    $this->line('HTML SHA-256: '.$assembly->artifact->digest);
+    $this->line('Bundle SHA-256: '.$assembly->bundle->bundleDigest);
+    $this->line('Release: '.$assembly->manifest->releaseRef);
+    return Command::SUCCESS;
+})->purpose('Export a fictional, private structured draft without approval or publication');
