@@ -153,6 +153,9 @@ $intakeB=new LabSignedProjectIntake($app,$gateway,$fenceB,$signingKeys,$signingE
 $now=time();
 $sign=static fn(SiteProjectCommand $cmd,string $nonce):array =>
     SyntheticSignedCommand::sign($cmd,$key,$nonce,$now-1,$now+60);
+// F1-120: opt in explicitly to the historical CLI v1 test suite.
+$oldF120Legacy=getenv('SITES_F118_ALLOW_LEGACY_V1_LAB');
+putenv('SITES_F118_ALLOW_LEGACY_V1_LAB=1');
 $first=$sign($command,'f111-durable-nonce-0001');
 $site=LabAuthorizedProjectAdmissionStore::siteRefFor($command);
 
@@ -453,6 +456,7 @@ f111Check($intakeB->admitSigned($epochRetry)['idempotentReplay']===true &&
 // command from an OLD generation being replayed AFTER A->B->A
 // restoration, even when the current secret bytes equal the old ones.
 $oldVersionFlag=getenv('SITES_F118_REQUIRE_EPOCH_SIGNED');
+putenv('SITES_F118_ALLOW_LEGACY_V1_LAB=0');
 putenv('SITES_F118_REQUIRE_EPOCH_SIGNED=1');
 try {
     $legacySigned=$sign($command,'f118-durable-v1-denied-0001');
@@ -504,7 +508,32 @@ try {
 } finally {
     if ($oldVersionFlag===false) putenv('SITES_F118_REQUIRE_EPOCH_SIGNED');
     else putenv('SITES_F118_REQUIRE_EPOCH_SIGNED='.$oldVersionFlag);
+    putenv('SITES_F118_ALLOW_LEGACY_V1_LAB=1');
 }
 
-echo "\n$checks F1-111–F1-118 two-database signed intake assertions passed.\n";
+// F1-120: no configured version and contradictory flags both fail closed.
+$defaultNonce=$sign($command,'f120-durable-default-deny-0001');
+putenv('SITES_F118_ALLOW_LEGACY_V1_LAB=0');
+f111Check(f111Denied(fn()=> $intakeA->admitSigned($defaultNonce)) &&
+    f111AdmissionCount($app,'tenant-f111')===1,
+    'F1-120 no explicit version selection denies before nonce consumption');
+putenv('SITES_F118_ALLOW_LEGACY_V1_LAB=1');
+f111Check($intakeB->admitSigned($defaultNonce)['idempotentReplay']===true,
+    'F1-120 rejected default mode did not consume the durable nonce');
+
+$bothNonce=$sign($command,'f120-durable-both-modes-0002');
+putenv('SITES_F118_REQUIRE_EPOCH_SIGNED=1');
+f111Check(f111Denied(fn()=> $intakeA->admitSigned($bothNonce)) &&
+    f111AdmissionCount($app,'tenant-f111')===1,
+    'F1-120 both version flags enabled are denied, not downgraded');
+putenv('SITES_F118_REQUIRE_EPOCH_SIGNED=0');
+f111Check($intakeB->admitSigned($bothNonce)['idempotentReplay']===true,
+    'F1-120 invalid dual mode leaves nonce free for explicit version');
+
+if ($oldF120Legacy===false) putenv('SITES_F118_ALLOW_LEGACY_V1_LAB');
+else putenv('SITES_F118_ALLOW_LEGACY_V1_LAB='.$oldF120Legacy);
+if ($oldVersionFlag===false) putenv('SITES_F118_REQUIRE_EPOCH_SIGNED');
+else putenv('SITES_F118_REQUIRE_EPOCH_SIGNED='.$oldVersionFlag);
+
+echo "\n$checks F1-111–F1-120 two-database signed intake assertions passed.\n";
 echo "Disposable PG18, fake HMAC, no live Portal IAM, HTTP, client data, go-live or publication.\n";
