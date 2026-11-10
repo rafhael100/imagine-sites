@@ -57,3 +57,4 @@ jobs:
           php tests/f77-review-dossier.php
           php tests/f89-loopback-served-artifact.php
           php tests/f102-portal-project-snapshot.php
+          php tests/f109-portal-auth-schema-parity.php

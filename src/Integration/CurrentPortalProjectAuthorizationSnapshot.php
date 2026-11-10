@@ -12,6 +12,12 @@ use InvalidArgumentException;
  */
 final readonly class CurrentPortalProjectAuthorizationSnapshot
 {
+    public const WIRE_SCHEMA_VERSION = 'sites.portal-project-authorization.v1';
+    public const WIRE_FIELDS = [
+        'schemaVersion', 'boundCommand', 'authorizationRevision',
+        'status', 'checkedAt', 'validUntil',
+    ];
+
     public function __construct(
         public SiteProjectCommand $boundCommand,
         public int $authorizationRevision,
@@ -36,16 +42,12 @@ final readonly class CurrentPortalProjectAuthorizationSnapshot
      */
     public static function fromArray(array $candidate): self
     {
-        $required=[
-            'schemaVersion','boundCommand','authorizationRevision',
-            'status','checkedAt','validUntil'
-        ];
         $actual=array_keys($candidate);
         sort($actual);
-        $sorted=$required;
+        $sorted=self::WIRE_FIELDS;
         sort($sorted);
         if ($actual !== $sorted ||
-            ($candidate['schemaVersion'] ?? null) !== 'sites.portal-project-authorization.v1' ||
+            ($candidate['schemaVersion'] ?? null) !== self::WIRE_SCHEMA_VERSION ||
             !is_array($candidate['boundCommand']) ||
             !is_int($candidate['authorizationRevision']) ||
             !is_string($candidate['status']) ||
