@@ -8,7 +8,7 @@ O adaptador F1-14 `LabPostgresReplayStore` validava, ao ser instanciado, a base 
 
 A cada chamada `rememberOnce()`, antes de qualquer `INSERT`, o adaptador agora:
 
-1. Exige execução CLI e `SITES_F1_14_PG_LAB=1` no momento do consumo.
+1. Exige execução CLI, `APP_ENV=testing` e `SITES_F1_14_PG_LAB=1` tanto ao criar o adaptador quanto no momento de cada consumo.
 2. Rejeita conexões já dentro de transações administradas pelo chamador; o nonce precisa ser persistido em sua própria operação autocommit na base descartável.
 3. Consulta novamente `current_database()`, `current_user` e as propriedades de `pg_roles`, exigindo base `sites_auth_replay_lab`, role `sites_auth_runtime` e ausência de SUPERUSER/BYPASSRLS/CREATEDB/CREATEROLE/LOGIN.
 4. Falha fechado, retornando `false`, se a consulta de contexto, a execução SQL ou os requisitos anteriores falharem; segue aplicando o registro INSERT-only, RLS e chave única por emissor/nonce.
