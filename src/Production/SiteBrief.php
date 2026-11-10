@@ -20,9 +20,13 @@ final readonly class SiteBrief
         public string $description,
         public string $callToAction,
         public array $benefits,
+        public string $stylePreset = 'classic',
     ) {
         if (!in_array($productCode, ['onepage', 'landing_page'], true)) {
             throw new InvalidArgumentException('Unsupported Imagine Sites product.');
+        }
+        if (!in_array($stylePreset,['classic','modern','warm'],true)) {
+            throw new InvalidArgumentException('Unsupported fictional visual preset.');
         }
         foreach ([
             'brand' => [$brand, 120],

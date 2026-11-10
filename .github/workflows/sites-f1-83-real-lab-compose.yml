@@ -1,0 +1,65 @@
+name: Sites F1-83 build and run isolated Docker CLI laboratory (no deploy)
+on:
+  pull_request:
+    paths:
+      - 'ops/staging/Dockerfile'
+      - 'ops/staging/Dockerfile.dockerignore'
+      - 'ops/staging/compose.yml'
+      - 'ops/staging/postgres-init/**'
+      - 'ci/f73_staging_lab_contract.py'
+      - 'ci/f74_docker_lab_boundary.py'
+      - 'apps/sites/**'
+      - 'src/**'
+      - '.github/workflows/sites-f1-83-real-lab-compose.yml'
+      - 'docs/SITES-F1-83-DOCKER-LAB-EXECUTION.md'
+permissions:
+  contents: read
+jobs:
+  isolated-lab-build-and-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      # This is PUBLIC TEST DATA, not a secret and never used in production.
+      SITES_LAB_DB_PASSWORD: github-ci-fictional-disposable-db-only
+      SITES_LAB_DB_ADMIN_PASSWORD: github-ci-fictional-disposable-admin-only
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Reject unsafe lab profile before any build
+        run: |
+          set -euo pipefail
+          python3 ci/f73_staging_lab_contract.py
+          python3 ci/f74_docker_lab_boundary.py
+          docker compose -f ops/staging/compose.yml --profile lab config --format json |
+            python3 ci/f74_docker_lab_boundary.py --rendered-stdin
+      - name: Build the non-root PHP 8.4 lab image (no production image pushed)
+        run: |
+          set -euo pipefail
+          docker compose -f ops/staging/compose.yml --profile lab build sites-lab-tests
+      - name: Verify container image has no listener and runs as UID 10001
+        run: |
+          set -euo pipefail
+          docker image inspect imagine-sites-lab-sites-lab-tests \
+            --format '{{.Config.User}}' | grep -Fx '10001:10001'
+          docker image inspect imagine-sites-lab-sites-lab-tests \
+            --format '{{json .Config.ExposedPorts}}' | grep -Fx 'null'
+      - name: Run Laravel tests on an internal-only Compose network
+        run: |
+          set -euo pipefail
+          # Verify a REAL network connection using the restricted app role.
+          # F84 does only a TEMP table roundtrip inside a rollback transaction.
+          docker compose -f ops/staging/compose.yml --profile lab run --rm \
+            -e SITES_F84_LAB=1 sites-lab-tests php scripts/verify-isolated-db.php
+          docker compose -f ops/staging/compose.yml --profile lab run --rm sites-lab-tests
+          db="$(docker compose -f ops/staging/compose.yml --profile lab ps -q sites-lab-db)"
+          test -n "$db"
+          test -z "$(docker port "$db")"
+      - name: Remove all disposable test containers and PG volumes
+        if: always()
+        run: |
+          docker compose -f ops/staging/compose.yml --profile lab down --volumes --remove-orphans || true
+      - name: State the scope
+        if: always()
+        run: |
+          echo 'F1-83 only tested a disposable GitHub Actions Docker lab. No Leaseweb, production identity, public ports, customer data or publication.'
