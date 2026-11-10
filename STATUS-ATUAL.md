@@ -2,9 +2,17 @@
 
 ## Atualização — 10/11/2026 (linha supervisionada de desenvolvimento)
 
-### Marco atual F1-93 — PR agregado #127
+### Marco atual F1-94 — PR agregado #129
 
-- [PR #127](https://github.com/rafhael100/imagine-sites/pull/127): consolidação de F1-45 a F1-93 para revisão técnica independente em `dev`. **Sem merge em `dev`/`main`**, sem implantação/cliente real e sem alteração de gates. Exige validação integral do CI da HEAD final e revisão AppSec independente.
+- [PR #129](https://github.com/rafhael100/imagine-sites/pull/129): proposta de integração F1-45..94 em `dev` para revisão independente, sem merge nem deploy. O CI da HEAD final deve ser comprovado e registrado antes de abrir revisão.
+- [PR #128 — F1-94](https://github.com/rafhael100/imagine-sites/pull/128): segunda migração real `sites_project_admissions` e admissão transacional de projeto sob gateway `PortalProjectAuthorityGateway` **DENY por padrão**. Idempotência baseada em empresa, operação, site, pedido, contrato, revisão e hash semântico, com rollback em conflitos. Os seis workflows individuais passaram, incluindo PostgreSQL 18 com **25 assertivas por versão PHP 8.3/8.4**.
+- O novo teste comprova que o trigger bloqueia UPDATE/DELETE e a FK exige projeto da própria empresa. Também comprova **limite de segurança: o usuário SQL que controla `imagine_sites.tenant_ref` pode assumir o contexto de outra empresa**. Portanto, RLS/GUC não equivalem a identidade/isolamento operacional confiável; é indispensável autenticação real no Portal e restrição absoluta ao usuário SQL.
+- [PR #127](https://github.com/rafhael100/imagine-sites/pull/127) passou anteriormente em 23 workflows distintos e 39/39 jobs; agora é proposta histórica substituída, **não mesclada**. O mesmo ocorre com PRs agregados antigos. Os dez gates `BLOCKED` continuam sem evidência operacional, pois não existem ainda IAM real, Cloudflare público, CRM/IA operacionais ou VPS homologada.
+- Preservados: nenhum dado real, contratação, DNS, código em `dev`/`main`, deploy, publicação ou aceite do cliente. Revisão independente obrigatória antes de merge.
+
+### Marco anterior F1-93 — PR agregado #127 (histórico)
+
+- [PR #127](https://github.com/rafhael100/imagine-sites/pull/127): registro da consolidação até F1-93, **substituída pelo PR #129**, sem merge em `dev`/`main` e sem liberação operacional. O CI de sua HEAD anterior passou em 23 workflows e 39/39 jobs.
 - [PR #125 — F1-92](https://github.com/rafhael100/imagine-sites/pull/125): correção da validação do snapshot do Portal usando o mesmo instante confiável do envelope HMAC v2; testes de expiração, revogação e nonce. **Seis workflows acionados aprovados**.
 - [PR #126 — F1-93](https://github.com/rafhael100/imagine-sites/pull/126): migração Laravel real cria `sites_projects`/`sites_drafts` em PostgreSQL 18 efêmero, RLS FORCE, constraints de produto/revisão/hash e trigger contra UPDATE/DELETE. **PHP 8.3 e 8.4 aprovados**, 16 checagens por job, role não privilegiada, cross-tenant, transação sem vazamento e rollback destrutivo proibido. O trigger SQL precisou de correção de delimitador e depois passou.
 - **Limite de segurança explícito:** o valor `imagine_sites.tenant_ref` em `SET LOCAL` pode ser manipulado por acesso SQL direto; **não é identidade nem autorização por empresa**. Só usar com conexão restrita, código autenticado pelo Portal e sem SQL arbitrário. A migração nega execução fora de `APP_ENV=testing` + `SITES_F93_SCHEMA_LAB=1`.

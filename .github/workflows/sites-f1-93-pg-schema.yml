@@ -75,7 +75,7 @@ jobs:
         working-directory: apps/sites
         run: |
           set -euo pipefail
-          if SITES_F93_SCHEMA_LAB=0 php artisan migrate --force --no-interaction; then
+          if SITES_F93_SCHEMA_LAB=0 php artisan migrate --path=database/migrations/2026_11_10_000001_create_sites_core.php --force --no-interaction; then
             echo 'Unsafe: unapproved migration succeeded without opt-in'
             exit 1
           fi
@@ -85,7 +85,8 @@ jobs:
         run: |
           set -euo pipefail
           php -l database/migrations/2026_11_10_000001_create_sites_core.php
-          php artisan migrate --force --no-interaction
+          # F1-94 has a separate opt-in and migration integration workflow.
+          php artisan migrate --path=database/migrations/2026_11_10_000001_create_sites_core.php --force --no-interaction
           php artisan migrate:status
       - name: Provision isolated LAB test role with SELECT INSERT only
         run: |
@@ -109,7 +110,7 @@ jobs:
         working-directory: apps/sites
         run: |
           set -euo pipefail
-          if php artisan migrate:rollback --force --no-interaction; then
+          if php artisan migrate:rollback --path=database/migrations/2026_11_10_000001_create_sites_core.php --force --no-interaction; then
             echo 'Unsafe: destructive down() unexpectedly succeeded'
             exit 1
           fi
