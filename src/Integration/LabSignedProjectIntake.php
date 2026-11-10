@@ -50,6 +50,15 @@ final class LabSignedProjectIntake
             throw new DomainException('lab_signed_project_intake_disabled');
         }
 
+        // F1-120: version-selection is an explicit laboratory authority.
+        // Never fall back to v1 merely because the v2 flag was forgotten.
+        // Contradictory v1/v2 flags also DENY before key lookup or nonce use.
+        $requireV2=getenv('SITES_F118_REQUIRE_EPOCH_SIGNED') === '1';
+        $allowLegacyV1=getenv('SITES_F118_ALLOW_LEGACY_V1_LAB') === '1';
+        if ($requireV2 === $allowLegacyV1) {
+            throw new DomainException('lab_signed_project_envelope_mode_denied');
+        }
+
         // This verifier is strictly synthetic. A real command would need
         // mutually authenticated transport, independently managed signing
         // keys, sender audience restrictions and a durable replay fence.
@@ -88,9 +97,9 @@ final class LabSignedProjectIntake
         }
         // F1-118 opt-in: authenticate the signing-key epoch INSIDE the
         // v2 HMAC, not only via a contemporaneous independent lookup.
-        // The default v1 path remains restricted to the legacy CLI lab
-        // until the real Portal contract is negotiated and reviewed.
-        if (getenv('SITES_F118_REQUIRE_EPOCH_SIGNED') === '1') {
+        // The legacy v1 path requires a separate affirmative CLI lab flag;
+        // there is NO default version or silent downgrade.
+        if ($requireV2) {
             $command=SyntheticVersionedSignedCommand::verify(
                 $envelope,$syntheticKey,$signingEpoch,time(),$this->replay
             );
