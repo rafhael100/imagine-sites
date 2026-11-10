@@ -6,6 +6,7 @@ on:
       - 'tests/f23-cross-repo.php'
       - 'src/Security/SyntheticVersionedSignedCommand.php'
       - 'docs/SITES-F1-119-PORTAL-V2-HMAC-CROSS-REPO.md'
+      - 'docs/SITES-F1-121-PORTAL-TRUST-SOURCE-CROSS-REPO.md'
       - 'src/Integration/CurrentPortalProjectAuthorizationSnapshot.php'
       - 'src/Integration/SiteProjectCommand.php'
       - 'src/Integration/SnapshotBoundPortalProjectAuthorityGateway.php'
@@ -34,7 +35,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: rafhael100/imagine-portal
-          ref: 855212e93649235715202390f296444d91b6609e
+          ref: b2bfd8e8c3e5f646764b4b3d91ce34612886d452
           path: portal-candidate
           persist-credentials: false
       - uses: shivammathur/setup-php@v2
@@ -46,15 +47,23 @@ jobs:
       - name: Verify pinned public source identity
         run: |
           set -euo pipefail
-          test "$(git -C portal-candidate rev-parse HEAD)" = 855212e93649235715202390f296444d91b6609e
+          test "$(git -C portal-candidate rev-parse HEAD)" = b2bfd8e8c3e5f646764b4b3d91ce34612886d452
           test -f portal-candidate/apps/portal/app/Domain/SitesIntegration/SyntheticSitesEnvelopeSigner.php
           test -f portal-candidate/apps/portal/app/Domain/SitesIntegration/SyntheticSitesVersionedEnvelopeSigner.php
+          test -f portal-candidate/apps/portal/app/Domain/SitesIntegration/LabPortalSitesVersionedIssuer.php
+          test -f portal-candidate/apps/portal/app/Domain/SitesIntegration/PortalSitesSigningMaterialSource.php
+          test -f portal-candidate/apps/portal/app/Domain/SitesIntegration/CandidatePortalSitesSigningMaterial.php
+          test -f portal-candidate/apps/portal/app/Domain/SitesIntegration/DenyingPortalSitesSigningMaterialSource.php
       - name: Syntax check independent code from both repositories
         run: |
           php -l tests/f23-cross-repo.php
           php -l src/Security/SyntheticVersionedSignedCommand.php
           php -l portal-candidate/apps/portal/app/Domain/SitesIntegration/SyntheticSitesEnvelopeSigner.php
           php -l portal-candidate/apps/portal/app/Domain/SitesIntegration/SyntheticSitesVersionedEnvelopeSigner.php
+          php -l portal-candidate/apps/portal/app/Domain/SitesIntegration/LabPortalSitesVersionedIssuer.php
+          php -l portal-candidate/apps/portal/app/Domain/SitesIntegration/PortalSitesSigningMaterialSource.php
+          php -l portal-candidate/apps/portal/app/Domain/SitesIntegration/CandidatePortalSitesSigningMaterial.php
+          php -l portal-candidate/apps/portal/app/Domain/SitesIntegration/DenyingPortalSitesSigningMaterialSource.php
           php -l portal-candidate/apps/portal/app/Domain/SitesIntegration/SitesCreateProjectEncoder.php
       - name: Run real candidate class interoperability tests (in-memory fake authority)
         run: php tests/f23-cross-repo.php
