@@ -131,9 +131,9 @@ jobs:
         run: |
           set -euo pipefail
           php tests/f94-pg-authorized-project-admission.php
-          php -l ../../src/Persistence/LabVerifiedDraftRevisionStore.php
-          php -l ../../tests/f95-pg-verified-draft-revisions.php
-          php ../../tests/f95-pg-verified-draft-revisions.php
+          php -l src/Persistence/LabVerifiedDraftRevisionStore.php
+          php -l tests/f95-pg-verified-draft-revisions.php
+          php tests/f95-pg-verified-draft-revisions.php
       - name: Prove rollback cannot drop the admissions ledger
         working-directory: apps/sites
         run: |
