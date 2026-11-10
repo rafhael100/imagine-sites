@@ -77,8 +77,14 @@ final class LabSignedProjectIntake
 
         // This method independently rechecks the Portal-candidate gateway
         // before its own transaction AND just before COMMIT (F1-104).
+        // F1-116: revocation/rotation of the pinned signing key must
+        // invalidate BOTH candidate admission checks, including the
+        // second decision immediately before the PostgreSQL COMMIT.
+        $currentAuthority=new LabPinnedPortalSigningKeyAuthorityGateway(
+            $this->authority, $this->signingKeys, $syntheticKey
+        );
         return (new LabAuthorizedProjectAdmissionStore(
-            $this->db, $this->authority
+            $this->db, $currentAuthority
         ))->admit($command, $siteRef);
     }
 }
