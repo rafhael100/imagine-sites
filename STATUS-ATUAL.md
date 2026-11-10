@@ -1,5 +1,15 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuidade supervisionada — F1-123..125 e Portal F1-15..16 (10/11/2026)
+
+- [Portal PR #270 / F1-15](https://github.com/rafhael100/imagine-portal/pull/270): fonte independente de geração de autorização comercial por pedido, padrão DENY, evita revogação/restauração A→B→A durante emissão. **Dois workflows concluídos com sucesso** (testes do Portal e Laravel/PHP 8.3/8.4).
+- [Sites PR #159 / F1-123](https://github.com/rafhael100/imagine-sites/pull/159): prova cross-repo com o código Portal fixado em `24081214446da198ea551fb18ee35d6948f3da5d`; para Onepage/Landing Page, época comercial divergente nega emissão mesmo se o snapshot do pedido voltou a ser idêntico. **Quatro workflows concluídos com sucesso**, inclusive PHP8.3/8.4.
+- [Portal PR #273 / F1-16](https://github.com/rafhael100/imagine-portal/pull/273): versão sintética **HMAC v3** autentica `commercialEpoch` junto de `keyEpoch`; `issueCommercialEpochSigned` obtém ambos das fontes candidatas, nunca do chamador. **Dois workflows concluídos com sucesso** no Portal.
+- [Sites PR #160 / F1-124](https://github.com/rafhael100/imagine-sites/pull/160): verificador HMAC v3 e teste cross-repo real usando Portal fixado em `8d1e20bc5c39dc4106b549c5e979351b5c766615`. Compara envelopes para Onepage/Landing Page e recusa época comercial antiga, alteração não assinada e replay. **Cinco workflows distintos aprovados**, incluindo cross-repo PHP8.3/8.4, Laravel, safety, sintéticos e Docker.
+- [Sites PR #161 / F1-125](https://github.com/rafhael100/imagine-sites/pull/161): modo CLI/testing **v3 explícito**, sem downgrade; fonte independente de época comercial padrão DENY. Autentica HMAC antes de consulta por recurso sem consumir nonce, reconsulta epoch antes do consumo durável e outra vez no início e pré-COMMIT da admissão PostgreSQL18. Testes em duas bases descartáveis e PHP8.3/8.4 comprovam rejeição de revisão obsoleta e HMAC alterada, rollback, nonce persistido e nova assinatura para retry. PostgreSQL18, Laravel, safety e sintéticos passaram na HEAD de código; Docker ainda era executado na última consulta.
+- Os PRs permanecem **draft e empilhados**, sem merge em dev/main, publicação, cliente/PII, DNS, VPS/Cloudflare ou novas despesas. O Portal não possui emissor/autorizador operacional v3; épocas/chaves usadas nos testes são fixtures em memória, não prova de IAM, vault, monotonicidade durável ou identidade mutuamente autenticada. Falta homologação HTTPS real, revisão independente AppSec, auditoria, contrato aprovado e acesso autorizado à infraestrutura. **10/10 gates operacionais de produção permanecem BLOCKED.**
+
+
 ## Continuidade supervisionada — Portal F1-15/16 e Sites F1-123/124 (10/11/2026)
 
 - [Portal PR #270 — F1-15](https://github.com/rafhael100/imagine-portal/pull/270): fonte comercial independente de época positiva, padrão DENY, evita revogação/restauração A→B→A do mesmo pedido durante emissão. PHP8.3/8.4, Laravel e testes gerais do Portal aprovados em dois workflows.
