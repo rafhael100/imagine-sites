@@ -76,7 +76,7 @@ foreach(['onepage','landing_page'] as $product) {
                 Audit::isSafe($plan->nextArtifact->html) &&
                 QA::inspect($plan->nextArtifact)->passedStructuralChecks,
                 'new revision has exact safe HTML with fresh SHA');
-            check207(substr_count($plan->nextArtifact->html,'<meta ')===$enabled?5:12,
+            check207(substr_count($plan->nextArtifact->html,'<meta ')===($enabled?5:12),
                 'only requested seven optional social tags differ');
             check207($plan->draftWorkflow->state===Workflow::DRAFTING &&
                 $plan->draftWorkflow->revision===4 &&
