@@ -95,6 +95,7 @@ final class SyntheticEditorialPatchV1
                 $changes['faq']??$approvedBrief->faq,
                 $changes['highlights']??$approvedBrief->highlights,
                 $changes['processSteps']??$approvedBrief->processSteps,
+                $approvedBrief->sectionOrder,
             );
         }catch(InvalidArgumentException $e){
             throw new DomainException('editorial_patch_invalid_content',previous:$e);
