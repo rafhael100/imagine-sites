@@ -20,6 +20,9 @@ final class StructuredCopyCandidate
     private const COPY_FIELDS = [
         'schemaVersion', 'headline', 'description', 'callToAction', 'benefits',
     ];
+    private const COPY_FIELDS_V2 = [
+        'schemaVersion', 'headline', 'description', 'callToAction', 'benefits', 'faq',
+    ];
 
     /** @param array<string,mixed> $candidate */
     public static function assemble(
@@ -31,11 +34,18 @@ final class StructuredCopyCandidate
         if ($maxBytes < 512 || $maxBytes > 32768) {
             throw new InvalidArgumentException('Invalid synthetic output size budget.');
         }
+        // Version 1 is frozen. Version 2 explicitly carries structured FAQ
+        // questions; neither version may define the official product or brand.
+        $version = $candidate['schemaVersion'] ?? null;
+        $expected = match ($version) {
+            'sites.ai-copy.v1' => self::COPY_FIELDS,
+            'sites.ai-copy.v2' => self::COPY_FIELDS_V2,
+            default => throw new DomainException('untrusted_ai_response_schema'),
+        };
         $actual = array_keys($candidate);
-        $expected = self::COPY_FIELDS;
         sort($actual);
         sort($expected);
-        if ($actual !== $expected || ($candidate['schemaVersion'] ?? null) !== 'sites.ai-copy.v1') {
+        if ($actual !== $expected) {
             throw new DomainException('untrusted_ai_response_schema');
         }
         try {
@@ -61,6 +71,24 @@ final class StructuredCopyCandidate
                 throw new DomainException('unsafe_ai_benefit');
             }
         }
+        $faq = [];
+        if ($version === 'sites.ai-copy.v2') {
+            $faq = $candidate['faq'];
+            if (!is_array($faq) || !array_is_list($faq) || count($faq) > 6) {
+                throw new DomainException('invalid_ai_faq_list');
+            }
+            foreach ($faq as $entry) {
+                if (!is_array($entry) ||
+                    array_keys($entry) !== ['question', 'answer'] ||
+                    !is_string($entry['question']) ||
+                    !is_string($entry['answer']) ||
+                    !self::safePlainCopy($entry['question']) ||
+                    !self::safePlainCopy($entry['answer'])) {
+                    throw new DomainException('unsafe_ai_faq_entry');
+                }
+            }
+        }
+
         try {
             return new SiteBrief(
                 $officialProductCode,
@@ -69,6 +97,8 @@ final class StructuredCopyCandidate
                 $candidate['description'],
                 $candidate['callToAction'],
                 $benefits,
+                'classic',
+                $faq,
             );
         } catch (InvalidArgumentException $e) {
             throw new DomainException('invalid_ai_brief_constraints', previous:$e);
