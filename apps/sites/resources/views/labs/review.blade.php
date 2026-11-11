@@ -80,7 +80,7 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
     <section class="card" aria-labelledby="product-title"><h2 id="product-title">Tipo de site</h2><p class="sub">Alternar modelos de teste</p>
       <nav class="tabs" aria-label="Alternar produto">
         <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product=onepage&amp;device={{ $device }}{{ $galleryMode ? '' : '&preset='.$preset }}{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}{{ ($brandPaletteCode ?? null) === null ? '' : '&palette='.$brandPaletteCode }}" @if($product==='onepage') aria-current="page" @endif>Onepage</a>
-        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product=landing_page&amp;device={{ $device }}{{ $galleryMode ? '' : '&preset='.$preset }}{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.($anchorNavMode==='on'?'off':$anchorNavMode) }}" @if($product==='landing_page') aria-current="page" @endif>Landing Page</a>
+        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product=landing_page&amp;device={{ $device }}{{ $galleryMode ? '' : '&preset='.$preset }}{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.($anchorNavMode==='on'?'off':$anchorNavMode) }}{{ ($brandPaletteCode ?? null) === null ? '' : '&palette='.$brandPaletteCode }}" @if($product==='landing_page') aria-current="page" @endif>Landing Page</a>
       </nav>
     </section>
     @unless($galleryMode)
@@ -154,7 +154,7 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
       @if($product==='onepage')
         <nav class="tabs" aria-label="Alternar menu interno">
           @foreach(['off'=>'Desativada','on'=>'Ativada'] as $navCode=>$navLabel)
-            <a href="{{ $reviewRoute }}?product={{ $product }}&amp;device={{ $device }}&amp;preset={{ $preset }}&amp;nav={{ $navCode }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}" @if($anchorNavMode===$navCode) aria-current="page" @endif>{{ $navLabel }}</a>
+            <a href="{{ $reviewRoute }}?product={{ $product }}&amp;device={{ $device }}&amp;preset={{ $preset }}&amp;nav={{ $navCode }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($brandPaletteCode ?? null) === null ? '' : '&palette='.$brandPaletteCode }}" @if($anchorNavMode===$navCode) aria-current="page" @endif>{{ $navLabel }}</a>
           @endforeach
         </nav>
       @else
@@ -194,7 +194,7 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
       <p class="sub">Compare cores de demonstração escolhidas pela equipe Imagine, com limite mínimo de contraste. A seleção gera novo hash e exige revisão.</p>
       <nav class="tabs" aria-label="Alternar cores da marca">
         @foreach(['default'=>'Tema original','ocean'=>'Oceano','plum'=>'Ameixa','forest'=>'Floresta'] as $brandOption=>$brandLabel)
-          <a href="{{ $reviewRoute }}?product={{ $product }}&amp;device={{ $device }}&amp;preset={{ $preset }}&amp;palette={{ $brandOption }}" @if($brandPaletteCode===$brandOption) aria-current="page" @endif>{{ $brandLabel }}</a>
+          <a href="{{ $reviewRoute }}?product={{ $product }}&amp;device={{ $device }}&amp;preset={{ $preset }}&amp;palette={{ $brandOption }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}" @if($brandPaletteCode===$brandOption) aria-current="page" @endif>{{ $brandLabel }}</a>
         @endforeach
       </nav>
       @if($brandPaletteContrast !== null)
@@ -208,6 +208,26 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
       <p class="sub">Tema original sem alterações nas cores da marca.</p>
       @endif
       <p class="locked">Paletas predefinidas, sem CSS livre, envio de dados ou publicação.</p>
+    </section>
+    @endif
+    @if(($visualChangeBaseline ?? false) === true)
+    <section class="card" aria-labelledby="visual-baseline-title">
+      <h2 id="visual-baseline-title">Configuração visual original</h2>
+      <p class="sub">Sem alterações propostas. Esta é somente a prévia inicial pendente de revisão; nenhuma decisão anterior foi inventada ou reaproveitada.</p>
+    </section>
+    @endif
+    @if(($visualChangeDetails ?? null) !== null)
+    <section class="card" aria-labelledby="visual-before-title">
+      <h2 id="visual-before-title">Antes da alteração visual</h2>
+      <p class="sub">A prévia anterior é fixa e isolada; o HTML novo está na prévia principal à direita.</p>
+      <dl>
+        <div><dt>Tema anterior</dt><dd>Classic</dd></div>
+        <div><dt>Tema novo</dt><dd>{{ ucfirst($visualChangeDetails['nextStyle']) }}</dd></div>
+        <div><dt>Tema alterado</dt><dd id="visual-style-changed">{{ $visualChangeDetails['styleChanged'] ? 'Sim' : 'Não' }}</dd></div>
+        <div><dt>Cores alteradas</dt><dd id="visual-palette-changed">{{ $visualChangeDetails['paletteChanged'] ? 'Sim' : 'Não' }}</dd></div>
+      </dl>
+      <iframe title="Prévia original da composição visual, somente leitura" sandbox="" tabindex="-1" referrerpolicy="no-referrer" srcdoc="{{ $visualChangeDetails['previousHtml'] }}"></iframe>
+      <p class="sub">Nova disposição não reutiliza qualquer revisão ou aceite anterior.</p>
     </section>
     @endif
     <section class="card" aria-labelledby="steps-title"><h2 id="steps-title">Etapas de revisão</h2>
