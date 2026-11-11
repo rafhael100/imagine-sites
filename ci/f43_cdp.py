@@ -137,6 +137,8 @@ METRICS = r"""(() => {
       /^[a-z_]+-(?:desktop|mobile)\.html$/.test(a.getAttribute('href'))),
     frameSandbox:frame?.getAttribute('sandbox'),frameSrc:frame?.getAttribute('src'),
     frameTitle:frame?.getAttribute('title'),frameTabindex:frame?.getAttribute('tabindex'),qa:document.querySelectorAll('.qa-list li').length,
+    skipTarget:document.querySelector('a.skip-preview')?.getAttribute('href'),
+    skipPresent:document.getElementById('apos-previa')?.getAttribute('tabindex'),
     controls:document.querySelectorAll('form,button,input,script,object,embed').length
   };
 })()"""
@@ -240,45 +242,59 @@ def run(gallery: Path, browser: str) -> None:
                     assert result["lang"] == "pt-BR", (filename, result)
                     assert result["main"] == 1 and result["headings"] == 1, (filename, result)
                     assert result["navSelected"] == [1, 1], (filename, result)
-                    assert len(result["links"]) == 5, (filename, result)
+                    assert len(result["links"]) == 6, (filename, result)
+                    assert result["links"][-2:] == ["#apos-previa", "#detalhes"], (filename,result)
+                    assert result["skipTarget"] == "#apos-previa" and result["skipPresent"] == "-1", (filename,result)
                     assert result["linksVisible"] and result["navigationLocal"], (filename, result)
                     assert result["frameSandbox"] == "" and not result["frameSrc"], (filename, result)
                     assert result["frameTitle"] and result["frameTabindex"] == "0" and result["qa"] == 7, (filename, result)
                     assert result["controls"] == 0, (filename, result)
                     assert_review_text_contrast(client, filename)
 
-                    # Chromium also focuses the sandbox iframe (and its
-                    # inner navigation). Verify the first four outer links in
-                    # order and that Tab eventually reaches the final footer
-                    # anchor, instead of assuming the iframe is not tabbable.
+                    # F1-183: a sandboxed iframe can hold or obscure focus,
+                    # and some headless builds report BODY indefinitely.
+                    # Provide an explicit keyboard path to bypass the frame
+                    # BEFORE it is entered. Test actual Tab/Enter navigation
+                    # rather than treating a missing footer as success.
                     client.call("Page.bringToFront")
-                    client.evaluate("document.activeElement.blur(); document.body.focus()")
-                    focused = []
+                    client.evaluate("document.querySelector('a[href]').focus()")
                     key = {"key": "Tab", "code": "Tab",
                            "windowsVirtualKeyCode": 9, "nativeVirtualKeyCode": 9}
-                    for _ in range(16):
+                    focused = [client.evaluate(
+                        "document.activeElement?.getAttribute('href') || document.activeElement?.tagName"
+                    )]
+                    for _ in range(4):
                         client.call("Input.dispatchKeyEvent", {"type": "rawKeyDown", **key})
                         client.call("Input.dispatchKeyEvent", {"type": "keyUp", **key})
                         focused.append(client.evaluate(
                             "document.activeElement?.getAttribute('href') || document.activeElement?.tagName"
                         ))
-                        if len(focused) >= 5 and focused[-1] == result["links"][-1]:
-                            break
-                    assert focused[:4] == result["links"][:4], (
-                        filename, 'initial keyboard navigation', focused, result["links"]
+                    assert focused == result["links"][:5], (
+                        filename, "first four controls and iframe bypass must be keyboard reachable",
+                        focused, result["links"]
                     )
-                    assert result["links"][-1] in focused[4:], (
-                        filename, 'keyboard trapped before final link', focused
+                    enter = {"key": "Enter", "code": "Enter",
+                             "windowsVirtualKeyCode": 13, "nativeVirtualKeyCode": 13}
+                    client.call("Input.dispatchKeyEvent", {"type": "rawKeyDown", **enter})
+                    client.call("Input.dispatchKeyEvent", {"type": "keyUp", **enter})
+                    skip_state=client.evaluate("""(() => ({
+                      hash:location.hash,
+                      focused:document.activeElement?.id || document.activeElement?.tagName,
+                      target:!!document.getElementById('apos-previa')
+                    }))()""")
+                    assert skip_state["hash"] == "#apos-previa" and skip_state["target"], (
+                        filename, "Enter must activate real skip-to-after-preview anchor", skip_state
                     )
-                    # Chrome may report transient BODY instead of IFRAME
-                    # while changing focus to a sandboxed srcdoc. Do not
-                    # equate that observation with verified inner-frame focus.
-                    # Accessibility of inner content needs separate review.
-                    assert all(step in ('IFRAME','BODY') for step in focused[4:-1]), (
-                        filename, 'unexpected intermediate keyboard target', focused
+                    client.call("Input.dispatchKeyEvent", {"type": "rawKeyDown", **key})
+                    client.call("Input.dispatchKeyEvent", {"type": "keyUp", **key})
+                    footer=client.evaluate(
+                        "document.activeElement?.getAttribute('href') || document.activeElement?.tagName"
+                    )
+                    assert footer == result["links"][-1], (
+                        filename, "Tab from skip destination must reach identity details", footer
                     )
                     print(f"PASS F1-43 {filename}: {width}x{height}, no horizontal overflow, "
-                          "Tab reaches footer after four local links; iframe tabindex=0")
+                          "keyboard skip bypasses sandbox and reaches footer; iframe tabindex=0")
             finally:
                 client.close()
         finally:

@@ -47,6 +47,8 @@ code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.75rem
 .preview-head{padding:18px 21px;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;border-bottom:1px solid #e2e7ee}
 .preview-head .tabs{margin:0}
 .workspace{background:#e8edf4;padding:24px 18px 30px;min-height:550px}
+.skip-preview{display:block;max-width:1120px;margin:0 auto 10px;text-align:right;font-size:.78rem;text-decoration:underline;color:#174673;font-weight:700}
+.skip-preview:focus-visible{outline:3px solid #2366bc;outline-offset:3px}
 .browser{border:1px solid #c5d1df;border-radius:13px;overflow:hidden;box-shadow:0 20px 45px rgba(19,40,65,.13);margin:auto;background:#fff}
 .browser.desktop{max-width:1120px;width:100%}
 .browser.mobile{max-width:390px;width:100%}
@@ -218,11 +220,13 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
         <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product={{ $product }}&amp;device=mobile{{ $galleryMode ? '' : '&preset='.$preset }}{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}" @if($device==='mobile') aria-current="page" @endif>Mobile</a>
       </nav>
     </div>
-    <div class="workspace"><div class="browser {{ $device }}">
+    <div class="workspace">
+      <a class="skip-preview" href="#apos-previa">Pular a prévia incorporada</a>
+      <div class="browser {{ $device }}">
       <div class="chrome" aria-hidden="true"><i></i><i></i><i></i><span>Prévia privada · sem domínio público</span></div>
       <iframe title="Prévia sintética do site {{ $product }}" sandbox="" tabindex="0" referrerpolicy="no-referrer" srcdoc="{{ $previewHtml }}"></iframe>
     </div></div>
-    <div class="foot">Sem captação, scripts, URLs de clientes ou publicação. <a href="#detalhes">Ver identidade da versão</a></div>
+    <div class="foot" id="apos-previa" tabindex="-1">Sem captação, scripts, URLs de clientes ou publicação. <a href="#detalhes">Ver identidade da versão</a></div>
   </section>
 </div>
 <p class="note">Somente para testes Laravel em processo CLI. O Portal é a autoridade exclusiva para contrato, aceite expresso do cliente e evento oficial ENTREGUE.</p>
