@@ -64,9 +64,9 @@ $now=2000000000;
 $issued=$now-15;
 $expires=$now+120;
 $nonce='77777777-7777-4777-8777-777777777777';
-$make=static fn(string $op,int $issuedAt=$issued,int $expiresAt=$expires,
-    string $once=$nonce):Handoff=>
-    Handoff::draft($draft,$op,$issuedAt,$expiresAt,$now,$once);
+$make=static fn(string $op,?int $issuedAt=null,?int $expiresAt=null,
+    ?string $once=null):Handoff=>
+    Handoff::draft($draft,$op,$issuedAt??$issued,$expiresAt??$expires,$now,$once??$nonce);
 
 $crm=new ActualCrmInspector();
 $decoder=new ActualDecoder();
