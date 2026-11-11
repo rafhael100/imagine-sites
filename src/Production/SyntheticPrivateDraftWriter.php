@@ -41,7 +41,7 @@ final class SyntheticPrivateDraftWriter
         $parent = dirname($directory);
         $base = basename($directory);
         if ($directory === '' || $base === '' || $base === '.' || $base === '..' ||
-            !preg_match('/\Asites-f1-72-(?:onepage|landing_page)-(?:classic|modern|warm)-(?:basic|focused)\z/D', $base) ||
+            !preg_match('/\Asites-(?:f1-72-(?:onepage|landing_page)-(?:classic|modern|warm)-(?:basic|focused)|f1-174-(?:onepage|landing_page)-(?:classic|modern|warm)-edited)\z/D', $base) ||
             is_link($parent) || !is_dir($parent) ||
             is_link($directory) || file_exists($directory)) {
             throw new DomainException('private_draft_writer_requires_fresh_fixed_target');
