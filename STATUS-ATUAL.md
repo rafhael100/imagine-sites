@@ -1,5 +1,13 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuidade supervisionada — F1-133 e F1-134 (10/11/2026)
+
+- [Sites PR #169 / F1-133](https://github.com/rafhael100/imagine-sites/pull/169): adicionou **ledger de metadados de lead exclusivo do CI** em PostgreSQL 18 (`sites_f133_lead_lab`), com PK (organização, submissão), seis UUIDs sintéticos, hora T0 do banco, role restrita com SELECT/INSERT por coluna, `ENABLE/FORCE RLS` e sem UPDATE/DELETE/TRUNCATE. Prova de concorrência física entre **duas conexões PDO**, SQLSTATE 55P03 no segundo INSERT enquanto o primeiro está pendente, replay após COMMIT sem duplicata, contexto/destino CRM original preservados, rollback, isolamento por tenant e timestamp não forjável. **Cinco workflows concluídos com sucesso**, incluindo a matriz PostgreSQL 18 PHP8.3/8.4, Laravel, testes sintéticos, RLS básico e safety.
+- [Sites PR #170 / F1-134](https://github.com/rafhael100/imagine-sites/pull/170): novo `LabPostgresCrmLeadMetadataReadback` verifica uma linha existente sob transação, banco e role CI esperados, recusando contexto incorreto, ausência de registro e qualquer mudança de vínculo/site/formulário/destino. `SyntheticCrmLeadMetadataReadbackAssessment` devolve apenas códigos diagnósticos, com reserva, ACK, entrega CRM e retry automático **sempre false**, inclusive após correspondência de metadados. **PostgreSQL 18 PHP8.3/8.4, Laravel, testes sintéticos e safety aprovados** na HEAD com código; o workflow Docker ainda estava concluindo na última consulta.
+- **GUC `app.tenant_id` NÃO autentica um tenant** se o cliente puder executar SQL arbitrário. A tabela é apenas fixture no banco descartável e não garante CAS operacional, dois ingressos físicos independentes, idempotência global entre datacenters, endpoint, identidade/verificação de vínculo real, recibo, ACK CRM, retenção LGPD nem consentimento. Os requisitos OP04 #36 continuam P0 e devem passar por SEG/DBA/AppSec independente.
+- PRs #169 e #170 seguem **draft empilhados**, sem merge em dev/main, deploy, cliente/PII, formulário real, VPS, DNS, Cloudflare ou novas despesas. **10/10 gates de produção BLOCKED**.
+
+
 ## Continuidade supervisionada — F1-132 (10/11/2026)
 
 - [Sites PR #168 — F1-132](https://github.com/rafhael100/imagine-sites/pull/168): implementou `SyntheticCrmLeadLedgerIntentV1`, que calcula fingerprint sintético de **organização + submissão** e compara vínculo, site, formulário e destino CRM original sem permitir reatribuição da mesma entrega. O teste `tests/f132-crm-ledger-evidence-cross-repo.php` executa o código-fonte real do CRM F3-07/F3-12 fixado na revisão `a2f29c8e19185e3451fe953f6fe9c9c9bcbbe3ef` (CRM draft PR #49), em PHP8.3/8.4.
