@@ -24,6 +24,7 @@ final readonly class SyntheticCompositeVisualRevisionPlan
         public bool $paletteChanged,
         public bool $sectionOrderChanged,
         public bool $navigationChanged,
+        public bool $socialMetadataChanged,
         public SiteBrief $nextBrief,
         public ReleaseArtifact $nextArtifact,
         public SyntheticProductionWorkflow $draftWorkflow,
@@ -42,6 +43,7 @@ final readonly class SyntheticCompositeVisualRevisionPlan
         string $nextReleaseRef,
         string $actorRole,
         int $expectedRevision,
+        ?bool $requestedSocialPreviewMetadata = null,
     ):self {
         if ($actorRole!=='imagine_reviewer' ||
             $approvedWorkflow->state!==SyntheticProductionWorkflow::AWAITING_PORTAL_ACCEPTANCE ||
@@ -75,7 +77,7 @@ final readonly class SyntheticCompositeVisualRevisionPlan
             $requestedOrder,
             $requestedNavigation,
             $requestedPalette,
-            $approvedBrief->socialPreviewMetadata,
+            $requestedSocialPreviewMetadata??$approvedBrief->socialPreviewMetadata,
         );
 
         $styleChanged=$nextBrief->stylePreset!==$approvedBrief->stylePreset;
@@ -84,7 +86,9 @@ final readonly class SyntheticCompositeVisualRevisionPlan
         $paletteChanged=$oldPalette!==$newPalette;
         $orderChanged=$nextBrief->sectionOrder!==$approvedBrief->sectionOrder;
         $navChanged=$nextBrief->sectionNavigation!==$approvedBrief->sectionNavigation;
-        if (!$styleChanged && !$paletteChanged && !$orderChanged && !$navChanged) {
+        $socialChanged=$nextBrief->socialPreviewMetadata!==$approvedBrief->socialPreviewMetadata;
+        if (!$styleChanged && !$paletteChanged && !$orderChanged && !$navChanged &&
+            !$socialChanged) {
             throw new DomainException('composite_visual_requires_real_change');
         }
         $newArtifact=$renderer->render($nextBrief);
@@ -117,7 +121,7 @@ final readonly class SyntheticCompositeVisualRevisionPlan
         }
         return new self(
             $previousReleaseRef,$nextReleaseRef,$approvedArtifact->digest,
-            $styleChanged,$paletteChanged,$orderChanged,$navChanged,
+            $styleChanged,$paletteChanged,$orderChanged,$navChanged,$socialChanged,
             $nextBrief,$newArtifact,$reopened
         );
     }
