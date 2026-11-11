@@ -34,6 +34,27 @@ final class StaticSiteRenderer
             '<section class="about" id="sobre" aria-labelledby="sobre-title"><div class="container">'.
             '<h2 id="sobre-title">Sobre '.$brand.'</h2><p>'.$description.'</p></div></section>' : '';
         $mode = $isOnepage ? 'onepage' : 'landing-page';
+        $faqSection = '';
+        if ($brief->faq !== []) {
+            $faqItems = implode("\n", array_map(
+                static fn (array $entry): string =>
+                    '          <li><h3>'.$escape($entry['question']).'</h3><p>'.
+                    $escape($entry['answer']).'</p></li>',
+                $brief->faq,
+            ));
+            $faqSection = <<<FAQ
+    <section class="faq" id="perguntas" aria-labelledby="faq-title">
+      <div class="container">
+        <h2 id="faq-title">Perguntas frequentes</h2>
+        <ul>
+{$faqItems}
+        </ul>
+      </div>
+    </section>
+FAQ;
+            $about .= "\n    ".$faqSection;
+        }
+
 
         $html = <<<HTML
 <!doctype html>
@@ -107,6 +128,19 @@ final class StaticSiteRenderer
 </body>
 </html>
 HTML;
+
+        // F1-157: FAQ CSS exists only when the optional block is present.
+        // Existing no-FAQ releases remain byte-for-byte unchanged.
+        if ($faqSection !== '') {
+            $faqCss = <<<'CSS'
+    .faq { background: #f7f9fc; }
+    .faq ul { list-style: none; padding: 0; display: grid; gap: 18px; }
+    .faq li { padding: 24px; background: #fff; border: 1px solid #e4eaf1; border-radius: 12px; }
+    .faq h3 { margin: 0 0 10px; font-size: 1.1rem; line-height: 1.3; }
+    .faq p { margin: 0; overflow-wrap: anywhere; }
+CSS;
+            $html = str_replace("  </style>\n</head>", $faqCss."\n  </style>\n</head>", $html);
+        }
 
         // F1-51: conservative, predefined offline design tokens only.
         // The classic profile remains BYTE-IDENTICAL with previous releases.

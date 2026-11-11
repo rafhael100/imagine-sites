@@ -67,6 +67,7 @@ final readonly class SyntheticContentRevisionPlan
             'description' => [$approvedBrief->description, $nextBrief->description],
             'callToAction' => [$approvedBrief->callToAction, $nextBrief->callToAction],
             'benefits' => [$approvedBrief->benefits, $nextBrief->benefits],
+            'faq' => [$approvedBrief->faq, $nextBrief->faq],
         ];
         $changed = [];
         foreach ($fields as $key => [$before, $after]) {
