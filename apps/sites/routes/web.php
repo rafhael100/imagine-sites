@@ -1384,3 +1384,142 @@ Route::get('/_lab/sites/v1/visual-change', static function (Request $request) {
             "base-uri 'none'; frame-ancestors 'none'",
     ]);
 })->name('sites.lab.visual-change');
+
+
+/**
+ * F1-208: two social-card metadata variants in PRIVATE, in-process Laravel.
+ * No public routes, uploads, external URLs, real actor or client acceptance.
+ */
+Route::get('/_lab/sites/v1/social-preview', static function (Request $request) {
+    if (PHP_SAPI!=='cli' || !app()->environment('testing') ||
+        getenv('SITES_SYNTHETIC_HTTP')!=='1' ||
+        getenv('SITES_SYNTHETIC_REVIEW_UI')!=='1' ||
+        getenv('SITES_SYNTHETIC_RICH_REVIEW')!=='1' ||
+        getenv('SITES_F208_SOCIAL_REVIEW')!=='1' ||
+        !in_array($request->ip(),['127.0.0.1','::1'],true)) {
+        return response('Not found',404);
+    }
+    foreach($request->query() as $name=>$value) {
+        if (!in_array($name,['product','device','preset','social'],true) ||
+            !is_string($value) || $value==='') {
+            return response('Not found',404);
+        }
+    }
+    $product=$request->query('product','onepage');
+    $device=$request->query('device','desktop');
+    $preset=$request->query('preset','classic');
+    $social=$request->query('social');
+    if (!is_string($product) || !is_string($device) ||
+        !is_string($preset) || !is_string($social) ||
+        !in_array($product,['onepage','landing_page'],true) ||
+        !in_array($device,['desktop','mobile'],true) ||
+        !in_array($preset,['classic','modern','warm'],true) ||
+        !in_array($social,['on','off'],true)) {
+        return response('Not found',404);
+    }
+    try {
+        $path=base_path('../../fixtures/sites/f1-170-process-copy.synthetic.json');
+        if(!is_file($path) || is_link($path) || filesize($path)>8192) {
+            return response('Not found',404);
+        }
+        $copy=json_decode((string)file_get_contents($path),true,16,JSON_THROW_ON_ERROR);
+        if (!is_array($copy) || ($copy['schemaVersion']??null)!=='sites.ai-copy.v4' ||
+            count($copy['faq']??[])!==2 ||
+            count($copy['highlights']??[])!==2 ||
+            count($copy['processSteps']??[])!==3) {
+            return response('Not found',404);
+        }
+
+        $tenant='tenant-f208-fictional';
+        $site='site-f208-fictional';
+        $oldRef='release-f208-original-'.$product.'-'.$preset;
+        $source=\Imagine\Sites\Production\SyntheticStructuredDraftAssembly::build(
+            $product,'Marca Fictícia Imagine',$preset,$copy,
+            $tenant,$site,'workflow-f208-original-'.$product.'-'.$preset,$oldRef
+        );
+        $details=null;
+        if ($social==='on') {
+            $approved=$source->workflow->advance(
+                'imagine_reviewer','approve_internal',2,$source->artifact->digest
+            );
+            $newRef='release-f208-social-on-'.$product.'-'.$preset;
+            $plan=\Imagine\Sites\Production\SyntheticSocialPreviewRevisionPlan::begin(
+                $approved,$source->brief,$source->artifact,
+                $oldRef,true,$newRef,'imagine_reviewer',3
+            );
+            if ($plan->draftWorkflow->state!=='drafting' ||
+                $plan->draftWorkflow->revision!==4 ||
+                $plan->draftWorkflow->artifactDigest!==null ||
+                $plan->canPublish() || $plan->canAcceptForClient() ||
+                $plan->canWriteCrm() || $plan->canReusePreviousApproval()) {
+                return response('Not found',404);
+            }
+            $draft=\Imagine\Sites\Production\SyntheticStructuredDraftAssembly::build(
+                $product,'Marca Fictícia Imagine',$preset,$copy,
+                $tenant,$site,'workflow-f208-social-on-'.$product.'-'.$preset,
+                $newRef,['highlights','process','faq'],false,null,true
+            );
+            if (!hash_equals($plan->nextArtifact->html,$draft->artifact->html) ||
+                !hash_equals($plan->nextArtifact->digest,$draft->artifact->digest)) {
+                return response('Not found',404);
+            }
+            $details=[
+                'previousDigest'=>$source->artifact->digest,
+                'nextDigest'=>$draft->artifact->digest,
+                'reopenedRevision'=>$plan->draftWorkflow->revision,
+            ];
+        } else {
+            // Original draft: do not fabricate a previous human approval.
+            $draft=$source;
+        }
+
+        if (!$draft->structuralReport->passedStructuralChecks ||
+            !\Imagine\Sites\Production\InertPreviewAudit::isSafe($draft->artifact->html) ||
+            $draft->brief->socialPreviewMetadata!==($social==='on')) {
+            return response('Not found',404);
+        }
+        $summary=$draft->reviewSummary();
+        $dossier=\Imagine\Sites\Production\SyntheticInternalReviewDossier::fromDraft($draft);
+        if ($summary['workflowState']!=='internal_review' ||
+            $summary['publishable']!==false ||
+            $summary['officialClientAcceptance']!==false ||
+            $dossier->record['reviewerDecisionStatus']!=='pending' ||
+            $dossier->record['publishable']!==false ||
+            $dossier->record['officialClientAcceptance']!==false) {
+            return response('Not found',404);
+        }
+        $page=view('labs.review',[
+            'product'=>$product,'device'=>$device,'preset'=>$preset,
+            'galleryMode'=>false,
+            'reviewRoute'=>'/_lab/sites/v1/social-preview',
+            'richReview'=>true,
+            'socialPreviewMode'=>$social,
+            'socialRevisionDetails'=>$details,
+            'brief'=>$draft->brief,
+            'previewHtml'=>$draft->artifact->html,
+            'digest'=>$draft->artifact->digest,
+            'reviewSnapshot'=>$summary,
+            'dossierDigest'=>$dossier->digest,
+            'requiredAcknowledgments'=>$dossier->record['requiredReviewerAcknowledgments'],
+            'qaChecks'=>$draft->structuralReport->checks,
+            'editorialChecks'=>$draft->editorialReport->checks,
+            'editorialSuggestions'=>$draft->editorialReport->suggestions,
+        ])->render();
+    }catch(\Throwable){
+        return response('Not found',404);
+    }
+
+    return response($page,200,[
+        'Content-Type'=>'text/html; charset=UTF-8',
+        'Cache-Control'=>'private, no-store, max-age=0',
+        'X-Content-Type-Options'=>'nosniff',
+        'X-Frame-Options'=>'DENY',
+        'Referrer-Policy'=>'no-referrer',
+        'X-Robots-Tag'=>'noindex, nofollow, noarchive',
+        'Permissions-Policy'=>'camera=(), microphone=(), geolocation=()',
+        'Content-Security-Policy'=>"default-src 'none'; script-src 'none'; ".
+            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src data:; ".
+            "connect-src 'none'; form-action 'none'; object-src 'none'; ".
+            "base-uri 'none'; frame-ancestors 'none'",
+    ]);
+})->name('sites.lab.social-preview');
