@@ -155,7 +155,7 @@ HTML;
     .highlights { background: #eaf0f8; }
     .highlights ul { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,240px),1fr)); gap: 18px; }
     .highlights li { background: #fff; border: 1px solid #d6e0ec; border-radius: 14px; padding: 24px; }
-    .highlights h3 { margin: 0 0 10px; font-size: 1.17rem; line-height: 1.3; }
+    .highlights h3 { margin: 0 0 10px; font-size: 1.17rem; line-height: 1.3; overflow-wrap: anywhere; }
     .highlights p { margin: 0; overflow-wrap: anywhere; }
 CSS;
             $html = str_replace("  </style>\n</head>", $highlightsCss."\n  </style>\n</head>", $html);
@@ -168,7 +168,7 @@ CSS;
     .faq { background: #f7f9fc; }
     .faq ul { list-style: none; padding: 0; display: grid; gap: 18px; }
     .faq li { padding: 24px; background: #fff; border: 1px solid #e4eaf1; border-radius: 12px; }
-    .faq h3 { margin: 0 0 10px; font-size: 1.1rem; line-height: 1.3; }
+    .faq h3 { margin: 0 0 10px; font-size: 1.1rem; line-height: 1.3; overflow-wrap: anywhere; }
     .faq p { margin: 0; overflow-wrap: anywhere; }
 CSS;
             $html = str_replace("  </style>\n</head>", $faqCss."\n  </style>\n</head>", $html);
