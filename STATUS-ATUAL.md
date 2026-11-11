@@ -1,5 +1,15 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuidade supervisionada — F1-132 (10/11/2026)
+
+- [Sites PR #168 — F1-132](https://github.com/rafhael100/imagine-sites/pull/168): implementou `SyntheticCrmLeadLedgerIntentV1`, que calcula fingerprint sintético de **organização + submissão** e compara vínculo, site, formulário e destino CRM original sem permitir reatribuição da mesma entrega. O teste `tests/f132-crm-ledger-evidence-cross-repo.php` executa o código-fonte real do CRM F3-07/F3-12 fixado na revisão `a2f29c8e19185e3451fe953f6fe9c9c9bcbbe3ef` (CRM draft PR #49), em PHP8.3/8.4.
+- O validador `SyntheticIdempotencyCasInspector` do CRM prova que duas verificações concorrentes dão apenas `ATOMIC_STORE_REQUIRED` **sem eleger vencedor nem reservar**, e que mudança do destino original não se transforma em nova entrega. Revisão obsoleta, estados reservados, desconhecidos ou finais, operação forçada e overflow de versão continuam DENY.
+- O `SyntheticDeliveryEvidenceInspector` real do CRM prova que **HTTP 200/201 ou um UUID alegado de registro não confirmam entrega**, assim como timeouts, retorno 202, vínculo divergente ou status de CRM não verificado. Não há ACK ao visitante, retry automático ou marcação de lead entregue. O fingerprint é não secreto e não substitui CAS global, vínculo autenticado ou recibo durável.
+- Workflows **cross-repo CRM PHP8.3/8.4, testes sintéticos, Laravel e safety concluídos com sucesso** no SHA de código da F1-132. Docker isolado estava em execução na primeira validação. A suíte anterior F1-131 continua incluída.
+- [OP04 #36](https://github.com/rafhael100/imagine-sites/issues/36) permanece integralmente ABERTA: sem dois ingressos físicos, armazenamento/T0 servidor, CAS global, confirmação CRM, identidade autenticada, LGPD operacional, homologação e revisão SEG/DBA/AppSec. **10/10 gates de produção BLOCKED**.
+- PR draft empilhado sobre #167, sem merge dev/main, deploy, site ou formulário público, envio de lead, PII, VPS, DNS, Cloudflare ou despesas.
+
+
 ## Continuidade supervisionada — F1-130 / F1-131 (10/11/2026)
 
 - [Sites PR #166 — F1-130](https://github.com/rafhael100/imagine-sites/pull/166): pré-teste sintético de retry de leads Sites–CRM ganhou fontes **independentes de época positiva e default DENY**. Exige época Sites e CRM estáveis antes/depois de verificar vínculo, destino CRM original, revisão, atividade e frescor, detectando A→B→A mesmo se os snapshots voltarem aos mesmos valores. Preserva T0 servidor alegado do recibo fictício e janela rígida **72h + 360h = 432h**. **4/4 workflows aprovados na HEAD de código**: PHP8.3/8.4 sintético, Laravel, safety e Docker.
