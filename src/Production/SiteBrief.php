@@ -22,6 +22,7 @@ final readonly class SiteBrief
         public array $benefits,
         public string $stylePreset = 'classic',
         public array $faq = [],
+        public array $highlights = [],
     ) {
         if (!in_array($productCode, ['onepage', 'landing_page'], true)) {
             throw new InvalidArgumentException('Unsupported Imagine Sites product.');
@@ -67,6 +68,31 @@ final readonly class SiteBrief
             }
             $normalizedQuestions[$key] = true;
         }
+        // Optional static service highlights, never data collection forms.
+        if (count($highlights) > 4 || !array_is_list($highlights)) {
+            throw new InvalidArgumentException('At most four highlight entries.');
+        }
+        $seenHighlightTitles = [];
+        foreach ($highlights as $item) {
+            if (!is_array($item) || array_keys($item) !== ['title', 'description']) {
+                throw new InvalidArgumentException('Invalid highlight fields.');
+            }
+            foreach (['title' => 100, 'description' => 300] as $field => $max) {
+                $value = $item[$field];
+                if (!is_string($value) || trim($value) === '' ||
+                    strlen($value) > $max || !mb_check_encoding($value, 'UTF-8') ||
+                    preg_match('/[\\x00-\\x1f\\x7f]/u', $value) ||
+                    preg_match('~(?:https?://|javascript:|data:)~i', $value)) {
+                    throw new InvalidArgumentException('Unsafe highlight copy.');
+                }
+            }
+            $normalized = mb_strtolower(trim($item['title']), 'UTF-8');
+            if (isset($seenHighlightTitles[$normalized])) {
+                throw new InvalidArgumentException('Duplicate highlight title.');
+            }
+            $seenHighlightTitles[$normalized] = true;
+        }
+
         foreach ($benefits as $benefit) {
             if (!is_string($benefit) || trim($benefit) === '' || strlen($benefit) > 180 ||
                 !mb_check_encoding($benefit, 'UTF-8')) {
