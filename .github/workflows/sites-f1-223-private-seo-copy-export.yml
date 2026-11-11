@@ -1,0 +1,56 @@
+name: Sites F1-223 private review export for SEO copy
+on:
+  pull_request:
+    paths:
+      - 'src/Production/SyntheticSeoCopyFixtureV1.php'
+      - 'src/Production/SyntheticPrivateDraftWriter.php'
+      - 'apps/sites/routes/console.php'
+      - 'apps/sites/tests/Feature/SyntheticSeoCopyPrivateExportTest.php'
+      - '.github/workflows/sites-f1-223-private-seo-copy-export.yml'
+permissions:
+  contents: read
+concurrency:
+  group: F1-223-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  private-seo-copy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    env:
+      APP_ENV: testing
+      SITES_F223_SEO_EXPORT: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring,dom,xml,curl,pdo,pdo_pgsql
+          tools: composer:v2
+          coverage: none
+      - name: Lint synthetic domain, export and test
+        run: |
+          set -euo pipefail
+          php -l src/Production/SyntheticSeoCopyFixtureV1.php
+          php -l src/Production/SyntheticPrivateDraftWriter.php
+          php -l apps/sites/routes/console.php
+          php -l apps/sites/tests/Feature/SyntheticSeoCopyPrivateExportTest.php
+      - name: Install locked Laravel CI dependencies
+        working-directory: apps/sites
+        run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
+      - name: Verify SEO private exports and Laravel review parity
+        working-directory: apps/sites
+        run: |
+          set -euo pipefail
+          php artisan test --filter='(SyntheticSeoCopyPrivateExportTest|SyntheticSeoCopyReviewTest|SyntheticPrivateSeoCliTest|SyntheticEditedPrivateBundleTest)' --no-ansi
+      - name: Delete synthetic files from runner
+        if: always()
+        working-directory: apps/sites
+        run: |
+          rm -rf storage/app/private/sites-f1-223-*
+          echo "No client data, real indexing, publication, CRM or deploy."
