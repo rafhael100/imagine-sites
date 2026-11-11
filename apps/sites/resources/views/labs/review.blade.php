@@ -57,6 +57,7 @@ code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.75rem
 .chrome span{margin:auto;color:#52647a;font-size:.7rem}
 iframe{width:100%;height:505px;border:0;display:block;background:#fff}
 .foot{padding:15px 21px;color:#52647a;font-size:.75rem;border-top:1px solid #e2e7ee}
+.layout-evidence-detail{margin:13px 0;font-size:.78rem}.layout-evidence-detail summary{font-weight:700;cursor:pointer}.layout-evidence-detail pre{max-height:290px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;border:1px solid #dce4ed;background:#f8fafc;border-radius:8px;padding:12px;font-size:.7rem}
 .note{font-size:.78rem;background:#ecf3fb;border:1px solid #d5e5f6;padding:15px 18px;border-radius:10px;margin-top:20px;color:#2a5077}
 .qa-summary{margin-top:20px;border-top:1px solid #e5ebf2;padding-top:17px}.qa-summary strong{font-size:.84rem}.qa-summary p{font-size:.73rem;color:#52647a;margin:5px 0 10px}.qa-list{padding:0;list-style:none;display:grid;gap:7px}.qa-list li{display:flex;gap:9px;align-items:center;font-size:.76rem}.qa-list span{display:grid;place-items:center;width:18px;height:18px;background:#e8f4ec;color:#246342;border-radius:50%;font-weight:800}.qa-summary p.pending{margin-top:11px;background:#fff8e9;color:#7a5b23;border-radius:7px;padding:9px}
 .editorial-summary{margin-top:15px;padding-top:15px;border-top:1px solid #e5ebf2}
@@ -173,7 +174,17 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
         <div><dt>Revisão reaberta</dt><dd id="layout-reopened-revision">{{ $layoutRevisionDetails['reopenedRevision'] }} — rascunho, sem aceite</dd></div>
         <div><dt>Ordem alterada</dt><dd id="layout-order-changed">{{ $layoutRevisionDetails['orderChanged'] ? 'Sim' : 'Não' }}</dd></div>
         <div><dt>Menu alterado</dt><dd id="layout-navigation-changed">{{ $layoutRevisionDetails['navigationChanged'] ? 'Sim' : 'Não' }}</dd></div>
+        @if(($layoutChangeEvidenceDigest ?? null) !== null)
+        <div><dt>Evidência da revisão — SHA-256</dt><dd><code id="layout-evidence-digest">{{ $layoutChangeEvidenceDigest }}</code></dd></div>
+        <div><dt>Decisão da nova versão</dt><dd id="layout-evidence-state">Pendente — não publicada, não entregue ao CRM e sem aceite oficial</dd></div>
+        @endif
       </dl>
+      @if(($layoutChangeEvidenceDigest ?? null) !== null)
+      <details class="layout-evidence-detail">
+        <summary>Examinar registro canônico da alteração (somente leitura)</summary>
+        <pre id="layout-evidence-json">{{ $layoutChangeEvidenceJson }}</pre>
+      </details>
+      @endif
       <p class="locked">A prévia nova é apenas um renderizador de laboratório, não a continuidade persistida da revisão anterior. O Portal ainda não aprovou nada.</p>
     </section>
     @endif

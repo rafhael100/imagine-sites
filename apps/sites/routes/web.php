@@ -1007,6 +1007,16 @@ Route::get('/_lab/sites/v1/layout-diff', static function (Request $request) {
             $originalRef,$orders[$order],$navMode==='on',
             $newRef,'imagine_reviewer',3
         );
+        $evidence=\Imagine\Sites\Production\SyntheticLayoutChangeReviewEvidenceV1::fromPlan(
+            $plan,$approved,$source->brief,$source->artifact
+        );
+        if ($evidence->record['publishable']!==false ||
+            $evidence->record['crmDeliveryAuthorized']!==false ||
+            $evidence->record['officialClientAcceptance']!==false ||
+            $evidence->record['reviewerDecisionStatus']!=='pending') {
+            return response('Not found',404);
+        }
+
         if ($plan->draftWorkflow->state!=='drafting' ||
             $plan->draftWorkflow->revision!==4 ||
             $plan->draftWorkflow->artifactDigest!==null ||
@@ -1046,6 +1056,8 @@ Route::get('/_lab/sites/v1/layout-diff', static function (Request $request) {
             'richReview'=>true,
             'sectionOrderCode'=>$order,
             'anchorNavMode'=>$navMode,
+            'layoutChangeEvidenceDigest'=>$evidence->digest,
+            'layoutChangeEvidenceJson'=>$evidence->json,
             'layoutRevisionDetails'=>[
                 'previousDigest'=>$source->artifact->digest,
                 'nextDigest'=>$draft->artifact->digest,
