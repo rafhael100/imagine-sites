@@ -47,7 +47,7 @@ jobs:
         working-directory: apps/sites
         run: |
           set -euo pipefail
-          php artisan test --filter='(SyntheticSeoCopyPrivateExportTest|SyntheticSeoCopyReviewTest|SyntheticPrivateSeoCliTest|SyntheticEditedPrivateBundleTest)' --no-ansi
+          php artisan test --filter='(SyntheticSeoCopyPrivateExportTest|SyntheticSeoCopyPrivateAuditTest|SyntheticSeoCopyReviewTest|SyntheticPrivateSeoCliTest|SyntheticEditedPrivateBundleTest)' --no-ansi
       - name: Delete synthetic files from runner
         if: always()
         working-directory: apps/sites
