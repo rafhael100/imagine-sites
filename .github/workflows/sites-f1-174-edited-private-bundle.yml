@@ -1,0 +1,52 @@
+name: Sites F1-174 private edited review bundles with four-file readback
+on:
+  pull_request:
+    paths:
+      - 'src/Production/SyntheticPrivateDraftWriter.php'
+      - 'apps/sites/routes/console.php'
+      - 'apps/sites/tests/Feature/SyntheticEditedPrivateBundleTest.php'
+      - '.github/workflows/sites-f1-174-edited-private-bundle.yml'
+permissions:
+  contents: read
+jobs:
+  edited-bundle:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    env:
+      APP_ENV: testing
+      SITES_SYNTHETIC_EDITORIAL_REVIEW: '1'
+      SITES_F174_EDITORIAL_PACKAGE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring,dom,xml,curl,pdo,pdo_pgsql
+          tools: composer:v2
+          coverage: none
+      - name: PHP syntax
+        run: |
+          set -euo pipefail
+          php -l src/Production/SyntheticPrivateDraftWriter.php
+          php -l apps/sites/routes/console.php
+          php -l apps/sites/tests/Feature/SyntheticEditedPrivateBundleTest.php
+      - name: Install committed test dependencies
+        working-directory: apps/sites
+        run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
+      - name: Exercise exact private package and existing revision tests
+        working-directory: apps/sites
+        run: |
+          set -euo pipefail
+          php artisan test --filter='(SyntheticEditedPrivateBundleTest|SyntheticEditorialPatchPreviewTest|SyntheticPrivateDraft)' --no-ansi
+      - name: Remove fictional test output
+        if: always()
+        working-directory: apps/sites
+        run: |
+          rm -rf storage/app/private/sites-f1-174-*-edited
+          echo "No customer data, HTTP editor, real approval, CRM, site publishing or deploy."
