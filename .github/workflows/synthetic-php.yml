@@ -70,3 +70,4 @@ jobs:
           php tests/f185-canonical-private-package.php
           php tests/f187-combined-layout-revision.php
           php tests/f190-brand-palette-contrast.php
+          php tests/f193-brand-palette-review-reset.php
