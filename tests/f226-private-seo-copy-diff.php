@@ -19,7 +19,6 @@ spl_autoload_register(static function(string $class):void {
 use Imagine\Sites\Production\SyntheticSeoCopyFixtureV1 as Fixture;
 use Imagine\Sites\Production\SyntheticPrivateSeoCopyDiffV1 as Diff;
 use Imagine\Sites\Production\SiteBrief;
-use Imagine\Sites\Production\StaticSiteRenderer;
 use Imagine\Sites\Production\SyntheticPrivateReviewPackageV1 as Pack;
 use Imagine\Sites\Production\SyntheticStructuredDraftAssembly as Draft;
 
@@ -32,6 +31,12 @@ function check226(bool $ok,string $why):void {
 function denied226(callable $cb):bool {
     try {$cb();}catch(DomainException|InvalidArgumentException){return true;}
     return false;
+}
+function replaceOnce226(string $html,string $needle,string $replacement):string {
+    $changed=str_replace($needle,$replacement,$html,$count);
+    check226($count===1 && $changed!==$html,
+        'negative fixture must change exactly one HTML occurrence');
+    return $changed;
 }
 $copy=json_decode(
     (string)file_get_contents(__DIR__.'/../fixtures/sites/f1-170-process-copy.synthetic.json'),
@@ -79,21 +84,44 @@ foreach(['onepage','landing_page'] as $product) {
           $default->files,$default->draft->brief
       )),'same SEO snapshot cannot claim a changed version');
       $wrong=$default->files;
-      $wrong['index.html']=str_replace(
-          'noindex, nofollow','index, follow',$wrong['index.html']
+      $wrong['index.html']=replaceOnce226(
+          $wrong['index.html'],'noindex, nofollow','index, follow'
       );
       check226(denied226(static fn()=>Diff::inspect(
           $wrong,$default->draft->brief,
           $custom->files,$custom->draft->brief
       )),'robots override fails before diff can be trusted');
       $tampered=$custom->files;
-      $tampered['index.html']=str_replace(
-          '<body>','<body data-published="true">',$tampered['index.html']
+      $tampered['index.html']=replaceOnce226(
+          $tampered['index.html'],'<body ','<body data-published="true" '
       );
       check226(denied226(static fn()=>Diff::inspect(
           $default->files,$default->draft->brief,
           $tampered,$custom->draft->brief
       )),'extra HTML body attribute does not pass SHA/readback');
+
+      foreach ([['tenant-other','site-f223'],['tenant-f223','site-other']] as [$tenant,$site]) {
+          $foreign=Draft::build(
+              $product,'Marca Fictícia Imagine',$preset,$copy,
+              $tenant,$site,'workflow-foreign','release-foreign',
+              ['highlights','process','faq'],false,null,$social==='on',
+              Fixture::CUSTOM_TITLE,Fixture::CUSTOM_DESCRIPTION
+          );
+          $foreignFiles=Pack::fromPendingDraft($foreign);
+          $proof=\Imagine\Sites\Production\SyntheticPrivateSeoSnippetReadbackV1::inspect(
+              $foreignFiles,$foreign->brief
+          );
+          check226($proof->tenantRef===$tenant && $proof->siteRef===$site &&
+              $foreign->artifact->html===$custom->draft->artifact->html,
+              'foreign package independently verifies with identical custom HTML');
+          $reason=null;
+          try {
+              Diff::inspect($default->files,$default->draft->brief,
+                  $foreignFiles,$foreign->brief);
+          } catch (DomainException $e) {$reason=$e->getMessage();}
+          check226($reason==='private_seo_diff_scope_mismatch',
+              'different tenant or site cannot be reported as an SEO revision');
+      }
 
       $changedBrief=new SiteBrief(
           $custom->draft->brief->productCode,

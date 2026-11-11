@@ -13,6 +13,8 @@ use DomainException;
 final readonly class SyntheticPrivateSeoSnippetReadbackV1
 {
     private function __construct(
+        public string $tenantRef,
+        public string $siteRef,
         public string $releaseRef,
         public string $artifactDigest,
         public SyntheticSeoSnippetInspectionV1 $snippet,
@@ -42,7 +44,8 @@ final readonly class SyntheticPrivateSeoSnippetReadbackV1
             $snippet->canWriteSeoEngine() || $snippet->canApproveForClient()) {
             throw new DomainException('private_seo_readback_implies_untrusted_authority');
         }
-        return new self($proof['releaseRef'],$proof['artifactDigest'],$snippet);
+        return new self($proof['tenantRef'],$proof['siteRef'],
+            $proof['releaseRef'],$proof['artifactDigest'],$snippet);
     }
 
     public function canIndex():bool {return false;}

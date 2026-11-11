@@ -67,6 +67,12 @@ final readonly class SyntheticPrivateSeoCopyDiffV1
         $after=SyntheticPrivateSeoSnippetReadbackV1::inspect(
             $customFiles,$customBrief
         );
+        // Equal copy does not make two packages revisions of the same site.
+        // These verified lab references are not authenticated identity.
+        if ($before->tenantRef!==$after->tenantRef ||
+            $before->siteRef!==$after->siteRef) {
+            throw new DomainException('private_seo_diff_scope_mismatch');
+        }
         if ($before->artifactDigest===$after->artifactDigest ||
             $before->releaseRef===$after->releaseRef ||
             $before->snippet->title===$after->snippet->title ||
