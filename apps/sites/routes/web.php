@@ -1726,6 +1726,38 @@ Route::get('/_lab/sites/v1/seo-copy-review', static function (Request $request) 
         $source=$candidate->source;
         $draft=$candidate->draft;
         $seoReadback=$candidate->readback;
+        // F1-230: compare two canonical, review-pending packages in the
+        // same fictional site scope. Never turn this digest into acceptance,
+        // user identity or permission to publish/index a site.
+        $defaultCandidate=\Imagine\Sites\Production\SyntheticSeoCopyFixtureV1::build(
+            $copy,$product,$preset,'default',$social,'f222'
+        );
+        $customCandidate=\Imagine\Sites\Production\SyntheticSeoCopyFixtureV1::build(
+            $copy,$product,$preset,'custom',$social,'f222'
+        );
+        $seoEvidence=\Imagine\Sites\Production\SyntheticPrivateSeoChangeEvidenceV1::fromVerifiedPair(
+            $defaultCandidate->files,$defaultCandidate->draft->brief,
+            $customCandidate->files,$customCandidate->draft->brief
+        );
+        $expectedDigest=$seo==='default'
+            ? $seoEvidence->record['beforeHtmlSha256']
+            : $seoEvidence->record['afterHtmlSha256'];
+        if (!hash_equals($draft->artifact->digest,$expectedDigest) ||
+            !$seoEvidence->stillMatchesVerifiedPair(
+                $defaultCandidate->files,$defaultCandidate->draft->brief,
+                $customCandidate->files,$customCandidate->draft->brief
+            ) ||
+            $seoEvidence->record['reviewState']!=='pending' ||
+            $seoEvidence->record['authority']!=='none' ||
+            $seoEvidence->record['publishable']!==false ||
+            $seoEvidence->record['clientAccepted']!==false ||
+            $seoEvidence->record['searchIndexingAllowed']!==false ||
+            $seoEvidence->record['seoEngineWriteAllowed']!==false ||
+            $seoEvidence->canPublish() || $seoEvidence->canIndex() ||
+            $seoEvidence->canApproveForClient() ||
+            $seoEvidence->canWriteSeoEngine()) {
+            return response('Not found',404);
+        }
         if ($candidate->canPublish() || $candidate->canIndex() ||
             $candidate->canSendToSeoEngine() ||
             $candidate->canApproveForClient() ||
@@ -1756,6 +1788,7 @@ Route::get('/_lab/sites/v1/seo-copy-review', static function (Request $request) 
                 'changed'=>$seo==='custom',
             ],
             'seoSnippet'=>$seoReadback->snippet,
+            'seoChangeEvidence'=>$seoEvidence,
             'brief'=>$draft->brief,
             'previewHtml'=>$draft->artifact->html,
             'digest'=>$draft->artifact->digest,
