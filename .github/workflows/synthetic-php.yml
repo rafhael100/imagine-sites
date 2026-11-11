@@ -82,6 +82,7 @@ jobs:
           php tests/f218-seo-social-parity.php
           php tests/f220-editorial-seo-copy.php
           php tests/f221-seo-copy-revision.php
+          php tests/f224-seo-copy-review-export-parity.php
           php tests/f190-brand-palette-contrast.php
           php tests/f200-layout-change-evidence.php
           php tests/f202-composite-visual-revision.php
