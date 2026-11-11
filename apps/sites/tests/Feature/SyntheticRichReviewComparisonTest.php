@@ -95,6 +95,7 @@ final class SyntheticRichReviewComparisonTest extends TestCase
     public function test_all_variants_are_distinct_and_device_independent():void
     {
         $digests=[];
+        $allDigests=[];
         foreach(['onepage','landing_page'] as $product) {
             foreach(['classic','modern','warm'] as $style) {
                 foreach(['faq','highlights','both'] as $variant) {
@@ -107,18 +108,14 @@ final class SyntheticRichReviewComparisonTest extends TestCase
                     self::assertStringContainsString('class="browser desktop"',$desktop);
                     self::assertStringContainsString('class="browser mobile"',$mobile);
                     $digests[$product][$style][$variant]=$sha;
+                    $allDigests[]=$sha;
                 }
                 self::assertCount(3,array_unique(
                     array_values($digests[$product][$style])
                 ),'FAQ, highlights and both must produce separate reviewed bytes');
             }
         }
-        self::assertCount(18,array_unique(
-            array_merge(...array_map(
-                static fn(array $styles):array=>array_merge(...array_values($styles)),
-                array_values($digests)
-            ))
-        ));
+        self::assertCount(18,array_unique($allDigests));
     }
 
     public function test_variant_requires_explicit_allowlisted_selector():void
