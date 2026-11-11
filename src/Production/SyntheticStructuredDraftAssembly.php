@@ -37,6 +37,7 @@ final readonly class SyntheticStructuredDraftAssembly
         string $siteRef,
         string $workflowRef,
         string $releaseRef,
+        array $officialSectionOrder = ['highlights','process','faq'],
     ): self {
         // Content provider does NOT determine brand, product, style or tenant.
         $candidate=StructuredCopyCandidate::assemble(
@@ -53,6 +54,7 @@ final readonly class SyntheticStructuredDraftAssembly
             $candidate->faq,
             $candidate->highlights,
             $candidate->processSteps,
+            $officialSectionOrder,
         );
         $artifact=(new StaticSiteRenderer())->render($brief);
         $qa=SyntheticPreviewQaReport::inspect($artifact);
