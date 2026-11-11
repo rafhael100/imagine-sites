@@ -1,5 +1,23 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuidade sem pausa — F1-148 a F1-156 (11/11/2026)
+
+**Nove entregas encadeadas, revisadas no GitHub Actions.** Elas continuam em PRs `draft` com base na cadeia anterior F1-142..147, e preservam os controles de AGENTS.md. Os testes de banco usam PostgreSQL 18 **descartável**, contas fictícias, PHP 8.3/8.4, sem dados pessoais, endpoints públicos ou produção.
+
+| Etapa | PR | CI específico aprovado | Alteração |
+| --- | --- | --- | --- |
+| F1-148 | [#185](https://github.com/rafhael100/imagine-sites/pull/185) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/42950292386) | Lease limitado ao T0+432h, sem cinco minutos extras antes do vencimento |
+| F1-149 | [#186](https://github.com/rafhael100/imagine-sites/pull/186) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/42950729275) | Lease exige binding/site/formulário/destino/revisão correntes e bloqueio transacional |
+| F1-150 | [#187](https://github.com/rafhael100/imagine-sites/pull/187) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/42951250666) | Código PHP real do CRM F3-46/47/48, JSON estrito e HMAC de metadados sem falsa permissão |
+| F1-151 | [#188](https://github.com/rafhael100/imagine-sites/pull/188) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/42951676941) | Código PHP real do Portal F133 confrontado com CreateProject v1 do Sites |
+| F1-152 | [#189](https://github.com/rafhael100/imagine-sites/pull/189) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/42951987344) | Decoder canônico de CreateProject no Sites: bytes, ordem e chaves duplicadas |
+| F1-153 | [#190](https://github.com/rafhael100/imagine-sites/pull/190) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/42952367289) | Paridade real com CRM para mínimo de formulário, retorno apenas de booleanos, sem PII |
+| F1-154 | [#191](https://github.com/rafhael100/imagine-sites/pull/191) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/42952818678) | Retira outbox técnico expirado por T0 original preservando tombstone de idempotência |
+| F1-155 | [#192](https://github.com/rafhael100/imagine-sites/pull/192) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/42953219100) | Une prazo, lease e descarte no **mesmo T0 da primeira persistência**, não no timestamp de outbox |
+| F1-156 | [#193](https://github.com/rafhael100/imagine-sites/pull/193) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/42953802190) | História única de UUID de lease, inclusive após substituição e descarte de outbox, contra replay |
+
+**Diferença entre evidência de CI e produção:** toda execução acima é sintética; não existe autenticação S2S operacional Portal–Sites–CRM, confirmação de lead com resposta oficial, consentimento/retirada de dados, dois ingressos físicos, retenção LGPD de backups, política definitiva de tombstone, parecer AppSec/DBA independente nem homologação real na infraestrutura. Estas dependências estão em [OP01 #33](https://github.com/rafhael100/imagine-sites/issues/33), [OP02 #34](https://github.com/rafhael100/imagine-sites/issues/34) e [OP04 #36](https://github.com/rafhael100/imagine-sites/issues/36). **10/10 gates operacionais BLOCKED**. PRs empilhados sem merge na `dev` ou `main`; nenhum deploy, VPS, DNS, Cloudflare, PII ou custos. Nunca promover `LAB_*`, `CLAIM_RECORDED_UNVERIFIED`, `LEASED_*_UNVERIFIED` ou schema canônico a autorização de coleta, ACK, entrega CRM ou publicação.
+
 ## Continuidade encadeada — F1-142 a F1-147 (10/11/2026, America/Sao_Paulo)
 
 **Resumo:** seis entregas implementadas em PRs draft empilhados, sem deploy ou merge em `dev/main`. Todas as matrizes específicas PostgreSQL 18 / PHP 8.3 e 8.4 passaram na HEAD dos respectivos PRs. Estes testes são de **laboratório sintético**, não evidência de sistema operacional pronto.
