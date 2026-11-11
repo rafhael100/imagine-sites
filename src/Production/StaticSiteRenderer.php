@@ -20,6 +20,22 @@ final class StaticSiteRenderer
         $description = $escape($brief->description);
         $cta = $escape($brief->callToAction);
         $title = $escape($brief->headline.' | '.$brief->brand);
+        // F1-206: optional static Open Graph/Twitter text cards only.
+        // No canonical URL, social image, remote asset, form or publishing.
+        $socialMetadata='';
+        if ($brief->socialPreviewMetadata) {
+            $socialMetadata=<<<SOCIAL
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="pt_BR">
+  <meta property="og:title" content="{$title}">
+  <meta property="og:description" content="{$description}">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="{$title}">
+  <meta name="twitter:description" content="{$description}">
+
+SOCIAL;
+        }
+
         $bullets = implode("\n", array_map(
             static fn (string $s): string => '            <li>'.$escape($s).'</li>',
             $brief->benefits,
@@ -136,7 +152,7 @@ FAQ;
   <meta name="description" content="{$description}">
   <meta name="robots" content="noindex, nofollow">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'none'; object-src 'none'">
-  <title>{$title}</title>
+{$socialMetadata}  <title>{$title}</title>
   <style>
     :root { color-scheme: light; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     * { box-sizing: border-box; }

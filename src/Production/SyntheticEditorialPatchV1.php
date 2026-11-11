@@ -98,6 +98,7 @@ final class SyntheticEditorialPatchV1
                 $approvedBrief->sectionOrder,
                 $approvedBrief->sectionNavigation,
                 $approvedBrief->brandPalette,
+                $approvedBrief->socialPreviewMetadata,
             );
         }catch(InvalidArgumentException $e){
             throw new DomainException('editorial_patch_invalid_content',previous:$e);
