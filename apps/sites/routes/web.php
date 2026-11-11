@@ -930,3 +930,156 @@ Route::get('/_lab/sites/v1/layout-options', static function (Request $request) {
             "base-uri 'none'; frame-ancestors 'none'",
     ]);
 })->name('sites.lab.layout-options');
+
+
+/**
+ * F1-188: compare a REAL review-resetting layout change with the prior snapshot.
+ * Never registered in PHP-FPM or public endpoints; no user-editable copy.
+ */
+Route::get('/_lab/sites/v1/layout-diff', static function (Request $request) {
+    if (PHP_SAPI!=='cli' || !app()->environment('testing') ||
+        getenv('SITES_SYNTHETIC_HTTP')!=='1' ||
+        getenv('SITES_SYNTHETIC_REVIEW_UI')!=='1' ||
+        getenv('SITES_SYNTHETIC_RICH_REVIEW')!=='1' ||
+        getenv('SITES_SYNTHETIC_ORDER_REVIEW')!=='1' ||
+        getenv('SITES_SYNTHETIC_ANCHOR_REVIEW')!=='1' ||
+        getenv('SITES_F181_COMBINED_LAYOUT')!=='1' ||
+        getenv('SITES_F188_LAYOUT_DIFF')!=='1' ||
+        !in_array($request->ip(),['127.0.0.1','::1'],true)) {
+        return response('Not found',404);
+    }
+    foreach ($request->query() as $key=>$value) {
+        if (!in_array($key,['product','device','preset','order','nav'],true) ||
+            !is_string($value) || $value==='') {
+            return response('Not found',404);
+        }
+    }
+    $product=$request->query('product','onepage');
+    $device=$request->query('device','desktop');
+    $preset=$request->query('preset','classic');
+    $order=$request->query('order');
+    $navMode=$request->query('nav');
+    $orders=[
+        'services_process_faq'=>['highlights','process','faq'],
+        'services_faq_process'=>['highlights','faq','process'],
+        'process_services_faq'=>['process','highlights','faq'],
+        'process_faq_services'=>['process','faq','highlights'],
+        'faq_services_process'=>['faq','highlights','process'],
+        'faq_process_services'=>['faq','process','highlights'],
+    ];
+    if (!is_string($product) || !is_string($device) ||
+        !is_string($preset) || !is_string($order) || !is_string($navMode) ||
+        !in_array($product,['onepage','landing_page'],true) ||
+        !in_array($device,['desktop','mobile'],true) ||
+        !in_array($preset,['classic','modern','warm'],true) ||
+        !array_key_exists($order,$orders) ||
+        !in_array($navMode,['on','off'],true) ||
+        ($product==='landing_page' && $navMode==='on') ||
+        ($order==='services_process_faq' && $navMode==='off')) {
+        return response('Not found',404);
+    }
+    try {
+        $fixture=base_path('../../fixtures/sites/f1-170-process-copy.synthetic.json');
+        if (!is_file($fixture) || is_link($fixture) || filesize($fixture)>8192) {
+            return response('Not found',404);
+        }
+        $copy=json_decode((string)file_get_contents($fixture),true,16,JSON_THROW_ON_ERROR);
+        if (!is_array($copy) || ($copy['schemaVersion']??null)!=='sites.ai-copy.v4' ||
+            count($copy['faq']??[])!==2 ||
+            count($copy['highlights']??[])!==2 ||
+            count($copy['processSteps']??[])!==3) {
+            return response('Not found',404);
+        }
+        $tenant='tenant-f188-fictional';
+        $site='site-f188-fictional';
+        $originalRef='release-f188-before-'.$product.'-'.$preset;
+        $newRef='release-f188-after-'.$product.'-'.$preset.'-'.$order.'-'.$navMode;
+        $source=\Imagine\Sites\Production\SyntheticStructuredDraftAssembly::build(
+            $product,'Marca Fictícia Imagine',$preset,$copy,
+            $tenant,$site,'workflow-f188-before-'.$product.'-'.$preset,
+            $originalRef
+        );
+        $approved=$source->workflow->advance(
+            'imagine_reviewer','approve_internal',2,$source->artifact->digest
+        );
+        $plan=\Imagine\Sites\Production\SyntheticCombinedLayoutRevisionPlan::begin(
+            $approved,$source->brief,$source->artifact,
+            $originalRef,$orders[$order],$navMode==='on',
+            $newRef,'imagine_reviewer',3
+        );
+        if ($plan->draftWorkflow->state!=='drafting' ||
+            $plan->draftWorkflow->revision!==4 ||
+            $plan->draftWorkflow->artifactDigest!==null ||
+            $plan->canReusePriorReview() || $plan->canPublish()) {
+            return response('Not found',404);
+        }
+
+        // Separate review-only renderer for the new bytes. It cannot claim
+        // to continue or persist the original workflow revision.
+        $draft=\Imagine\Sites\Production\SyntheticStructuredDraftAssembly::build(
+            $product,'Marca Fictícia Imagine',$preset,$copy,
+            $tenant,$site,'workflow-f188-review-'.$product.'-'.$preset.'-'.$order.'-'.$navMode,
+            $newRef,$orders[$order],$navMode==='on'
+        );
+        if ($draft->brief->sectionOrder!==$orders[$order] ||
+            $draft->brief->sectionNavigation!==($navMode==='on') ||
+            !hash_equals($draft->artifact->digest,$plan->nextArtifact->digest) ||
+            !hash_equals($draft->artifact->html,$plan->nextArtifact->html) ||
+            !$draft->structuralReport->passedStructuralChecks ||
+            !\Imagine\Sites\Production\InertPreviewAudit::isSafe($draft->artifact->html)) {
+            return response('Not found',404);
+        }
+        $summary=$draft->reviewSummary();
+        $dossier=\Imagine\Sites\Production\SyntheticInternalReviewDossier::fromDraft($draft);
+        if ($summary['workflowState']!=='internal_review' ||
+            $summary['publishable']!==false ||
+            $summary['officialClientAcceptance']!==false ||
+            $dossier->record['reviewerDecisionStatus']!=='pending' ||
+            $dossier->record['publishable']!==false ||
+            $dossier->record['officialClientAcceptance']!==false) {
+            return response('Not found',404);
+        }
+        $page=view('labs.review',[
+            'product'=>$product,'device'=>$device,'preset'=>$preset,
+            'galleryMode'=>false,
+            'reviewRoute'=>'/_lab/sites/v1/layout-diff',
+            'richReview'=>true,
+            'sectionOrderCode'=>$order,
+            'anchorNavMode'=>$navMode,
+            'layoutRevisionDetails'=>[
+                'previousHtml'=>$source->artifact->html,
+                'previousDigest'=>$source->artifact->digest,
+                'nextDigest'=>$draft->artifact->digest,
+                'previousRevision'=>$approved->revision,
+                'reopenedRevision'=>$plan->draftWorkflow->revision,
+                'orderChanged'=>$plan->previousOrder!==$plan->nextOrder,
+                'navigationChanged'=>$plan->previousNavigation!==$plan->nextNavigation,
+            ],
+            'brief'=>$draft->brief,
+            'previewHtml'=>$draft->artifact->html,
+            'digest'=>$draft->artifact->digest,
+            'reviewSnapshot'=>$summary,
+            'dossierDigest'=>$dossier->digest,
+            'requiredAcknowledgments'=>$dossier->record['requiredReviewerAcknowledgments'],
+            'qaChecks'=>$draft->structuralReport->checks,
+            'editorialChecks'=>$draft->editorialReport->checks,
+            'editorialSuggestions'=>$draft->editorialReport->suggestions,
+        ])->render();
+    } catch (\Throwable) {
+        return response('Not found',404);
+    }
+
+    return response($page,200,[
+        'Content-Type'=>'text/html; charset=UTF-8',
+        'Cache-Control'=>'private, no-store, max-age=0',
+        'X-Content-Type-Options'=>'nosniff',
+        'X-Frame-Options'=>'DENY',
+        'Referrer-Policy'=>'no-referrer',
+        'X-Robots-Tag'=>'noindex, nofollow, noarchive',
+        'Permissions-Policy'=>'camera=(), microphone=(), geolocation=()',
+        'Content-Security-Policy'=>"default-src 'none'; script-src 'none'; ".
+            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src data:; ".
+            "connect-src 'none'; form-action 'none'; object-src 'none'; ".
+            "base-uri 'none'; frame-ancestors 'none'",
+    ]);
+})->name('sites.lab.layout-diff');

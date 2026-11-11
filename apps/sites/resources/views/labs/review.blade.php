@@ -79,7 +79,11 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
     <section class="card" aria-labelledby="product-title"><h2 id="product-title">Tipo de site</h2><p class="sub">Alternar modelos de teste</p>
       <nav class="tabs" aria-label="Alternar produto">
         <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product=onepage&amp;device={{ $device }}{{ $galleryMode ? '' : '&preset='.$preset }}{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}" @if($product==='onepage') aria-current="page" @endif>Onepage</a>
+        @if(($layoutRevisionDetails ?? null) !== null && $sectionOrderCode==='services_process_faq' && $anchorNavMode==='on')
+          <span aria-disabled="true" title="Landing sem mudança de layout não precisa de nova revisão">Landing Page · sem alteração</span>
+        @else
         <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product=landing_page&amp;device={{ $device }}{{ $galleryMode ? '' : '&preset='.$preset }}{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.($anchorNavMode==='on'?'off':$anchorNavMode) }}" @if($product==='landing_page') aria-current="page" @endif>Landing Page</a>
+        @endif
       </nav>
     </section>
     @unless($galleryMode)
@@ -140,7 +144,11 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
           'faq_services_process'=>'FAQ / Serviços / Etapas',
           'faq_process_services'=>'FAQ / Etapas / Serviços'
         ] as $sectionOrderOption=>$sectionOrderLabel)
+          @if(($layoutRevisionDetails ?? null) !== null && $sectionOrderOption==='services_process_faq' && $anchorNavMode==='off')
+            <span aria-disabled="true" title="Layout original, sem nova revisão">{{ $sectionOrderLabel }} · sem alteração</span>
+          @else
           <a href="{{ $reviewRoute }}?product={{ $product }}&amp;device={{ $device }}&amp;preset={{ $preset }}&amp;order={{ $sectionOrderOption }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}" @if($sectionOrderCode===$sectionOrderOption) aria-current="page" @endif>{{ $sectionOrderLabel }}</a>
+          @endif
         @endforeach
       </nav>
       <p class="sub">O conteúdo não muda. A aprovação da disposição anterior não é reutilizada.</p>
@@ -153,13 +161,34 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
       @if($product==='onepage')
         <nav class="tabs" aria-label="Alternar menu interno">
           @foreach(['off'=>'Desativada','on'=>'Ativada'] as $navCode=>$navLabel)
+            @if(($layoutRevisionDetails ?? null) !== null && $sectionOrderCode==='services_process_faq' && $navCode==='off')
+              <span aria-disabled="true" title="Layout original, sem nova revisão">{{ $navLabel }} · sem alteração</span>
+            @else
             <a href="{{ $reviewRoute }}?product={{ $product }}&amp;device={{ $device }}&amp;preset={{ $preset }}&amp;nav={{ $navCode }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}" @if($anchorNavMode===$navCode) aria-current="page" @endif>{{ $navLabel }}</a>
+            @endif
           @endforeach
         </nav>
       @else
         <p class="sub">A Landing Page não utiliza menu extra; a apresentação permanece objetiva.</p>
       @endif
       <p class="sub">Mudar o menu gera novo hash e exige revisão da equipe Imagine.</p>
+    </section>
+    @endif
+    @if(($layoutRevisionDetails ?? null) !== null)
+    <section class="card" aria-labelledby="layout-diff-title">
+      <h2 id="layout-diff-title">Comparação antes e depois do layout</h2>
+      <p class="sub">A ordem e a navegação podem mudar sem alterar os textos. A decisão anterior não acompanha o novo layout.</p>
+      <dl>
+        <div><dt>SHA-256 anterior</dt><dd><code id="layout-previous-digest">{{ $layoutRevisionDetails['previousDigest'] }}</code></dd></div>
+        <div><dt>SHA-256 novo</dt><dd><code id="layout-next-digest">{{ $layoutRevisionDetails['nextDigest'] }}</code></dd></div>
+        <div><dt>Revisão anterior</dt><dd id="layout-prior-revision">{{ $layoutRevisionDetails['previousRevision'] }}</dd></div>
+        <div><dt>Revisão reaberta</dt><dd id="layout-reopened-revision">{{ $layoutRevisionDetails['reopenedRevision'] }} — rascunho, sem aceite</dd></div>
+        <div><dt>Ordem alterada</dt><dd id="layout-order-changed">{{ $layoutRevisionDetails['orderChanged'] ? 'Sim' : 'Não' }}</dd></div>
+        <div><dt>Menu alterado</dt><dd id="layout-navigation-changed">{{ $layoutRevisionDetails['navigationChanged'] ? 'Sim' : 'Não' }}</dd></div>
+      </dl>
+      <p class="sub">Prévia anterior (antes da alteração)</p>
+      <iframe title="Prévia anterior de laboratório, apenas leitura" sandbox="" tabindex="-1" referrerpolicy="no-referrer" srcdoc="{{ $layoutRevisionDetails['previousHtml'] }}"></iframe>
+      <p class="locked">A prévia nova é apenas um renderizador de laboratório, não a continuidade persistida da revisão anterior. O Portal ainda não aprovou nada.</p>
     </section>
     @endif
     <section class="card" aria-labelledby="steps-title"><h2 id="steps-title">Etapas de revisão</h2>
