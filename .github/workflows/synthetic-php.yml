@@ -1,7 +1,11 @@
 name: Sites Engine - testes sinteticos (sem deploy)
 on:
   push:
+    branches: [main]
   pull_request:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -59,3 +63,8 @@ jobs:
           php tests/f89-loopback-served-artifact.php
           php tests/f102-portal-project-snapshot.php
           php tests/f109-portal-auth-schema-parity.php
+          php tests/f169-process-steps-copy-v4.php
+          php tests/f171-editorial-patch.php
+          php tests/f175-static-section-order.php
+          php tests/f178-safe-section-anchor-navigation.php
+          php tests/f185-canonical-private-package.php
