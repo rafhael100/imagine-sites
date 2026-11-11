@@ -122,9 +122,9 @@ f141Assert(
     'revoked binding cannot create new technical claims'
 );
 
-$state=$admin->query('SELECT revision, active FROM f140_lab.synthetic_binding_versions');
+$state=$admin->query('SELECT revision, active::int AS active FROM f140_lab.synthetic_binding_versions');
 $record=$state->fetch(PDO::FETCH_ASSOC);
-f141Assert((int)$record['revision']===10 && $record['active']===false,
+f141Assert((int)$record['revision']===10 && (int)$record['active']===0,
     'latest revision and revocation remain stored');
 f141Assert(
     (int)$admin->query('SELECT count(*) FROM f140_lab.synthetic_claims')->fetchColumn()===2,
