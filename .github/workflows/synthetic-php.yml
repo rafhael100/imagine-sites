@@ -77,6 +77,7 @@ jobs:
           php tests/f210-social-card-inspection.php
           php tests/f211-private-social-card-readback.php
           php tests/f213-visual-review-export-parity.php
+          php tests/f215-seo-snippet-inspection.php
           php tests/f190-brand-palette-contrast.php
           php tests/f200-layout-change-evidence.php
           php tests/f202-composite-visual-revision.php
