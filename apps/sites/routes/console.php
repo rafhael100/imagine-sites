@@ -1132,3 +1132,84 @@ Artisan::command(
         return Command::SUCCESS;
     }
 )->purpose('Export a fixed fictional combined-layout review bundle to private CI');
+
+
+/**
+ * F1-205: take one finite synthetic choice from F1-204's catalog and
+ * atomically store a reviewed-by-nobody four-file draft on a private runner.
+ *
+ * NEVER accepts client text, destination paths, organization IDs or secrets.
+ */
+Artisan::command(
+    'sites:export-visual-fixture {product=onepage} {preset=classic} {order=services_process_faq} {palette=default} {navigation=off}',
+    function (): int {
+        if (PHP_SAPI!=='cli' || !app()->environment('testing') ||
+            getenv('GITHUB_ACTIONS')!=='true' ||
+            getenv('SITES_F205_VISUAL_PACKAGE')!=='1') {
+            $this->error('F1-205 visual package is available only in offline CI.');
+            return Command::FAILURE;
+        }
+
+        $product=(string)$this->argument('product');
+        $preset=(string)$this->argument('preset');
+        $orderCode=(string)$this->argument('order');
+        $paletteCode=(string)$this->argument('palette');
+        $navCode=(string)$this->argument('navigation');
+        try {
+            \Imagine\Sites\Production\SyntheticVisualPresetCatalog::choose(
+                $product,$preset,$orderCode,$navCode,$paletteCode
+            );
+        }catch(\InvalidArgumentException){
+            $this->error('Unknown finite visual choice; no files created.');
+            return Command::FAILURE;
+        }
+
+        $fixture=base_path('../../fixtures/sites/f1-170-process-copy.synthetic.json');
+        $root=storage_path('app/private');
+        $destination=$root.'/sites-f1-205-'.$product.'-'.$preset.'-'.
+            $orderCode.'-'.$paletteCode.'-'.$navCode;
+        if (!is_file($fixture) || is_link($fixture) ||
+            filesize($fixture)>8192 || is_link($root) ||
+            is_link($destination) || file_exists($destination)) {
+            $this->error('Untrusted fixture or private destination denied.');
+            return Command::FAILURE;
+        }
+
+        try {
+            $copy=json_decode((string)file_get_contents($fixture),true,
+                16,JSON_THROW_ON_ERROR);
+            $design=\Imagine\Sites\Production\SyntheticCompositeVisualPrivateFixture::build(
+                $copy,$product,$preset,$orderCode,$navCode,$paletteCode
+            );
+            $files=$design->privateFiles();
+            if ((!is_dir($root) &&
+                    !mkdir($root,0700,true) && !is_dir($root)) ||
+                !is_dir($root) || is_link($root)) {
+                throw new \DomainException('Private runner directory unavailable.');
+            }
+            $proof=\Imagine\Sites\Production\SyntheticPrivateDraftWriter::create(
+                $destination,$files
+            );
+            $expectedRelease='release-f205-'.$product.'-'.$preset.'-'.
+                $orderCode.'-'.$paletteCode.'-'.$navCode;
+            if ($proof['releaseRef']!==$expectedRelease ||
+                !hash_equals($proof['artifactDigest'],$design->draft->artifact->digest) ||
+                $proof['reviewerDecisionStatus']!=='pending' ||
+                $proof['publishable']!==false ||
+                $proof['officialClientAcceptance']!==false) {
+                throw new \DomainException('Private visual package readback denied.');
+            }
+        }catch(\Throwable){
+            $this->error('Composite visual package denied. No publication occurred.');
+            return Command::FAILURE;
+        }
+
+        $this->line('F1-205 PRIVATE VISUAL DRAFT: only synthetic internal review.');
+        $this->line('Original SHA-256: '.$design->originalDigest);
+        $this->line('Proposed SHA-256: '.$design->draft->artifact->digest);
+        $this->line($design->changed
+            ? 'Changed design; earlier fictional approval NOT reused.'
+            : 'Original design; NO fabricated prior review.');
+        return Command::SUCCESS;
+    }
+)->purpose('Export one fictional composite visual design to private CI review files');
