@@ -40,8 +40,8 @@ $binding='22222222-2222-4222-8222-222222222222';
 $site='44444444-4444-4444-8444-444444444444';
 $form='55555555-5555-4555-8555-555555555555';
 $dest='66666666-6666-4666-8666-666666666666';
-$make=static fn(string $org,string $sub=$submission):array =>
-  [$org,$sub,$binding,$site,$form,$dest,7];
+$make=static fn(string $org,?string $sub=null):array =>
+  [$org,$sub ?? $submission,$binding,$site,$form,$dest,7];
 $appA=db142('sites_f140_app','f140-fictional-ci-only');
 $appB=db142('sites_f142_org_b','f142-fictional-org-b-ci-only');
 $admin=db142('postgres','f140-fictional-admin-ci-only');
