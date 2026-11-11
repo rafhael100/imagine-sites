@@ -99,23 +99,30 @@ $intent=new Intent($a);
 $primary=f133Db();
 $secondary=f133Db();
 
-$role=$primary->query("SELECT rolsuper,rolbypassrls,rolcreaterole,rolcreatedb
+// Cast PostgreSQL booleans to integer in SQL: pdo_pgsql returns
+// platform/version-specific PHP bool/string representations otherwise.
+$role=$primary->query("SELECT rolsuper::int AS super,
+ rolbypassrls::int AS bypass,rolcreaterole::int AS creatorole,
+ rolcreatedb::int AS createdb
  FROM pg_roles WHERE rolname=current_user")->fetch(PDO::FETCH_ASSOC);
-f133Check(!in_array('t',array_values($role),true),
+f133Check($role!==false &&
+    !in_array(1,array_map('intval',array_values($role)),true),
  'no superuser, bypassrls, role or database creation privileges');
-$policy=$primary->query("SELECT relrowsecurity,relforcerowsecurity,
- pg_has_role(current_user,relowner,'MEMBER') AS is_owner
+$policy=$primary->query("SELECT relrowsecurity::int AS rls,
+ relforcerowsecurity::int AS forced,
+ pg_has_role(current_user,relowner,'MEMBER')::int AS is_owner
  FROM pg_class WHERE oid='f133_lead.synthetic_metadata_claims'::regclass")
  ->fetch(PDO::FETCH_ASSOC);
-f133Check($policy['relrowsecurity']==='t' &&
- $policy['relforcerowsecurity']==='t' &&
- $policy['is_owner']==='f',
+f133Check($policy!==false &&
+ (int)$policy['rls']===1 &&
+ (int)$policy['forced']===1 &&
+ (int)$policy['is_owner']===0,
  'mandatory RLS is enabled and app role is not table owner');
 foreach(['UPDATE','DELETE','TRUNCATE'] as $permission) {
  $stmt=$primary->prepare("SELECT has_table_privilege(current_user,
-    'f133_lead.synthetic_metadata_claims', ?) AS yes");
+    'f133_lead.synthetic_metadata_claims', ?)::int AS allowed");
  $stmt->execute([$permission]);
- f133Check($stmt->fetchColumn()==='f',
+ f133Check((int)$stmt->fetchColumn()===0,
     'restricted app role cannot '.$permission.' laboratory claim history');
 }
 f133Check(count(f133Rows($primary))===0,
