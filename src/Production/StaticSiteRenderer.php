@@ -34,6 +34,26 @@ final class StaticSiteRenderer
             '<section class="about" id="sobre" aria-labelledby="sobre-title"><div class="container">'.
             '<h2 id="sobre-title">Sobre '.$brand.'</h2><p>'.$description.'</p></div></section>' : '';
         $mode = $isOnepage ? 'onepage' : 'landing-page';
+        $highlightsSection = '';
+        if ($brief->highlights !== []) {
+            $highlightItems = implode("\n", array_map(
+                static fn (array $item): string =>
+                    '          <li><h3>'.$escape($item['title']).'</h3><p>'.
+                    $escape($item['description']).'</p></li>',
+                $brief->highlights,
+            ));
+            $highlightsSection = <<<HIGHLIGHTS
+    <section class="highlights" id="solucoes" aria-labelledby="highlights-title">
+      <div class="container">
+        <h2 id="highlights-title">Soluções em destaque</h2>
+        <ul>
+{$highlightItems}
+        </ul>
+      </div>
+    </section>
+HIGHLIGHTS;
+            $about .= "\n    ".$highlightsSection;
+        }
         $faqSection = '';
         if ($brief->faq !== []) {
             $faqItems = implode("\n", array_map(
@@ -128,6 +148,18 @@ FAQ;
 </body>
 </html>
 HTML;
+
+        // F1-159: self-contained CSS only when highlights exist.
+        if ($highlightsSection !== '') {
+            $highlightsCss = <<<'CSS'
+    .highlights { background: #eaf0f8; }
+    .highlights ul { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,240px),1fr)); gap: 18px; }
+    .highlights li { background: #fff; border: 1px solid #d6e0ec; border-radius: 14px; padding: 24px; }
+    .highlights h3 { margin: 0 0 10px; font-size: 1.17rem; line-height: 1.3; }
+    .highlights p { margin: 0; overflow-wrap: anywhere; }
+CSS;
+            $html = str_replace("  </style>\n</head>", $highlightsCss."\n  </style>\n</head>", $html);
+        }
 
         // F1-157: FAQ CSS exists only when the optional block is present.
         // Existing no-FAQ releases remain byte-for-byte unchanged.
