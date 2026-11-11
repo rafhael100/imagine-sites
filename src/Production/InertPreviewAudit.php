@@ -32,7 +32,7 @@ final class InertPreviewAudit
             'html'=>true, 'head'=>true, 'meta'=>true, 'title'=>true,
             'style'=>true, 'body'=>true, 'header'=>true, 'div'=>true,
             'span'=>true, 'nav'=>true, 'a'=>true, 'main'=>true,
-            'section'=>true, 'h1'=>true, 'h2'=>true, 'p'=>true,
+            'section'=>true, 'h1'=>true, 'h2'=>true, 'h3'=>true, 'p'=>true,
             'ul'=>true, 'li'=>true, 'footer'=>true,
         ];
         $meta = [];
