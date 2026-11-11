@@ -1665,3 +1665,173 @@ Route::get('/_lab/sites/v1/composite-social', static function (Request $request)
             "base-uri 'none'; frame-ancestors 'none'",
     ]);
 })->name('sites.lab.composite-social');
+
+
+/**
+ * F1-222: compare default SEO metadata and independently reviewer-chosen
+ * text copy, both as fixed imaginary examples only. No arbitrary content
+ * is accepted over HTTP. Never exposed under PHP-FPM or production.
+ */
+Route::get('/_lab/sites/v1/seo-copy-review', static function (Request $request) {
+    if(PHP_SAPI!=='cli' || !app()->environment('testing') ||
+        getenv('SITES_SYNTHETIC_HTTP')!=='1' ||
+        getenv('SITES_SYNTHETIC_REVIEW_UI')!=='1' ||
+        getenv('SITES_SYNTHETIC_RICH_REVIEW')!=='1' ||
+        getenv('SITES_F222_SEO_COPY_REVIEW')!=='1' ||
+        !in_array($request->ip(),['127.0.0.1','::1'],true)) {
+        return response('Not found',404);
+    }
+    foreach($request->query() as $key=>$value){
+        if(!in_array($key,['product','device','preset','seo','social'],true) ||
+            !is_string($value) || $value==='') {
+            return response('Not found',404);
+        }
+    }
+    $product=$request->query('product','onepage');
+    $device=$request->query('device','desktop');
+    $preset=$request->query('preset','classic');
+    $seo=$request->query('seo');
+    $social=$request->query('social');
+    if(!is_string($product) || !is_string($device) ||
+       !is_string($preset) || !is_string($seo) || !is_string($social) ||
+       !in_array($product,['onepage','landing_page'],true) ||
+       !in_array($device,['desktop','mobile'],true) ||
+       !in_array($preset,['classic','modern','warm'],true) ||
+       !in_array($seo,['default','custom'],true) ||
+       !in_array($social,['off','on'],true)) {
+        return response('Not found',404);
+    }
+
+    try {
+        $fixture=base_path('../../fixtures/sites/f1-170-process-copy.synthetic.json');
+        if(!is_file($fixture) || is_link($fixture) ||
+           filesize($fixture)>8192) {
+            return response('Not found',404);
+        }
+        $copy=json_decode((string)file_get_contents($fixture),
+            true,16,JSON_THROW_ON_ERROR);
+        if(!is_array($copy) || array_is_list($copy) ||
+           ($copy['schemaVersion']??null)!=='sites.ai-copy.v4' ||
+           count($copy['faq']??[])!==2 ||
+           count($copy['highlights']??[])!==2 ||
+           count($copy['processSteps']??[])!==3) {
+            return response('Not found',404);
+        }
+        $brand='Marca Fictícia Imagine';
+        $sourceRef='release-f222-source-'.$product.'-'.$preset.'-'.$social;
+        $newRef='release-f222-'.$product.'-'.$preset.'-'.$seo.'-'.$social;
+        $source=\Imagine\Sites\Production\SyntheticStructuredDraftAssembly::build(
+            $product,$brand,$preset,$copy,
+            'tenant-f222','site-f222',
+            'workflow-f222-source-'.$product.'-'.$preset.'-'.$social,
+            $sourceRef,['highlights','process','faq'],false,null,$social==='on'
+        );
+        $title=$seo==='custom'
+            ? 'Serviços de comunicação e tecnologia | Imagine Demonstração'
+            : null;
+        $description=$seo==='custom'
+            ? 'Prévia sintética de apresentação digital, com metadados editoriais próprios, revisados antes de qualquer publicação real.'
+            : null;
+
+        if($seo==='custom'){
+            $approved=$source->workflow->advance(
+                'imagine_reviewer','approve_internal',2,$source->artifact->digest
+            );
+            $plan=\Imagine\Sites\Production\SyntheticSeoCopyRevisionPlan::begin(
+                $approved,$source->brief,$source->artifact,
+                $sourceRef,$title,$description,
+                $newRef,'imagine_reviewer',3
+            );
+            if($plan->changedFields!==['seoTitle','seoDescription'] ||
+               $plan->draftWorkflow->state!=='drafting' ||
+               $plan->draftWorkflow->artifactDigest!==null ||
+               $plan->canReusePriorReview() || $plan->canPublish() ||
+               $plan->canIndex()) {
+                return response('Not found',404);
+            }
+        }
+
+        // New internal-review fixture represents the proposed bytes, not a
+        // persisted continuation or an authenticated Portal decision.
+        $draft=\Imagine\Sites\Production\SyntheticStructuredDraftAssembly::build(
+            $product,$brand,$preset,$copy,
+            'tenant-f222','site-f222',
+            'workflow-f222-review-'.$product.'-'.$preset.'-'.$seo.'-'.$social,
+            $newRef,['highlights','process','faq'],false,null,$social==='on',
+            $title,$description
+        );
+        if($draft->brief->seoTitle!==$title ||
+           $draft->brief->seoDescription!==$description ||
+           ($seo==='custom' && (
+                !hash_equals($draft->artifact->digest,$plan->nextArtifact->digest) ||
+                !hash_equals($draft->artifact->html,$plan->nextArtifact->html)
+           )) || !$draft->structuralReport->passedStructuralChecks ||
+           !\Imagine\Sites\Production\InertPreviewAudit::isSafe(
+                $draft->artifact->html
+           )) {
+            return response('Not found',404);
+        }
+
+        $files=\Imagine\Sites\Production\SyntheticPrivateReviewPackageV1::fromPendingDraft(
+            $draft
+        );
+        $seoReadback=\Imagine\Sites\Production\SyntheticPrivateSeoSnippetReadbackV1::inspect(
+            $files,$draft->brief
+        );
+        if($seoReadback->releaseRef!==$draft->manifest->releaseRef ||
+           !hash_equals($seoReadback->artifactDigest,$draft->artifact->digest) ||
+           $seoReadback->canPublish() || $seoReadback->canIndex() ||
+           $seoReadback->canSendToSeoEngine() ||
+           $seoReadback->canApproveForClient()) {
+            return response('Not found',404);
+        }
+        $summary=$draft->reviewSummary();
+        $dossier=\Imagine\Sites\Production\SyntheticInternalReviewDossier::fromDraft($draft);
+        if($summary['workflowState']!=='internal_review' ||
+           $summary['publishable']!==false ||
+           $summary['officialClientAcceptance']!==false ||
+           $dossier->record['reviewerDecisionStatus']!=='pending' ||
+           $dossier->record['publishable']!==false ||
+           $dossier->record['officialClientAcceptance']!==false) {
+            return response('Not found',404);
+        }
+
+        $page=view('labs.review',[
+            'product'=>$product,'device'=>$device,'preset'=>$preset,
+            'galleryMode'=>false,
+            'reviewRoute'=>'/_lab/sites/v1/seo-copy-review',
+            'richReview'=>true,
+            'seoCopySelection'=>[
+                'mode'=>$seo,'social'=>$social,
+                'originalDigest'=>$source->artifact->digest,
+                'changed'=>$seo==='custom',
+            ],
+            'seoSnippet'=>$seoReadback->snippet,
+            'brief'=>$draft->brief,
+            'previewHtml'=>$draft->artifact->html,
+            'digest'=>$draft->artifact->digest,
+            'reviewSnapshot'=>$summary,
+            'dossierDigest'=>$dossier->digest,
+            'requiredAcknowledgments'=>$dossier->record['requiredReviewerAcknowledgments'],
+            'qaChecks'=>$draft->structuralReport->checks,
+            'editorialChecks'=>$draft->editorialReport->checks,
+            'editorialSuggestions'=>$draft->editorialReport->suggestions,
+        ])->render();
+    }catch(\Throwable){
+        return response('Not found',404);
+    }
+
+    return response($page,200,[
+        'Content-Type'=>'text/html; charset=UTF-8',
+        'Cache-Control'=>'private, no-store, max-age=0',
+        'X-Content-Type-Options'=>'nosniff',
+        'X-Frame-Options'=>'DENY',
+        'Referrer-Policy'=>'no-referrer',
+        'X-Robots-Tag'=>'noindex, nofollow, noarchive',
+        'Permissions-Policy'=>'camera=(), microphone=(), geolocation=()',
+        'Content-Security-Policy'=>"default-src 'none'; script-src 'none'; ".
+            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src data:; ".
+            "connect-src 'none'; form-action 'none'; object-src 'none'; ".
+            "base-uri 'none'; frame-ancestors 'none'",
+    ]);
+})->name('sites.lab.seo-copy-review');
