@@ -62,7 +62,10 @@ BEGIN
  END IF;
 
  UPDATE f140_lab.synthetic_claim_outbox
- SET lease_id=p_lease,leased_until=v_now+interval '5 minutes',
+ -- A lease must never extend past the irrevocable original T0+432h.
+ SET lease_id=p_lease,
+     leased_until=LEAST(v_now+interval '5 minutes',
+                        v_selected.created_at+interval '432 hours'),
      lease_attempts=lease_attempts+1
  WHERE organization_reference=v_selected.organization_reference
    AND submission_reference=v_selected.submission_reference;
