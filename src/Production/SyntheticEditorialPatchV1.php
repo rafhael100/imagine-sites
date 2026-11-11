@@ -99,6 +99,7 @@ final class SyntheticEditorialPatchV1
                 $approvedBrief->sectionNavigation,
                 $approvedBrief->brandPalette,
                 $approvedBrief->socialPreviewMetadata,
+                $approvedBrief->seoTitle,$approvedBrief->seoDescription,
             );
         }catch(InvalidArgumentException $e){
             throw new DomainException('editorial_patch_invalid_content',previous:$e);
