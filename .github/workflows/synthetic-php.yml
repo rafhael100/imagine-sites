@@ -70,6 +70,7 @@ jobs:
           php tests/f185-canonical-private-package.php
           php tests/f187-combined-layout-revision.php
           php tests/f204-visual-preset-catalog.php
+          php tests/f205-composite-visual-private-package.php
           php tests/f190-brand-palette-contrast.php
           php tests/f200-layout-change-evidence.php
           php tests/f202-composite-visual-revision.php
