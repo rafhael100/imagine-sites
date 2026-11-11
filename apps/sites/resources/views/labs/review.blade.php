@@ -76,17 +76,17 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
   <aside class="sidebar" aria-label="Painel de revisão">
     <section class="card" aria-labelledby="product-title"><h2 id="product-title">Tipo de site</h2><p class="sub">Alternar modelos de teste</p>
       <nav class="tabs" aria-label="Alternar produto">
-        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product=onepage&amp;device={{ $device }}{{ $galleryMode ? '' : '&preset='.$preset }}" @if($product==='onepage') aria-current="page" @endif>Onepage</a>
-        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product=landing_page&amp;device={{ $device }}{{ $galleryMode ? '' : '&preset='.$preset }}" @if($product==='landing_page') aria-current="page" @endif>Landing Page</a>
+        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product=onepage&amp;device={{ $device }}{{ $galleryMode ? '' : '&preset='.$preset }}{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}" @if($product==='onepage') aria-current="page" @endif>Onepage</a>
+        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product=landing_page&amp;device={{ $device }}{{ $galleryMode ? '' : '&preset='.$preset }}{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}" @if($product==='landing_page') aria-current="page" @endif>Landing Page</a>
       </nav>
     </section>
     @unless($galleryMode)
     <section class="card" aria-labelledby="style-title"><h2 id="style-title">Estilo visual</h2>
       <p class="sub">Cada tema possui HTML e SHA-256 próprios.</p>
       <nav class="tabs" aria-label="Alternar tema">
-        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product={{ $product }}&amp;device={{ $device }}&amp;preset=classic" @if($preset==='classic') aria-current="page" @endif>Classic</a>
-        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product={{ $product }}&amp;device={{ $device }}&amp;preset=modern" @if($preset==='modern') aria-current="page" @endif>Modern</a>
-        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product={{ $product }}&amp;device={{ $device }}&amp;preset=warm" @if($preset==='warm') aria-current="page" @endif>Warm</a>
+        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product={{ $product }}&amp;device={{ $device }}&amp;preset=classic{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}" @if($preset==='classic') aria-current="page" @endif>Classic</a>
+        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product={{ $product }}&amp;device={{ $device }}&amp;preset=modern{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}" @if($preset==='modern') aria-current="page" @endif>Modern</a>
+        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product={{ $product }}&amp;device={{ $device }}&amp;preset=warm{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}" @if($preset==='warm') aria-current="page" @endif>Warm</a>
       </nav>
       <p class="sub">Trocar o tema exige nova revisão interna da versão gerada.</p>
     </section>
@@ -96,6 +96,17 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
       <h2 id="rich-title">Conteúdo da página ampliado</h2>
       <p class="sub">Prévia v3 totalmente fictícia: {{ count($brief->highlights) }} soluções e {{ count($brief->faq) }} perguntas frequentes.</p>
       <p class="sub">Os textos seguem pendentes de revisão interna; nenhuma autorização de publicação foi concedida.</p>
+    </section>
+    @endif
+    @if(($richVariant ?? null) !== null)
+    <section class="card" aria-labelledby="rich-variant-title">
+      <h2 id="rich-variant-title">Comparar blocos do site</h2>
+      <p class="sub">Cada composição é uma versão fictícia distinta, com hash próprio e revisão pendente.</p>
+      <nav class="tabs" aria-label="Alternar blocos de conteúdo">
+        @foreach(['faq'=>'Somente FAQ','highlights'=>'Somente serviços','both'=>'FAQ e serviços'] as $variantCode=>$variantLabel)
+          <a href="{{ $reviewRoute }}?product={{ $product }}&amp;device={{ $device }}&amp;preset={{ $preset }}&amp;variant={{ $variantCode }}" @if($richVariant===$variantCode) aria-current="page" @endif>{{ $variantLabel }}</a>
+        @endforeach
+      </nav>
     </section>
     @endif
     <section class="card" aria-labelledby="steps-title"><h2 id="steps-title">Etapas de revisão</h2>
@@ -152,8 +163,8 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
   <section class="preview" aria-labelledby="preview-title">
     <div class="preview-head"><div><h2 id="preview-title">Prévia do site</h2><p class="sub">HTML exato do motor, isolado em iframe sandbox</p></div>
       <nav class="tabs" aria-label="Alternar dispositivo">
-        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product={{ $product }}&amp;device=desktop{{ $galleryMode ? '' : '&preset='.$preset }}" @if($device==='desktop') aria-current="page" @endif>Desktop</a>
-        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product={{ $product }}&amp;device=mobile{{ $galleryMode ? '' : '&preset='.$preset }}" @if($device==='mobile') aria-current="page" @endif>Mobile</a>
+        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product={{ $product }}&amp;device=desktop{{ $galleryMode ? '' : '&preset='.$preset }}{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}" @if($device==='desktop') aria-current="page" @endif>Desktop</a>
+        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product={{ $product }}&amp;device=mobile{{ $galleryMode ? '' : '&preset='.$preset }}{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}" @if($device==='mobile') aria-current="page" @endif>Mobile</a>
       </nav>
     </div>
     <div class="workspace"><div class="browser {{ $device }}">
