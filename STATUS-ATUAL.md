@@ -1,6 +1,24 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
 
+## Continuidade do motor — F1-210 a F1-214 (11/11/2026)
+
+**Cinco entregas consecutivas concluídas na cadeia de rascunhos; suítes específicas PHP 8.3/8.4 aprovadas.** Partimos da branch F1-209, sem repetir entregas antigas, e avançamos em prévias de compartilhamento e paridade entre revisão e exportação.
+
+| Etapa | PR draft | CI verificado | Entrega |
+| --- | --- | --- | --- |
+| F1-210 | [#242](https://github.com/rafhael100/imagine-sites/pull/242) | [Run 43075842454](https://github.com/rafhael100/imagine-sites/actions/runs/43075842454) | Cartão social **somente de texto** no revisor Laravel; conferência dos sete metadados OG/Twitter contra bytes SHA-256, sem URL/imagem/remoto |
+| F1-211 | [#243](https://github.com/rafhael100/imagine-sites/pull/243) | [Run 43076757986](https://github.com/rafhael100/imagine-sites/actions/runs/43076757986) | Auditoria CLI de pacote privado já salvo, readback dos quatro arquivos, rejeição de adulteração, symlinks e opções inválidas |
+| F1-212 | [#244](https://github.com/rafhael100/imagine-sites/pull/244) | [Run 43077772547](https://github.com/rafhael100/imagine-sites/actions/runs/43077772547) | Uma tela de revisão para tema, paleta, ordem, menu e social; seletores preservam escolhas e Landing recusa menu extra |
+| F1-213 | [#245](https://github.com/rafhael100/imagine-sites/pull/245) | [Run 43078512582](https://github.com/rafhael100/imagine-sites/actions/runs/43078512582) | Teste ponta a ponta: HTML do iframe **byte a byte idêntico** a index.html exportado e verificado pelo auditor |
+| F1-214 | [#246](https://github.com/rafhael100/imagine-sites/pull/246) | [Sites Engine 43079064307](https://github.com/rafhael100/imagine-sites/actions/runs/43079064307) e [Laravel 43079064327](https://github.com/rafhael100/imagine-sites/actions/runs/43079064327) | Regressões F1-209/210/211/213 obrigatórias em cada PR + main; script de guarda detecta 14 mutações inseguras |
+
+**Política preservada:** rascunhos `draft` encadeados, sem merge em `main`/`dev` ou deploy. Toda fixture usa dados inventados, artefatos internos `noindex`, revisão pendente e `publishable=false`, `officialClientAcceptance=false`. Nenhum lead, credencial, imagem remota, chamada a rede social, CRM real, VPS, DNS ou Cloudflare foi utilizado. Os gates OP01 #33, OP02 #34, OP04 #36 e **10/10 controles de produção** continuam bloqueados; testes CI não equivalem a autenticação ou autorização operacional.
+
+**Próximo marco para transformar em serviço:** identidade S2S verificada Portal–Sites–CRM, revisão AppSec/DBA, captação dupla com consentimento, armazenamento e confirmação oficial, retenção LGPD, homologação com infraestrutura real e critérios de aceite; não acionar esses fluxos a partir de código de laboratório.
+
+
+
 ## Continuidade F1-169 a F1-181 — conteúdo, edição e layout (11/11/2026)
 
 **13 entregas consecutivas em PRs draft encadeados; todas as suítes de CI específicas concluídas com sucesso.** A sequência acrescentou funcionalidades reais ao motor estático de Onepage/Landing Page, mas elas continuam isoladas em laboratórios de dados fictícios, sem qualquer publicação, captação real, integração CRM operacional ou aceite de cliente.
