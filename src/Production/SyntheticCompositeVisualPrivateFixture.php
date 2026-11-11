@@ -29,6 +29,7 @@ final readonly class SyntheticCompositeVisualPrivateFixture
         string $orderCode,
         string $navCode,
         string $paletteCode,
+        bool $socialPreview = false,
     ):self {
         if (($fixedCopy['schemaVersion']??null)!=='sites.ai-copy.v4' ||
             count($fixedCopy['faq']??[])!==2 ||
@@ -47,24 +48,25 @@ final readonly class SyntheticCompositeVisualPrivateFixture
             'workflow-f205-original-'.$product,
             'release-f205-original-'.$product
         );
-        $changed=!SyntheticVisualPresetCatalog::isOriginal(
+        $changed=$socialPreview || !SyntheticVisualPresetCatalog::isOriginal(
             $preset,$orderCode,$navCode,$paletteCode
         );
 
         $release='release-f205-'.$product.'-'.$preset.'-'.$orderCode.
-            '-'.$paletteCode.'-'.$navCode;
+            '-'.$paletteCode.'-'.$navCode.($socialPreview?'-social-on':'');
         $draft=SyntheticStructuredDraftAssembly::build(
             $product,'Marca Fictícia Imagine',$preset,$fixedCopy,
             $tenant,$site,
             'workflow-f205-private-'.$product.'-'.$preset.'-'.$orderCode.
-                '-'.$paletteCode.'-'.$navCode,
-            $release,$choice['order'],$choice['nav'],$choice['palette']
+                '-'.$paletteCode.'-'.$navCode.($socialPreview?'-social-on':''),
+            $release,$choice['order'],$choice['nav'],$choice['palette'],$socialPreview
         );
 
         if ($draft->brief->stylePreset!==$preset ||
             $draft->brief->sectionOrder!==$choice['order'] ||
             $draft->brief->sectionNavigation!==$choice['nav'] ||
             $draft->brief->brandPalette?->cssRules()!==$choice['palette']?->cssRules() ||
+            $draft->brief->socialPreviewMetadata!==$socialPreview ||
             $draft->reviewSummary()['workflowState']!=='internal_review' ||
             $draft->reviewSummary()['workflowRevision']!==2 ||
             $draft->reviewSummary()['publishable']!==false ||
@@ -80,12 +82,13 @@ final readonly class SyntheticCompositeVisualPrivateFixture
                 $approved,$source->brief,$source->artifact,
                 $source->manifest->releaseRef,
                 $preset,$choice['palette'],$choice['order'],$choice['nav'],
-                $release,'imagine_reviewer',3
+                $release,'imagine_reviewer',3,$socialPreview
             );
             if ($plan->draftWorkflow->state!==SyntheticProductionWorkflow::DRAFTING ||
                 $plan->draftWorkflow->artifactDigest!==null ||
                 $plan->canPublish() || $plan->canAcceptForClient() ||
                 $plan->canWriteCrm() || $plan->canReusePreviousApproval() ||
+                $plan->socialMetadataChanged!==$socialPreview ||
                 !hash_equals($plan->nextArtifact->html,$draft->artifact->html) ||
                 !hash_equals($plan->nextArtifact->digest,$draft->artifact->digest)) {
                 throw new DomainException('synthetic_visual_package_revision_mismatch');

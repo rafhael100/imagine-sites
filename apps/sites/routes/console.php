@@ -1141,7 +1141,7 @@ Artisan::command(
  * NEVER accepts client text, destination paths, organization IDs or secrets.
  */
 Artisan::command(
-    'sites:export-visual-fixture {product=onepage} {preset=classic} {order=services_process_faq} {palette=default} {navigation=off}',
+    'sites:export-visual-fixture {product=onepage} {preset=classic} {order=services_process_faq} {palette=default} {navigation=off} {social=off}',
     function (): int {
         if (PHP_SAPI!=='cli' || !app()->environment('testing') ||
             getenv('GITHUB_ACTIONS')!=='true' ||
@@ -1155,6 +1155,11 @@ Artisan::command(
         $orderCode=(string)$this->argument('order');
         $paletteCode=(string)$this->argument('palette');
         $navCode=(string)$this->argument('navigation');
+        $socialCode=(string)$this->argument('social');
+        if (!in_array($socialCode,['off','on'],true)) {
+            $this->error('Unknown social metadata mode; no files created.');
+            return Command::FAILURE;
+        }
         try {
             \Imagine\Sites\Production\SyntheticVisualPresetCatalog::choose(
                 $product,$preset,$orderCode,$navCode,$paletteCode
@@ -1167,7 +1172,8 @@ Artisan::command(
         $fixture=base_path('../../fixtures/sites/f1-170-process-copy.synthetic.json');
         $root=storage_path('app/private');
         $destination=$root.'/sites-f1-205-'.$product.'-'.$preset.'-'.
-            $orderCode.'-'.$paletteCode.'-'.$navCode;
+            $orderCode.'-'.$paletteCode.'-'.$navCode.
+            ($socialCode==='on'?'-social-on':'');
         if (!is_file($fixture) || is_link($fixture) ||
             filesize($fixture)>8192 || is_link($root) ||
             is_link($destination) || file_exists($destination)) {
@@ -1179,7 +1185,8 @@ Artisan::command(
             $copy=json_decode((string)file_get_contents($fixture),true,
                 16,JSON_THROW_ON_ERROR);
             $design=\Imagine\Sites\Production\SyntheticCompositeVisualPrivateFixture::build(
-                $copy,$product,$preset,$orderCode,$navCode,$paletteCode
+                $copy,$product,$preset,$orderCode,$navCode,$paletteCode,
+                $socialCode==='on'
             );
             $files=$design->privateFiles();
             if ((!is_dir($root) &&
@@ -1191,7 +1198,8 @@ Artisan::command(
                 $destination,$files
             );
             $expectedRelease='release-f205-'.$product.'-'.$preset.'-'.
-                $orderCode.'-'.$paletteCode.'-'.$navCode;
+                $orderCode.'-'.$paletteCode.'-'.$navCode.
+                ($socialCode==='on'?'-social-on':'');
             if ($proof['releaseRef']!==$expectedRelease ||
                 !hash_equals($proof['artifactDigest'],$design->draft->artifact->digest) ||
                 $proof['reviewerDecisionStatus']!=='pending' ||
