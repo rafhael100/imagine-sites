@@ -60,7 +60,7 @@ final readonly class SyntheticContentRevisionPlan
             $approvedBrief->stylePreset !== $nextBrief->stylePreset ||
             $approvedBrief->sectionOrder !== $nextBrief->sectionOrder ||
             $approvedBrief->sectionNavigation !== $nextBrief->sectionNavigation ||
-            $approvedBrief->brandPalette !== $nextBrief->brandPalette) {
+            $approvedBrief->brandPalette != $nextBrief->brandPalette) {
             throw new DomainException('content_revision_cannot_switch_product_or_style');
         }
 
