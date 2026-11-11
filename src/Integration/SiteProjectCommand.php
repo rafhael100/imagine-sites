@@ -65,10 +65,10 @@ final readonly class SiteProjectCommand
         }
         try {
             $decoded = json_decode($raw, false, 16, JSON_THROW_ON_ERROR);
-        } catch (\\JsonException) {
+        } catch (\JsonException) {
             throw new InvalidArgumentException('Invalid candidate JSON syntax.');
         }
-        if (!$decoded instanceof \\stdClass) {
+        if (!$decoded instanceof \stdClass) {
             throw new InvalidArgumentException('Candidate command must be an object.');
         }
         $expected = [
@@ -81,7 +81,7 @@ final readonly class SiteProjectCommand
         }
         try {
             $reencoded = json_encode($decoded, JSON_THROW_ON_ERROR);
-        } catch (\\JsonException) {
+        } catch (\JsonException) {
             throw new InvalidArgumentException('Invalid canonical candidate JSON.');
         }
         if (!hash_equals($reencoded, $raw)) {
