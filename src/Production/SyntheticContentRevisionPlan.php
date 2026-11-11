@@ -61,7 +61,9 @@ final readonly class SyntheticContentRevisionPlan
             $approvedBrief->sectionOrder !== $nextBrief->sectionOrder ||
             $approvedBrief->sectionNavigation !== $nextBrief->sectionNavigation ||
             $approvedBrief->brandPalette != $nextBrief->brandPalette ||
-            $approvedBrief->socialPreviewMetadata !== $nextBrief->socialPreviewMetadata) {
+            $approvedBrief->socialPreviewMetadata !== $nextBrief->socialPreviewMetadata ||
+            $approvedBrief->seoTitle !== $nextBrief->seoTitle ||
+            $approvedBrief->seoDescription !== $nextBrief->seoDescription) {
             throw new DomainException('content_revision_cannot_switch_product_or_style');
         }
 

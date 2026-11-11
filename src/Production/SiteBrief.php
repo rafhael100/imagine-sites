@@ -28,6 +28,8 @@ final readonly class SiteBrief
         public bool $sectionNavigation = false,
         public ?SyntheticBrandPaletteV1 $brandPalette = null,
         public bool $socialPreviewMetadata = false,
+        public ?string $seoTitle = null,
+        public ?string $seoDescription = null,
     ) {
         if (!in_array($productCode, ['onepage', 'landing_page'], true)) {
             throw new InvalidArgumentException('Unsupported Imagine Sites product.');
@@ -45,6 +47,25 @@ final readonly class SiteBrief
                 throw new InvalidArgumentException('Invalid plain text: '.$label);
             }
         }
+        // F1-220: explicit reviewer-selected SEO copy is separate from
+        // headline/H1 and hero text. The AI v1-v4 contract never controls
+        // these fields, and null preserves all earlier HTML bytes.
+        foreach ([
+            'seoTitle' => [$seoTitle,160],
+            'seoDescription' => [$seoDescription,360],
+        ] as $field => [$value,$max]) {
+            if ($value===null)continue;
+            if (trim($value)==='' || $value!==trim($value) ||
+                strlen($value)>$max ||
+                !mb_check_encoding($value,'UTF-8') ||
+                preg_match('/[\x00-\x1f\x7f<>]/u',$value) ||
+                preg_match('~(?:https?://|javascript:|data:)~i',$value)) {
+                throw new InvalidArgumentException(
+                    'Invalid reviewer-controlled SEO copy: '.$field
+                );
+            }
+        }
+
         if (count($benefits) < 1 || count($benefits) > 8) {
             throw new InvalidArgumentException('One to eight benefits required.');
         }

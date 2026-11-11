@@ -71,15 +71,15 @@ final readonly class SyntheticSocialCardInspectionV1
             libxml_use_internal_errors($previous);
         }
 
-        $title=$brief->headline.' | '.$brief->brand;
+        $title=$brief->seoTitle ?? ($brief->headline.' | '.$brief->brand);
         $expected=[
             'og:type'=>'website',
             'og:locale'=>'pt_BR',
             'og:title'=>$title,
-            'og:description'=>$brief->description,
+            'og:description'=>($brief->seoDescription ?? $brief->description),
             'twitter:card'=>'summary',
             'twitter:title'=>$title,
-            'twitter:description'=>$brief->description,
+            'twitter:description'=>($brief->seoDescription ?? $brief->description),
         ];
         // Exact keys, values and count: never accept an injected website,
         // canonical URL, large image, phishing link or arbitrary metadata.
@@ -93,7 +93,7 @@ final readonly class SyntheticSocialCardInspectionV1
             }
         }
 
-        return new self($title,$brief->description,$brief->brand,$artifact->digest);
+        return new self($title,($brief->seoDescription ?? $brief->description),$brief->brand,$artifact->digest);
     }
 
     public function canPublish():bool {return false;}
