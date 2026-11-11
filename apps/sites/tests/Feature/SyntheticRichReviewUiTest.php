@@ -90,7 +90,7 @@ final class SyntheticRichReviewUiTest extends TestCase
         foreach($hashes as $byPreset) {
             self::assertCount(3,array_unique($byPreset));
         }
-        self::assertCount(6,array_unique(array_merge(...array_values($hashes))));
+        self::assertCount(6,array_unique(array_merge(...array_map('array_values',array_values($hashes)))));
     }
 
     public function test_legacy_review_stays_unchanged_without_rich_fixture():void
