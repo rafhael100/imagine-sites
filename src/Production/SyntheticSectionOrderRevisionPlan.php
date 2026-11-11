@@ -72,6 +72,7 @@ final readonly class SyntheticSectionOrderRevisionPlan
             $approvedBrief->highlights,
             $approvedBrief->processSteps,
             $requestedOrder,
+            $approvedBrief->sectionNavigation,
         );
         $nextArtifact=$renderer->render($nextBrief);
         if (hash_equals($nextArtifact->digest,$approvedArtifact->digest) ||
