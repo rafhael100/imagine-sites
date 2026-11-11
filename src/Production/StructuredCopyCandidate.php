@@ -27,6 +27,10 @@ final class StructuredCopyCandidate
         'schemaVersion', 'headline', 'description', 'callToAction',
         'benefits', 'faq', 'highlights',
     ];
+    private const COPY_FIELDS_V4 = [
+        'schemaVersion', 'headline', 'description', 'callToAction',
+        'benefits', 'faq', 'highlights', 'processSteps',
+    ];
 
     /** @param array<string,mixed> $candidate */
     public static function assemble(
@@ -45,6 +49,7 @@ final class StructuredCopyCandidate
             'sites.ai-copy.v1' => self::COPY_FIELDS,
             'sites.ai-copy.v2' => self::COPY_FIELDS_V2,
             'sites.ai-copy.v3' => self::COPY_FIELDS_V3,
+            'sites.ai-copy.v4' => self::COPY_FIELDS_V4,
             default => throw new DomainException('untrusted_ai_response_schema'),
         };
         $actual = array_keys($candidate);
@@ -77,7 +82,7 @@ final class StructuredCopyCandidate
             }
         }
         $faq = [];
-        if (in_array($version, ['sites.ai-copy.v2', 'sites.ai-copy.v3'], true)) {
+        if (in_array($version, ['sites.ai-copy.v2', 'sites.ai-copy.v3', 'sites.ai-copy.v4'], true)) {
             $faq = $candidate['faq'];
             if (!is_array($faq) || !array_is_list($faq) || count($faq) > 6) {
                 throw new DomainException('invalid_ai_faq_list');
@@ -95,7 +100,7 @@ final class StructuredCopyCandidate
         }
 
         $highlights = [];
-        if ($version === 'sites.ai-copy.v3') {
+        if (in_array($version, ['sites.ai-copy.v3', 'sites.ai-copy.v4'], true)) {
             $highlights = $candidate['highlights'];
             if (!is_array($highlights) || !array_is_list($highlights) ||
                 count($highlights) < 1 || count($highlights) > 4) {
@@ -113,6 +118,25 @@ final class StructuredCopyCandidate
             }
         }
 
+        $processSteps = [];
+        if ($version === 'sites.ai-copy.v4') {
+            $processSteps = $candidate['processSteps'];
+            if (!is_array($processSteps) || !array_is_list($processSteps) ||
+                count($processSteps) < 1 || count($processSteps) > 5) {
+                throw new DomainException('invalid_ai_process_steps');
+            }
+            foreach ($processSteps as $step) {
+                if (!is_array($step) ||
+                    array_keys($step) !== ['title', 'description'] ||
+                    !is_string($step['title']) ||
+                    !is_string($step['description']) ||
+                    !self::safePlainCopy($step['title']) ||
+                    !self::safePlainCopy($step['description'])) {
+                    throw new DomainException('unsafe_ai_process_step');
+                }
+            }
+        }
+
         try {
             return new SiteBrief(
                 $officialProductCode,
@@ -124,6 +148,7 @@ final class StructuredCopyCandidate
                 'classic',
                 $faq,
                 $highlights,
+                $processSteps,
             );
         } catch (InvalidArgumentException $e) {
             throw new DomainException('invalid_ai_brief_constraints', previous:$e);
