@@ -138,7 +138,7 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
           'faq_services_process'=>'FAQ / Serviços / Etapas',
           'faq_process_services'=>'FAQ / Etapas / Serviços'
         ] as $sectionOrderOption=>$sectionOrderLabel)
-          <a href="{{ $reviewRoute }}?product={{ $product }}&amp;device={{ $device }}&amp;preset={{ $preset }}&amp;order={{ $sectionOrderOption }}" @if($sectionOrderCode===$sectionOrderOption) aria-current="page" @endif>{{ $sectionOrderLabel }}</a>
+          <a href="{{ $reviewRoute }}?product={{ $product }}&amp;device={{ $device }}&amp;preset={{ $preset }}&amp;order={{ $sectionOrderOption }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}" @if($sectionOrderCode===$sectionOrderOption) aria-current="page" @endif>{{ $sectionOrderLabel }}</a>
         @endforeach
       </nav>
       <p class="sub">O conteúdo não muda. A aprovação da disposição anterior não é reutilizada.</p>
@@ -151,7 +151,7 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
       @if($product==='onepage')
         <nav class="tabs" aria-label="Alternar menu interno">
           @foreach(['off'=>'Desativada','on'=>'Ativada'] as $navCode=>$navLabel)
-            <a href="{{ $reviewRoute }}?product={{ $product }}&amp;device={{ $device }}&amp;preset={{ $preset }}&amp;nav={{ $navCode }}" @if($anchorNavMode===$navCode) aria-current="page" @endif>{{ $navLabel }}</a>
+            <a href="{{ $reviewRoute }}?product={{ $product }}&amp;device={{ $device }}&amp;preset={{ $preset }}&amp;nav={{ $navCode }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}" @if($anchorNavMode===$navCode) aria-current="page" @endif>{{ $navLabel }}</a>
           @endforeach
         </nav>
       @else

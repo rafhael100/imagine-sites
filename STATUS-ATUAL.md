@@ -1,5 +1,34 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+
+## Continuidade F1-169 a F1-181 — conteúdo, edição e layout (11/11/2026)
+
+**13 entregas consecutivas em PRs draft encadeados; todas as suítes de CI específicas concluídas com sucesso.** A sequência acrescentou funcionalidades reais ao motor estático de Onepage/Landing Page, mas elas continuam isoladas em laboratórios de dados fictícios, sem qualquer publicação, captação real, integração CRM operacional ou aceite de cliente.
+
+| Entrega | PR | CI específico aprovado | Capacidade implementada |
+| --- | --- | --- | --- |
+| F1-169 | [#207](https://github.com/rafhael100/imagine-sites/pull/207) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/43009029417) | Seção ordenada “Como funciona”, schema de cópia v4, revisão invalida hash anterior |
+| F1-170 | [#208](https://github.com/rafhael100/imagine-sites/pull/208) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/43009678448) | Comparação no Laravel de serviços+etapas e página completa |
+| F1-171 | [#209](https://github.com/rafhael100/imagine-sites/pull/209) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/43010528618) | Patch editorial limitado a cópia, com revisão e SHA-256 fixados |
+| F1-172 | [#210](https://github.com/rafhael100/imagine-sites/pull/210) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/43011231411) | Revisor Laravel antes/depois, hashes e campos editados |
+| F1-173 | [#211](https://github.com/rafhael100/imagine-sites/pull/211) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/43011672952) | Chrome real: 36 inspeções de responsividade das etapas |
+| F1-174 | [#212](https://github.com/rafhael100/imagine-sites/pull/212) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/43012231772) | Pacote privado pós-edição com HTML, manifesto, resumo e dossiê verificados |
+| F1-175 | [#213](https://github.com/rafhael100/imagine-sites/pull/213) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/43015092590) | Seis permutações das seções, digest novo e revisão reiniciada |
+| F1-176 | [#214](https://github.com/rafhael100/imagine-sites/pull/214) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/43015615406) | UI Laravel para seis ordens: 72 combinações de revisão |
+| F1-177 | [#215](https://github.com/rafhael100/imagine-sites/pull/215) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/43016026865) | Chrome real: 108 inspeções de layouts com seções reordenadas |
+| F1-178 | [#216](https://github.com/rafhael100/imagine-sites/pull/216) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/43016687698) | Links internos opt-in de Onepage, sem URLs externas ou controle pela IA |
+| F1-179 | [#217](https://github.com/rafhael100/imagine-sites/pull/217) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/43017288882) | Chrome real: 54 inspeções do menu em 320/390/1365px |
+| F1-180 | [#218](https://github.com/rafhael100/imagine-sites/pull/218) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/43017860728) | UI Laravel para comparar menu ligado/desligado |
+| F1-181 | [#219](https://github.com/rafhael100/imagine-sites/pull/219) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/43018600418) | Revisão combinada de ordem de seções e estado do menu: 108 visualizações |
+
+### Limites e próximos gates
+
+- **Estas entregas NÃO são deploy, publicação nem editor de cliente.** As flags de laboratório e rótulos de papéis sintéticos não equivalem a identidade/autorização. Artefatos continuam noindex, não publicáveis, com aceite oficial do Portal pendente.
+- As PRs estão em *draft*, encadeadas entre si; **nenhuma foi incorporada a dev/main**, e não houve operação na VPS, Cloudflare, DNS, CRM real ou dados pessoais.
+- [OP01 #33](https://github.com/rafhael100/imagine-sites/issues/33): autenticação real e identidade/autorização confiável do Portal; [OP02 #34](https://github.com/rafhael100/imagine-sites/issues/34): revisão independente de SQL, RLS, IAM e segurança; [OP04 #36](https://github.com/rafhael100/imagine-sites/issues/36): dois ingressos de lead independentes, consentimento, confirmação durável no CRM, retenção LGPD, observabilidade e homologação. **10/10 gates de produção permanecem BLOCKED.**
+- Próximos trabalhos dentro do escopo autorizado: testes sintéticos de regressão/a11y, consolidação de branches sob revisão controlada e documentação de critérios de aceite; qualquer serviço real exige gate de segurança/infraestrutura próprio antes da implementação operacional.
+
+
 ## Continuidade sem pausa — F1-148 a F1-156 (11/11/2026)
 
 **Nove entregas encadeadas, revisadas no GitHub Actions.** Elas continuam em PRs `draft` com base na cadeia anterior F1-142..147, e preservam os controles de AGENTS.md. Os testes de banco usam PostgreSQL 18 **descartável**, contas fictícias, PHP 8.3/8.4, sem dados pessoais, endpoints públicos ou produção.
