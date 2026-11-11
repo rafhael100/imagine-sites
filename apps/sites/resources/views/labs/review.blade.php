@@ -58,6 +58,13 @@ code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.75rem
 iframe{width:100%;height:505px;border:0;display:block;background:#fff}
 .foot{padding:15px 21px;color:#52647a;font-size:.75rem;border-top:1px solid #e2e7ee}
 .layout-evidence-detail{margin:13px 0;font-size:.78rem}.layout-evidence-detail summary{font-weight:700;cursor:pointer}.layout-evidence-detail pre{max-height:290px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;border:1px solid #dce4ed;background:#f8fafc;border-radius:8px;padding:12px;font-size:.7rem}
+@if(($socialCard ?? null) !== null)
+.social-card-preview{margin-top:16px;padding:18px;border:1px solid #d5e1ee;border-radius:13px;background:#f9fbfd;overflow-wrap:anywhere}
+.social-card-preview h3{font-size:1rem;line-height:1.3;margin:7px 0 11px;font-weight:800;color:#1f3048}
+.social-card-preview p{font-size:.81rem;margin:8px 0;color:#52647a}
+.social-card-preview .social-card-kicker{font-size:.69rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#2a577a}
+.social-card-preview .social-card-origin{font-weight:700}
+@endif
 .note{font-size:.78rem;background:#ecf3fb;border:1px solid #d5e5f6;padding:15px 18px;border-radius:10px;margin-top:20px;color:#2a5077}
 .qa-summary{margin-top:20px;border-top:1px solid #e5ebf2;padding-top:17px}.qa-summary strong{font-size:.84rem}.qa-summary p{font-size:.73rem;color:#52647a;margin:5px 0 10px}.qa-list{padding:0;list-style:none;display:grid;gap:7px}.qa-list li{display:flex;gap:9px;align-items:center;font-size:.76rem}.qa-list span{display:grid;place-items:center;width:18px;height:18px;background:#e8f4ec;color:#246342;border-radius:50%;font-weight:800}.qa-summary p.pending{margin-top:11px;background:#fff8e9;color:#7a5b23;border-radius:7px;padding:9px}
 .editorial-summary{margin-top:15px;padding-top:15px;border-top:1px solid #e5ebf2}
@@ -248,6 +255,18 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
         <p class="locked">A versão anterior não transfere sua aprovação para os metadados novos.</p>
       @else
         <p class="sub" id="social-baseline">Modelo original, sem alteração nem aprovação fictícia criada.</p>
+      @endif
+      @if(($socialCard ?? null) !== null)
+      <article class="social-card-preview" aria-labelledby="social-card-heading">
+        <p class="social-card-kicker">Simulação textual do cartão de compartilhamento</p>
+        <h3 id="social-card-heading">{{ $socialCard->title }}</h3>
+        <p id="social-card-description">{{ $socialCard->description }}</p>
+        <p class="social-card-origin">{{ $socialCard->brand }} · sem URL e sem imagem</p>
+        <p class="sub">Conferido contra os sete metadados reais do HTML. O cartão não foi enviado a nenhuma rede social.</p>
+        <p class="sub">SHA-256: <code id="social-card-digest">{{ $socialCard->artifactDigest }}</code></p>
+      </article>
+      @else
+      <p class="sub" id="social-card-disabled">Nenhum cartão social foi incorporado nesta versão.</p>
       @endif
       <p class="locked">A prévia não contém URL social, imagem externa, formulário ou permissão de indexação.</p>
     </section>
