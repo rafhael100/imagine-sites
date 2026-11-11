@@ -1529,3 +1529,126 @@ Route::get('/_lab/sites/v1/social-preview', static function (Request $request) {
             "base-uri 'none'; frame-ancestors 'none'",
     ]);
 })->name('sites.lab.social-preview');
+
+
+/**
+ * F1-212: unified private review of theme, palette, section order,
+ * Onepage-only anchors and safe text-only social preview. Strict enums.
+ * No public HTTP route, real identity, form, remote media or publishing.
+ */
+Route::get('/_lab/sites/v1/composite-social', static function (Request $request) {
+    if (PHP_SAPI!=='cli' || !app()->environment('testing') ||
+        getenv('SITES_SYNTHETIC_HTTP')!=='1' ||
+        getenv('SITES_SYNTHETIC_REVIEW_UI')!=='1' ||
+        getenv('SITES_SYNTHETIC_RICH_REVIEW')!=='1' ||
+        getenv('SITES_F212_COMPOSITE_SOCIAL_REVIEW')!=='1' ||
+        !in_array($request->ip(),['127.0.0.1','::1'],true)) {
+        return response('Not found',404);
+    }
+    foreach($request->query() as $name=>$value) {
+        if(!in_array($name,[
+            'product','device','preset','order','nav','palette','social'
+        ],true) || !is_string($value) || $value==='') {
+            return response('Not found',404);
+        }
+    }
+    $product=$request->query('product','onepage');
+    $device=$request->query('device','desktop');
+    $preset=$request->query('preset','classic');
+    $orderCode=$request->query('order');
+    $navCode=$request->query('nav');
+    $paletteCode=$request->query('palette');
+    $socialCode=$request->query('social');
+    if(!is_string($product) || !is_string($device) ||
+        !is_string($preset) || !is_string($orderCode) ||
+        !is_string($navCode) || !is_string($paletteCode) ||
+        !is_string($socialCode) ||
+        !in_array($device,['desktop','mobile'],true) ||
+        !in_array($socialCode,['on','off'],true)) {
+        return response('Not found',404);
+    }
+    try {
+        $selection=\Imagine\Sites\Production\SyntheticVisualPresetCatalog::choose(
+            $product,$preset,$orderCode,$navCode,$paletteCode
+        );
+        $fixture=base_path('../../fixtures/sites/f1-170-process-copy.synthetic.json');
+        if(!is_file($fixture) || is_link($fixture) || filesize($fixture)>8192) {
+            return response('Not found',404);
+        }
+        $copy=json_decode((string)file_get_contents($fixture),
+            true,16,JSON_THROW_ON_ERROR);
+        $design=\Imagine\Sites\Production\SyntheticCompositeVisualPrivateFixture::build(
+            $copy,$product,$preset,$orderCode,$navCode,
+            $paletteCode,$socialCode==='on'
+        );
+        $draft=$design->draft;
+        if($draft->brief->sectionOrder!==$selection['order'] ||
+            $draft->brief->sectionNavigation!==$selection['nav'] ||
+            $draft->brief->brandPalette?->cssRules()!==$selection['palette']?->cssRules() ||
+            $draft->brief->socialPreviewMetadata!==($socialCode==='on') ||
+            !$draft->structuralReport->passedStructuralChecks ||
+            !\Imagine\Sites\Production\InertPreviewAudit::isSafe($draft->artifact->html)) {
+            return response('Not found',404);
+        }
+        // Same four canonical bytes that the private export F1-209 writes,
+        // verified independently by F1-211 before showing the social card.
+        $report=\Imagine\Sites\Production\SyntheticPrivateSocialCardReadbackV1::inspect(
+            $design->privateFiles(),$draft->brief
+        );
+        if(!hash_equals($report->artifactDigest,$draft->artifact->digest) ||
+            $report->socialMetadataEnabled!==($socialCode==='on') ||
+            ($report->card!==null)!==($socialCode==='on') ||
+            $report->canPublish() || $report->canMarkClientAccepted() ||
+            $report->canSendToCrm() || $report->canSharePublicly()) {
+            return response('Not found',404);
+        }
+        $summary=$draft->reviewSummary();
+        $dossier=\Imagine\Sites\Production\SyntheticInternalReviewDossier::fromDraft($draft);
+        if($summary['workflowState']!=='internal_review' ||
+            $summary['publishable']!==false ||
+            $summary['officialClientAcceptance']!==false ||
+            $dossier->record['reviewerDecisionStatus']!=='pending' ||
+            $dossier->record['publishable']!==false ||
+            $dossier->record['officialClientAcceptance']!==false) {
+            return response('Not found',404);
+        }
+        $page=view('labs.review',[
+            'product'=>$product,'device'=>$device,'preset'=>$preset,
+            'galleryMode'=>false,
+            'reviewRoute'=>'/_lab/sites/v1/composite-social',
+            'richReview'=>true,
+            'visualSocialChoice'=>[
+                'order'=>$orderCode,'nav'=>$navCode,
+                'palette'=>$paletteCode,'social'=>$socialCode,
+                'originalDigest'=>$design->originalDigest,
+                'changed'=>$design->changed,
+            ],
+            'socialCard'=>$report->card,
+            'brief'=>$draft->brief,
+            'previewHtml'=>$draft->artifact->html,
+            'digest'=>$draft->artifact->digest,
+            'reviewSnapshot'=>$summary,
+            'dossierDigest'=>$dossier->digest,
+            'requiredAcknowledgments'=>$dossier->record['requiredReviewerAcknowledgments'],
+            'qaChecks'=>$draft->structuralReport->checks,
+            'editorialChecks'=>$draft->editorialReport->checks,
+            'editorialSuggestions'=>$draft->editorialReport->suggestions,
+        ])->render();
+    }catch(\Throwable){
+        return response('Not found',404);
+    }
+
+    return response($page,200,[
+        'Content-Type'=>'text/html; charset=UTF-8',
+        'Cache-Control'=>'private, no-store, max-age=0',
+        'X-Content-Type-Options'=>'nosniff',
+        'X-Frame-Options'=>'DENY',
+        'Referrer-Policy'=>'no-referrer',
+        'X-Robots-Tag'=>'noindex, nofollow, noarchive',
+        'Permissions-Policy'=>'camera=(), microphone=(), geolocation=()',
+        'Content-Security-Policy'=>"default-src 'none'; script-src 'none'; ".
+            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src data:; ".
+            "connect-src 'none'; form-action 'none'; object-src 'none'; ".
+            "base-uri 'none'; frame-ancestors 'none'",
+    ]);
+})->name('sites.lab.composite-social');
