@@ -5,7 +5,7 @@ declare(strict_types=1);
 /** F1-179 — real Chromium QA on all six fixed DOM arrangements. */
 if (PHP_SAPI!=='cli' || getenv('APP_ENV')!=='testing' ||
     getenv('GITHUB_ACTIONS')!=='true' ||
-    getenv('SITES_F177_CHROME_LAB')!=='1') {
+    getenv('SITES_F179_CHROME_LAB')!=='1') {
     fwrite(STDERR,"F1-179 runs only in isolated GitHub Actions PHP CLI.\n");
     exit(1);
 }
