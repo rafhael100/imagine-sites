@@ -1592,14 +1592,15 @@ Route::get('/_lab/sites/v1/composite-social', static function (Request $request)
         }
         // Same four canonical bytes that the private export F1-209 writes,
         // verified independently by F1-211 before showing the social card.
-        $report=\Imagine\Sites\Production\SyntheticPrivateSocialCardReadbackV1::inspect(
-            $design->privateFiles(),$draft->brief
+        $parity=\Imagine\Sites\Production\SyntheticVisualReviewExportParityV1::inspect(
+            $design,$design->privateFiles()
         );
-        if(!hash_equals($report->artifactDigest,$draft->artifact->digest) ||
-            $report->socialMetadataEnabled!==($socialCode==='on') ||
-            ($report->card!==null)!==($socialCode==='on') ||
-            $report->canPublish() || $report->canMarkClientAccepted() ||
-            $report->canSendToCrm() || $report->canSharePublicly()) {
+        if(!hash_equals($parity->artifactDigest,$draft->artifact->digest) ||
+            $parity->releaseRef!==$draft->manifest->releaseRef ||
+            $parity->socialEnabled!==($socialCode==='on') ||
+            ($parity->socialCard!==null)!==($socialCode==='on') ||
+            $parity->canPublish() || $parity->canAcceptForClient() ||
+            $parity->canWriteCrm() || $parity->canSkipReview()) {
             return response('Not found',404);
         }
         $summary=$draft->reviewSummary();
@@ -1623,7 +1624,7 @@ Route::get('/_lab/sites/v1/composite-social', static function (Request $request)
                 'originalDigest'=>$design->originalDigest,
                 'changed'=>$design->changed,
             ],
-            'socialCard'=>$report->card,
+            'socialCard'=>$parity->socialCard,
             'brief'=>$draft->brief,
             'previewHtml'=>$draft->artifact->html,
             'digest'=>$draft->artifact->digest,
