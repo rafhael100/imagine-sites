@@ -19,6 +19,7 @@ final readonly class LabSyntheticOutboxLeaseAssessment
         'INVALID_SYNTHETIC_LEASE',
         'DB_LOGIN_SCOPE_DENIED',
         'NO_READY_SYNTHETIC_INTENT',
+        'BINDING_NOT_CURRENT',
         'LEASED_INITIAL_UNVERIFIED',
         'LEASED_RECOVERY_UNVERIFIED',
         'INCONCLUSIVE_DATABASE',
