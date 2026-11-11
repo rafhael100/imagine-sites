@@ -24,6 +24,7 @@ final readonly class SiteBrief
         public array $faq = [],
         public array $highlights = [],
         public array $processSteps = [],
+        public array $sectionOrder = ['highlights','process','faq'],
     ) {
         if (!in_array($productCode, ['onepage', 'landing_page'], true)) {
             throw new InvalidArgumentException('Unsupported Imagine Sites product.');
@@ -92,6 +93,24 @@ final readonly class SiteBrief
                 throw new InvalidArgumentException('Duplicate highlight title.');
             }
             $seenHighlightTitles[$normalized] = true;
+        }
+
+        // Section layout is an editor-controlled permutation only. It cannot
+        // add scripts, forms, arbitrary CSS, remote assets or new page regions.
+        $expectedSections=['faq','highlights','process'];
+        $receivedSections=$sectionOrder;
+        if (!array_is_list($receivedSections) ||
+            count($receivedSections)!==3) {
+            throw new InvalidArgumentException('Invalid static section order.');
+        }
+        foreach($receivedSections as $name) {
+            if (!is_string($name)) {
+                throw new InvalidArgumentException('Invalid section order member.');
+            }
+        }
+        sort($receivedSections,SORT_STRING);
+        if ($receivedSections!==$expectedSections) {
+            throw new InvalidArgumentException('Section order must be a known permutation.');
         }
 
         // Optional, ordered "how it works" cards. A process step is always

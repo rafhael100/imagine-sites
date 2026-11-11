@@ -52,7 +52,6 @@ final class StaticSiteRenderer
       </div>
     </section>
 HIGHLIGHTS;
-            $about .= "\n    ".$highlightsSection;
         }
         $processSection = '';
         if ($brief->processSteps !== []) {
@@ -72,7 +71,6 @@ HIGHLIGHTS;
       </div>
     </section>
 PROCESS;
-            $about .= "\n    ".$processSection;
         }
         $faqSection = '';
         if ($brief->faq !== []) {
@@ -92,7 +90,21 @@ PROCESS;
       </div>
     </section>
 FAQ;
-            $about .= "\n    ".$faqSection;
+        }
+
+        // F1-175: only an explicit three-name permutation may change
+        // the display order. Empty optional sections are silently skipped.
+        // The default order is byte-for-byte identical to F1-174.
+        $optionalSections=[
+            'highlights'=>$highlightsSection,
+            'process'=>$processSection,
+            'faq'=>$faqSection,
+        ];
+        foreach ($brief->sectionOrder as $name) {
+            $section=$optionalSections[$name];
+            if ($section!=='') {
+                $about .= "\n    ".$section;
+            }
         }
 
 

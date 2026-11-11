@@ -57,7 +57,8 @@ final readonly class SyntheticContentRevisionPlan
 
         // Product and theme changes require separate explicit operations.
         if ($approvedBrief->productCode !== $nextBrief->productCode ||
-            $approvedBrief->stylePreset !== $nextBrief->stylePreset) {
+            $approvedBrief->stylePreset !== $nextBrief->stylePreset ||
+            $approvedBrief->sectionOrder !== $nextBrief->sectionOrder) {
             throw new DomainException('content_revision_cannot_switch_product_or_style');
         }
 

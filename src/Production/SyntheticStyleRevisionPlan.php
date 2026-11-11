@@ -73,6 +73,7 @@ final readonly class SyntheticStyleRevisionPlan
             $approvedBrief->faq,
             $approvedBrief->highlights,
             $approvedBrief->processSteps,
+            $approvedBrief->sectionOrder,
         );
         $nextArtifact = $renderer->render($newBrief);
         if (hash_equals($approvedArtifact->digest, $nextArtifact->digest)) {
