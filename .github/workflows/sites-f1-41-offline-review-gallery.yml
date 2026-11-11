@@ -14,6 +14,9 @@ on:
       - 'docs/SITES-F1-44-CONTRAST-CHECK.md'
       - 'docs/SITES-F1-43-BROWSER-A11Y-GATE.md'
       - 'docs/SITES-F1-42-HEADLESS-VISUAL-QA.md'
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
