@@ -68,6 +68,12 @@ foreach(['onepage','landing_page'] as $product) {
                 'all'=>[$nextStyle,$nextPalette,$nextOrder,$product==='onepage',
                         [true,true,true,$product==='onepage']],
             ];
+            if($sourcePalette!==null){
+                $cases['palette-reset']=[
+                    $preset,null,$startOrder,false,
+                    [false,true,false,false],
+                ];
+            }
             foreach($cases as $name=>[$style,$palette,$order,$nav,$expected]) {
                 $newRef='release-f202-'.$name.'-'.$product.'-'.$preset.
                     ($sourcePalette===null?'-default':'-ocean');
@@ -180,7 +186,7 @@ foreach(['onepage','landing_page'] as $product) {
         }
     }
 }
-check202($total===48,'48 changed presentations enter exactly one new review cycle');
+check202($total===54,'54 changed presentations enter exactly one new review cycle');
 check202(count($visualSignaturesByDigest)>=18,
     'composite test covers at least eighteen distinct visual targets');
 check202(deny202(static fn()=>Palette::fromHex(
