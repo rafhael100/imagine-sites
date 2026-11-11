@@ -247,3 +247,103 @@ Route::get('/_lab/sites/v1/content-revision', static function (Request $request)
         return response('Not found',404);
     }
 })->name('sites.lab.content-revision');
+
+
+/**
+ * F1-161: in-process CLI-only review of fixed synthetic rich v3 content.
+ * This route is NEVER registered in public HTTP runtimes and cannot capture,
+ * approve, send, publish, store, or accept any customer content.
+ */
+Route::get('/_lab/sites/v1/rich-review', static function (Request $request) {
+    if (PHP_SAPI !== 'cli' || !app()->environment('testing') ||
+        getenv('SITES_SYNTHETIC_HTTP') !== '1' ||
+        getenv('SITES_SYNTHETIC_REVIEW_UI') !== '1' ||
+        getenv('SITES_SYNTHETIC_RICH_REVIEW') !== '1' ||
+        !in_array($request->ip(),['127.0.0.1','::1'],true)) {
+        return response('Not found',404);
+    }
+
+    $query=$request->query();
+    foreach ($query as $key=>$value) {
+        if (!in_array($key,['product','device','preset'],true) ||
+            !is_string($value) || $value==='') {
+            return response('Not found',404);
+        }
+    }
+    $product=$request->query('product','onepage');
+    $device=$request->query('device','desktop');
+    $preset=$request->query('preset','classic');
+    if (!is_string($product) || !is_string($device) || !is_string($preset) ||
+        !in_array($product,['onepage','landing_page'],true) ||
+        !in_array($device,['desktop','mobile'],true) ||
+        !in_array($preset,['classic','modern','warm'],true)) {
+        return response('Not found',404);
+    }
+
+    try {
+        $fixture=base_path('../../fixtures/sites/f1-161-rich-copy.synthetic.json');
+        if (!is_file($fixture) || filesize($fixture)>8192) {
+            return response('Not found',404);
+        }
+        $copy=json_decode((string)file_get_contents($fixture),true,16,JSON_THROW_ON_ERROR);
+        if (!is_array($copy) || ($copy['schemaVersion']??null)!=='sites.ai-copy.v3') {
+            return response('Not found',404);
+        }
+        $releaseRef='release-f161-'.$product.'-'.$preset;
+        $draft=\Imagine\Sites\Production\SyntheticStructuredDraftAssembly::build(
+            $product,'Marca Fictícia Imagine',$preset,$copy,
+            'tenant-f161-fictional','site-f161-fictional',
+            'workflow-f161-'.$product.'-'.$preset,$releaseRef
+        );
+        if (count($draft->brief->faq)!==2 ||
+            count($draft->brief->highlights)!==2 ||
+            !$draft->structuralReport->passedStructuralChecks ||
+            !\Imagine\Sites\Production\InertPreviewAudit::isSafe($draft->artifact->html)) {
+            return response('Not found',404);
+        }
+        $summary=$draft->reviewSummary();
+        $dossier=\Imagine\Sites\Production\SyntheticInternalReviewDossier::fromDraft($draft);
+        if ($summary['workflowState']!=='internal_review' ||
+            $summary['internalReviewRequired']!==true ||
+            $summary['publishable']!==false ||
+            $summary['officialClientAcceptance']!==false ||
+            $dossier->record['reviewerDecisionStatus']!=='pending' ||
+            $dossier->record['publishable']!==false ||
+            $dossier->record['officialClientAcceptance']!==false) {
+            return response('Not found',404);
+        }
+
+        $page=view('labs.review',[
+            'product'=>$product,'device'=>$device,'preset'=>$preset,
+            'galleryMode'=>false,
+            'reviewRoute'=>'/_lab/sites/v1/rich-review',
+            'richReview'=>true,
+            'brief'=>$draft->brief,
+            'previewHtml'=>$draft->artifact->html,
+            'digest'=>$draft->artifact->digest,
+            'reviewSnapshot'=>$summary,
+            'dossierDigest'=>$dossier->digest,
+            'requiredAcknowledgments'=>$dossier->record['requiredReviewerAcknowledgments'],
+            'qaChecks'=>$draft->structuralReport->checks,
+            'editorialChecks'=>$draft->editorialReport->checks,
+            'editorialSuggestions'=>$draft->editorialReport->suggestions,
+        ])->render();
+    } catch (\Throwable) {
+        // Avoid leaking fixture paths, personal fields, or rejected details.
+        return response('Not found',404);
+    }
+
+    return response($page,200,[
+        'Content-Type'=>'text/html; charset=UTF-8',
+        'Cache-Control'=>'private, no-store, max-age=0',
+        'X-Content-Type-Options'=>'nosniff',
+        'X-Frame-Options'=>'DENY',
+        'Referrer-Policy'=>'no-referrer',
+        'X-Robots-Tag'=>'noindex, nofollow, noarchive',
+        'Permissions-Policy'=>'camera=(), microphone=(), geolocation=()',
+        'Content-Security-Policy'=>"default-src 'none'; script-src 'none'; ".
+            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src data:; ".
+            "connect-src 'none'; form-action 'none'; object-src 'none'; ".
+            "base-uri 'none'; frame-ancestors 'none'",
+    ]);
+})->name('sites.lab.rich-review');
