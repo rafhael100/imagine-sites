@@ -1082,3 +1082,121 @@ Route::get('/_lab/sites/v1/layout-diff', static function (Request $request) {
             "base-uri 'none'; frame-ancestors 'none'",
     ]);
 })->name('sites.lab.layout-diff');
+
+
+/**
+ * F1-191: compare independently selected WCAG-checked brand colors in offline review.
+ * Never registered in PHP-FPM or public endpoints; no user-editable copy.
+ */
+Route::get('/_lab/sites/v1/brand-palette', static function (Request $request) {
+    if (PHP_SAPI!=='cli' || !app()->environment('testing') ||
+        getenv('SITES_SYNTHETIC_HTTP')!=='1' ||
+        getenv('SITES_SYNTHETIC_REVIEW_UI')!=='1' ||
+        getenv('SITES_SYNTHETIC_RICH_REVIEW')!=='1' ||
+        getenv('SITES_F191_BRAND_REVIEW')!=='1' ||
+        !in_array($request->ip(),['127.0.0.1','::1'],true)) {
+        return response('Not found',404);
+    }
+    foreach ($request->query() as $key=>$value) {
+        if (!in_array($key,['product','device','preset','palette'],true) ||
+            !is_string($value) || $value==='') {
+            return response('Not found',404);
+        }
+    }
+    $product=$request->query('product','onepage');
+    $device=$request->query('device','desktop');
+    $preset=$request->query('preset','classic');
+    $paletteCode=$request->query('palette');
+    if (!is_string($product) || !is_string($device) ||
+        !is_string($preset) || !is_string($paletteCode) ||
+        !in_array($product,['onepage','landing_page'],true) ||
+        !in_array($device,['desktop','mobile'],true) ||
+        !in_array($preset,['classic','modern','warm'],true) ||
+        !in_array($paletteCode,['default','ocean','plum','forest'],true)) {
+        return response('Not found',404);
+    }
+    // All palettes originate from Imagine-owned fixed presets, NOT
+    // customer input, AI output, arbitrary CSS, or URL arguments.
+    $palettes=[
+        'default'=>null,
+        'ocean'=>\Imagine\Sites\Production\SyntheticBrandPaletteV1::fromHex(
+            '#064e5b','#075a6b','#ffffff','#075a6b'
+        ),
+        'plum'=>\Imagine\Sites\Production\SyntheticBrandPaletteV1::fromHex(
+            '#50204d','#673060','#ffe9fa','#50204d'
+        ),
+        'forest'=>\Imagine\Sites\Production\SyntheticBrandPaletteV1::fromHex(
+            '#134a36','#1d5a43','#f4fff5','#134a36'
+        ),
+    ];
+    try {
+        $fixture=base_path('../../fixtures/sites/f1-170-process-copy.synthetic.json');
+        if (!is_file($fixture) || is_link($fixture) || filesize($fixture)>8192) {
+            return response('Not found',404);
+        }
+        $copy=json_decode((string)file_get_contents($fixture),true,16,JSON_THROW_ON_ERROR);
+        if (!is_array($copy) || ($copy['schemaVersion']??null)!=='sites.ai-copy.v4' ||
+            count($copy['faq']??[])!==2 ||
+            count($copy['highlights']??[])!==2 ||
+            count($copy['processSteps']??[])!==3) {
+            return response('Not found',404);
+        }
+        $releaseRef='release-f191-'.$product.'-'.$preset.'-'.$paletteCode;
+        $draft=\Imagine\Sites\Production\SyntheticStructuredDraftAssembly::build(
+            $product,'Marca Fictícia Imagine',$preset,$copy,
+            'tenant-f191-fictional','site-f191-fictional',
+            'workflow-f191-'.$product.'-'.$preset.'-'.$paletteCode,
+            $releaseRef,['highlights','process','faq'],false,$palettes[$paletteCode]
+        );
+        if ($draft->brief->brandPalette!==$palettes[$paletteCode] ||
+            !$draft->structuralReport->passedStructuralChecks ||
+            !\Imagine\Sites\Production\InertPreviewAudit::isSafe(
+                $draft->artifact->html
+            )) {
+            return response('Not found',404);
+        }
+        $summary=$draft->reviewSummary();
+        $dossier=\Imagine\Sites\Production\SyntheticInternalReviewDossier::fromDraft($draft);
+        if ($summary['workflowState']!=='internal_review' ||
+            $summary['publishable']!==false ||
+            $summary['officialClientAcceptance']!==false ||
+            $dossier->record['reviewerDecisionStatus']!=='pending' ||
+            $dossier->record['publishable']!==false ||
+            $dossier->record['officialClientAcceptance']!==false) {
+            return response('Not found',404);
+        }
+        $page=view('labs.review',[
+            'product'=>$product,'device'=>$device,'preset'=>$preset,
+            'galleryMode'=>false,
+            'reviewRoute'=>'/_lab/sites/v1/brand-palette',
+            'richReview'=>true,
+            'brandPaletteCode'=>$paletteCode,
+            'brandPaletteContrast'=>$palettes[$paletteCode]?->contrast(),
+            'brief'=>$draft->brief,
+            'previewHtml'=>$draft->artifact->html,
+            'digest'=>$draft->artifact->digest,
+            'reviewSnapshot'=>$summary,
+            'dossierDigest'=>$dossier->digest,
+            'requiredAcknowledgments'=>$dossier->record['requiredReviewerAcknowledgments'],
+            'qaChecks'=>$draft->structuralReport->checks,
+            'editorialChecks'=>$draft->editorialReport->checks,
+            'editorialSuggestions'=>$draft->editorialReport->suggestions,
+        ])->render();
+    } catch (\Throwable) {
+        return response('Not found',404);
+    }
+
+    return response($page,200,[
+        'Content-Type'=>'text/html; charset=UTF-8',
+        'Cache-Control'=>'private, no-store, max-age=0',
+        'X-Content-Type-Options'=>'nosniff',
+        'X-Frame-Options'=>'DENY',
+        'Referrer-Policy'=>'no-referrer',
+        'X-Robots-Tag'=>'noindex, nofollow, noarchive',
+        'Permissions-Policy'=>'camera=(), microphone=(), geolocation=()',
+        'Content-Security-Policy'=>"default-src 'none'; script-src 'none'; ".
+            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src data:; ".
+            "connect-src 'none'; form-action 'none'; object-src 'none'; ".
+            "base-uri 'none'; frame-ancestors 'none'",
+    ]);
+})->name('sites.lab.brand-palette');
