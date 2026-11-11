@@ -79,17 +79,17 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
   <aside class="sidebar" aria-label="Painel de revisão">
     <section class="card" aria-labelledby="product-title"><h2 id="product-title">Tipo de site</h2><p class="sub">Alternar modelos de teste</p>
       <nav class="tabs" aria-label="Alternar produto">
-        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product=onepage&amp;device={{ $device }}{{ $galleryMode ? '' : '&preset='.$preset }}{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}{{ ($brandPaletteCode ?? null) === null ? '' : '&palette='.$brandPaletteCode }}" @if($product==='onepage') aria-current="page" @endif>Onepage</a>
-        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product=landing_page&amp;device={{ $device }}{{ $galleryMode ? '' : '&preset='.$preset }}{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.($anchorNavMode==='on'?'off':$anchorNavMode) }}{{ ($brandPaletteCode ?? null) === null ? '' : '&palette='.$brandPaletteCode }}" @if($product==='landing_page') aria-current="page" @endif>Landing Page</a>
+        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product=onepage&amp;device={{ $device }}{{ $galleryMode ? '' : '&preset='.$preset }}{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}{{ ($brandPaletteCode ?? null) === null ? '' : '&palette='.$brandPaletteCode }}{{ ($socialPreviewMode ?? null) === null ? '' : '&social='.$socialPreviewMode }}" @if($product==='onepage') aria-current="page" @endif>Onepage</a>
+        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product=landing_page&amp;device={{ $device }}{{ $galleryMode ? '' : '&preset='.$preset }}{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.($anchorNavMode==='on'?'off':$anchorNavMode) }}{{ ($brandPaletteCode ?? null) === null ? '' : '&palette='.$brandPaletteCode }}{{ ($socialPreviewMode ?? null) === null ? '' : '&social='.$socialPreviewMode }}" @if($product==='landing_page') aria-current="page" @endif>Landing Page</a>
       </nav>
     </section>
     @unless($galleryMode)
     <section class="card" aria-labelledby="style-title"><h2 id="style-title">Estilo visual</h2>
       <p class="sub">Cada tema possui HTML e SHA-256 próprios.</p>
       <nav class="tabs" aria-label="Alternar tema">
-        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product={{ $product }}&amp;device={{ $device }}&amp;preset=classic{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}{{ ($brandPaletteCode ?? null) === null ? '' : '&palette='.$brandPaletteCode }}" @if($preset==='classic') aria-current="page" @endif>Classic</a>
-        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product={{ $product }}&amp;device={{ $device }}&amp;preset=modern{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}{{ ($brandPaletteCode ?? null) === null ? '' : '&palette='.$brandPaletteCode }}" @if($preset==='modern') aria-current="page" @endif>Modern</a>
-        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product={{ $product }}&amp;device={{ $device }}&amp;preset=warm{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}{{ ($brandPaletteCode ?? null) === null ? '' : '&palette='.$brandPaletteCode }}" @if($preset==='warm') aria-current="page" @endif>Warm</a>
+        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product={{ $product }}&amp;device={{ $device }}&amp;preset=classic{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}{{ ($brandPaletteCode ?? null) === null ? '' : '&palette='.$brandPaletteCode }}{{ ($socialPreviewMode ?? null) === null ? '' : '&social='.$socialPreviewMode }}" @if($preset==='classic') aria-current="page" @endif>Classic</a>
+        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product={{ $product }}&amp;device={{ $device }}&amp;preset=modern{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}{{ ($brandPaletteCode ?? null) === null ? '' : '&palette='.$brandPaletteCode }}{{ ($socialPreviewMode ?? null) === null ? '' : '&social='.$socialPreviewMode }}" @if($preset==='modern') aria-current="page" @endif>Modern</a>
+        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product={{ $product }}&amp;device={{ $device }}&amp;preset=warm{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}{{ ($brandPaletteCode ?? null) === null ? '' : '&palette='.$brandPaletteCode }}{{ ($socialPreviewMode ?? null) === null ? '' : '&social='.$socialPreviewMode }}" @if($preset==='warm') aria-current="page" @endif>Warm</a>
       </nav>
       <p class="sub">Trocar o tema exige nova revisão interna da versão gerada.</p>
     </section>
@@ -141,7 +141,7 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
           'faq_services_process'=>'FAQ / Serviços / Etapas',
           'faq_process_services'=>'FAQ / Etapas / Serviços'
         ] as $sectionOrderOption=>$sectionOrderLabel)
-          <a href="{{ $reviewRoute }}?product={{ $product }}&amp;device={{ $device }}&amp;preset={{ $preset }}&amp;order={{ $sectionOrderOption }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}{{ ($brandPaletteCode ?? null) === null ? '' : '&palette='.$brandPaletteCode }}" @if($sectionOrderCode===$sectionOrderOption) aria-current="page" @endif>{{ $sectionOrderLabel }}</a>
+          <a href="{{ $reviewRoute }}?product={{ $product }}&amp;device={{ $device }}&amp;preset={{ $preset }}&amp;order={{ $sectionOrderOption }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}{{ ($brandPaletteCode ?? null) === null ? '' : '&palette='.$brandPaletteCode }}{{ ($socialPreviewMode ?? null) === null ? '' : '&social='.$socialPreviewMode }}" @if($sectionOrderCode===$sectionOrderOption) aria-current="page" @endif>{{ $sectionOrderLabel }}</a>
         @endforeach
       </nav>
       <p class="sub">O conteúdo não muda. A aprovação da disposição anterior não é reutilizada.</p>
@@ -154,7 +154,7 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
       @if($product==='onepage')
         <nav class="tabs" aria-label="Alternar menu interno">
           @foreach(['off'=>'Desativada','on'=>'Ativada'] as $navCode=>$navLabel)
-            <a href="{{ $reviewRoute }}?product={{ $product }}&amp;device={{ $device }}&amp;preset={{ $preset }}&amp;nav={{ $navCode }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($brandPaletteCode ?? null) === null ? '' : '&palette='.$brandPaletteCode }}" @if($anchorNavMode===$navCode) aria-current="page" @endif>{{ $navLabel }}</a>
+            <a href="{{ $reviewRoute }}?product={{ $product }}&amp;device={{ $device }}&amp;preset={{ $preset }}&amp;nav={{ $navCode }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($brandPaletteCode ?? null) === null ? '' : '&palette='.$brandPaletteCode }}{{ ($socialPreviewMode ?? null) === null ? '' : '&social='.$socialPreviewMode }}" @if($anchorNavMode===$navCode) aria-current="page" @endif>{{ $navLabel }}</a>
           @endforeach
         </nav>
       @else
@@ -230,6 +230,28 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
       <p class="sub">Nova disposição não reutiliza qualquer revisão ou aceite anterior.</p>
     </section>
     @endif
+    @if(($socialPreviewMode ?? null) !== null)
+    <section class="card" aria-labelledby="social-preview-title">
+      <h2 id="social-preview-title">Metadados para compartilhamento</h2>
+      <p class="sub">Compare uma página com e sem títulos e descrições Open Graph/Twitter. Ambos os modelos continuam noindex e não estão publicados.</p>
+      <nav class="tabs" aria-label="Alternar metadados sociais">
+        @foreach(['off'=>'Desativados','on'=>'Ativados'] as $socialCode=>$socialLabel)
+          <a href="{{ $reviewRoute }}?product={{ $product }}&amp;device={{ $device }}&amp;preset={{ $preset }}&amp;social={{ $socialCode }}" @if($socialPreviewMode===$socialCode) aria-current="page" @endif>{{ $socialLabel }}</a>
+        @endforeach
+      </nav>
+      @if(($socialRevisionDetails ?? null) !== null)
+        <dl>
+          <div><dt>SHA-256 anterior</dt><dd><code id="social-previous-digest">{{ $socialRevisionDetails['previousDigest'] }}</code></dd></div>
+          <div><dt>SHA-256 novo</dt><dd><code id="social-next-digest">{{ $socialRevisionDetails['nextDigest'] }}</code></dd></div>
+          <div><dt>Revisão reaberta</dt><dd id="social-reopened-revision">{{ $socialRevisionDetails['reopenedRevision'] }} — rascunho, sem aceite</dd></div>
+        </dl>
+        <p class="locked">A versão anterior não transfere sua aprovação para os metadados novos.</p>
+      @else
+        <p class="sub" id="social-baseline">Modelo original, sem alteração nem aprovação fictícia criada.</p>
+      @endif
+      <p class="locked">A prévia não contém URL social, imagem externa, formulário ou permissão de indexação.</p>
+    </section>
+    @endif
     <section class="card" aria-labelledby="steps-title"><h2 id="steps-title">Etapas de revisão</h2>
       <ol class="steps">
         <li><span class="icon" aria-hidden="true">✓</span><b>Conteúdo estruturado</b><small>Briefing fictício validado</small></li>
@@ -284,8 +306,8 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
   <section class="preview" aria-labelledby="preview-title">
     <div class="preview-head"><div><h2 id="preview-title">Prévia do site</h2><p class="sub">HTML exato do motor, isolado em iframe sandbox</p></div>
       <nav class="tabs" aria-label="Alternar dispositivo">
-        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product={{ $product }}&amp;device=desktop{{ $galleryMode ? '' : '&preset='.$preset }}{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}{{ ($brandPaletteCode ?? null) === null ? '' : '&palette='.$brandPaletteCode }}" @if($device==='desktop') aria-current="page" @endif>Desktop</a>
-        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product={{ $product }}&amp;device=mobile{{ $galleryMode ? '' : '&preset='.$preset }}{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}{{ ($brandPaletteCode ?? null) === null ? '' : '&palette='.$brandPaletteCode }}" @if($device==='mobile') aria-current="page" @endif>Mobile</a>
+        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product={{ $product }}&amp;device=desktop{{ $galleryMode ? '' : '&preset='.$preset }}{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}{{ ($brandPaletteCode ?? null) === null ? '' : '&palette='.$brandPaletteCode }}{{ ($socialPreviewMode ?? null) === null ? '' : '&social='.$socialPreviewMode }}" @if($device==='desktop') aria-current="page" @endif>Desktop</a>
+        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product={{ $product }}&amp;device=mobile{{ $galleryMode ? '' : '&preset='.$preset }}{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}{{ ($brandPaletteCode ?? null) === null ? '' : '&palette='.$brandPaletteCode }}{{ ($socialPreviewMode ?? null) === null ? '' : '&social='.$socialPreviewMode }}" @if($device==='mobile') aria-current="page" @endif>Mobile</a>
       </nav>
     </div>
     <div class="workspace">
