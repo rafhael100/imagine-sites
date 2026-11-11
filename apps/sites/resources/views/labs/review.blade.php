@@ -112,6 +112,19 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
       </nav>
     </section>
     @endif
+    @if(($editorialPatchDetails ?? null) !== null)
+    <section class="card" aria-labelledby="editorial-patch-title">
+      <h2 id="editorial-patch-title">Comparação da edição</h2>
+      <p class="sub">Alterações pontuais de conteúdo fictício pela equipe Imagine. A versão anterior permanece preservada e a nova exige revisão.</p>
+      <dl>
+        <div><dt>Versão anterior</dt><dd><code id="previous-artifact-digest">{{ $editorialPatchDetails['previousDigest'] }}</code></dd></div>
+        <div><dt>Nova versão</dt><dd><code id="next-artifact-digest">{{ $editorialPatchDetails['nextDigest'] }}</code></dd></div>
+        <div><dt>Campos alterados</dt><dd id="edited-fields">{{ implode(', ', $editorialPatchDetails['changedFields']) }}</dd></div>
+        <div><dt>Permissão de publicar</dt><dd>Não concedida</dd></div>
+      </dl>
+      <p class="locked">A edição não reaproveita o aceite anterior e não envia o conteúdo ao CRM ou ao Portal.</p>
+    </section>
+    @endif
     <section class="card" aria-labelledby="steps-title"><h2 id="steps-title">Etapas de revisão</h2>
       <ol class="steps">
         <li><span class="icon" aria-hidden="true">✓</span><b>Conteúdo estruturado</b><small>Briefing fictício validado</small></li>
