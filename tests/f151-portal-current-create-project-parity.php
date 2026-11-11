@@ -61,6 +61,9 @@ foreach (['onepage','landing_page'] as $product) {
     $raw=json_encode($candidate,JSON_THROW_ON_ERROR);
     $portal=PortalValidator::inspect($raw);
     $sites=SitesCommand::fromArray($candidate);
+    $canonicalSites=SitesCommand::fromCanonicalJson($raw);
+    f151Check($canonicalSites->semanticFingerprint()===$sites->semanticFingerprint(),
+        'Sites strict wire decoder agrees with Portal canonical command');
     f151Check($portal===['valid'=>true,'reason'=>'candidate_shape_valid_only'],
         'Portal accepts canonical synthetic '.$product);
     f151Check($sites->productCode===$product
@@ -90,10 +93,18 @@ foreach (['onepage','landing_page'] as $product) {
     // apply Portal wire canonicalization before claiming end-to-end parity.
     f151Check(SitesCommand::fromArray($reordered)->productCode===$product,
         'Sites array validator alone is not a canonical transport authenticator');
+    f151Check(f151Invalid(static fn()=>SitesCommand::fromCanonicalJson($reorderedRaw)),
+        'Sites F1-152 strict wire decoder now rejects noncanonical order');
 
     $duplicated=substr($raw,0,-1).',"productCode":"'.$product.'"}';
     f151Check(PortalValidator::inspect($duplicated)['reason']==='noncanonical_json',
         'Portal rejects duplicate-key wire JSON even when values match');
+    f151Check(f151Invalid(static fn()=>SitesCommand::fromCanonicalJson($duplicated)),
+        'Sites F1-152 rejects duplicate-key canonicalization bypass');
+    $whitespace="\n".$raw;
+    f151Check(PortalValidator::inspect($whitespace)['reason']==='noncanonical_json'
+        && f151Invalid(static fn()=>SitesCommand::fromCanonicalJson($whitespace)),
+        'both Portal and Sites deny altered raw JSON whitespace');
 
     $badRevision=array_replace($candidate,['contractRevision'=>0]);
     f151Check(PortalValidator::inspect(json_encode($badRevision,JSON_THROW_ON_ERROR))['reason']
