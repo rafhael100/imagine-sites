@@ -94,7 +94,10 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
     @if(($richReview ?? false) === true)
     <section class="card" aria-labelledby="rich-title">
       <h2 id="rich-title">Conteúdo da página ampliado</h2>
-      <p class="sub">Prévia v3 totalmente fictícia: {{ count($brief->highlights) }} soluções e {{ count($brief->faq) }} perguntas frequentes.</p>
+      <p class="sub">Prévia {{ count($brief->processSteps) > 0 ? 'v4' : 'v3' }} totalmente fictícia: {{ count($brief->highlights) }} soluções e {{ count($brief->faq) }} perguntas frequentes.</p>
+      @if(count($brief->processSteps) > 0)
+        <p class="sub">{{ count($brief->processSteps) }} etapas de trabalho incluídas, todas aguardando revisão.</p>
+      @endif
       <p class="sub">Os textos seguem pendentes de revisão interna; nenhuma autorização de publicação foi concedida.</p>
     </section>
     @endif
@@ -103,7 +106,7 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
       <h2 id="rich-variant-title">Comparar blocos do site</h2>
       <p class="sub">Cada composição é uma versão fictícia distinta, com hash próprio e revisão pendente.</p>
       <nav class="tabs" aria-label="Alternar blocos de conteúdo">
-        @foreach(['faq'=>'Somente FAQ','highlights'=>'Somente serviços','both'=>'FAQ e serviços'] as $variantCode=>$variantLabel)
+        @foreach(['faq'=>'Somente FAQ','highlights'=>'Somente serviços','both'=>'FAQ e serviços','steps'=>'Serviços e etapas','full'=>'Página completa'] as $variantCode=>$variantLabel)
           <a href="{{ $reviewRoute }}?product={{ $product }}&amp;device={{ $device }}&amp;preset={{ $preset }}&amp;variant={{ $variantCode }}" @if($richVariant===$variantCode) aria-current="page" @endif>{{ $variantLabel }}</a>
         @endforeach
       </nav>
