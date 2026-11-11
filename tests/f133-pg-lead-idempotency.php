@@ -247,6 +247,25 @@ f133Check(count(f133Rows($primary))===1 &&
  'RLS isolates read visibility of the second tenant fixture');
 $primary->commit();
 
+// F1-137: the lab tenant GUC is not a trusted identity claim.
+// With SQL access the *same app role* can set another tenant UUID and see
+// its synthetic row. This deliberately proves why operational IAM cannot
+// rely on current_setting('app.tenant_id') alone.
+f133Begin($secondary,$otherOrg->organizationReference);
+$spoofed=(new Readback($secondary))->inspect($otherOrg);
+f133Check($spoofed->reasonCode==='METADATA_MATCH_UNVERIFIED' &&
+    !$spoofed->canReserveSubmission() &&
+    !$spoofed->canAcknowledgeVisitor() &&
+    !$spoofed->canMarkDeliveredToCrm() &&
+    !$spoofed->canRetryAutomatically(),
+    'GUC tenant impersonation is possible with SQL access, but readback never grants authority');
+f133Check(count(f133Rows($secondary))===1 &&
+    f133Rows($secondary)[0]['org']===$otherOrg->organizationReference,
+    'application role can see another synthetic tenant when it chooses that GUC');
+$secondary->rollBack();
+f133Check(count(f133Rows($secondary))===0,
+    'rollback clears spoofed transaction-local tenant context');
+
 $otherSubmission=$make(['sub'=>'99999999-9999-4999-8999-999999999999']);
 f133Begin($secondary,$a->organizationReference);
 f133Check(f133Insert($secondary,$otherSubmission),
