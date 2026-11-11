@@ -1212,3 +1212,203 @@ Route::get('/_lab/sites/v1/brand-palette', static function (Request $request) {
             "base-uri 'none'; frame-ancestors 'none'",
     ]);
 })->name('sites.lab.brand-palette');
+
+
+/**
+ * F1-203: compare four editor-controlled visual options in one private view.
+ * CLI/testing/loopback only. This is NOT a production editor or a reviewer.
+ */
+Route::get('/_lab/sites/v1/visual-change', static function (Request $request) {
+    if (PHP_SAPI!=='cli' || !app()->environment('testing') ||
+        getenv('SITES_SYNTHETIC_HTTP')!=='1' ||
+        getenv('SITES_SYNTHETIC_REVIEW_UI')!=='1' ||
+        getenv('SITES_SYNTHETIC_RICH_REVIEW')!=='1' ||
+        getenv('SITES_SYNTHETIC_ORDER_REVIEW')!=='1' ||
+        getenv('SITES_SYNTHETIC_ANCHOR_REVIEW')!=='1' ||
+        getenv('SITES_F181_COMBINED_LAYOUT')!=='1' ||
+        getenv('SITES_F191_BRAND_REVIEW')!=='1' ||
+        getenv('SITES_F203_COMPOSITE_REVIEW')!=='1' ||
+        !in_array($request->ip(),['127.0.0.1','::1'],true)) {
+        return response('Not found',404);
+    }
+    foreach ($request->query() as $key=>$value) {
+        if (!in_array($key,['product','device','preset','order','nav','palette'],true) ||
+            !is_string($value) || $value==='') {
+            return response('Not found',404);
+        }
+    }
+    $product=$request->query('product','onepage');
+    $device=$request->query('device','desktop');
+    $preset=$request->query('preset','classic');
+    $orderCode=$request->query('order');
+    $navCode=$request->query('nav');
+    $paletteCode=$request->query('palette');
+    $orders=[
+        'services_process_faq'=>['highlights','process','faq'],
+        'services_faq_process'=>['highlights','faq','process'],
+        'process_services_faq'=>['process','highlights','faq'],
+        'process_faq_services'=>['process','faq','highlights'],
+        'faq_services_process'=>['faq','highlights','process'],
+        'faq_process_services'=>['faq','process','highlights'],
+    ];
+    if (!is_string($product) || !is_string($device) ||
+        !is_string($preset) || !is_string($orderCode) ||
+        !is_string($navCode) || !is_string($paletteCode) ||
+        !in_array($product,['onepage','landing_page'],true) ||
+        !in_array($device,['desktop','mobile'],true) ||
+        !in_array($preset,['classic','modern','warm'],true) ||
+        !array_key_exists($orderCode,$orders) ||
+        !in_array($navCode,['on','off'],true) ||
+        !in_array($paletteCode,['default','ocean','plum','forest'],true) ||
+        ($product==='landing_page' && $navCode==='on')) {
+        return response('Not found',404);
+    }
+    $palettes=[
+        'default'=>null,
+        'ocean'=>\Imagine\Sites\Production\SyntheticBrandPaletteV1::fromHex(
+            '#064e5b','#075a6b','#ffffff','#075a6b'
+        ),
+        'plum'=>\Imagine\Sites\Production\SyntheticBrandPaletteV1::fromHex(
+            '#50204d','#673060','#ffe9fa','#50204d'
+        ),
+        'forest'=>\Imagine\Sites\Production\SyntheticBrandPaletteV1::fromHex(
+            '#134a36','#1d5a43','#f4fff5','#134a36'
+        ),
+    ];
+    try {
+        $fixture=base_path('../../fixtures/sites/f1-170-process-copy.synthetic.json');
+        if (!is_file($fixture) || is_link($fixture) || filesize($fixture)>8192) {
+            return response('Not found',404);
+        }
+        $copy=json_decode((string)file_get_contents($fixture),true,16,JSON_THROW_ON_ERROR);
+        if (!is_array($copy) || array_is_list($copy) ||
+            ($copy['schemaVersion']??null)!=='sites.ai-copy.v4' ||
+            count($copy['faq']??[])!==2 ||
+            count($copy['highlights']??[])!==2 ||
+            count($copy['processSteps']??[])!==3) {
+            return response('Not found',404);
+        }
+        $tenant='tenant-f203-fictional';
+        $site='site-f203-fictional';
+        $previousRef='release-f203-before-'.$product;
+        $source=\Imagine\Sites\Production\SyntheticStructuredDraftAssembly::build(
+            $product,'Marca Fictícia Imagine','classic',$copy,
+            $tenant,$site,'workflow-f203-before-'.$product,
+            $previousRef
+        );
+        $changed=$preset!=='classic' || $orderCode!=='services_process_faq' ||
+            $navCode!=='off' || $paletteCode!=='default';
+        $visualChangeDetails=null;
+        $layoutRevisionDetails=null;
+        if ($changed) {
+            $approved=$source->workflow->advance(
+                'imagine_reviewer','approve_internal',2,$source->artifact->digest
+            );
+            $newRef='release-f203-after-'.$product.'-'.$preset.'-'.
+                $orderCode.'-'.$paletteCode.'-'.$navCode;
+            $plan=\Imagine\Sites\Production\SyntheticCompositeVisualRevisionPlan::begin(
+                $approved,$source->brief,$source->artifact,
+                $previousRef,$preset,$palettes[$paletteCode],
+                $orders[$orderCode],$navCode==='on',
+                $newRef,'imagine_reviewer',3
+            );
+            if ($plan->draftWorkflow->state!=='drafting' ||
+                $plan->draftWorkflow->revision!==4 ||
+                $plan->draftWorkflow->artifactDigest!==null ||
+                $plan->canPublish() || $plan->canWriteCrm() ||
+                $plan->canAcceptForClient() || $plan->canReusePreviousApproval()) {
+                return response('Not found',404);
+            }
+            // A separate synthetic render of the newly proposed bytes is
+            // displayed as PENDING review; this does NOT revive an approval.
+            $draft=\Imagine\Sites\Production\SyntheticStructuredDraftAssembly::build(
+                $product,'Marca Fictícia Imagine',$preset,$copy,
+                $tenant,$site,'workflow-f203-after-'.$product.'-'.$preset.'-'.
+                    $orderCode.'-'.$paletteCode.'-'.$navCode,
+                $newRef,$orders[$orderCode],$navCode==='on',$palettes[$paletteCode]
+            );
+            if ($draft->brief->sectionOrder!==$orders[$orderCode] ||
+                $draft->brief->sectionNavigation!==($navCode==='on') ||
+                $draft->brief->stylePreset!==$preset ||
+                $draft->brief->brandPalette!==$palettes[$paletteCode] ||
+                !hash_equals($draft->artifact->digest,$plan->nextArtifact->digest) ||
+                !hash_equals($draft->artifact->html,$plan->nextArtifact->html)) {
+                return response('Not found',404);
+            }
+            $layoutRevisionDetails=[
+                'previousDigest'=>$source->artifact->digest,
+                'nextDigest'=>$draft->artifact->digest,
+                'previousRevision'=>$approved->revision,
+                'reopenedRevision'=>$plan->draftWorkflow->revision,
+                'orderChanged'=>$plan->sectionOrderChanged,
+                'navigationChanged'=>$plan->navigationChanged,
+            ];
+            $visualChangeDetails=[
+                'previousHtml'=>$source->artifact->html,
+                'previousDigest'=>$source->artifact->digest,
+                'nextDigest'=>$draft->artifact->digest,
+                'styleChanged'=>$plan->styleChanged,
+                'paletteChanged'=>$plan->paletteChanged,
+                'previousStyle'=>'classic',
+                'nextStyle'=>$preset,
+            ];
+        } else {
+            // The baseline is a view of the original pending draft, NOT a
+            // manufactured return-for-revision or prior approval.
+            $draft=$source;
+        }
+        if (!$draft->structuralReport->passedStructuralChecks ||
+            !\Imagine\Sites\Production\InertPreviewAudit::isSafe(
+                $draft->artifact->html
+            )) {
+            return response('Not found',404);
+        }
+        $summary=$draft->reviewSummary();
+        $dossier=\Imagine\Sites\Production\SyntheticInternalReviewDossier::fromDraft($draft);
+        if ($summary['workflowState']!=='internal_review' ||
+            $summary['publishable']!==false ||
+            $summary['officialClientAcceptance']!==false ||
+            $dossier->record['reviewerDecisionStatus']!=='pending' ||
+            $dossier->record['publishable']!==false ||
+            $dossier->record['officialClientAcceptance']!==false) {
+            return response('Not found',404);
+        }
+        $page=view('labs.review',[
+            'product'=>$product,'device'=>$device,'preset'=>$preset,
+            'galleryMode'=>false,
+            'reviewRoute'=>'/_lab/sites/v1/visual-change',
+            'richReview'=>true,
+            'sectionOrderCode'=>$orderCode,
+            'anchorNavMode'=>$navCode,
+            'brandPaletteCode'=>$paletteCode,
+            'brandPaletteContrast'=>$palettes[$paletteCode]?->contrast(),
+            'visualChangeBaseline'=>!$changed,
+            'visualChangeDetails'=>$visualChangeDetails,
+            'layoutRevisionDetails'=>$layoutRevisionDetails,
+            'brief'=>$draft->brief,
+            'previewHtml'=>$draft->artifact->html,
+            'digest'=>$draft->artifact->digest,
+            'reviewSnapshot'=>$summary,
+            'dossierDigest'=>$dossier->digest,
+            'requiredAcknowledgments'=>$dossier->record['requiredReviewerAcknowledgments'],
+            'qaChecks'=>$draft->structuralReport->checks,
+            'editorialChecks'=>$draft->editorialReport->checks,
+            'editorialSuggestions'=>$draft->editorialReport->suggestions,
+        ])->render();
+    } catch (\Throwable) {
+        return response('Not found',404);
+    }
+    return response($page,200,[
+        'Content-Type'=>'text/html; charset=UTF-8',
+        'Cache-Control'=>'private, no-store, max-age=0',
+        'X-Content-Type-Options'=>'nosniff',
+        'X-Frame-Options'=>'DENY',
+        'Referrer-Policy'=>'no-referrer',
+        'X-Robots-Tag'=>'noindex, nofollow, noarchive',
+        'Permissions-Policy'=>'camera=(), microphone=(), geolocation=()',
+        'Content-Security-Policy'=>"default-src 'none'; script-src 'none'; ".
+            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src data:; ".
+            "connect-src 'none'; form-action 'none'; object-src 'none'; ".
+            "base-uri 'none'; frame-ancestors 'none'",
+    ]);
+})->name('sites.lab.visual-change');
