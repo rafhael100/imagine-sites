@@ -65,6 +65,13 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
 .social-card-preview .social-card-kicker{font-size:.69rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#2a577a}
 .social-card-preview .social-card-origin{font-weight:700}
 @endif
+@if(($seoSnippet ?? null) !== null)
+.seo-snippet-example{background:#fff;border:1px solid #dce5ef;border-radius:10px;padding:15px;margin-top:12px;overflow-wrap:anywhere}
+.seo-snippet-example p{margin:5px 0;font-size:.82rem}
+.seo-snippet-example #seo-preview-title{color:#204c88;font-weight:750;font-size:.97rem;line-height:1.3}
+.seo-snippet-example #seo-preview-description{color:#405064}
+.seo-snippet-advisories{padding-left:20px;margin:8px 0;color:#61470e;font-size:.78rem}
+@endif
 .note{font-size:.78rem;background:#ecf3fb;border:1px solid #d5e5f6;padding:15px 18px;border-radius:10px;margin-top:20px;color:#2a5077}
 .qa-summary{margin-top:20px;border-top:1px solid #e5ebf2;padding-top:17px}.qa-summary strong{font-size:.84rem}.qa-summary p{font-size:.73rem;color:#52647a;margin:5px 0 10px}.qa-list{padding:0;list-style:none;display:grid;gap:7px}.qa-list li{display:flex;gap:9px;align-items:center;font-size:.76rem}.qa-list span{display:grid;place-items:center;width:18px;height:18px;background:#e8f4ec;color:#246342;border-radius:50%;font-weight:800}.qa-summary p.pending{margin-top:11px;background:#fff8e9;color:#7a5b23;border-radius:7px;padding:9px}
 .editorial-summary{margin-top:15px;padding-top:15px;border-top:1px solid #e5ebf2}
@@ -269,6 +276,36 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
       <p class="sub" id="social-card-disabled">Nenhum cartão social foi incorporado nesta versão.</p>
       @endif
       <p class="locked">A prévia não contém URL social, imagem externa, formulário ou permissão de indexação.</p>
+    </section>
+    @endif
+    @if(($seoSnippet ?? null) !== null)
+    <section class="card" aria-labelledby="seo-snippet-title">
+      <h2 id="seo-snippet-title">Prévia textual de busca — não indexada</h2>
+      <p class="sub">Conferida contra o título, a descrição e o H1 do HTML exato desta revisão. Nenhum buscador foi consultado.</p>
+      <div class="seo-snippet-example" aria-label="Exemplo editorial de título e descrição">
+        <p id="seo-preview-title">{{ $seoSnippet->titlePreview }}</p>
+        <p id="seo-preview-description">{{ $seoSnippet->descriptionPreview }}</p>
+      </div>
+      <p class="sub">Título: <strong id="seo-title-length">{{ $seoSnippet->titleCharacters }}</strong> caracteres. Descrição: <strong id="seo-description-length">{{ $seoSnippet->descriptionCharacters }}</strong> caracteres.</p>
+      <p class="sub">Identidade conferida: <code id="seo-artifact-digest">{{ $seoSnippet->artifactDigest }}</code></p>
+      @php
+        $seoAdvice=[
+            'TITLE_SHORT'=>'Revisar título curto',
+            'TITLE_MAY_TRUNCATE'=>'Título poderá aparecer truncado',
+            'DESCRIPTION_SHORT'=>'Revisar descrição curta',
+            'DESCRIPTION_MAY_TRUNCATE'=>'Descrição poderá aparecer truncada',
+        ];
+      @endphp
+      @if($seoSnippet->advisories !== [])
+      <ul class="seo-snippet-advisories" aria-label="Observações editoriais de título e descrição">
+        @foreach($seoSnippet->advisories as $code)
+        <li>{{ $seoAdvice[$code] ?? 'Revisão editorial necessária' }}</li>
+        @endforeach
+      </ul>
+      @else
+      <p class="sub" id="seo-no-advisories">Sem alertas automáticos de tamanho; revisão humana ainda obrigatória.</p>
+      @endif
+      <p class="locked">Esta página permanece noindex e não tem URL pública. A prévia não é previsão de posição no Google, aceite de cliente ou autorização de publicação.</p>
     </section>
     @endif
     @if(($visualSocialChoice ?? null) !== null)

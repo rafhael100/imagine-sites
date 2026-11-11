@@ -1603,6 +1603,17 @@ Route::get('/_lab/sites/v1/composite-social', static function (Request $request)
             $parity->canWriteCrm() || $parity->canSkipReview()) {
             return response('Not found',404);
         }
+        // F1-216: display-only SEO snippet derives from the exact same
+        // noindex HTML and reviewed copy as the social card and iframe.
+        $seo=\Imagine\Sites\Production\SyntheticSeoSnippetInspectionV1::inspect(
+            $draft->brief,$draft->artifact
+        );
+        if (!hash_equals($seo->artifactDigest,$parity->artifactDigest) ||
+            $seo->canPublish() || $seo->canIndexOnSearchEngines() ||
+            $seo->canWriteSeoEngine() || $seo->canFetchExternalPages() ||
+            $seo->canApproveForClient()) {
+            return response('Not found',404);
+        }
         $summary=$draft->reviewSummary();
         $dossier=\Imagine\Sites\Production\SyntheticInternalReviewDossier::fromDraft($draft);
         if($summary['workflowState']!=='internal_review' ||
@@ -1625,6 +1636,7 @@ Route::get('/_lab/sites/v1/composite-social', static function (Request $request)
                 'changed'=>$design->changed,
             ],
             'socialCard'=>$parity->socialCard,
+            'seoSnippet'=>$seo,
             'brief'=>$draft->brief,
             'previewHtml'=>$draft->artifact->html,
             'digest'=>$draft->artifact->digest,
