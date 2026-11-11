@@ -25,6 +25,7 @@ final readonly class SiteBrief
         public array $highlights = [],
         public array $processSteps = [],
         public array $sectionOrder = ['highlights','process','faq'],
+        public bool $sectionNavigation = false,
     ) {
         if (!in_array($productCode, ['onepage', 'landing_page'], true)) {
             throw new InvalidArgumentException('Unsupported Imagine Sites product.');
@@ -93,6 +94,10 @@ final readonly class SiteBrief
                 throw new InvalidArgumentException('Duplicate highlight title.');
             }
             $seenHighlightTitles[$normalized] = true;
+        }
+
+        if ($sectionNavigation && $productCode !== 'onepage') {
+            throw new InvalidArgumentException('Section navigation is onepage-only.');
         }
 
         // Section layout is an editor-controlled permutation only. It cannot
