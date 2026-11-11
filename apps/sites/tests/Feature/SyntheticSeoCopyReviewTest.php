@@ -121,15 +121,15 @@ final class SyntheticSeoCopyReviewTest extends TestCase
                             self::assertSame($main[1],$seoHash[1]);
                             self::assertSame($main[1],$selected[1]);
                             self::assertSame(1,preg_match(
-                                '/id="seo-change-evidence-digest">([a-f0-9]{64})<\\/code>/',
+                                '/id="seo-change-evidence-digest">([a-f0-9]{64})<\/code>/',
                                 $outer,$evidence
                             ));
                             self::assertSame(1,preg_match(
-                                '/id="seo-evidence-before">([a-f0-9]{64})<\\/code>/',
+                                '/id="seo-evidence-before">([a-f0-9]{64})<\/code>/',
                                 $outer,$proofBefore
                             ));
                             self::assertSame(1,preg_match(
-                                '/id="seo-evidence-after">([a-f0-9]{64})<\\/code>/',
+                                '/id="seo-evidence-after">([a-f0-9]{64})<\/code>/',
                                 $outer,$proofAfter
                             ));
                             self::assertSame($previous[1],$proofBefore[1]);
