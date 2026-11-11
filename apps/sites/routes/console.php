@@ -997,24 +997,10 @@ Artisan::command('sites:export-editorial-package-fixture {product=onepage} {pres
             throw new \DomainException('Edited preview bytes diverge from patch.');
         }
 
-        $dossier=\Imagine\Sites\Production\SyntheticInternalReviewDossier::fromDraft($draft);
-        $summary=$draft->reviewSummary();
-        if ($summary['workflowState']!=='internal_review' ||
-            $summary['publishable']!==false ||
-            $summary['officialClientAcceptance']!==false ||
-            $dossier->record['reviewerDecisionStatus']!=='pending' ||
-            $dossier->record['publishable']!==false) {
-            throw new \DomainException('Edited package could bypass internal review.');
-        }
-        $summary['reviewDossierDigest']=$dossier->digest;
-        $files=[
-            'index.html'=>$draft->artifact->html,
-            'internal-review-dossier.json'=>$dossier->json,
-            'internal-review-draft.json'=>json_encode(
-                $summary,JSON_THROW_ON_ERROR|JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE
-            )."\n",
-            'release-manifest.json'=>$draft->bundle->files['release-manifest.json'],
-        ];
+        // F1-185: the EXACT same validated pending-review canonical
+        // inventory is used by edited-copy and combined-layout packages.
+        // No separate serialization logic may drift between the two paths.
+        $files=\Imagine\Sites\Production\SyntheticPrivateReviewPackageV1::fromPendingDraft($draft);
         if (!is_dir($private) && !mkdir($private,0700,true) && !is_dir($private)) {
             throw new \DomainException('Private storage root unavailable.');
         }
@@ -1023,7 +1009,8 @@ Artisan::command('sites:export-editorial-package-fixture {product=onepage} {pres
         );
         if ($proof['releaseRef']!==$afterRef ||
             !hash_equals($proof['artifactDigest'],$draft->artifact->digest) ||
-            !hash_equals($proof['dossierDigest'],$dossier->digest) ||
+            !hash_equals($proof['dossierDigest'],
+                hash('sha256',$files['internal-review-dossier.json'])) ||
             $proof['reviewerDecisionStatus']!=='pending' ||
             $proof['publishable']!==false ||
             $proof['officialClientAcceptance']!==false) {
