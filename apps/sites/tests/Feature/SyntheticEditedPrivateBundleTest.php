@@ -44,10 +44,10 @@ final class SyntheticEditedPrivateBundleTest extends TestCase
         if (is_link($root) ||
             (!is_dir($root) && !mkdir($root,0700,true) && !is_dir($root)) ||
             !is_dir($root)) {
-            throw new \\RuntimeException('Unsafe or unavailable private CI fixture root.');
+            throw new \RuntimeException('Unsafe or unavailable private CI fixture root.');
         }
         if (!chmod($root,0700)) {
-            throw new \\RuntimeException('Private CI fixture root requires mode 0700.');
+            throw new \RuntimeException('Private CI fixture root requires mode 0700.');
         }
     }
 
