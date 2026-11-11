@@ -1129,18 +1129,7 @@ Route::get('/_lab/sites/v1/brand-palette', static function (Request $request) {
     }
     // All palettes originate from Imagine-owned fixed presets, NOT
     // customer input, AI output, arbitrary CSS, or URL arguments.
-    $palettes=[
-        'default'=>null,
-        'ocean'=>\Imagine\Sites\Production\SyntheticBrandPaletteV1::fromHex(
-            '#064e5b','#075a6b','#ffffff','#075a6b'
-        ),
-        'plum'=>\Imagine\Sites\Production\SyntheticBrandPaletteV1::fromHex(
-            '#50204d','#673060','#ffe9fa','#50204d'
-        ),
-        'forest'=>\Imagine\Sites\Production\SyntheticBrandPaletteV1::fromHex(
-            '#134a36','#1d5a43','#f4fff5','#134a36'
-        ),
-    ];
+    $palettes=\Imagine\Sites\Production\SyntheticVisualPresetCatalog::palettes();
     try {
         $fixture=base_path('../../fixtures/sites/f1-170-process-copy.synthetic.json');
         if (!is_file($fixture) || is_link($fixture) || filesize($fixture)>8192) {
@@ -1243,14 +1232,7 @@ Route::get('/_lab/sites/v1/visual-change', static function (Request $request) {
     $orderCode=$request->query('order');
     $navCode=$request->query('nav');
     $paletteCode=$request->query('palette');
-    $orders=[
-        'services_process_faq'=>['highlights','process','faq'],
-        'services_faq_process'=>['highlights','faq','process'],
-        'process_services_faq'=>['process','highlights','faq'],
-        'process_faq_services'=>['process','faq','highlights'],
-        'faq_services_process'=>['faq','highlights','process'],
-        'faq_process_services'=>['faq','process','highlights'],
-    ];
+    $orders=\Imagine\Sites\Production\SyntheticVisualPresetCatalog::sectionOrders();
     if (!is_string($product) || !is_string($device) ||
         !is_string($preset) || !is_string($orderCode) ||
         !is_string($navCode) || !is_string($paletteCode) ||
@@ -1263,18 +1245,7 @@ Route::get('/_lab/sites/v1/visual-change', static function (Request $request) {
         ($product==='landing_page' && $navCode==='on')) {
         return response('Not found',404);
     }
-    $palettes=[
-        'default'=>null,
-        'ocean'=>\Imagine\Sites\Production\SyntheticBrandPaletteV1::fromHex(
-            '#064e5b','#075a6b','#ffffff','#075a6b'
-        ),
-        'plum'=>\Imagine\Sites\Production\SyntheticBrandPaletteV1::fromHex(
-            '#50204d','#673060','#ffe9fa','#50204d'
-        ),
-        'forest'=>\Imagine\Sites\Production\SyntheticBrandPaletteV1::fromHex(
-            '#134a36','#1d5a43','#f4fff5','#134a36'
-        ),
-    ];
+    $palettes=\Imagine\Sites\Production\SyntheticVisualPresetCatalog::palettes();
     try {
         $fixture=base_path('../../fixtures/sites/f1-170-process-copy.synthetic.json');
         if (!is_file($fixture) || is_link($fixture) || filesize($fixture)>8192) {
@@ -1296,8 +1267,9 @@ Route::get('/_lab/sites/v1/visual-change', static function (Request $request) {
             $tenant,$site,'workflow-f203-before-'.$product,
             $previousRef
         );
-        $changed=$preset!=='classic' || $orderCode!=='services_process_faq' ||
-            $navCode!=='off' || $paletteCode!=='default';
+        $changed=!\Imagine\Sites\Production\SyntheticVisualPresetCatalog::isOriginal(
+            $preset,$orderCode,$navCode,$paletteCode
+        );
         $visualChangeDetails=null;
         $layoutRevisionDetails=null;
         if ($changed) {
