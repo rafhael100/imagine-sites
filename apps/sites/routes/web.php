@@ -566,7 +566,6 @@ Route::get('/_lab/sites/v1/editorial-review', static function (Request $request)
             'reviewRoute'=>'/_lab/sites/v1/editorial-review',
             'richReview'=>true,
             'editorialPatchDetails'=>[
-                'previousHtml'=>$source->artifact->html,
                 'previousDigest'=>$source->artifact->digest,
                 'nextDigest'=>$draft->artifact->digest,
                 'changedFields'=>$plan->changedFields,
@@ -1048,6 +1047,7 @@ Route::get('/_lab/sites/v1/layout-diff', static function (Request $request) {
             'sectionOrderCode'=>$order,
             'anchorNavMode'=>$navMode,
             'layoutRevisionDetails'=>[
+                'previousHtml'=>$source->artifact->html,
                 'previousDigest'=>$source->artifact->digest,
                 'nextDigest'=>$draft->artifact->digest,
                 'previousRevision'=>$approved->revision,
@@ -1065,12 +1065,7 @@ Route::get('/_lab/sites/v1/layout-diff', static function (Request $request) {
             'editorialChecks'=>$draft->editorialReport->checks,
             'editorialSuggestions'=>$draft->editorialReport->suggestions,
         ])->render();
-    } catch (\Throwable $e) {
-        // CI-only diagnostic for isolated fictional review; no client content.
-        if (getenv('GITHUB_ACTIONS')==='true' &&
-            getenv('SITES_F188_LAYOUT_DIFF')==='1') {
-            error_log('F1-188 synthetic deny: '.get_class($e).': '.$e->getMessage());
-        }
+    } catch (\Throwable) {
         return response('Not found',404);
     }
 
