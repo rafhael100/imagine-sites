@@ -68,3 +68,4 @@ jobs:
           php tests/f175-static-section-order.php
           php tests/f178-safe-section-anchor-navigation.php
           php tests/f185-canonical-private-package.php
+          php tests/f187-combined-layout-revision.php
