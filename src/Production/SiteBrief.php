@@ -23,6 +23,7 @@ final readonly class SiteBrief
         public string $stylePreset = 'classic',
         public array $faq = [],
         public array $highlights = [],
+        public array $processSteps = [],
     ) {
         if (!in_array($productCode, ['onepage', 'landing_page'], true)) {
             throw new InvalidArgumentException('Unsupported Imagine Sites product.');
@@ -91,6 +92,32 @@ final readonly class SiteBrief
                 throw new InvalidArgumentException('Duplicate highlight title.');
             }
             $seenHighlightTitles[$normalized] = true;
+        }
+
+        // Optional, ordered "how it works" cards. A process step is always
+        // static editorial copy; it is never a form, submission or action.
+        if (count($processSteps) > 5 || !array_is_list($processSteps)) {
+            throw new InvalidArgumentException('At most five process steps.');
+        }
+        $seenProcessTitles = [];
+        foreach ($processSteps as $step) {
+            if (!is_array($step) || array_keys($step) !== ['title', 'description']) {
+                throw new InvalidArgumentException('Invalid process step fields.');
+            }
+            foreach (['title' => 100, 'description' => 350] as $field => $max) {
+                $value = $step[$field];
+                if (!is_string($value) || trim($value) === '' ||
+                    strlen($value) > $max || !mb_check_encoding($value, 'UTF-8') ||
+                    preg_match('/[\x00-\x1f\x7f]/u', $value) ||
+                    preg_match('~(?:https?://|javascript:|data:)~i', $value)) {
+                    throw new InvalidArgumentException('Unsafe process step text.');
+                }
+            }
+            $normalized = mb_strtolower(trim($step['title']), 'UTF-8');
+            if (isset($seenProcessTitles[$normalized])) {
+                throw new InvalidArgumentException('Duplicate process step title.');
+            }
+            $seenProcessTitles[$normalized] = true;
         }
 
         foreach ($benefits as $benefit) {
