@@ -70,18 +70,36 @@ final class InertPreviewAudit
             return ['invalid_preview_structure'];
         }
 
-        // Require exactly the five metadata tags of the safe renderer, in order.
-        // In particular, reject a second robots tag and any meta refresh.
+        // The previous five metadata tags remain mandatory and unchanged.
+        // F1-206 optionally adds EXACTLY seven fixed Open Graph/Twitter
+        // text-only tags. Extra robots/referrer/refresh/URLs are still denied.
         $expectedCsp = '<meta http-equiv="Content-Security-Policy" content="default-src '.
             "'none'; style-src 'unsafe-inline'; img-src 'self' data:; ".
             "base-uri 'none'; form-action 'none'; object-src 'none'\">";
-        if (count($meta) !== 5 ||
+        if (!in_array(count($meta),[5,12],true) ||
             $meta[0] !== '<meta charset="utf-8">' ||
             $meta[1] !== '<meta name="viewport" content="width=device-width, initial-scale=1">' ||
-            !preg_match('/\A<meta name="description" content="[^"<>]*">\z/D', $meta[2]) ||
+            !preg_match('/\A<meta name="description" content="([^"<>]*)">\z/D',
+                $meta[2],$baseDescription) ||
             $meta[3] !== '<meta name="robots" content="noindex, nofollow">' ||
             $meta[4] !== $expectedCsp) {
             return ['unsafe_or_modified_metadata'];
+        }
+        if (count($meta)===12) {
+            if ($meta[5]!=='<meta property="og:type" content="website">' ||
+                $meta[6]!=='<meta property="og:locale" content="pt_BR">' ||
+                !preg_match('/\A<meta property="og:title" content="([^"<>]*)">\z/D',
+                    $meta[7],$socialTitle) ||
+                $meta[8]!=='<meta property="og:description" content="'.
+                    $baseDescription[1].'">' ||
+                $meta[9]!=='<meta name="twitter:card" content="summary">' ||
+                $meta[10]!=='<meta name="twitter:title" content="'.
+                    $socialTitle[1].'">' ||
+                $meta[11]!=='<meta name="twitter:description" content="'.
+                    $baseDescription[1].'">' ||
+                !str_contains($html,'<title>'.$socialTitle[1].'</title>')) {
+                return ['unsafe_or_modified_social_metadata'];
+            }
         }
 
         foreach ($links as $link) {
