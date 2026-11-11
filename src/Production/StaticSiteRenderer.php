@@ -52,6 +52,7 @@ final class StaticSiteRenderer
       </div>
     </section>
 FAQ;
+            $about .= "\n    ".$faqSection;
         }
 
 
@@ -115,7 +116,6 @@ FAQ;
       </div>
     </section>
     {$about}
-    {$faqSection}
     <section class="contact" id="contato" aria-labelledby="contact-title">
       <div class="container">
         <h2 id="contact-title">Próximo passo</h2>
