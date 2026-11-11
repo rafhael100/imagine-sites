@@ -52,6 +52,7 @@ final readonly class SyntheticStructuredDraftAssembly
             $officialPreset,
             $candidate->faq,
             $candidate->highlights,
+            $candidate->processSteps,
         );
         $artifact=(new StaticSiteRenderer())->render($brief);
         $qa=SyntheticPreviewQaReport::inspect($artifact);
