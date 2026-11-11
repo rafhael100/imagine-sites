@@ -1488,12 +1488,18 @@ Route::get('/_lab/sites/v1/social-preview', static function (Request $request) {
             $dossier->record['officialClientAcceptance']!==false) {
             return response('Not found',404);
         }
+        $socialCard=$social==='on'
+            ? \Imagine\Sites\Production\SyntheticSocialCardInspectionV1::inspect(
+                $draft->brief,$draft->artifact
+            )
+            : null;
         $page=view('labs.review',[
             'product'=>$product,'device'=>$device,'preset'=>$preset,
             'galleryMode'=>false,
             'reviewRoute'=>'/_lab/sites/v1/social-preview',
             'richReview'=>true,
             'socialPreviewMode'=>$social,
+            'socialCard'=>$socialCard,
             'socialRevisionDetails'=>$details,
             'brief'=>$draft->brief,
             'previewHtml'=>$draft->artifact->html,
