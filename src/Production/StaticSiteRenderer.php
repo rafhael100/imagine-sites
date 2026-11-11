@@ -36,7 +36,7 @@ final class StaticSiteRenderer
         $mode = $isOnepage ? 'onepage' : 'landing-page';
         $faqSection = '';
         if ($brief->faq !== []) {
-            $faqItems = implode("\\n", array_map(
+            $faqItems = implode("\n", array_map(
                 static fn (array $entry): string =>
                     '          <li><h3>'.$escape($entry['question']).'</h3><p>'.
                     $escape($entry['answer']).'</p></li>',
@@ -139,7 +139,7 @@ HTML;
     .faq h3 { margin: 0 0 10px; font-size: 1.1rem; line-height: 1.3; }
     .faq p { margin: 0; overflow-wrap: anywhere; }
 CSS;
-            $html = str_replace("  </style>\\n</head>", $faqCss."\\n  </style>\\n</head>", $html);
+            $html = str_replace("  </style>\n</head>", $faqCss."\n  </style>\n</head>", $html);
         }
 
         // F1-51: conservative, predefined offline design tokens only.
