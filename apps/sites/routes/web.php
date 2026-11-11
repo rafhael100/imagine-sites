@@ -1065,7 +1065,12 @@ Route::get('/_lab/sites/v1/layout-diff', static function (Request $request) {
             'editorialChecks'=>$draft->editorialReport->checks,
             'editorialSuggestions'=>$draft->editorialReport->suggestions,
         ])->render();
-    } catch (\Throwable) {
+    } catch (\Throwable $e) {
+        // CI-only diagnostic for isolated fictional review; no client content.
+        if (getenv('GITHUB_ACTIONS')==='true' &&
+            getenv('SITES_F188_LAYOUT_DIFF')==='1') {
+            error_log('F1-188 synthetic deny: '.get_class($e).': '.$e->getMessage());
+        }
         return response('Not found',404);
     }
 
