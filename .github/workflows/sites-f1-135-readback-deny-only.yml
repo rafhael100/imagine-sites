@@ -1,9 +1,10 @@
-name: Sites F1-135 deny-only readback contract
+name: Sites F1-135/F1-136 deny-only readback contract
 
 on:
   pull_request:
     paths:
       - 'tests/f135-readback-deny-only.php'
+      - 'tests/f136-readback-diagnostic-allowlist.php'
       - 'src/Integration/LabPostgresCrmLeadMetadataReadback.php'
       - 'src/Integration/SyntheticCrmLeadMetadataReadbackAssessment.php'
       - 'src/Integration/SyntheticCrmLeadEnvelopeV1Draft.php'
@@ -32,4 +33,6 @@ jobs:
           php -l src/Integration/SyntheticCrmLeadMetadataReadbackAssessment.php
           php -l src/Integration/LabPostgresCrmLeadMetadataReadback.php
           php -l tests/f135-readback-deny-only.php
+          php -l tests/f136-readback-diagnostic-allowlist.php
           php tests/f135-readback-deny-only.php
+          php tests/f136-readback-diagnostic-allowlist.php
