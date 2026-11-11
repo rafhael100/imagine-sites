@@ -74,8 +74,8 @@ final readonly class SyntheticSeoSnippetInspectionV1
             $title=$titleNodes->item(0)->textContent;
             $description=$descriptionNodes->item(0)->getAttribute('content');
             $headline=$headingNodes->item(0)->textContent;
-            if ($title!==$brief->headline.' | '.$brief->brand ||
-                $description!==$brief->description ||
+            if ($title!==($brief->seoTitle ?? ($brief->headline.' | '.$brief->brand)) ||
+                $description!==($brief->seoDescription ?? $brief->description) ||
                 $headline!==$brief->headline ||
                 $robotsNodes->item(0)->getAttribute('content')!=='noindex, nofollow') {
                 throw new DomainException('seo_inspection_pinned_copy_or_noindex_mismatch');
