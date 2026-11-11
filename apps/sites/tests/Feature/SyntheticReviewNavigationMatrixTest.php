@@ -91,10 +91,16 @@ final class SyntheticReviewNavigationMatrixTest extends TestCase
                     self::assertInstanceOf(DOMElement::class,$a);
                     $href=$a->getAttribute('href');
                     self::assertTrue(str_starts_with($href,'/_lab/sites/v1/review?') ||
-                        $href==='#detalhes','Only local review navigation and fixed anchor are allowed');
+                        in_array($href,['#detalhes','#apos-previa'],true),
+                        'Only local review navigation and fixed skip anchors are allowed');
                     $urls[]=$href;
                 }
-                self::assertCount(8,$urls,'Two product, two device, three preset and one anchor link.');
+                self::assertCount(9,$urls,
+                    'Product/device/theme links plus preview skip and identity anchor.');
+                self::assertContains('#apos-previa',$urls);
+                self::assertContains('#detalhes',$urls);
+                self::assertSame(1,$xp->query('//a[@href="#apos-previa"]')->length);
+                self::assertSame(1,$xp->query('//*[@id="apos-previa"][@tabindex="-1"]')->length);
                 foreach (['onepage','landing_page'] as $other) {
                     self::assertContains(self::PATH.'?product='.$other.'&device='.$device.'&preset=classic',$urls);
                 }
