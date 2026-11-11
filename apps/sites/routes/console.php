@@ -1616,7 +1616,7 @@ Artisan::command(
  * Never creates/overwrites a file or sends metadata to public SEO services.
  */
 Artisan::command(
-    'sites:diff-seo-copy-fixture {product=onepage} {preset=classic} {social=off}',
+    'sites:diff-seo-copy-fixture {product=onepage} {preset=classic} {social=off} {--evidence-json}',
     function (): int {
         if (PHP_SAPI!=='cli' || !app()->environment('testing') ||
             getenv('GITHUB_ACTIONS')!=='true' ||
@@ -1702,14 +1702,39 @@ Artisan::command(
                 $diff->canApproveForClient() || $diff->canWriteSeoEngine()) {
                 throw new \DomainException('SEO diff could claim unauthorized publication.');
             }
+            // F1-229: revalidate the same two packages and pin each of the
+            // eight private files. JSON is evidence, never authorization.
+            $evidence=\Imagine\Sites\Production\SyntheticPrivateSeoChangeEvidenceV1::fromVerifiedPair(
+                $files['default'],$briefs['default'],
+                $files['custom'],$briefs['custom']
+            );
+            if (!$evidence->stillMatchesVerifiedPair(
+                    $files['default'],$briefs['default'],
+                    $files['custom'],$briefs['custom']
+                ) ||
+                $evidence->record['authority']!=='none' ||
+                $evidence->record['publishable']!==false ||
+                $evidence->record['clientAccepted']!==false ||
+                $evidence->record['searchIndexingAllowed']!==false ||
+                $evidence->canPublish() || $evidence->canIndex() ||
+                $evidence->canApproveForClient() || $evidence->canWriteSeoEngine()) {
+                throw new \DomainException('Private SEO evidence never grants authority.');
+            }
         } catch (\Throwable) {
             $this->error('Private SEO copy comparison denied; no files or index changed.');
             return Command::FAILURE;
+        }
+        if ((bool)$this->option('evidence-json')) {
+            // JSON-only stdout for controlled, read-only CI review; never a
+            // signed consent or an outbound API payload.
+            $this->line(rtrim($evidence->json,"\n"));
+            return Command::SUCCESS;
         }
         $this->line('F1-227 SEO COPY DIFFERENCE VERIFIED: head only; pending, noindex.');
         $this->line('Default SHA-256: '.$diff->defaultDigest);
         $this->line('Custom SHA-256: '.$diff->customDigest);
         $this->line('Changes: '.implode(',',$diff->changedFields));
+        $this->line('F1-229 evidence SHA-256: '.$evidence->digest);
         $this->line('Social metadata: '.$social.'; body unchanged and no publication.');
         return Command::SUCCESS;
     }
