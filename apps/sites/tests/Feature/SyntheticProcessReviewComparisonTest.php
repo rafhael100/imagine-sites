@@ -78,8 +78,11 @@ final class SyntheticProcessReviewComparisonTest extends TestCase
                         $inner=html_entity_decode($m[1],ENT_QUOTES|ENT_HTML5,'UTF-8');
                         self::assertSame(1,substr_count($inner,'<section class="process"'));
                         self::assertSame(1,substr_count($inner,'<ol>'));
-                        self::assertSame(3,substr_count($inner,'<ol>')+
-                            2); // One process list, three steps validated below
+                        self::assertSame(1,preg_match(
+                            '~<section class="process".*?</section>~s',$inner,$section
+                        ));
+                        self::assertSame(3,substr_count($section[0],'<li><h3>'),
+                            'Exactly three ordered process steps');
                         self::assertStringContainsString('<h3>Briefing e planejamento</h3>',$inner);
                         self::assertStringContainsString('<h3>Criação do rascunho</h3>',$inner);
                         self::assertStringContainsString('<h3>Revisão e aceite</h3>',$inner);
