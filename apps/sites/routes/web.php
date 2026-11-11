@@ -379,17 +379,21 @@ Route::get('/_lab/sites/v1/rich-compare', static function (Request $request) {
         !in_array($device,['desktop','mobile'],true) ||
         !in_array($preset,['classic','modern','warm'],true) ||
         !is_string($variant) ||
-        !in_array($variant,['faq','highlights','both'],true)) {
+        !in_array($variant,['faq','highlights','both','steps','full'],true)) {
         return response('Not found',404);
     }
 
     try {
-        $fixture=base_path('../../fixtures/sites/f1-161-rich-copy.synthetic.json');
+        $isProcess=in_array($variant,['steps','full'],true);
+        $fixture=base_path($isProcess
+            ? '../../fixtures/sites/f1-170-process-copy.synthetic.json'
+            : '../../fixtures/sites/f1-161-rich-copy.synthetic.json');
         if (!is_file($fixture) || filesize($fixture)>8192) {
             return response('Not found',404);
         }
         $copy=json_decode((string)file_get_contents($fixture),true,16,JSON_THROW_ON_ERROR);
-        if (!is_array($copy) || ($copy['schemaVersion']??null)!=='sites.ai-copy.v3') {
+        if (!is_array($copy) ||
+            ($copy['schemaVersion']??null)!==($isProcess?'sites.ai-copy.v4':'sites.ai-copy.v3')) {
             return response('Not found',404);
         }
         // v1/v2 are immutable. The FAQ-only fixture selects the strict v2
@@ -397,7 +401,7 @@ Route::get('/_lab/sites/v1/rich-compare', static function (Request $request) {
         if ($variant==='faq') {
             unset($copy['highlights']);
             $copy['schemaVersion']='sites.ai-copy.v2';
-        } elseif ($variant==='highlights') {
+        } elseif (in_array($variant,['highlights','steps'],true)) {
             $copy['faq']=[];
         }
         $releaseRef='release-f164-'.$product.'-'.$preset.'-'.$variant;
@@ -406,8 +410,9 @@ Route::get('/_lab/sites/v1/rich-compare', static function (Request $request) {
             'tenant-f161-fictional','site-f161-fictional',
             'workflow-f164-'.$product.'-'.$preset.'-'.$variant,$releaseRef
         );
-        if (count($draft->brief->faq)!==($variant==='highlights'?0:2) ||
+        if (count($draft->brief->faq)!==(in_array($variant,['highlights','steps'],true)?0:2) ||
             count($draft->brief->highlights)!==($variant==='faq'?0:2) ||
+            count($draft->brief->processSteps)!==($isProcess?3:0) ||
             !$draft->structuralReport->passedStructuralChecks ||
             !\Imagine\Sites\Production\InertPreviewAudit::isSafe($draft->artifact->html)) {
             return response('Not found',404);
