@@ -54,6 +54,26 @@ final class StaticSiteRenderer
 HIGHLIGHTS;
             $about .= "\n    ".$highlightsSection;
         }
+        $processSection = '';
+        if ($brief->processSteps !== []) {
+            $stepItems = implode("\n", array_map(
+                static fn (array $step): string =>
+                    '          <li><h3>'.$escape($step['title']).'</h3><p>'.
+                    $escape($step['description']).'</p></li>',
+                $brief->processSteps,
+            ));
+            $processSection = <<<PROCESS
+    <section class="process" id="etapas" aria-labelledby="process-title">
+      <div class="container">
+        <h2 id="process-title">Como funciona</h2>
+        <ol>
+{$stepItems}
+        </ol>
+      </div>
+    </section>
+PROCESS;
+            $about .= "\n    ".$processSection;
+        }
         $faqSection = '';
         if ($brief->faq !== []) {
             $faqItems = implode("\n", array_map(
@@ -159,6 +179,19 @@ HTML;
     .highlights p { margin: 0; overflow-wrap: anywhere; }
 CSS;
             $html = str_replace("  </style>\n</head>", $highlightsCss."\n  </style>\n</head>", $html);
+        }
+
+        // F1-169: ordered informational steps use native <ol>. No script,
+        // link, button, form or route is introduced; legacy bytes unchanged.
+        if ($processSection !== '') {
+            $processCss = <<<'CSS'
+    .process { background: #edf3f9; }
+    .process ol { list-style: decimal; padding-left: 24px; display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,260px),1fr)); gap: 18px; }
+    .process li { background: #fff; border: 1px solid #d6e0ec; border-radius: 12px; padding: 24px 24px 24px 30px; }
+    .process h3 { margin: 0 0 10px; font-size: 1.14rem; line-height: 1.3; overflow-wrap: anywhere; }
+    .process p { margin: 0; overflow-wrap: anywhere; }
+CSS;
+            $html = str_replace("  </style>\n</head>", $processCss."\n  </style>\n</head>", $html);
         }
 
         // F1-157: FAQ CSS exists only when the optional block is present.
