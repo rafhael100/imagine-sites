@@ -127,11 +127,63 @@ f132Check($cas->inspect($open,$crm,-1)->reasonCode==='VERSION_INVALID',
 f132Check($cas->inspect($open,$crm,4,'force_delivered')->reasonCode==='OPERATION_NOT_SUPPORTED',
     'synthetic protocol cannot force delivery');
 foreach([
-    Phase::Reserved=>'IN_FLIGHT_REVIEW',
-    Phase::OutcomeUnknown=>'UNKNOWN_OUTCOME_LOOKUP_REQUIRED',
-    Phase::DeliveredClaimed=>'DELIVERED_CLAIM_REVIEW',
-    Phase::ExpiredClaimed=>'EXPIRED_CLAIM_REVIEW',
-] as $phase=>$reason) {
-    // PHP backed enum cases are objects and cannot be array keys; this
-    // branch is replaced below by a list of pairs.
+    [Phase::Reserved,'IN_FLIGHT_REVIEW'],
+    [Phase::OutcomeUnknown,'UNKNOWN_OUTCOME_LOOKUP_REQUIRED'],
+    [Phase::DeliveredClaimed,'DELIVERED_CLAIM_REVIEW'],
+    [Phase::ExpiredClaimed,'EXPIRED_CLAIM_REVIEW'],
+] as [$phase,$reason]) {
+    $result=$cas->inspect(new CrmSnapshot($crm,$phase,4),$crm,4);
+    f132Check($result->reasonCode===$reason &&
+        $result->proposedNextVersion===null &&
+        !$result->canCommitReservation() &&
+        !$result->canRetryDelivery(),
+        'nonopen or unknown CRM state cannot reserve: '.$reason);
 }
+$overflow=$cas->inspect(new CrmSnapshot($crm,Phase::Open,PHP_INT_MAX),$crm,PHP_INT_MAX);
+f132Check($overflow->reasonCode==='VERSION_OVERFLOW' &&
+    $overflow->proposedNextVersion===null,
+    'CRM CAS counter overflow cannot wrap into a reservable version');
+
+$evidence=new Evidence();
+$recordId='99999999-9999-4999-8999-999999999999';
+foreach(['primary','contingency'] as $receiver) {
+    $claims=$evidence->inspect($crm->identity,$crm->identity,$receiver,201,201,$recordId);
+    f132Check($claims->reasonCode==='TRUSTED_EVIDENCE_REQUIRED' &&
+        !$claims->canAcknowledgeVisitor() &&
+        !$claims->canMarkDeliveredToCrm() &&
+        !$claims->canRetryAutomatically(),
+        'even matching HTTP 201 and a claimed CRM ID do NOT prove delivery: '.$receiver);
+}
+foreach([
+    ['primary',null,null,null,'RECEIPT_OUTCOME_UNKNOWN'],
+    ['contingency',202,null,null,'DURABLE_RECEIPT_NOT_PROVEN'],
+    ['primary',201,null,$recordId,'CRM_OUTCOME_UNKNOWN'],
+    ['contingency',201,202,$recordId,'CRM_PERSISTENCE_NOT_PROVEN'],
+    ['primary',201,200,null,'CRM_RECORD_UNVERIFIED'],
+] as [$receiver,$apiStatus,$crmStatus,$id,$reason]) {
+    $assessment=$evidence->inspect(
+        $crm->identity,$crm->identity,$receiver,$apiStatus,$crmStatus,$id
+    );
+    f132Check($assessment->reasonCode===$reason &&
+        !$assessment->canAcknowledgeVisitor() &&
+        !$assessment->canMarkDeliveredToCrm() &&
+        !$assessment->canRetryAutomatically(),
+        'no delivery/receipt permission from unverified transport observation: '.$reason);
+}
+$otherBinding=$claim($draft([
+    'bindingReference'=>'77777777-7777-4777-8777-777777777777'
+]));
+$changedReceiver=$evidence->inspect(
+    $crm->identity,$otherBinding->identity,'primary',201,201,$recordId
+);
+f132Check($changedReceiver->reasonCode==='SUBMISSION_CONTEXT_MISMATCH' &&
+    !$changedReceiver->canMarkDeliveredToCrm(),
+    'receiver cannot confirm a submission with changed CRM binding');
+
+$serialized=json_encode($proposed,JSON_THROW_ON_ERROR);
+f132Check(!str_contains($serialized,$original->organizationReference) &&
+    !str_contains($serialized,$original->submissionReference) &&
+    !str_contains($serialized,$original->destinationReference),
+    'CAS assessment never echoes original IDs or customer payload');
+echo "\n$checks F1-132 real CRM F3-07/F3-12 metadata boundaries passed. ".
+    "No lead, durable CAS, ACK, delivery or CRM call.\n";
