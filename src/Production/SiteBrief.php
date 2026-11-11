@@ -21,6 +21,7 @@ final readonly class SiteBrief
         public string $callToAction,
         public array $benefits,
         public string $stylePreset = 'classic',
+        public array $faq = [],
     ) {
         if (!in_array($productCode, ['onepage', 'landing_page'], true)) {
             throw new InvalidArgumentException('Unsupported Imagine Sites product.');
@@ -40,6 +41,31 @@ final readonly class SiteBrief
         }
         if (count($benefits) < 1 || count($benefits) > 8) {
             throw new InvalidArgumentException('One to eight benefits required.');
+        }
+        // Optional structured FAQs: editor-controlled plain text only.
+        // Never accept URLs, scripts, raw markup, links or PII-bearing forms.
+        if (count($faq) > 6 || !array_is_list($faq)) {
+            throw new InvalidArgumentException('At most six structured FAQ entries.');
+        }
+        $normalizedQuestions = [];
+        foreach ($faq as $entry) {
+            if (!is_array($entry) || array_keys($entry) !== ['question', 'answer']) {
+                throw new InvalidArgumentException('Invalid FAQ entry structure.');
+            }
+            foreach (['question' => 180, 'answer' => 900] as $field => $max) {
+                $value = $entry[$field];
+                if (!is_string($value) || trim($value) === '' ||
+                    strlen($value) > $max || !mb_check_encoding($value, 'UTF-8') ||
+                    preg_match('/[\\x00-\\x1f\\x7f]/u', $value) ||
+                    preg_match('~(?:https?://|javascript:|data:)~i', $value)) {
+                    throw new InvalidArgumentException('Unsafe FAQ plain text.');
+                }
+            }
+            $key = mb_strtolower(trim($entry['question']), 'UTF-8');
+            if (isset($normalizedQuestions[$key])) {
+                throw new InvalidArgumentException('Duplicate FAQ question.');
+            }
+            $normalizedQuestions[$key] = true;
         }
         foreach ($benefits as $benefit) {
             if (!is_string($benefit) || trim($benefit) === '' || strlen($benefit) > 180 ||
