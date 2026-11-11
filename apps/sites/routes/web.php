@@ -1717,72 +1717,21 @@ Route::get('/_lab/sites/v1/seo-copy-review', static function (Request $request) 
            count($copy['processSteps']??[])!==3) {
             return response('Not found',404);
         }
-        $brand='Marca Fictícia Imagine';
-        $sourceRef='release-f222-source-'.$product.'-'.$preset.'-'.$social;
-        $newRef='release-f222-'.$product.'-'.$preset.'-'.$seo.'-'.$social;
-        $source=\Imagine\Sites\Production\SyntheticStructuredDraftAssembly::build(
-            $product,$brand,$preset,$copy,
-            'tenant-f222','site-f222',
-            'workflow-f222-source-'.$product.'-'.$preset.'-'.$social,
-            $sourceRef,['highlights','process','faq'],false,null,$social==='on'
+        // F1-224: the reviewer and private exporter use ONE fixed
+        // canonical SEO candidate generator. The 'f222' scope keeps the
+        // reviewer release refs and all existing bytes fully compatible.
+        $candidate=\Imagine\Sites\Production\SyntheticSeoCopyFixtureV1::build(
+            $copy,$product,$preset,$seo,$social,'f222'
         );
-        $title=$seo==='custom'
-            ? 'Serviços de comunicação e tecnologia | Imagine Demonstração'
-            : null;
-        $description=$seo==='custom'
-            ? 'Prévia sintética de apresentação digital, com metadados editoriais próprios, revisados antes de qualquer publicação real.'
-            : null;
-
-        if($seo==='custom'){
-            $approved=$source->workflow->advance(
-                'imagine_reviewer','approve_internal',2,$source->artifact->digest
-            );
-            $plan=\Imagine\Sites\Production\SyntheticSeoCopyRevisionPlan::begin(
-                $approved,$source->brief,$source->artifact,
-                $sourceRef,$title,$description,
-                $newRef,'imagine_reviewer',3
-            );
-            if($plan->changedFields!==['seoTitle','seoDescription'] ||
-               $plan->draftWorkflow->state!=='drafting' ||
-               $plan->draftWorkflow->artifactDigest!==null ||
-               $plan->canReusePriorReview() || $plan->canPublish() ||
-               $plan->canIndex()) {
-                return response('Not found',404);
-            }
-        }
-
-        // New internal-review fixture represents the proposed bytes, not a
-        // persisted continuation or an authenticated Portal decision.
-        $draft=\Imagine\Sites\Production\SyntheticStructuredDraftAssembly::build(
-            $product,$brand,$preset,$copy,
-            'tenant-f222','site-f222',
-            'workflow-f222-review-'.$product.'-'.$preset.'-'.$seo.'-'.$social,
-            $newRef,['highlights','process','faq'],false,null,$social==='on',
-            $title,$description
-        );
-        if($draft->brief->seoTitle!==$title ||
-           $draft->brief->seoDescription!==$description ||
-           ($seo==='custom' && (
-                !hash_equals($draft->artifact->digest,$plan->nextArtifact->digest) ||
-                !hash_equals($draft->artifact->html,$plan->nextArtifact->html)
-           )) || !$draft->structuralReport->passedStructuralChecks ||
-           !\Imagine\Sites\Production\InertPreviewAudit::isSafe(
-                $draft->artifact->html
-           )) {
-            return response('Not found',404);
-        }
-
-        $files=\Imagine\Sites\Production\SyntheticPrivateReviewPackageV1::fromPendingDraft(
-            $draft
-        );
-        $seoReadback=\Imagine\Sites\Production\SyntheticPrivateSeoSnippetReadbackV1::inspect(
-            $files,$draft->brief
-        );
-        if($seoReadback->releaseRef!==$draft->manifest->releaseRef ||
-           !hash_equals($seoReadback->artifactDigest,$draft->artifact->digest) ||
-           $seoReadback->canPublish() || $seoReadback->canIndex() ||
-           $seoReadback->canSendToSeoEngine() ||
-           $seoReadback->canApproveForClient()) {
+        $source=$candidate->source;
+        $draft=$candidate->draft;
+        $seoReadback=$candidate->readback;
+        if ($candidate->canPublish() || $candidate->canIndex() ||
+            $candidate->canSendToSeoEngine() ||
+            $candidate->canApproveForClient() ||
+            $seoReadback->canPublish() || $seoReadback->canIndex() ||
+            $seoReadback->canSendToSeoEngine() ||
+            $seoReadback->canApproveForClient()) {
             return response('Not found',404);
         }
         $summary=$draft->reviewSummary();
