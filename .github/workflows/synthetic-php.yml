@@ -72,6 +72,7 @@ jobs:
           php tests/f204-visual-preset-catalog.php
           php tests/f205-composite-visual-private-package.php
           php tests/f206-social-preview-metadata.php
+          php tests/f207-social-preview-revision.php
           php tests/f190-brand-palette-contrast.php
           php tests/f200-layout-change-evidence.php
           php tests/f202-composite-visual-revision.php
