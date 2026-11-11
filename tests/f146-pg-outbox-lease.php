@@ -87,7 +87,7 @@ check146(lease146($appB,$orgA,'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee')
  'B login cannot reserve A queue');
 
 $admin->exec(
- "UPDATE f140_lab.synthetic_claim_outbox ".
+ "UPDATE f140_lab.synthetic_claims ".
  "SET created_at=statement_timestamp()-interval '73 hours' ".
  "WHERE organization_reference='$orgB'"
 );
@@ -100,9 +100,13 @@ $appB->commit();
 // F1-148: the lease must end at original T0+432h, not at now+5min,
 // even when the intent is a few seconds away from the absolute cutoff.
 $admin->exec(
+ "UPDATE f140_lab.synthetic_claims ".
+ "SET created_at=statement_timestamp()-interval '431 hours 59 minutes' ".
+ "WHERE organization_reference='$orgB'"
+);
+$admin->exec(
  "UPDATE f140_lab.synthetic_claim_outbox ".
- "SET created_at=statement_timestamp()-interval '431 hours 59 minutes',".
- " leased_until=statement_timestamp()-interval '1 minute' ".
+ "SET leased_until=statement_timestamp()-interval '1 minute' ".
  "WHERE organization_reference='$orgB'"
 );
 $appB->beginTransaction();
@@ -111,10 +115,12 @@ check146(lease146($appB,$orgB,'33333333-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
  'near the 432h cutoff a fresh technical lease is still diagnostic only');
 $appB->commit();
 $boundary=$admin->query(
- "SELECT (leased_until=created_at+interval '432 hours') AS at_deadline,".
- " extract(epoch from (leased_until-statement_timestamp())) AS seconds_left".
- " FROM f140_lab.synthetic_claim_outbox".
- " WHERE organization_reference='$orgB'"
+ "SELECT (o.leased_until=c.created_at+interval '432 hours') AS at_deadline,".
+ " extract(epoch from (o.leased_until-statement_timestamp())) AS seconds_left".
+ " FROM f140_lab.synthetic_claim_outbox o".
+ " JOIN f140_lab.synthetic_claims c ON c.organization_reference=o.organization_reference".
+ " AND c.submission_reference=o.submission_reference".
+ " WHERE o.organization_reference='$orgB'"
 )->fetch(PDO::FETCH_ASSOC);
 check146(in_array($boundary['at_deadline'],[true,'t','1',1],true)
  && (float)$boundary['seconds_left']>0
@@ -122,9 +128,13 @@ check146(in_array($boundary['at_deadline'],[true,'t','1',1],true)
  'technical lease is capped at durable T0+432h rather than extended five minutes');
 
 $admin->exec(
+ "UPDATE f140_lab.synthetic_claims ".
+ "SET created_at=statement_timestamp()-interval '433 hours' ".
+ "WHERE organization_reference='$orgB'"
+);
+$admin->exec(
  "UPDATE f140_lab.synthetic_claim_outbox ".
- "SET created_at=statement_timestamp()-interval '433 hours',".
- " leased_until=statement_timestamp()-interval '1 hour' ".
+ "SET leased_until=statement_timestamp()-interval '1 hour' ".
  "WHERE organization_reference='$orgB'"
 );
 check146(lease146($appB,$orgB,'11111111-aaaa-4aaa-8aaa-aaaaaaaaaaaa')

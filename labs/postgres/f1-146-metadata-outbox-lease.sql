@@ -45,13 +45,19 @@ BEGIN
  v_now=statement_timestamp();
  -- An outbox entry cannot be leased after its binding has changed.
  -- Filter stale rows *before* ordering so they cannot starve fresh entries.
- SELECT o.organization_reference,o.submission_reference,o.created_at,
+ -- First persisted claim T0 is authoritative even when a later outbox
+ -- timestamp is different. The outbox cannot restart the retry window.
+ SELECT o.organization_reference,o.submission_reference,
+        c.created_at AS original_t0,
         o.binding_reference,o.site_reference,o.form_reference,
         o.destination_reference,o.pinned_revision
   INTO v_selected
   FROM f140_lab.synthetic_claim_outbox o
+  INNER JOIN f140_lab.synthetic_claims c
+    ON c.organization_reference=o.organization_reference
+   AND c.submission_reference=o.submission_reference
   WHERE o.organization_reference=p_org
-    AND o.created_at > v_now-interval '432 hours'
+    AND c.created_at > v_now-interval '432 hours'
     AND (o.leased_until IS NULL OR o.leased_until<=v_now)
     AND EXISTS (
       SELECT 1 FROM f140_lab.synthetic_binding_versions b
@@ -63,7 +69,7 @@ BEGIN
         AND b.form_reference=o.form_reference
         AND b.destination_reference=o.destination_reference
     )
-  ORDER BY o.created_at,o.submission_reference
+  ORDER BY c.created_at,o.submission_reference
   FOR UPDATE OF o SKIP LOCKED
   LIMIT 1;
  IF NOT FOUND THEN
@@ -86,7 +92,7 @@ BEGIN
    RETURN 'BINDING_NOT_CURRENT';
  END IF;
 
- IF v_selected.created_at <= v_now-interval '72 hours' THEN
+ IF v_selected.original_t0 <= v_now-interval '72 hours' THEN
    v_code='LEASED_RECOVERY_UNVERIFIED';
  ELSE
    v_code='LEASED_INITIAL_UNVERIFIED';
@@ -96,7 +102,7 @@ BEGIN
  -- A lease must never extend past the irrevocable original T0+432h.
  SET lease_id=p_lease,
      leased_until=LEAST(v_now+interval '5 minutes',
-                        v_selected.created_at+interval '432 hours'),
+                        v_selected.original_t0+interval '432 hours'),
      lease_attempts=lease_attempts+1
  WHERE organization_reference=v_selected.organization_reference
    AND submission_reference=v_selected.submission_reference;
