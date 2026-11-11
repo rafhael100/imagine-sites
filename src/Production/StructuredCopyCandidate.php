@@ -23,6 +23,10 @@ final class StructuredCopyCandidate
     private const COPY_FIELDS_V2 = [
         'schemaVersion', 'headline', 'description', 'callToAction', 'benefits', 'faq',
     ];
+    private const COPY_FIELDS_V3 = [
+        'schemaVersion', 'headline', 'description', 'callToAction',
+        'benefits', 'faq', 'highlights',
+    ];
 
     /** @param array<string,mixed> $candidate */
     public static function assemble(
@@ -40,6 +44,7 @@ final class StructuredCopyCandidate
         $expected = match ($version) {
             'sites.ai-copy.v1' => self::COPY_FIELDS,
             'sites.ai-copy.v2' => self::COPY_FIELDS_V2,
+            'sites.ai-copy.v3' => self::COPY_FIELDS_V3,
             default => throw new DomainException('untrusted_ai_response_schema'),
         };
         $actual = array_keys($candidate);
@@ -72,7 +77,7 @@ final class StructuredCopyCandidate
             }
         }
         $faq = [];
-        if ($version === 'sites.ai-copy.v2') {
+        if (in_array($version, ['sites.ai-copy.v2', 'sites.ai-copy.v3'], true)) {
             $faq = $candidate['faq'];
             if (!is_array($faq) || !array_is_list($faq) || count($faq) > 6) {
                 throw new DomainException('invalid_ai_faq_list');
@@ -89,6 +94,25 @@ final class StructuredCopyCandidate
             }
         }
 
+        $highlights = [];
+        if ($version === 'sites.ai-copy.v3') {
+            $highlights = $candidate['highlights'];
+            if (!is_array($highlights) || !array_is_list($highlights) ||
+                count($highlights) < 1 || count($highlights) > 4) {
+                throw new DomainException('invalid_ai_highlight_list');
+            }
+            foreach ($highlights as $item) {
+                if (!is_array($item) ||
+                    array_keys($item) !== ['title', 'description'] ||
+                    !is_string($item['title']) ||
+                    !is_string($item['description']) ||
+                    !self::safePlainCopy($item['title']) ||
+                    !self::safePlainCopy($item['description'])) {
+                    throw new DomainException('unsafe_ai_highlight_entry');
+                }
+            }
+        }
+
         try {
             return new SiteBrief(
                 $officialProductCode,
@@ -99,6 +123,7 @@ final class StructuredCopyCandidate
                 $benefits,
                 'classic',
                 $faq,
+                $highlights,
             );
         } catch (InvalidArgumentException $e) {
             throw new DomainException('invalid_ai_brief_constraints', previous:$e);
