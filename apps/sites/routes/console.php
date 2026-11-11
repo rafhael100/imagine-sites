@@ -709,3 +709,208 @@ Artisan::command('sites:verify-draft-fixture {product=onepage} {preset=classic} 
     $this->line('Client acceptance: NO; publishable: NO.');
     return Command::SUCCESS;
 })->purpose('Read-only validation of four fictional draft files; cannot approve or publish');
+
+
+/**
+ * F1-162: export a complete fictional rich-review gallery from the SAME
+ * in-process Laravel route used by the reviewer. No HTTP server, uploads,
+ * real customer material, Portal approval, CRM, or public publication.
+ */
+Artisan::command('sites:export-rich-gallery-fixture', function (): int {
+    if (PHP_SAPI !== 'cli' || !app()->environment('testing') ||
+        getenv('SITES_SYNTHETIC_HTTP') !== '1' ||
+        getenv('SITES_SYNTHETIC_REVIEW_UI') !== '1' ||
+        getenv('SITES_SYNTHETIC_RICH_REVIEW') !== '1' ||
+        getenv('SITES_SYNTHETIC_RICH_EXPORT') !== '1' ||
+        getenv('SITES_SYNTHETIC_EXPORT') === '1' ||
+        getenv('SITES_SYNTHETIC_STYLE_EXPORT') === '1') {
+        $this->error('Rich gallery requires explicit isolated CLI testing flags.');
+        return Command::FAILURE;
+    }
+
+    $private=storage_path('app/private');
+    $destination=$private.'/sites-f1-162-rich-gallery';
+    if (is_link($private) || is_link($destination) ||
+        file_exists($destination) || is_dir($destination)) {
+        $this->error('Existing or linked rich gallery destination is forbidden.');
+        return Command::FAILURE;
+    }
+
+    $products=['onepage','landing_page'];
+    $devices=['desktop','mobile'];
+    $presets=['classic','modern','warm'];
+    $route='/_lab/sites/v1/rich-review';
+    $pages=[];
+    $entries=[];
+    try {
+        foreach ($products as $product) {
+            foreach ($devices as $device) {
+                foreach ($presets as $preset) {
+                    $request=\Illuminate\Http\Request::create(
+                        $route.'?product='.$product.'&device='.$device.'&preset='.$preset,
+                        'GET',[],[],[],['REMOTE_ADDR'=>'127.0.0.1']
+                    );
+                    $previous=app('request');
+                    try {
+                        app()->instance('request',$request);
+                        $matched=app('router')->getRoutes()->match($request);
+                        $matched->bind($request);
+                        $response=$matched->run();
+                    } finally {
+                        app()->instance('request',$previous);
+                    }
+
+                    $html=(string)$response->getContent();
+                    if ($response->getStatusCode()!==200 ||
+                        $response->headers->get('X-Frame-Options')!=='DENY' ||
+                        !str_contains((string)$response->headers->get('Cache-Control'),'no-store') ||
+                        substr_count($html,'href="'.$route.'?')!==7 ||
+                        !str_contains($html,'sandbox=""') ||
+                        !str_contains($html,'Conteúdo da página ampliado') ||
+                        !preg_match('/id="artifact-digest">([a-f0-9]{64})<\/code>/',$html,$m) ||
+                        !str_contains($html,'release-f161-'.$product.'-'.$preset)) {
+                        throw new \DomainException('Rich review route returned invalid candidate.');
+                    }
+
+                    $digest=$m[1];
+                    $found=[];
+                    if (!preg_match('/\bsrcdoc="([^"]+)"/s',$html,$found)) {
+                        throw new \DomainException('Sandboxed rich HTML missing.');
+                    }
+                    $inner=html_entity_decode($found[1],ENT_QUOTES|ENT_HTML5,'UTF-8');
+                    if (!hash_equals($digest,hash('sha256',$inner)) ||
+                        substr_count($inner,'<section class="faq"')!==1 ||
+                        substr_count($inner,'<section class="highlights"')!==1 ||
+                        str_contains($inner,'<script') ||
+                        str_contains($inner,'<form')) {
+                        throw new \DomainException('Rich inner HTML differs from approved draft bytes.');
+                    }
+
+                    $rewritten=0;
+                    foreach ($products as $p) {
+                        foreach ($devices as $d) {
+                            foreach ($presets as $s) {
+                                $search='href="'.$route.'?product='.$p.
+                                    '&amp;device='.$d.'&amp;preset='.$s.'"';
+                                $replacement='href="'.$p.'-'.$d.'-'.$s.'.html"';
+                                $count=0;
+                                $html=str_replace($search,$replacement,$html,$count);
+                                $rewritten+=$count;
+                            }
+                        }
+                    }
+                    if ($rewritten!==7 || str_contains($html,'href="'.$route.'?')) {
+                        throw new \DomainException('In-process gallery has unresolved navigation.');
+                    }
+
+                    $robots='<meta name="robots" content="noindex, nofollow">';
+                    $csp='<meta http-equiv="Content-Security-Policy" content="default-src '.
+                        "'none'; script-src 'none'; style-src 'unsafe-inline'; frame-src 'self'".
+                        " about:; img-src data:; connect-src 'none'; form-action 'none'; object-src".
+                        " 'none'; base-uri 'none'; frame-ancestors 'none'".'">';
+                    if (substr_count($html,$robots)!==1) {
+                        throw new \DomainException('Rich gallery lacks exact robots tag.');
+                    }
+                    $html=str_replace($robots,$robots."\n".$csp,$html);
+                    if (preg_match('/<(?:script|form)\b/i',$html) ||
+                        preg_match('/(?:https?:\/\/|javascript:|@import)/i',$html)) {
+                        throw new \DomainException('Rich gallery must be fully inert and offline.');
+                    }
+
+                    $name=$product.'-'.$device.'-'.$preset.'.html';
+                    $pages[$name]=$html;
+                    $entries[]=[
+                        'filename'=>$name,'product'=>$product,'device'=>$device,
+                        'preset'=>$preset,'sha256'=>hash('sha256',$html),
+                        'artifactDigest'=>$digest,'bytes'=>strlen($html),
+                    ];
+                }
+            }
+        }
+        if (count($pages)!==12 || count(array_unique(array_keys($pages)))!==12) {
+            throw new \DomainException('Rich review gallery needs twelve unique pages.');
+        }
+        $metadata=[
+            'schemaVersion'=>'sites.synthetic.rich-review-gallery.v1',
+            'syntheticOnly'=>true,'publishable'=>false,
+            'officialClientAcceptance'=>false,'pages'=>$entries,
+        ];
+        $pages['gallery-manifest.json']=json_encode(
+            $metadata,JSON_THROW_ON_ERROR|JSON_PRETTY_PRINT|
+            JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE
+        )."\n";
+    } catch (\Throwable) {
+        $this->error('Rich gallery build failed closed; no files exported.');
+        return Command::FAILURE;
+    }
+
+    if (!is_dir($private) && !mkdir($private,0700,true) && !is_dir($private)) {
+        $this->error('Private scratch root unavailable.');
+        return Command::FAILURE;
+    }
+    if (is_link($private) || !is_dir($private) || is_link($destination) ||
+        file_exists($destination)) {
+        $this->error('Unsafe private gallery destination.');
+        return Command::FAILURE;
+    }
+
+    $stage=$private.'/.sites-f1-162-stage-'.bin2hex(random_bytes(10));
+    if (!mkdir($stage,0700)) {
+        $this->error('Cannot create private staging directory.');
+        return Command::FAILURE;
+    }
+    $committed=false;
+    try {
+        foreach ($pages as $name=>$bytes) {
+            $file=$stage.'/'.$name;
+            $stream=@fopen($file,'x');
+            if ($stream===false) {
+                throw new \DomainException('Exclusive file creation failed.');
+            }
+            $offset=0;
+            try {
+                while ($offset<strlen($bytes)) {
+                    $wrote=fwrite($stream,substr($bytes,$offset));
+                    if ($wrote===false || $wrote===0) {
+                        throw new \DomainException('Incomplete private HTML write.');
+                    }
+                    $offset+=$wrote;
+                }
+                if (!fflush($stream)) {
+                    throw new \DomainException('Private HTML flush failed.');
+                }
+            } finally {fclose($stream);}
+            if (!chmod($file,0600) ||
+                !hash_equals(hash('sha256',$bytes),(string)hash_file('sha256',$file))) {
+                throw new \DomainException('Private HTML readback mismatch.');
+            }
+        }
+
+        if (is_link($destination) || file_exists($destination) ||
+            !rename($stage,$destination)) {
+            throw new \DomainException('Exclusive atomic gallery rename denied.');
+        }
+        $committed=true;
+        foreach ($pages as $name=>$bytes) {
+            if (!is_file($destination.'/'.$name) ||
+                !hash_equals(hash('sha256',$bytes),
+                    (string)hash_file('sha256',$destination.'/'.$name))) {
+                throw new \DomainException('Committed gallery readback mismatch.');
+            }
+        }
+    } catch (\Throwable) {
+        $this->error('Rich gallery failed atomic write/readback.');
+        return Command::FAILURE;
+    } finally {
+        if (!$committed && is_dir($stage) && !is_link($stage)) {
+            foreach (array_keys($pages) as $name) {
+                if (is_file($stage.'/'.$name)) @unlink($stage.'/'.$name);
+            }
+            @rmdir($stage);
+        }
+    }
+
+    $this->line('F1-162 PRIVATE RICH REVIEW: 12 fictional pages, exact SHA-256.');
+    $this->line('No real client acceptance, CRM, network, public site or deployment.');
+    return Command::SUCCESS;
+})->purpose('Atomically export twelve non-publishable rich review pages to private CI');
