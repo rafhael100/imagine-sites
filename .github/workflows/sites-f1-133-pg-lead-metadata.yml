@@ -4,6 +4,9 @@ on:
     paths:
       - 'labs/postgres/f1-133-lead-metadata-ledger.sql'
       - 'tests/f133-pg-lead-idempotency.php'
+      - 'src/Integration/LabPostgresCrmLeadMetadataReadback.php'
+      - 'src/Integration/SyntheticCrmLeadMetadataReadbackAssessment.php'
+      - 'docs/SITES-F1-134-READBACK-NO-DELIVERY-AUTHORITY.md'
       - 'src/Integration/SyntheticCrmLeadEnvelopeV1Draft.php'
       - 'src/Integration/SyntheticCrmLeadLedgerIntentV1.php'
       - '.github/workflows/sites-f1-133-pg-lead-metadata.yml'
@@ -69,6 +72,8 @@ jobs:
           php -l src/Integration/SyntheticCrmLeadEnvelopeV1Draft.php
           php -l src/Integration/SyntheticCrmLeadLedgerIntentV1.php
           php -l tests/f133-pg-lead-idempotency.php
+          php -l src/Integration/LabPostgresCrmLeadMetadataReadback.php
+          php -l src/Integration/SyntheticCrmLeadMetadataReadbackAssessment.php
           php tests/f133-pg-lead-idempotency.php
       - name: No runtime or lead delivery promotion
         if: always()
