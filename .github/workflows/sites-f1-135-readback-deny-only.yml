@@ -1,0 +1,35 @@
+name: Sites F1-135 deny-only readback contract
+
+on:
+  pull_request:
+    paths:
+      - 'tests/f135-readback-deny-only.php'
+      - 'src/Integration/LabPostgresCrmLeadMetadataReadback.php'
+      - 'src/Integration/SyntheticCrmLeadMetadataReadbackAssessment.php'
+      - 'src/Integration/SyntheticCrmLeadEnvelopeV1Draft.php'
+      - '.github/workflows/sites-f1-135-readback-deny-only.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deny-only-contract:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - name: PHP syntax and deny-only assertions
+        run: |
+          php -l src/Integration/SyntheticCrmLeadEnvelopeV1Draft.php
+          php -l src/Integration/SyntheticCrmLeadMetadataReadbackAssessment.php
+          php -l src/Integration/LabPostgresCrmLeadMetadataReadback.php
+          php -l tests/f135-readback-deny-only.php
+          php tests/f135-readback-deny-only.php
