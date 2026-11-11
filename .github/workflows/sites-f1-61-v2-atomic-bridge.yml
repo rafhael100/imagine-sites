@@ -1,0 +1,74 @@
+name: Sites F1-61 verified HMAC to atomic PostgreSQL review fence - lab
+on:
+  pull_request:
+    paths:
+      - 'src/Security/LabAtomicReviewHandoffVerifier.php'
+      - 'tests/f61-pg-hmac-atomic.php'
+      - 'src/Security/SyntheticReviewHandoffEpochEnvelope.php'
+      - 'labs/security/f1-60-atomic-review-v2.sql'
+      - '.github/workflows/sites-f1-61-v2-atomic-bridge.yml'
+      - 'docs/SITES-F1-61-HMAC-ATOMIC-PG.md'
+permissions:
+  contents: read
+jobs:
+  signed-handoff-atomic-lab:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: nonce-lab-fictional-only
+          POSTGRES_DB: sites_auth_replay_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sites_auth_replay_lab"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      SITES_F49_PG_LAB: '1'
+      SITES_F61_PG_LAB: '1'
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: nonce-lab-fictional-only
+      PGDATABASE: sites_auth_replay_lab
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          extensions: pdo,pdo_pgsql
+          coverage: none
+      - name: Ensure psql exists
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Disposable PostgreSQL role, authority and atomic nonce schemas
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f labs/security/f1-12-nonce-schema.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/security/f1-47-review-nonce-schema.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/security/f1-49-current-review-source.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/security/f1-60-atomic-review-v2.sql
+      - name: PHP syntax, HMAC canonical signature, atomic DB and concurrent revoke
+        run: |
+          php -l src/Security/LabAtomicReviewHandoffVerifier.php
+          php -l tests/f61-pg-hmac-atomic.php
+          php tests/f61-pg-hmac-atomic.php
+      - name: Scope declaration
+        if: always()
+        run: echo 'Verified HMAC + same-db row-lock laboratory only. No service IAM, live Portal/CRM, deploy or customer data.'

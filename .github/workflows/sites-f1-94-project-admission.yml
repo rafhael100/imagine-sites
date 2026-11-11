@@ -1,0 +1,202 @@
+name: Sites F1-94 restricted PostgreSQL project admission - disposable lab
+on:
+  pull_request:
+    paths:
+      - 'apps/sites/database/migrations/**'
+      - 'src/Persistence/LabAuthorizedProjectAdmissionStore.php'
+      - 'src/Integration/SiteProjectAdmission.php'
+      - 'src/Integration/SiteProjectCommand.php'
+      - 'src/Integration/PortalProjectAuthorityGateway.php'
+      - 'src/Integration/LabSignedProjectIntake.php'
+      - 'src/Integration/PortalProjectCommercialEpochSource.php'
+      - 'src/Integration/DenyingPortalProjectCommercialEpochSource.php'
+      - 'src/Integration/LabPinnedCommercialEpochAuthorityGateway.php'
+      - 'src/Security/SyntheticCommercialEpochSignedCommand.php'
+      - 'src/Security/LabPreflightNoPersistReplayStore.php'
+      - 'docs/SITES-F1-125-V3-COMMERCIAL-EPOCH-PG-ADMISSION.md'
+      - 'docs/SITES-F1-126-COMMERCIAL-EPOCH-OUTAGE-MATRIX.md'
+      - 'docs/SITES-F1-127-DURABLE-V3-REPLAY-STORE.md'
+      - 'docs/SITES-F1-128-REPLAY-FREE-CRYPTO-PREFLIGHT.md'
+      - 'src/Integration/LabPinnedPortalSigningKeyAuthorityGateway.php'
+      - 'src/Integration/PortalSigningKeySource.php'
+      - 'src/Integration/DenyingPortalSigningKeySource.php'
+      - 'src/Integration/PortalSigningKeyEpochSource.php'
+      - 'src/Integration/DenyingPortalSigningKeyEpochSource.php'
+      - 'docs/SITES-F1-117-SIGNING-KEY-EPOCH-ANTI-ABA.md'
+      - 'docs/SITES-F1-115-PORTAL-SIGNING-KEY-TRUST.md'
+      - 'src/Security/LabPostgresReplayStore.php'
+      - 'labs/security/f1-12-nonce-schema.sql'
+      - 'tests/f111-pg-durable-signed-intake.php'
+      - 'docs/SITES-F1-111-TWO-PG-REPLAY-INTAKE.md'
+      - 'src/Security/SyntheticSignedCommand.php'
+      - 'src/Security/SyntheticVersionedSignedCommand.php'
+      - 'docs/SITES-F1-118-SIGNED-KEY-EPOCH-V2.md'
+      - 'docs/SITES-F1-120-EXPLICIT-ENVELOPE-VERSION.md'
+      - 'src/Security/ReplayStore.php'
+      - 'tests/f94-pg-authorized-project-admission.php'
+      - 'tests/f95-pg-verified-draft-revisions.php'
+      - 'src/Persistence/LabVerifiedDraftRevisionStore.php'
+      - 'src/Persistence/LabVerifiedLatestDraftReader.php'
+      - 'docs/SITES-F1-96-LATEST-PRIVATE-READBACK.md'
+      - 'src/Production/SyntheticPrivateDraftVerifier.php'
+      - 'src/Production/SyntheticPrivateDraftWriter.php'
+      - 'docs/SITES-F1-95-VERIFIED-DRAFT-LEDGER.md'
+      - '.github/workflows/sites-f1-93-pg-schema.yml'
+      - '.github/workflows/sites-f1-94-project-admission.yml'
+      - 'docs/SITES-F1-94-TRANSACTIONAL-ADMISSION.md'
+permissions:
+  contents: read
+jobs:
+  laravel-postgres18-authorized-admission:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: f94-synthetic-admin-disposable-only
+          POSTGRES_DB: sites_f94_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sites_f94_lab"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: sites_f94_lab
+      DB_USERNAME: postgres
+      DB_PASSWORD: f94-synthetic-admin-disposable-only
+      DB_SSLMODE: disable
+      SITES_F93_SCHEMA_LAB: '1'
+      SITES_F94_PROJECT_ADMISSION_LAB: '1'
+      SITES_F95_DRAFT_LEDGER_LAB: '1'
+      SITES_F96_LATEST_READBACK_LAB: '1'
+      SITES_F94_APP_PASSWORD: f94-synthetic-application-disposable-only
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGDATABASE: sites_f94_lab
+      PGUSER: postgres
+      PGPASSWORD: f94-synthetic-admin-disposable-only
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer:v2
+          extensions: mbstring,pdo,pdo_pgsql,dom,xml
+          coverage: none
+      - name: Install exact locked Laravel dependencies
+        working-directory: apps/sites
+        run: |
+          set -euo pipefail
+          composer install --no-interaction --prefer-dist --no-progress
+      - name: Install PostgreSQL client for disposable schema assertions
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Create a second disposable PostgreSQL database for nonce replay
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -d postgres -c 'CREATE DATABASE sites_auth_replay_lab'
+          PGDATABASE=sites_auth_replay_lab psql -X -v ON_ERROR_STOP=1 -f labs/security/f1-12-nonce-schema.sql
+      - name: Prove the F1-93 migration cannot run with its opt-in disabled
+        working-directory: apps/sites
+        run: |
+          set -euo pipefail
+          if SITES_F93_SCHEMA_LAB=0 php artisan migrate --path=database/migrations/2026_11_10_000001_create_sites_core.php --force --no-interaction; then
+            echo 'Unsafe: initial migration ran without F1-93 permission'
+            exit 1
+          fi
+          test "$(psql -X -tAc "SELECT to_regclass('public.sites_projects') IS NULL")" = t
+      - name: Apply F1-93 core migration on lab PostgreSQL 18
+        working-directory: apps/sites
+        run: |
+          set -euo pipefail
+          php artisan migrate --path=database/migrations/2026_11_10_000001_create_sites_core.php --force --no-interaction
+      - name: Prove F1-94 admission migration is also disabled by default
+        working-directory: apps/sites
+        run: |
+          set -euo pipefail
+          if SITES_F94_PROJECT_ADMISSION_LAB=0 php artisan migrate --path=database/migrations/2026_11_10_000002_create_sites_project_admissions.php --force --no-interaction; then
+            echo 'Unsafe: admission ledger appeared without F1-94 permission'
+            exit 1
+          fi
+          test "$(psql -X -tAc "SELECT to_regclass('public.sites_project_admissions') IS NULL")" = t
+      - name: Apply real Laravel F1-94 admission migration
+        working-directory: apps/sites
+        run: |
+          set -euo pipefail
+          php -l database/migrations/2026_11_10_000002_create_sites_project_admissions.php
+          php -l ../../src/Persistence/LabAuthorizedProjectAdmissionStore.php
+          php -l ../../tests/f94-pg-authorized-project-admission.php
+          php artisan migrate --path=database/migrations/2026_11_10_000002_create_sites_project_admissions.php --force --no-interaction
+          php artisan migrate:status
+      - name: Create non-admin app login with SELECT and INSERT only
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+          REVOKE CREATE ON DATABASE sites_f94_lab FROM PUBLIC;
+          CREATE ROLE sites_f94_app
+            LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS
+            PASSWORD 'f94-synthetic-application-disposable-only';
+          GRANT CONNECT ON DATABASE sites_f94_lab TO sites_f94_app;
+          GRANT USAGE ON SCHEMA public TO sites_f94_app;
+          GRANT SELECT, INSERT ON TABLE sites_projects, sites_drafts,
+            sites_project_admissions TO sites_f94_app;
+          SQL
+      - name: Exercise end-to-end authorization, idempotency, SQL rollback and tenant-bound storage
+        run: |
+          set -euo pipefail
+          php tests/f94-pg-authorized-project-admission.php
+          php -l src/Persistence/LabVerifiedDraftRevisionStore.php
+          php -l src/Persistence/LabVerifiedLatestDraftReader.php
+          php -l tests/f95-pg-verified-draft-revisions.php
+          php tests/f95-pg-verified-draft-revisions.php
+      - name: Test durable nonce and project ledger across two disposable PostgreSQL databases
+        run: |
+          set -euo pipefail
+          php -l src/Integration/LabSignedProjectIntake.php
+          php -l src/Integration/LabPinnedPortalSigningKeyAuthorityGateway.php
+          php -l src/Integration/PortalSigningKeyEpochSource.php
+          php -l src/Integration/DenyingPortalSigningKeyEpochSource.php
+          php -l src/Security/SyntheticSignedCommand.php
+          php -l src/Security/SyntheticVersionedSignedCommand.php
+          php -l src/Security/SyntheticCommercialEpochSignedCommand.php
+          php -l src/Security/LabPreflightNoPersistReplayStore.php
+          php -l src/Integration/PortalProjectCommercialEpochSource.php
+          php -l src/Integration/DenyingPortalProjectCommercialEpochSource.php
+          php -l src/Integration/LabPinnedCommercialEpochAuthorityGateway.php
+          php -l tests/f111-pg-durable-signed-intake.php
+          SITES_F1_14_PG_LAB=1 SITES_F110_SIGNED_PROJECT_LAB=1 php tests/f111-pg-durable-signed-intake.php
+      - name: Prove rollback cannot drop the admissions ledger
+        working-directory: apps/sites
+        run: |
+          set -euo pipefail
+          if php artisan migrate:rollback --path=database/migrations/2026_11_10_000002_create_sites_project_admissions.php --force --no-interaction; then
+            echo 'Unsafe: destructive admission rollback succeeded'
+            exit 1
+          fi
+          test "$(psql -X -tAc "SELECT to_regclass('public.sites_project_admissions') IS NOT NULL")" = t
+      - name: Scope of evidence
+        if: always()
+        run: |
+          echo 'F1-94 ran with fictional authority on disposable PostgreSQL, not Portal IAM.'
+          echo 'Tenant GUC is spoofable by direct SQL access. Do not expose DB role to customers/agents.'
+          echo 'No production migration, Cloudflare, Leaseweb, secrets or client data.'

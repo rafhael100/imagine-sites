@@ -1,0 +1,70 @@
+name: Sites F1-38 in-process visual review UI - no deploy
+on:
+  pull_request:
+    paths:
+      - 'apps/sites/routes/web.php'
+      - 'apps/sites/resources/views/labs/review.blade.php'
+      - 'apps/sites/tests/Feature/SyntheticVisualReviewHttpTest.php'
+      - 'apps/sites/tests/Feature/SyntheticReviewNavigationMatrixTest.php'
+      - 'apps/sites/tests/Feature/SyntheticReviewThemeSelectorTest.php'
+      - 'apps/sites/tests/Feature/SyntheticEditorialReviewUiTest.php'
+      - 'fixtures/sites/f1-37-copy.synthetic.json'
+      - '.github/workflows/sites-f1-38-visual-review-ui.yml'
+      - 'docs/SITES-F1-38-VISUAL-REVIEW-LAB.md'
+permissions:
+  contents: read
+jobs:
+  in-process-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer:v2
+          extensions: mbstring,xml,dom,curl,pdo,pdo_pgsql
+          coverage: none
+      - name: PHP syntax
+        run: |
+          php -l apps/sites/routes/web.php
+          php -l apps/sites/tests/Feature/SyntheticVisualReviewHttpTest.php
+          php -l apps/sites/tests/Feature/SyntheticReviewNavigationMatrixTest.php
+          php -l apps/sites/tests/Feature/SyntheticReviewThemeSelectorTest.php
+          php -l apps/sites/tests/Feature/SyntheticEditorialReviewUiTest.php
+          php -l src/Production/SyntheticEditorialReviewReport.php
+          php -l src/Production/SyntheticPreviewQaReport.php
+          php -l tests/f39-qa-report.php
+      - name: Install locked test dependencies without scripts
+        working-directory: apps/sites
+        run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
+      - name: Confirm route absent by default
+        working-directory: apps/sites
+        env:
+          APP_ENV: testing
+          SITES_SYNTHETIC_HTTP: '0'
+          SITES_SYNTHETIC_REVIEW_UI: '0'
+        run: |
+          set -euo pipefail
+          if php artisan route:list --path=_lab/sites/v1/review --json | grep -q 'sites.lab.review'; then
+            echo 'Review route unexpectedly registered without in-process opt-in'
+            exit 1
+          fi
+      - name: Check offline HTML semantics and negative fixtures
+        run: php tests/f39-qa-report.php
+      - name: Test Laravel in-process visual review and fail-closed controls
+        working-directory: apps/sites
+        env:
+          APP_ENV: testing
+          SITES_SYNTHETIC_HTTP: '1'
+          SITES_SYNTHETIC_REVIEW_UI: '1'
+        run: php artisan test --filter='(SyntheticVisualReviewHttpTest|SyntheticReviewNavigationMatrixTest|SyntheticReviewThemeSelectorTest|SyntheticEditorialReviewUiTest)' --no-ansi
+      - name: Scope and non-operation declaration
+        if: always()
+        run: echo "CLI-only in-process test. No site publish, real HTTP, Portal approval, customer data, cloud credentials or deployment."
