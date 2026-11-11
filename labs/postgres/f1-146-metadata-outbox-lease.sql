@@ -26,6 +26,7 @@ DECLARE
  v_selected record;
  v_now timestamptz;
  v_code text;
+ v_current_binding record;
 BEGIN
  IF p_lease IS NULL OR p_lease='00000000-0000-0000-0000-000000000000'::uuid THEN
    RETURN 'INVALID_SYNTHETIC_LEASE';
@@ -42,17 +43,47 @@ BEGIN
  END IF;
 
  v_now=statement_timestamp();
- SELECT organization_reference,submission_reference,created_at
+ -- An outbox entry cannot be leased after its binding has changed.
+ -- Filter stale rows *before* ordering so they cannot starve fresh entries.
+ SELECT o.organization_reference,o.submission_reference,o.created_at,
+        o.binding_reference,o.site_reference,o.form_reference,
+        o.destination_reference,o.pinned_revision
   INTO v_selected
-  FROM f140_lab.synthetic_claim_outbox
-  WHERE organization_reference=p_org
-    AND created_at > v_now-interval '432 hours'
-    AND (leased_until IS NULL OR leased_until<=v_now)
-  ORDER BY created_at,submission_reference
-  FOR UPDATE SKIP LOCKED
+  FROM f140_lab.synthetic_claim_outbox o
+  WHERE o.organization_reference=p_org
+    AND o.created_at > v_now-interval '432 hours'
+    AND (o.leased_until IS NULL OR o.leased_until<=v_now)
+    AND EXISTS (
+      SELECT 1 FROM f140_lab.synthetic_binding_versions b
+      WHERE b.organization_reference=o.organization_reference
+        AND b.binding_reference=o.binding_reference
+        AND b.active IS TRUE
+        AND b.revision=o.pinned_revision
+        AND b.site_reference=o.site_reference
+        AND b.form_reference=o.form_reference
+        AND b.destination_reference=o.destination_reference
+    )
+  ORDER BY o.created_at,o.submission_reference
+  FOR UPDATE OF o SKIP LOCKED
   LIMIT 1;
  IF NOT FOUND THEN
    RETURN 'NO_READY_SYNTHETIC_INTENT';
+ END IF;
+
+ -- The earlier EXISTS is only a candidate filter. Re-read and lock the
+ -- binding in THIS transaction to fence concurrent revocation or reroute.
+ SELECT active,revision,site_reference,form_reference,destination_reference
+ INTO v_current_binding
+ FROM f140_lab.synthetic_binding_versions
+ WHERE organization_reference=v_selected.organization_reference
+   AND binding_reference=v_selected.binding_reference
+ FOR SHARE;
+ IF NOT FOUND OR v_current_binding.active IS DISTINCT FROM true
+    OR v_current_binding.revision<>v_selected.pinned_revision
+    OR v_current_binding.site_reference<>v_selected.site_reference
+    OR v_current_binding.form_reference<>v_selected.form_reference
+    OR v_current_binding.destination_reference<>v_selected.destination_reference THEN
+   RETURN 'BINDING_NOT_CURRENT';
  END IF;
 
  IF v_selected.created_at <= v_now-interval '72 hours' THEN
