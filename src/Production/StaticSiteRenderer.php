@@ -32,7 +32,8 @@ final class StaticSiteRenderer
         // F1-178: opt-in anchors are generated only from a fixed map and
         // only when the corresponding inert section exists. Never use a
         // user-provided URL, arbitrary CSS or AI-controlled navigation.
-        if ($isOnepage && $brief->sectionNavigation) {
+        if ($isOnepage && $brief->sectionNavigation &&
+            ($brief->highlights!==[] || $brief->processSteps!==[] || $brief->faq!==[])) {
             $anchors=[
                 'highlights'=>['#solucoes','Soluções',$brief->highlights!==[]],
                 'process'=>['#etapas','Como funciona',$brief->processSteps!==[]],
@@ -200,7 +201,8 @@ FAQ;
 HTML;
 
         // Only opt-in Onepages receive wrapping navigation styles.
-        if ($isOnepage && $brief->sectionNavigation) {
+        if ($isOnepage && $brief->sectionNavigation &&
+            ($brief->highlights!==[] || $brief->processSteps!==[] || $brief->faq!==[])) {
             $navCss = <<<'CSS'
     nav { flex-wrap: wrap; gap: 12px 20px; }
     nav a { overflow-wrap: anywhere; }
