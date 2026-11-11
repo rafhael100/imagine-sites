@@ -76,6 +76,9 @@ final class SyntheticEditorialPatchV1
             }elseif(!is_array($newValue)) {
                 throw new DomainException('editorial_patch_invalid_collection');
             }
+            if(!self::safeCopyTree($newValue)) {
+                throw new DomainException('editorial_patch_unsafe_copy');
+            }
         }
 
         // Only known copy blocks can change; this constructor repeats all
@@ -123,6 +126,30 @@ final class SyntheticEditorialPatchV1
         }
 
         return $proposal;
+    }
+
+    /**
+     * Editor copy is more restrictive than a generic SiteBrief. It cannot
+     * carry HTML-like text or remote URL schemes at any nested depth.
+     * This is not PII detection, and no PII may be sent to these fixtures.
+     */
+    private static function safeCopyTree(mixed $value,int $depth=0):bool
+    {
+        if (is_string($value)) {
+            return mb_check_encoding($value,'UTF-8') &&
+                strlen($value)<=4096 &&
+                preg_match('/[\x00-\x1f\x7f<>]/u',$value)!==1 &&
+                preg_match('~(?:https?://|javascript:|data:)~i',$value)!==1;
+        }
+        if (!is_array($value) || $depth>=3 || count($value)>8) {
+            return false;
+        }
+        foreach($value as $element) {
+            if (!self::safeCopyTree($element,$depth+1)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** @param list<string> $expected */
