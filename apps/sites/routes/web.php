@@ -464,3 +464,137 @@ Route::get('/_lab/sites/v1/rich-compare', static function (Request $request) {
             "base-uri 'none'; frame-ancestors 'none'",
     ]);
 })->name('sites.lab.rich-compare');
+
+
+/**
+ * F1-172: display immutable before/after digests for a fictional editor patch.
+ * Only in-process CLI/testing + explicit opt-in, never public HTTP.
+ */
+Route::get('/_lab/sites/v1/editorial-review', static function (Request $request) {
+    if (PHP_SAPI!=='cli' || !app()->environment('testing') ||
+        getenv('SITES_SYNTHETIC_HTTP')!=='1' ||
+        getenv('SITES_SYNTHETIC_REVIEW_UI')!=='1' ||
+        getenv('SITES_SYNTHETIC_RICH_REVIEW')!=='1' ||
+        getenv('SITES_SYNTHETIC_EDITORIAL_REVIEW')!=='1' ||
+        !in_array($request->ip(),['127.0.0.1','::1'],true)) {
+        return response('Not found',404);
+    }
+    $query=$request->query();
+    foreach($query as $name=>$value) {
+        if (!in_array($name,['product','device','preset'],true) ||
+            !is_string($value) || $value==='') {
+            return response('Not found',404);
+        }
+    }
+    $product=$request->query('product','onepage');
+    $device=$request->query('device','desktop');
+    $preset=$request->query('preset','classic');
+    if(!is_string($product) || !is_string($device) || !is_string($preset) ||
+        !in_array($product,['onepage','landing_page'],true) ||
+        !in_array($device,['desktop','mobile'],true) ||
+        !in_array($preset,['classic','modern','warm'],true)) {
+        return response('Not found',404);
+    }
+
+    try {
+        $path=base_path('../../fixtures/sites/f1-170-process-copy.synthetic.json');
+        if (!is_file($path) || filesize($path)>8192) {
+            return response('Not found',404);
+        }
+        $copy=json_decode((string)file_get_contents($path),true,16,JSON_THROW_ON_ERROR);
+        if (!is_array($copy) || ($copy['schemaVersion']??null)!=='sites.ai-copy.v4' ||
+            count($copy['processSteps']??[])!==3 || count($copy['faq']??[])!==2) {
+            return response('Not found',404);
+        }
+        $tenantRef='tenant-f172-fictional';
+        $siteRef='site-f172-fictional';
+        $beforeRef='release-f172-before-'.$product.'-'.$preset;
+        $nextRef='release-f172-after-'.$product.'-'.$preset;
+
+        $source=\Imagine\Sites\Production\SyntheticStructuredDraftAssembly::build(
+            $product,'Marca Fictícia Imagine',$preset,$copy,
+            $tenantRef,$siteRef,'workflow-f172-before-'.$product.'-'.$preset,$beforeRef
+        );
+        $approved=$source->workflow->advance(
+            'imagine_reviewer','approve_internal',2,$source->artifact->digest
+        );
+        $faq=$copy['faq'];
+        $faq[0]['answer']='O texto demonstrativo foi editado pela equipe Imagine e precisa de uma nova revisão.';
+        $steps=$copy['processSteps'];
+        $steps[1]['description']='Uma alteração editorial fictícia gera outra versão, sem herdar aprovações anteriores.';
+        $changes=['faq'=>$faq,'processSteps'=>$steps];
+        $patch=[
+            'schemaVersion'=>'sites.editorial.patch.v1',
+            'expectedDigest'=>$source->artifact->digest,
+            'expectedRevision'=>$approved->revision,
+            'changes'=>$changes,
+        ];
+        $plan=\Imagine\Sites\Production\SyntheticEditorialPatchV1::propose(
+            $approved,$source->brief,$source->artifact,
+            $beforeRef,$nextRef,'imagine_reviewer',$patch
+        );
+        if ($plan->changedFields!==['faq','processSteps'] ||
+            $plan->draftWorkflow->state!=='drafting' ||
+            $plan->draftWorkflow->artifactDigest!==null ||
+            hash_equals($source->artifact->digest,$plan->nextArtifact->digest)) {
+            return response('Not found',404);
+        }
+        $nextCopy=array_replace($copy,$changes);
+        $draft=\Imagine\Sites\Production\SyntheticStructuredDraftAssembly::build(
+            $product,'Marca Fictícia Imagine',$preset,$nextCopy,
+            $tenantRef,$siteRef,'workflow-f172-after-'.$product.'-'.$preset,$nextRef
+        );
+        if (!hash_equals($plan->nextArtifact->digest,$draft->artifact->digest) ||
+            !hash_equals($plan->nextArtifact->html,$draft->artifact->html) ||
+            !$draft->structuralReport->passedStructuralChecks ||
+            !\Imagine\Sites\Production\InertPreviewAudit::isSafe($draft->artifact->html)) {
+            return response('Not found',404);
+        }
+        $summary=$draft->reviewSummary();
+        $dossier=\Imagine\Sites\Production\SyntheticInternalReviewDossier::fromDraft($draft);
+        if($summary['workflowState']!=='internal_review' ||
+            $summary['publishable']!==false ||
+            $summary['officialClientAcceptance']!==false ||
+            $dossier->record['reviewerDecisionStatus']!=='pending' ||
+            $dossier->record['publishable']!==false ||
+            $dossier->record['officialClientAcceptance']!==false) {
+            return response('Not found',404);
+        }
+        $page=view('labs.review',[
+            'product'=>$product,'device'=>$device,'preset'=>$preset,
+            'galleryMode'=>false,
+            'reviewRoute'=>'/_lab/sites/v1/editorial-review',
+            'richReview'=>true,
+            'editorialPatchDetails'=>[
+                'previousDigest'=>$source->artifact->digest,
+                'nextDigest'=>$draft->artifact->digest,
+                'changedFields'=>$plan->changedFields,
+            ],
+            'brief'=>$draft->brief,
+            'previewHtml'=>$draft->artifact->html,
+            'digest'=>$draft->artifact->digest,
+            'reviewSnapshot'=>$summary,
+            'dossierDigest'=>$dossier->digest,
+            'requiredAcknowledgments'=>$dossier->record['requiredReviewerAcknowledgments'],
+            'qaChecks'=>$draft->structuralReport->checks,
+            'editorialChecks'=>$draft->editorialReport->checks,
+            'editorialSuggestions'=>$draft->editorialReport->suggestions,
+        ])->render();
+    } catch (\Throwable) {
+        return response('Not found',404);
+    }
+
+    return response($page,200,[
+        'Content-Type'=>'text/html; charset=UTF-8',
+        'Cache-Control'=>'private, no-store, max-age=0',
+        'X-Content-Type-Options'=>'nosniff',
+        'X-Frame-Options'=>'DENY',
+        'Referrer-Policy'=>'no-referrer',
+        'X-Robots-Tag'=>'noindex, nofollow, noarchive',
+        'Permissions-Policy'=>'camera=(), microphone=(), geolocation=()',
+        'Content-Security-Policy'=>"default-src 'none'; script-src 'none'; ".
+            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src data:; ".
+            "connect-src 'none'; form-action 'none'; object-src 'none'; ".
+            "base-uri 'none'; frame-ancestors 'none'",
+    ]);
+})->name('sites.lab.editorial-review');
