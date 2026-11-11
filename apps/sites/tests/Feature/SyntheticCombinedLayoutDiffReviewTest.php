@@ -101,18 +101,31 @@ final class SyntheticCombinedLayoutDiffReviewTest extends TestCase
                                 $outer,$shown
                             ));
                             self::assertSame($after[1],$shown[1]);
-                            self::assertSame(1,preg_match(
-                                '/\bsrcdoc="([^"]+)"/s',$outer,$frame
-                            ));
-                            $inner=html_entity_decode(
-                                $frame[1],ENT_QUOTES|ENT_HTML5,'UTF-8'
+                            self::assertSame(2,preg_match_all(
+                                '/\bsrcdoc="([^"]+)"/s',$outer,$frames
+                            ),'Exact old and new sandboxed HTML must both be available');
+                            $previous=html_entity_decode(
+                                $frames[1][0],ENT_QUOTES|ENT_HTML5,'UTF-8'
                             );
+                            $inner=html_entity_decode(
+                                $frames[1][1],ENT_QUOTES|ENT_HTML5,'UTF-8'
+                            );
+                            self::assertSame(hash('sha256',$previous),$before[1]);
                             self::assertSame(hash('sha256',$inner),$after[1]);
+                            self::assertStringNotContainsString('<script',$previous);
+                            self::assertStringNotContainsString('<form',$previous);
+                            self::assertStringContainsString('noindex, nofollow',$previous);
                             self::assertStringNotContainsString('<form',$inner);
                             self::assertStringNotContainsString('<script',$inner);
                             self::assertStringContainsString('noindex, nofollow',$inner);
                             self::assertStringContainsString(
                                 'id="layout-prior-revision">3',$outer
+                            );
+                            self::assertStringContainsString(
+                                'sandbox="" tabindex="-1" referrerpolicy="no-referrer" srcdoc=',$outer
+                            );
+                            self::assertStringContainsString(
+                                'sandbox="" tabindex="0" referrerpolicy="no-referrer" srcdoc=',$outer
                             );
 
                             $positions=[];
