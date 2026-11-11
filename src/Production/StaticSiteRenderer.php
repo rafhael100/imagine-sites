@@ -103,7 +103,7 @@ FAQ;
         foreach ($brief->sectionOrder as $name) {
             $section=$optionalSections[$name];
             if ($section!=='') {
-                $about .= "\\n    ".$section;
+                $about .= "\n    ".$section;
             }
         }
 
