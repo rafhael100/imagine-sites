@@ -73,6 +73,17 @@ final class SyntheticReviewGalleryExportTest extends TestCase
             self::assertStringContainsString('noindex, nofollow',$html);
             self::assertStringContainsString('http-equiv="Content-Security-Policy"',$html);
             self::assertStringContainsString('sandbox=""',$html);
+            self::assertStringContainsString('href="#apos-previa"',$html);
+            self::assertStringContainsString(
+                'class="foot" id="apos-previa" tabindex="-1"',$html
+            );
+            self::assertTrue(
+                strpos($html,'href="#apos-previa"') <
+                strpos($html,'<iframe ') &&
+                strpos($html,'<iframe ') <
+                strpos($html,'id="apos-previa"'),
+                'Keyboard skip must appear before the sandbox and land after it'
+            );
             self::assertStringContainsString('Aceite oficial pendente no Portal',$html);
             self::assertStringNotContainsString('<script',$html);
             self::assertStringNotContainsString('<form',$html);
