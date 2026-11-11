@@ -1039,3 +1039,109 @@ Artisan::command('sites:export-editorial-package-fixture {product=onepage} {pres
     $this->line('Release: '.$afterRef);
     return Command::SUCCESS;
 })->purpose('Write a fictional edited page and pending review dossier to private CI');
+
+
+/**
+ * F1-184: persist an exact combination of section order and optional Onepage
+ * navigation as four private, content-addressed, pending-review files.
+ *
+ * The argument vocabulary is CLOSED. This never accepts a tenant, file path,
+ * human identity, raw HTML or client data from command-line arguments.
+ */
+Artisan::command(
+    'sites:export-layout-review-fixture {product=onepage} {preset=classic} {order=services_process_faq} {navigation=off}',
+    function (): int {
+        if (PHP_SAPI!=='cli' || !app()->environment('testing') ||
+            getenv('GITHUB_ACTIONS')!=='true' ||
+            getenv('SITES_F184_LAYOUT_PACKAGE')!=='1') {
+            $this->error('Layout package disabled outside CI-only synthetic lab.');
+            return Command::FAILURE;
+        }
+        $product=(string)$this->argument('product');
+        $preset=(string)$this->argument('preset');
+        $orderCode=(string)$this->argument('order');
+        $navigation=(string)$this->argument('navigation');
+        $orders=[
+            'services_process_faq'=>['highlights','process','faq'],
+            'services_faq_process'=>['highlights','faq','process'],
+            'process_services_faq'=>['process','highlights','faq'],
+            'process_faq_services'=>['process','faq','highlights'],
+            'faq_services_process'=>['faq','highlights','process'],
+            'faq_process_services'=>['faq','process','highlights'],
+        ];
+        if (!in_array($product,['onepage','landing_page'],true) ||
+            !in_array($preset,['classic','modern','warm'],true) ||
+            !array_key_exists($orderCode,$orders) ||
+            !in_array($navigation,['on','off'],true) ||
+            ($product==='landing_page' && $navigation==='on')) {
+            $this->error('Unsupported fixed synthetic layout combination.');
+            return Command::FAILURE;
+        }
+
+        $fixture=base_path('../../fixtures/sites/f1-170-process-copy.synthetic.json');
+        $root=storage_path('app/private');
+        $base='sites-f1-184-'.$product.'-'.$preset.'-'.$orderCode.'-'.$navigation;
+        $destination=$root.'/'.$base;
+
+        if (!is_file($fixture) || is_link($fixture) ||
+            filesize($fixture)>8192 ||
+            is_link($root) || is_link($destination) ||
+            file_exists($destination)) {
+            $this->error('Fixture or destination denied by private lab policy.');
+            return Command::FAILURE;
+        }
+
+        try {
+            $copy=json_decode((string)file_get_contents($fixture),true,
+                16,JSON_THROW_ON_ERROR);
+            if(!is_array($copy) || array_is_list($copy) ||
+                ($copy['schemaVersion']??null)!=='sites.ai-copy.v4' ||
+                count($copy['faq']??[])!==2 ||
+                count($copy['highlights']??[])!==2 ||
+                count($copy['processSteps']??[])!==3) {
+                throw new \DomainException('Unexpected fixed v4 content source.');
+            }
+            $releaseRef='release-f184-'.$product.'-'.$preset.'-'.$orderCode.'-'.$navigation;
+            $draft=\Imagine\Sites\Production\SyntheticStructuredDraftAssembly::build(
+                $product,'Marca Fictícia Imagine',$preset,$copy,
+                'tenant-f184','site-f184',
+                'workflow-f184-'.$product.'-'.$preset.'-'.$orderCode.'-'.$navigation,
+                $releaseRef,$orders[$orderCode],$navigation==='on',
+            );
+            if ($draft->brief->sectionOrder!==$orders[$orderCode] ||
+                $draft->brief->sectionNavigation!==($navigation==='on') ||
+                $draft->reviewSummary()['workflowState']!=='internal_review' ||
+                $draft->reviewSummary()['publishable']!==false ||
+                $draft->reviewSummary()['officialClientAcceptance']!==false) {
+                throw new \DomainException('Only fixed pending-review layouts can be packaged.');
+            }
+
+            $files=\Imagine\Sites\Production\SyntheticPrivateReviewPackageV1::fromPendingDraft($draft);
+            if (!is_dir($root) &&
+                !mkdir($root,0700,true) && !is_dir($root)) {
+                throw new \DomainException('Private storage root missing.');
+            }
+            if (is_link($root) || !is_dir($root)) {
+                throw new \DomainException('Unsafe private storage root.');
+            }
+            $proof=\Imagine\Sites\Production\SyntheticPrivateDraftWriter::create(
+                $destination,$files
+            );
+            if ($proof['releaseRef']!==$releaseRef ||
+                $proof['artifactDigest']!==$draft->artifact->digest ||
+                $proof['reviewerDecisionStatus']!=='pending' ||
+                $proof['publishable']!==false ||
+                $proof['officialClientAcceptance']!==false) {
+                throw new \DomainException('Layout review package proof invalid.');
+            }
+        } catch (\Throwable) {
+            $this->error('Synthetic layout review package failed closed.');
+            return Command::FAILURE;
+        }
+
+        $this->line('F1-184 PRIVATE LAYOUT DRAFT: pending review; not public or delivered.');
+        $this->line('Release: '.$releaseRef);
+        $this->line('SHA-256: '.$draft->artifact->digest);
+        return Command::SUCCESS;
+    }
+)->purpose('Export a fixed fictional combined-layout review bundle to private CI');
