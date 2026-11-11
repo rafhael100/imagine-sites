@@ -300,6 +300,28 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
       <p class="locked">Não é um editor público. Nenhuma configuração publica, indexa, consulta o Google ou concede aceite no Portal.</p>
     </section>
     @endif
+    @if(($seoChangeEvidence ?? null) !== null)
+    <section class="card" aria-labelledby="seo-evidence-title">
+      <h2 id="seo-evidence-title">Evidência técnica da comparação SEO</h2>
+      <p class="sub">Os dois pacotes de revisão privada foram conferidos byte a byte. Apenas título, descrição e, quando habilitados, seus equivalentes sociais podem variar.</p>
+      <p class="sub">Alterações permitidas: <strong id="seo-evidence-fields">{{ implode(', ', $seoChangeEvidence->record['changedFields']) }}</strong></p>
+      <p class="sub">Hash da evidência: <code id="seo-change-evidence-digest">{{ $seoChangeEvidence->digest }}</code></p>
+      <p class="sub">HTML automático: <code id="seo-evidence-before">{{ $seoChangeEvidence->record['beforeHtmlSha256'] }}</code></p>
+      <p class="sub">HTML personalizado: <code id="seo-evidence-after">{{ $seoChangeEvidence->record['afterHtmlSha256'] }}</code></p>
+      <details class="seo-evidence-details">
+        <summary>Conferir integridade dos oito arquivos da revisão</summary>
+        @foreach(['default'=>'SEO automático','custom'=>'SEO personalizado'] as $kind=>$label)
+          <h3>{{ $label }}</h3>
+          <ul>
+          @foreach($seoChangeEvidence->record['filesSha256'][$kind] as $file=>$checksum)
+            <li>{{ $file }}: <code>{{ $checksum }}</code></li>
+          @endforeach
+          </ul>
+        @endforeach
+      </details>
+      <p class="locked" id="seo-evidence-no-authority">A evidência é somente técnica: revisão pendente, sem aceite do cliente, publicação ou indexação. O hash não é uma assinatura de aprovação.</p>
+    </section>
+    @endif
 @if(($seoSnippet ?? null) !== null)
     <section class="card" aria-labelledby="seo-snippet-title">
       <h2 id="seo-snippet-title">Prévia textual de busca — não indexada</h2>

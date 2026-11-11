@@ -45,8 +45,10 @@ final class SyntheticSeoCopyReviewTest extends TestCase
             foreach(['classic','modern','warm'] as $preset) {
                 foreach(['off','on'] as $social) {
                     $variants=[];
+                    $evidenceByMode=[];
                     foreach(['default','custom'] as $seoMode) {
                         $byDevice=[];
+                        $evidenceByDevice=[];
                         foreach(['desktop','mobile'] as $device) {
                             $res=$this->get($this->link(
                                 $product,$device,$preset,$seoMode,$social
@@ -71,6 +73,9 @@ final class SyntheticSeoCopyReviewTest extends TestCase
                                 'Cartão de compartilhamento',
                                 'SHA-256 da origem',
                                 'SHA-256 da prévia selecionada',
+                                'Evidência técnica da comparação SEO',
+                                'Conferir integridade dos oito arquivos da revisão',
+                                'A evidência é somente técnica',
                                 'Aceite oficial pendente no Portal',
                                 'Aprovação, publicação e entrega desabilitadas',
                                 'sandbox=""','class="browser '.$device.'"',
@@ -115,6 +120,36 @@ final class SyntheticSeoCopyReviewTest extends TestCase
                             ));
                             self::assertSame($main[1],$seoHash[1]);
                             self::assertSame($main[1],$selected[1]);
+                            self::assertSame(1,preg_match(
+                                '/id="seo-change-evidence-digest">([a-f0-9]{64})<\/code>/',
+                                $outer,$evidence
+                            ));
+                            self::assertSame(1,preg_match(
+                                '/id="seo-evidence-before">([a-f0-9]{64})<\/code>/',
+                                $outer,$proofBefore
+                            ));
+                            self::assertSame(1,preg_match(
+                                '/id="seo-evidence-after">([a-f0-9]{64})<\/code>/',
+                                $outer,$proofAfter
+                            ));
+                            self::assertSame($previous[1],$proofBefore[1]);
+                            self::assertSame(
+                                $seoMode==='default'?$proofBefore[1]:$proofAfter[1],
+                                $main[1]
+                            );
+                            self::assertNotSame($proofBefore[1],$proofAfter[1]);
+                            self::assertSame(2,substr_count(
+                                $outer,'internal-review-dossier.json:'
+                            ));
+                            self::assertSame(2,substr_count(
+                                $outer,'release-manifest.json:'
+                            ));
+                            self::assertStringNotContainsString(
+                                'tenant-f222',$outer
+                            );
+                            self::assertStringNotContainsString(
+                                'site-f222',$outer
+                            );
                             if($seoMode==='custom') {
                                 self::assertNotSame($previous[1],$main[1]);
                                 self::assertStringContainsString(
@@ -163,13 +198,22 @@ final class SyntheticSeoCopyReviewTest extends TestCase
                                 );
                             }
                             $byDevice[$device]=[$main[1],$inner];
+                            $evidenceByDevice[$device]=$evidence[1];
                             ++$views;
                         }
                         self::assertSame($byDevice['desktop'],$byDevice['mobile']);
+                        self::assertSame(
+                            $evidenceByDevice['desktop'],$evidenceByDevice['mobile']
+                        );
+                        $evidenceByMode[$seoMode]=$evidenceByDevice['desktop'];
                         $variants[$seoMode]=$byDevice['desktop'][0];
                     }
                     self::assertNotSame($variants['default'],$variants['custom'],
                         'Changing SEO meta copy produces a distinct reviewed HTML');
+                    self::assertSame(
+                        $evidenceByMode['default'],$evidenceByMode['custom'],
+                        'Both views must display the same evidence for their exact pair'
+                    );
                 }
             }
         }
@@ -209,6 +253,8 @@ final class SyntheticSeoCopyReviewTest extends TestCase
         self::assertStringNotContainsString('seo-copy-original-digest',
             (string)$old->getContent());
         self::assertStringNotContainsString('Comparar texto SEO do site',
+            (string)$old->getContent());
+        self::assertStringNotContainsString('seo-change-evidence-digest',
             (string)$old->getContent());
     }
 }
