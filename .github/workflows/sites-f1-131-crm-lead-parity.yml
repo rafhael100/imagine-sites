@@ -1,8 +1,11 @@
-name: Sites F1-131 CRM lead envelope parity (metadata only)
+name: Sites F1-131/132 CRM metadata, CAS and evidence parity (no delivery)
 on:
   pull_request:
     paths:
       - 'src/Integration/SyntheticCrmLeadEnvelopeV1Draft.php'
+      - 'src/Integration/SyntheticCrmLeadLedgerIntentV1.php'
+      - 'tests/f132-crm-ledger-evidence-cross-repo.php'
+      - 'docs/SITES-F1-132-CRM-CAS-EVIDENCE-CROSS-REPO.md'
       - 'tests/f131-crm-lead-envelope-cross-repo.php'
       - '.github/workflows/sites-f1-131-crm-lead-parity.yml'
       - 'docs/SITES-F1-131-CRM-ENVELOPE-CROSS-REPO.md'
@@ -39,12 +42,23 @@ jobs:
           test "$(git -C crm-candidate rev-parse HEAD)" = a2f29c8e19185e3451fe953f6fe9c9c9bcbbe3ef
           test -f crm-candidate/app/Core/Leads/SyntheticLeadEnvelopeV1Inspector.php
           test -f crm-candidate/app/Core/Leads/SyntheticLeadEnvelopeV1Assessment.php
+          test -f crm-candidate/app/Core/Leads/LeadSubmissionIdentity.php
+          test -f crm-candidate/app/Core/Leads/SyntheticIdempotencyClaim.php
+          test -f crm-candidate/app/Core/Leads/SyntheticIdempotencySnapshot.php
+          test -f crm-candidate/app/Core/Leads/SyntheticIdempotencyPhase.php
+          test -f crm-candidate/app/Core/Leads/SyntheticIdempotencyCasInspector.php
+          test -f crm-candidate/app/Core/Leads/SyntheticIdempotencyCasAssessment.php
+          test -f crm-candidate/app/Core/Leads/SyntheticDeliveryEvidenceInspector.php
+          test -f crm-candidate/app/Core/Leads/SyntheticDeliveryEvidenceAssessment.php
           php -l src/Integration/SyntheticCrmLeadEnvelopeV1Draft.php
           php -l crm-candidate/app/Core/Leads/SyntheticLeadEnvelopeV1Inspector.php
           php -l crm-candidate/app/Core/Leads/SyntheticLeadEnvelopeV1Assessment.php
           php -l tests/f131-crm-lead-envelope-cross-repo.php
+          php -l src/Integration/SyntheticCrmLeadLedgerIntentV1.php
+          php -l tests/f132-crm-ledger-evidence-cross-repo.php
       - name: Prove independent Sites metadata proposal stays DENY at CRM
         run: |
           set -euo pipefail
           php tests/f131-crm-lead-envelope-cross-repo.php
+          php tests/f132-crm-ledger-evidence-cross-repo.php
           echo 'Synthetic metadata only. Never infer CRM authorization or durable delivery.'
