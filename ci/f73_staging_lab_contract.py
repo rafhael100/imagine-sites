@@ -37,6 +37,7 @@ def inspect(compose: str, dockerfile: str) -> None:
         "sites-lab-db:", "sites-lab-tests:", "profiles: [\"lab\"]",
         "internal: true", "no-new-privileges:true", "cap_drop: [\"ALL\"]",
         "SITES_LAB_DB_PASSWORD:?", "restart: \"no\"", "APP_ENV: testing",
+        "GITHUB_ACTIONS: ${GITHUB_ACTIONS:-false}",
     ]
     for item in required_compose:
         if item not in compose:
@@ -62,6 +63,9 @@ def self_test(compose: str, dockerfile: str) -> None:
         (compose.replace("internal: true", "internal: false"), dockerfile),
         (compose.replace('profiles: ["lab"]', 'profiles: ["production"]'), dockerfile),
         (compose.replace("APP_ENV: testing", "APP_ENV: production"), dockerfile),
+        # A local Docker invocation may never silently pretend to be CI.
+        (compose.replace("GITHUB_ACTIONS: ${GITHUB_ACTIONS:-false}",
+                         "GITHUB_ACTIONS: \"true\""), dockerfile),
         (compose, dockerfile + "\nEXPOSE 80\n"),
         (compose, dockerfile.replace(
             'CMD ["php", "artisan", "test", "--no-ansi"]',
