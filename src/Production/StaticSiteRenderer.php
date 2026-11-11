@@ -286,6 +286,16 @@ CSS,
             // Only the fixed closing tag of our own renderer can be replaced.
             $html=str_replace("  </style>\n</head>",$presetCss."\n  </style>\n</head>",$html);
         }
+        // F1-190: canonical, contrast-checked brand colors are an
+        // independently selected design option. Never accept arbitrary CSS
+        // from structured copy. No palette means identical legacy bytes.
+        if ($brief->brandPalette!==null) {
+            $html=str_replace(
+                "  </style>\n</head>",
+                $brief->brandPalette->cssRules()."\n  </style>\n</head>",
+                $html
+            );
+        }
         return new ReleaseArtifact($html);
     }
 }

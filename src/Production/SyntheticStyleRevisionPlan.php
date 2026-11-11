@@ -75,6 +75,7 @@ final readonly class SyntheticStyleRevisionPlan
             $approvedBrief->processSteps,
             $approvedBrief->sectionOrder,
             $approvedBrief->sectionNavigation,
+            $approvedBrief->brandPalette,
         );
         $nextArtifact = $renderer->render($newBrief);
         if (hash_equals($approvedArtifact->digest, $nextArtifact->digest)) {

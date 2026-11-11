@@ -73,7 +73,7 @@ final readonly class SyntheticCombinedLayoutRevisionPlan
             $approvedBrief->callToAction,$approvedBrief->benefits,
             $approvedBrief->stylePreset,$approvedBrief->faq,
             $approvedBrief->highlights,$approvedBrief->processSteps,
-            $requestedOrder,$requestedNavigation
+            $requestedOrder,$requestedNavigation,$approvedBrief->brandPalette
         );
         $nextArtifact=$renderer->render($nextBrief);
         if (hash_equals($nextArtifact->digest,$approvedArtifact->digest) ||
