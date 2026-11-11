@@ -18,9 +18,12 @@ if (PHP_SAPI!=='cli' || getenv('APP_ENV')!=='testing' ||
 
 require __DIR__.'/../src/Integration/SyntheticCrmLeadEnvelopeV1Draft.php';
 require __DIR__.'/../src/Integration/SyntheticCrmLeadLedgerIntentV1.php';
+require __DIR__.'/../src/Integration/SyntheticCrmLeadMetadataReadbackAssessment.php';
+require __DIR__.'/../src/Integration/LabPostgresCrmLeadMetadataReadback.php';
 
 use Imagine\Sites\Integration\SyntheticCrmLeadEnvelopeV1Draft as Draft;
 use Imagine\Sites\Integration\SyntheticCrmLeadLedgerIntentV1 as Intent;
+use Imagine\Sites\Integration\LabPostgresCrmLeadMetadataReadback as Readback;
 
 $checks=0;
 function f133Check(bool $ok,string $reason):void {
@@ -161,7 +164,49 @@ f133Check(count($after)===1 &&
     $after[0]['destination']===$a->destinationReference &&
     $after[0]['t0']===$t0,
     'conflict attempt cannot reroute or restart original DB receipt clock');
+
+// F1-134: a separate readback may classify a stored metadata row but
+// NEVER upgrade it into an ACK, actual reservation or CRM delivery proof.
+$readback=new Readback($secondary);
+$match=$readback->inspect($a);
+f133Check($match->reasonCode==='METADATA_MATCH_UNVERIFIED' &&
+    !$match->canReserveSubmission() &&
+    !$match->canAcknowledgeVisitor() &&
+    !$match->canMarkDeliveredToCrm() &&
+    !$match->canRetryAutomatically(),
+    'physical readback of matching technical metadata grants no permission');
+foreach([
+    'binding'=>'binding',
+    'site'=>'site',
+    'form'=>'form',
+    'destination'=>'destination',
+] as $field=>$name) {
+    $changedContext=$make([
+        $field=>'77777777-7777-4777-8777-777777777777'
+    ]);
+    $assessment=$readback->inspect($changedContext);
+    f133Check($assessment->reasonCode==='PINNED_CONTEXT_CONFLICT' &&
+        !$assessment->canMarkDeliveredToCrm(),
+        'physical readback denies reassigned original '.$name);
+}
+$neverRecorded=$make(['sub'=>'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa']);
+f133Check($readback->inspect($neverRecorded)->reasonCode==='NO_STORED_METADATA',
+    'no row cannot be confused with a durable receipt');
+$foreign=$make(['org'=>'88888888-8888-4888-8888-888888888888']);
+f133Check($readback->inspect($foreign)->reasonCode==='UNTRUSTED_LAB_CONTEXT',
+    'readback refuses a tenant different from the transaction context');
+$originalFlag=getenv('SITES_F133_LEAD_PG_LAB');
+putenv('SITES_F133_LEAD_PG_LAB=0');
+try {
+    f133Check($readback->inspect($a)->reasonCode==='LAB_DISABLED',
+        'readback fails closed when F1-133 lab opt-in is disabled');
+} finally {
+    if($originalFlag===false)putenv('SITES_F133_LEAD_PG_LAB');
+    else putenv('SITES_F133_LEAD_PG_LAB='.$originalFlag);
+}
 $secondary->commit();
+f133Check($readback->inspect($a)->reasonCode==='TRANSACTION_REQUIRED',
+    'readback refuses an absent trusted tenant-local transaction');
 
 f133Begin($secondary,$a->organizationReference);
 f133Check(f133ExpectedError(
@@ -227,5 +272,5 @@ f133Check(!$intent->canCommitReservation() &&
     !$intent->canDeliverToCrm(),
     'physical uniqueness is still only a laboratory reservation, never delivery/ACK');
 
-echo "\n$checks F1-133 PG18 physical uniqueness, RLS, pinned destination and rollback assertions passed.\n".
+echo "\n$checks F1-133/134 PG18 physical uniqueness and readback, RLS, pinned destination and rollback assertions passed.\n".
  "No lead payload, real authorization, customer, CRM delivery, or deployment.\n";
