@@ -1221,3 +1221,98 @@ Artisan::command(
         return Command::SUCCESS;
     }
 )->purpose('Export one fictional composite visual design to private CI review files');
+
+
+/**
+ * F1-211: re-open an EXISTING fictional visual package with verified bytes;
+ * independently match its social title/description to the expected renderer.
+ * This command never writes, republishes, retries, accepts or contacts CRM.
+ */
+Artisan::command(
+    'sites:inspect-social-fixture {product=onepage} {preset=classic} {order=services_process_faq} {palette=default} {navigation=off} {social=off}',
+    function (): int {
+        if (PHP_SAPI!=='cli' || !app()->environment('testing') ||
+            getenv('GITHUB_ACTIONS')!=='true' ||
+            getenv('SITES_F211_SOCIAL_READBACK')!=='1') {
+            $this->error('Private social readback disabled outside isolated CI.');
+            return Command::FAILURE;
+        }
+        $product=(string)$this->argument('product');
+        $preset=(string)$this->argument('preset');
+        $order=(string)$this->argument('order');
+        $palette=(string)$this->argument('palette');
+        $navigation=(string)$this->argument('navigation');
+        $social=(string)$this->argument('social');
+        if(!in_array($social,['off','on'],true)) {
+            $this->error('Unknown social metadata mode.');
+            return Command::FAILURE;
+        }
+        try {
+            \Imagine\Sites\Production\SyntheticVisualPresetCatalog::choose(
+                $product,$preset,$order,$navigation,$palette
+            );
+        }catch(\InvalidArgumentException){
+            $this->error('Unknown visual catalog option.');
+            return Command::FAILURE;
+        }
+
+        $folder=storage_path('app/private/sites-f1-205-').
+            $product.'-'.$preset.'-'.$order.'-'.$palette.'-'.$navigation.
+            ($social==='on'?'-social-on':'');
+        $fixture=base_path('../../fixtures/sites/f1-170-process-copy.synthetic.json');
+        try{
+            if(!is_file($fixture) || is_link($fixture) ||
+                filesize($fixture)>8192 ||
+                !is_dir($folder) || is_link($folder)) {
+                throw new \DomainException('Missing fixed fixture or package.');
+            }
+            // Verifier rejects symlink ancestors, unexpected file names,
+            // extra hard links, tampering and forged acceptance metadata.
+            $verified=\Imagine\Sites\Production\SyntheticPrivateDraftVerifier::verifyDirectory(
+                $folder
+            );
+            $files=[];
+            foreach([
+                'index.html','internal-review-dossier.json',
+                'internal-review-draft.json','release-manifest.json',
+            ] as $name){
+                $raw=file_get_contents($folder.'/'.$name);
+                if(!is_string($raw)) {
+                    throw new \DomainException('Incomplete private readback.');
+                }
+                $files[$name]=$raw;
+            }
+            // Reverify the actual bytes just read, not only the metadata
+            // returned by the first check; this is not an atomic openat.
+            $copy=json_decode((string)file_get_contents($fixture),
+                true,16,JSON_THROW_ON_ERROR);
+            $design=\Imagine\Sites\Production\SyntheticCompositeVisualPrivateFixture::build(
+                $copy,$product,$preset,$order,$navigation,$palette,$social==='on'
+            );
+            $report=\Imagine\Sites\Production\SyntheticPrivateSocialCardReadbackV1::inspect(
+                $files,$design->draft->brief
+            );
+            if(!hash_equals($report->artifactDigest,$verified['artifactDigest']) ||
+                !hash_equals($report->artifactDigest,$design->draft->artifact->digest) ||
+                $report->releaseRef!==$verified['releaseRef'] ||
+                $report->releaseRef!==$design->draft->manifest->releaseRef ||
+                $report->socialMetadataEnabled!==($social==='on') ||
+                ($report->card!==null)!==($social==='on') ||
+                $report->canPublish() ||
+                $report->canMarkClientAccepted() ||
+                $report->canSendToCrm() ||
+                $report->canSharePublicly()) {
+                throw new \DomainException('Stored social preview evidence inconsistent.');
+            }
+        }catch(\Throwable){
+            $this->error('Private social readback denied. Nothing was shared.');
+            return Command::FAILURE;
+        }
+
+        $this->line('F1-211 VERIFIED PRIVATE TEXT-ONLY SOCIAL READBACK; not published.');
+        $this->line('Release: '.$report->releaseRef);
+        $this->line('SHA-256: '.$report->artifactDigest);
+        $this->line('Social metadata: '.($report->socialMetadataEnabled?'on':'off'));
+        return Command::SUCCESS;
+    }
+)->purpose('Audit fixed offline social metadata against immutable private HTML');
