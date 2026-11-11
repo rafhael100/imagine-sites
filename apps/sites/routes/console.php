@@ -1420,3 +1420,85 @@ Artisan::command(
         return Command::SUCCESS;
     }
 )->purpose('Audit an existing fixed private SEO preview without network or writes');
+
+
+/**
+ * F1-223: export exactly one fixed, non-public SEO copy review variant.
+ * Does not accept a path, text, real client, URL or approval from arguments.
+ */
+Artisan::command(
+    'sites:export-seo-copy-fixture {product=onepage} {preset=classic} {seo=default} {social=off}',
+    function (): int {
+        if (PHP_SAPI!=='cli' || !app()->environment('testing') ||
+            getenv('GITHUB_ACTIONS')!=='true' ||
+            getenv('SITES_F223_SEO_EXPORT')!=='1') {
+            $this->error('SEO copy export disabled outside synthetic CI.');
+            return Command::FAILURE;
+        }
+        $product=(string)$this->argument('product');
+        $preset=(string)$this->argument('preset');
+        $seoMode=(string)$this->argument('seo');
+        $socialMode=(string)$this->argument('social');
+        if (!in_array($product,['onepage','landing_page'],true) ||
+            !in_array($preset,['classic','modern','warm'],true) ||
+            !in_array($seoMode,['default','custom'],true) ||
+            !in_array($socialMode,['off','on'],true)) {
+            $this->error('Only fixed fictional SEO copy combinations are supported.');
+            return Command::FAILURE;
+        }
+        $fixture=base_path('../../fixtures/sites/f1-170-process-copy.synthetic.json');
+        $root=storage_path('app/private');
+        $base='sites-f1-223-'.$product.'-'.$preset.'-'.$seoMode.'-'.$socialMode;
+        $destination=$root.'/'.$base;
+        if (!is_file($fixture) || is_link($fixture) ||
+            filesize($fixture)>8192 ||
+            is_link($root) || is_link($destination) ||
+            file_exists($destination)) {
+            $this->error('Synthetic SEO fixture or private destination is unsafe.');
+            return Command::FAILURE;
+        }
+        try {
+            $copy=json_decode((string)file_get_contents($fixture),
+                true,16,JSON_THROW_ON_ERROR);
+            if (!is_array($copy)) {
+                throw new \DomainException('Invalid fixed SEO copy source.');
+            }
+            $candidate=\Imagine\Sites\Production\SyntheticSeoCopyFixtureV1::build(
+                $copy,$product,$preset,$seoMode,$socialMode
+            );
+            if ($candidate->canPublish() || $candidate->canIndex() ||
+                $candidate->canSendToSeoEngine() ||
+                $candidate->canApproveForClient()) {
+                throw new \DomainException('Synthetic SEO candidate implies real authority.');
+            }
+            if (!is_dir($root) &&
+                !mkdir($root,0700,true) && !is_dir($root)) {
+                throw new \DomainException('Missing private CI root.');
+            }
+            if (is_link($root) || !is_dir($root)) {
+                throw new \DomainException('Unsafe private CI root.');
+            }
+            $proof=\Imagine\Sites\Production\SyntheticPrivateDraftWriter::create(
+                $destination,$candidate->files
+            );
+            if ($proof['releaseRef']!==$candidate->draft->manifest->releaseRef ||
+                !hash_equals(
+                    $proof['artifactDigest'],$candidate->draft->artifact->digest
+                ) ||
+                $proof['reviewerDecisionStatus']!=='pending' ||
+                $proof['officialClientAcceptance']!==false ||
+                $proof['publishable']!==false) {
+                throw new \DomainException('Private SEO readback cannot be accepted.');
+            }
+        } catch (\Throwable) {
+            $this->error('Fixed SEO export denied. Nothing was published or indexed.');
+            return Command::FAILURE;
+        }
+        $this->line('F1-223 PRIVATE SEO COPY: pending, noindex, no client approval.');
+        $this->line('Release: '.$candidate->draft->manifest->releaseRef);
+        $this->line('SHA-256: '.$proof['artifactDigest']);
+        $this->line('SEO title characters: '.$candidate->readback->snippet->titleCharacters);
+        $this->line('SEO description characters: '.$candidate->readback->snippet->descriptionCharacters);
+        return Command::SUCCESS;
+    }
+)->purpose('Create a fictional pending-only SEO copy review package in private CI');
