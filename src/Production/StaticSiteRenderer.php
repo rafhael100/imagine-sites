@@ -29,6 +29,24 @@ final class StaticSiteRenderer
         $nav = $isOnepage ?
             '<nav aria-label="Navegação principal"><a href="#beneficios">Benefícios</a><a href="#sobre">Sobre</a></nav>' :
             '<span class="tagline">Uma solução para você</span>';
+        // F1-178: opt-in anchors are generated only from a fixed map and
+        // only when the corresponding inert section exists. Never use a
+        // user-provided URL, arbitrary CSS or AI-controlled navigation.
+        if ($isOnepage && $brief->sectionNavigation) {
+            $anchors=[
+                'highlights'=>['#solucoes','Soluções',$brief->highlights!==[]],
+                'process'=>['#etapas','Como funciona',$brief->processSteps!==[]],
+                'faq'=>['#perguntas','FAQ',$brief->faq!==[]],
+            ];
+            $additional='';
+            foreach($brief->sectionOrder as $name) {
+                [$href,$label,$present]=$anchors[$name];
+                if ($present) {
+                    $additional.='<a href="'.$href.'">'.$label.'</a>';
+                }
+            }
+            $nav=str_replace('</nav>',$additional.'</nav>',$nav);
+        }
         $benefitsHeading = $isOnepage ? 'Por que escolher '.$brand.'?' : 'O que você encontra aqui';
         $about = $isOnepage ?
             '<section class="about" id="sobre" aria-labelledby="sobre-title"><div class="container">'.
@@ -180,6 +198,15 @@ FAQ;
 </body>
 </html>
 HTML;
+
+        // Only opt-in Onepages receive wrapping navigation styles.
+        if ($isOnepage && $brief->sectionNavigation) {
+            $navCss = <<<'CSS'
+    nav { flex-wrap: wrap; gap: 12px 20px; }
+    nav a { overflow-wrap: anywhere; }
+CSS;
+            $html=str_replace("  </style>\n</head>",$navCss."\n  </style>\n</head>",$html);
+        }
 
         // F1-159: self-contained CSS only when highlights exist.
         if ($highlightsSection !== '') {
