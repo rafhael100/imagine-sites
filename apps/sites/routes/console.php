@@ -1316,3 +1316,107 @@ Artisan::command(
         return Command::SUCCESS;
     }
 )->purpose('Audit fixed offline social metadata against immutable private HTML');
+
+
+/**
+ * F1-219: independent read-only CLI audit of an ALREADY exported fictional
+ * private page. All selectors are from a finite catalog; no arbitrary path,
+ * public URL, tenant identifier or real SEO provider can be passed in.
+ */
+Artisan::command(
+    'sites:inspect-seo-fixture {product=onepage} {preset=classic} {order=services_process_faq} {palette=default} {navigation=off} {social=off}',
+    function (): int {
+        if (PHP_SAPI!=='cli' || !app()->environment('testing') ||
+            getenv('GITHUB_ACTIONS')!=='true' ||
+            getenv('SITES_F219_SEO_READBACK')!=='1') {
+            $this->error('SEO package inspection disabled outside CI-only lab.');
+            return Command::FAILURE;
+        }
+
+        $product=(string)$this->argument('product');
+        $preset=(string)$this->argument('preset');
+        $order=(string)$this->argument('order');
+        $palette=(string)$this->argument('palette');
+        $navigation=(string)$this->argument('navigation');
+        $social=(string)$this->argument('social');
+
+        if (!in_array($social,['on','off'],true)) {
+            $this->error('Unsupported social metadata mode.');
+            return Command::FAILURE;
+        }
+        try {
+            \Imagine\Sites\Production\SyntheticVisualPresetCatalog::choose(
+                $product,$preset,$order,$navigation,$palette
+            );
+        }catch(\InvalidArgumentException){
+            $this->error('Unsupported synthetic design selector.');
+            return Command::FAILURE;
+        }
+
+        $fixture=base_path('../../fixtures/sites/f1-170-process-copy.synthetic.json');
+        $directory=storage_path('app/private/sites-f1-205-').
+            $product.'-'.$preset.'-'.$order.'-'.$palette.'-'.$navigation.
+            ($social==='on'?'-social-on':'');
+        try {
+            if (!is_file($fixture) || is_link($fixture) ||
+                filesize($fixture)>8192 ||
+                !is_dir($directory) || is_link($directory)) {
+                throw new \DomainException('Missing fixed private SEO fixture.');
+            }
+
+            // Two checks: first enforce physical private-file boundary,
+            // then cryptographically verify the exact bytes just read.
+            // This does not claim atomic file handles against hostile FS.
+            $physical=\Imagine\Sites\Production\SyntheticPrivateDraftVerifier::verifyDirectory(
+                $directory
+            );
+            $files=[];
+            foreach([
+                'index.html','internal-review-dossier.json',
+                'internal-review-draft.json','release-manifest.json',
+            ] as $filename) {
+                $bytes=file_get_contents($directory.'/'.$filename);
+                if (!is_string($bytes)) {
+                    throw new \DomainException('Incomplete private SEO file readback.');
+                }
+                $files[$filename]=$bytes;
+            }
+
+            $copy=json_decode((string)file_get_contents($fixture),
+                true,16,JSON_THROW_ON_ERROR);
+            $review=\Imagine\Sites\Production\SyntheticCompositeVisualPrivateFixture::build(
+                $copy,$product,$preset,$order,$navigation,$palette,$social==='on'
+            );
+            $parity=\Imagine\Sites\Production\SyntheticVisualReviewExportParityV1::inspect(
+                $review,$files
+            );
+            if (!hash_equals($parity->artifactDigest,$physical['artifactDigest']) ||
+                !hash_equals($parity->artifactDigest,$review->draft->artifact->digest) ||
+                $parity->releaseRef!==$physical['releaseRef'] ||
+                $parity->releaseRef!==$review->draft->manifest->releaseRef ||
+                $parity->socialEnabled!==($social==='on') ||
+                $parity->canPublish() || $parity->canIndexOnSearchEngines() ||
+                $parity->canAcceptForClient() || $parity->canWriteCrm() ||
+                $parity->canSkipReview() ||
+                $parity->seoSnippet->canIndexOnSearchEngines()) {
+                throw new \DomainException('Private SEO inspection authority or digest mismatch.');
+            }
+        }catch(\Throwable){
+            $this->error('Private SEO readback denied. Nothing was published.');
+            return Command::FAILURE;
+        }
+
+        $this->line('F1-219 VERIFIED PRIVATE SEO TITLE/DESCRIPTION; noindex and pending.');
+        $this->line('Release: '.$parity->releaseRef);
+        $this->line('SHA-256: '.$parity->artifactDigest);
+        $this->line('SEO title characters: '.$parity->seoSnippet->titleCharacters);
+        $this->line('SEO description characters: '.$parity->seoSnippet->descriptionCharacters);
+        $this->line('SEO advisories: '.(
+            $parity->seoSnippet->advisories===[]
+            ? 'none'
+            : implode(',',$parity->seoSnippet->advisories)
+        ));
+        $this->line('Social metadata: '.$social.'; no public URL or index permission.');
+        return Command::SUCCESS;
+    }
+)->purpose('Audit an existing fixed private SEO preview without network or writes');
