@@ -1,5 +1,22 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuidade encadeada — F1-142 a F1-147 (10/11/2026, America/Sao_Paulo)
+
+**Resumo:** seis entregas implementadas em PRs draft empilhados, sem deploy ou merge em `dev/main`. Todas as matrizes específicas PostgreSQL 18 / PHP 8.3 e 8.4 passaram na HEAD dos respectivos PRs. Estes testes são de **laboratório sintético**, não evidência de sistema operacional pronto.
+
+| Etapa | Evidência no GitHub | Avanço real do laboratório |
+| --- | --- | --- |
+| F1-142 | [PR #178](https://github.com/rafhael100/imagine-sites/pull/178), [CI](https://github.com/rafhael100/imagine-sites/actions/runs/42946802537) | Revoga acesso da role CI à função sem escopo e usa `SESSION_USER` associado a uma organização fictícia. Dois logins distintos não registram claim em outra organização. |
+| F1-143 | [PR #179](https://github.com/rafhael100/imagine-sites/pull/179), [CI](https://github.com/rafhael100/imagine-sites/actions/runs/42947220971) | Mapeamento de login ganha revisão monotônica e revogação. Bloqueio de linha até COMMIT impede revogação concorrente durante claim; sessão já conectada perde permissão técnica após revogação. |
+| F1-144 | [PR #180](https://github.com/rafhael100/imagine-sites/pull/180), [CI](https://github.com/rafhael100/imagine-sites/actions/runs/42947602914) | Adaptador PHP/PDO restrito a CLI/testing e transação. Todos os resultados do claim técnico são somente diagnósticos, nunca ACK/delivery/retry. |
+| F1-145 | [PR #181](https://github.com/rafhael100/imagine-sites/pull/181), [CI](https://github.com/rafhael100/imagine-sites/actions/runs/42948198889) | Inserção de claim e outbox de metadados **na mesma transação**; sem duplicação em replay, sem gravação residual em rollback. |
+| F1-146 | [PR #182](https://github.com/rafhael100/imagine-sites/pull/182), [CI](https://github.com/rafhael100/imagine-sites/actions/runs/42948629412) | Lease técnico `SKIP LOCKED` sem worker/envio. Classificação 72 horas iniciais e recuperação até o prazo original total de 432 horas, com recusa após expiração. |
+| F1-147 | [PR #183](https://github.com/rafhael100/imagine-sites/pull/183), [CI](https://github.com/rafhael100/imagine-sites/actions/runs/42948981033) | Adaptador PHP/PDO da lease; códigos controlados, transação obrigatória, ausência permanente de autorização para envio, ACK ou status entregue. |
+
+**Advertência operacional:** a ligação de login PostgreSQL a organização não substitui IAM de Portal, autorização de usuário ou autenticação S2S. A conta DB CI e todos os UUIDs/senhas são **fictícios**; NÃO usar como credenciais ou endpoints de produção. O outbox de F1-145 contém só metadados e estado `pending_unverified`: não transporta lead, não inclui consentimento, não chama CRM e não confirma entrega. A lease F1-146/147 é apenas classificação, não worker real. A simulação de passagem do tempo nos testes de lease usa somente administrador de base descartável; não é permissão para alterar T0 do cliente.
+
+**Pendências P0 mantidas:** [OP01 #33](https://github.com/rafhael100/imagine-sites/issues/33) identidade/verificação real Portal; [OP02 #34](https://github.com/rafhael100/imagine-sites/issues/34) segurança operacional PostgreSQL/RLS; [OP04 #36](https://github.com/rafhael100/imagine-sites/issues/36) dois ingressos reais de lead, confirmação CRM, consentimento e LGPD; revisão SEG/DBA/AppSec **independente**, teste de ponta a ponta em infraestrutura autorizada e liberação comercial. **10/10 gates de produção permanecem BLOCKED**; nenhum merge em `dev/main`, VPS, deploy, DNS, Cloudflare, PII ou gastos. Continuar apenas nas etapas autocontidas enquanto as dependências de segurança/infraestrutura persistirem.
+
 ## Continuidade supervisionada — F1-133 e F1-134 (10/11/2026)
 
 - [Sites PR #169 / F1-133](https://github.com/rafhael100/imagine-sites/pull/169): adicionou **ledger de metadados de lead exclusivo do CI** em PostgreSQL 18 (`sites_f133_lead_lab`), com PK (organização, submissão), seis UUIDs sintéticos, hora T0 do banco, role restrita com SELECT/INSERT por coluna, `ENABLE/FORCE RLS` e sem UPDATE/DELETE/TRUNCATE. Prova de concorrência física entre **duas conexões PDO**, SQLSTATE 55P03 no segundo INSERT enquanto o primeiro está pendente, replay após COMMIT sem duplicata, contexto/destino CRM original preservados, rollback, isolamento por tenant e timestamp não forjável. **Cinco workflows concluídos com sucesso**, incluindo a matriz PostgreSQL 18 PHP8.3/8.4, Laravel, testes sintéticos, RLS básico e safety.
