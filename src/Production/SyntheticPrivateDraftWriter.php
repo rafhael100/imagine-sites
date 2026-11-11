@@ -41,7 +41,7 @@ final class SyntheticPrivateDraftWriter
         $parent = dirname($directory);
         $base = basename($directory);
         if ($directory === '' || $base === '' || $base === '.' || $base === '..' ||
-            !preg_match('/\Asites-(?:f1-72-(?:onepage|landing_page)-(?:classic|modern|warm)-(?:basic|focused)|f1-174-(?:onepage|landing_page)-(?:classic|modern|warm)-edited|f1-184-(?:onepage|landing_page)-(?:classic|modern|warm)-(?:services_process_faq|services_faq_process|process_services_faq|process_faq_services|faq_services_process|faq_process_services)-(?:on|off)|f1-205-(?:onepage|landing_page)-(?:classic|modern|warm)-(?:services_process_faq|services_faq_process|process_services_faq|process_faq_services|faq_services_process|faq_process_services)-(?:default|ocean|plum|forest)-(?:on|off))\z/D', $base) ||
+            !preg_match('/\Asites-(?:f1-72-(?:onepage|landing_page)-(?:classic|modern|warm)-(?:basic|focused)|f1-174-(?:onepage|landing_page)-(?:classic|modern|warm)-edited|f1-184-(?:onepage|landing_page)-(?:classic|modern|warm)-(?:services_process_faq|services_faq_process|process_services_faq|process_faq_services|faq_services_process|faq_process_services)-(?:on|off)|f1-205-(?:onepage|landing_page)-(?:classic|modern|warm)-(?:services_process_faq|services_faq_process|process_services_faq|process_faq_services|faq_services_process|faq_process_services)-(?:default|ocean|plum|forest)-(?:on|off)(?:-social-on)?)\z/D', $base) ||
             is_link($parent) || !is_dir($parent) ||
             is_link($directory) || file_exists($directory)) {
             throw new DomainException('private_draft_writer_requires_fresh_fixed_target');
