@@ -41,6 +41,8 @@ final readonly class SyntheticStructuredDraftAssembly
         bool $officialSectionNavigation = false,
         ?SyntheticBrandPaletteV1 $officialBrandPalette = null,
         bool $officialSocialPreviewMetadata = false,
+        ?string $officialSeoTitle = null,
+        ?string $officialSeoDescription = null,
     ): self {
         // Content provider does NOT determine brand, product, style or tenant.
         $candidate=StructuredCopyCandidate::assemble(
@@ -61,6 +63,7 @@ final readonly class SyntheticStructuredDraftAssembly
             $officialSectionNavigation,
             $officialBrandPalette,
             $officialSocialPreviewMetadata,
+            $officialSeoTitle,$officialSeoDescription,
         );
         $artifact=(new StaticSiteRenderer())->render($brief);
         $qa=SyntheticPreviewQaReport::inspect($artifact);
