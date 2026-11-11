@@ -71,9 +71,9 @@ final readonly class SyntheticSeoSnippetInspectionV1
                 throw new DomainException('seo_inspection_required_head_markup_missing');
             }
 
-            $title=trim($titleNodes->item(0)->textContent);
+            $title=$titleNodes->item(0)->textContent;
             $description=$descriptionNodes->item(0)->getAttribute('content');
-            $headline=trim($headingNodes->item(0)->textContent);
+            $headline=$headingNodes->item(0)->textContent;
             if ($title!==$brief->headline.' | '.$brief->brand ||
                 $description!==$brief->description ||
                 $headline!==$brief->headline ||
