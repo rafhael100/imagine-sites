@@ -1502,3 +1502,110 @@ Artisan::command(
         return Command::SUCCESS;
     }
 )->purpose('Create a fictional pending-only SEO copy review package in private CI');
+
+
+/**
+ * F1-225: inspect EXISTING SEO-copy private review package without writes.
+ * The four selectors and directory are fixed: no URL, file path, text,
+ * personal data, service account or published release is accepted.
+ */
+Artisan::command(
+    'sites:audit-seo-copy-fixture {product=onepage} {preset=classic} {seo=default} {social=off}',
+    function (): int {
+        if (PHP_SAPI!=='cli' || !app()->environment('testing') ||
+            getenv('GITHUB_ACTIONS')!=='true' ||
+            getenv('SITES_F225_SEO_AUDIT')!=='1') {
+            $this->error('SEO copy readback disabled outside isolated CI.');
+            return Command::FAILURE;
+        }
+        $product=(string)$this->argument('product');
+        $preset=(string)$this->argument('preset');
+        $seo=(string)$this->argument('seo');
+        $social=(string)$this->argument('social');
+        if (!in_array($product,['onepage','landing_page'],true) ||
+            !in_array($preset,['classic','modern','warm'],true) ||
+            !in_array($seo,['default','custom'],true) ||
+            !in_array($social,['off','on'],true)) {
+            $this->error('Only a known fixed SEO review can be audited.');
+            return Command::FAILURE;
+        }
+
+        $source=base_path('../../fixtures/sites/f1-170-process-copy.synthetic.json');
+        $root=storage_path('app/private');
+        $directory=$root.'/sites-f1-223-'.$product.'-'.$preset.'-'.$seo.'-'.$social;
+        try {
+            if (!is_file($source) || is_link($source) ||
+                filesize($source)>8192 || is_link($root) ||
+                !is_dir($directory) || is_link($directory)) {
+                throw new \DomainException('Private SEO copy fixture is missing or unsafe.');
+            }
+            $physicalBefore=\Imagine\Sites\Production\SyntheticPrivateDraftVerifier::verifyDirectory(
+                $directory
+            );
+            $files=[];
+            foreach([
+                'index.html','internal-review-dossier.json',
+                'internal-review-draft.json','release-manifest.json'
+            ] as $name) {
+                if (!is_file($directory.'/'.$name) ||
+                    is_link($directory.'/'.$name)) {
+                    throw new \DomainException('Private SEO file missing or linked.');
+                }
+                $bytes=file_get_contents($directory.'/'.$name);
+                if (!is_string($bytes)) {
+                    throw new \DomainException('Private SEO file was unreadable.');
+                }
+                $files[$name]=$bytes;
+            }
+            $fixture=json_decode((string)file_get_contents($source),
+                true,16,JSON_THROW_ON_ERROR);
+            if (!is_array($fixture)) {
+                throw new \DomainException('Unexpected fixed SEO candidate source.');
+            }
+            $expected=\Imagine\Sites\Production\SyntheticSeoCopyFixtureV1::build(
+                $fixture,$product,$preset,$seo,$social
+            );
+            $readback=\Imagine\Sites\Production\SyntheticPrivateSeoSnippetReadbackV1::inspect(
+                $files,$expected->draft->brief
+            );
+            // Recheck directory permissions/integrity after reading individual
+            // files. This is not an atomic snapshot of an untrusted filesystem.
+            $physicalAfter=\Imagine\Sites\Production\SyntheticPrivateDraftVerifier::verifyDirectory(
+                $directory
+            );
+            if ($physicalBefore!==$physicalAfter ||
+                $physicalAfter['releaseRef']!==$expected->draft->manifest->releaseRef ||
+                $readback->releaseRef!==$physicalAfter['releaseRef'] ||
+                !hash_equals(
+                    $physicalAfter['artifactDigest'],$readback->artifactDigest
+                ) ||
+                !hash_equals(
+                    $readback->artifactDigest,$expected->draft->artifact->digest
+                ) ||
+                $physicalAfter['reviewerDecisionStatus']!=='pending' ||
+                $physicalAfter['publishable']!==false ||
+                $physicalAfter['officialClientAcceptance']!==false ||
+                $readback->canPublish() || $readback->canIndex() ||
+                $readback->canSendToSeoEngine() ||
+                $readback->canApproveForClient()) {
+                throw new \DomainException('Private SEO audit proof mismatch.');
+            }
+        }catch(\Throwable) {
+            $this->error('Private SEO copy audit denied; no index or publish action.');
+            return Command::FAILURE;
+        }
+
+        // Only static identifiers, byte digest and numeric lengths:
+        // never echo the copy or a customer-controlled URL.
+        $this->line('F1-225 PRIVATE SEO COPY VERIFIED: pending, noindex, no client approval.');
+        $this->line('Release: '.$readback->releaseRef);
+        $this->line('SHA-256: '.$readback->artifactDigest);
+        $this->line('SEO title characters: '.$readback->snippet->titleCharacters);
+        $this->line('SEO description characters: '.$readback->snippet->descriptionCharacters);
+        $this->line('Advisories: '.(
+            $readback->snippet->advisories===[]
+            ? 'none':implode(',',$readback->snippet->advisories)
+        ));
+        return Command::SUCCESS;
+    }
+)->purpose('Audit a previously exported, nonpublic SEO-copy review without changes');
