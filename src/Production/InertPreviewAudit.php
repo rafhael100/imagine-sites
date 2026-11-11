@@ -33,7 +33,7 @@ final class InertPreviewAudit
             'style'=>true, 'body'=>true, 'header'=>true, 'div'=>true,
             'span'=>true, 'nav'=>true, 'a'=>true, 'main'=>true,
             'section'=>true, 'h1'=>true, 'h2'=>true, 'h3'=>true, 'p'=>true,
-            'ul'=>true, 'li'=>true, 'footer'=>true,
+            'ul'=>true, 'ol'=>true, 'li'=>true, 'footer'=>true,
         ];
         $meta = [];
         $links = [];
