@@ -186,6 +186,8 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
         <div><dt>Ordem alterada</dt><dd id="layout-order-changed">{{ $layoutRevisionDetails['orderChanged'] ? 'Sim' : 'Não' }}</dd></div>
         <div><dt>Menu alterado</dt><dd id="layout-navigation-changed">{{ $layoutRevisionDetails['navigationChanged'] ? 'Sim' : 'Não' }}</dd></div>
       </dl>
+      <p class="sub">Prévia anterior (antes da alteração)</p>
+      <iframe title="Prévia anterior de laboratório, apenas leitura" sandbox="" tabindex="-1" referrerpolicy="no-referrer" srcdoc="{{ $layoutRevisionDetails['previousHtml'] }}"></iframe>
       <p class="locked">A prévia nova é apenas um renderizador de laboratório, não a continuidade persistida da revisão anterior. O Portal ainda não aprovou nada.</p>
     </section>
     @endif
