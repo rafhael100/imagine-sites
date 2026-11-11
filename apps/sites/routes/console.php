@@ -914,3 +914,128 @@ Artisan::command('sites:export-rich-gallery-fixture', function (): int {
     $this->line('No real client acceptance, CRM, network, public site or deployment.');
     return Command::SUCCESS;
 })->purpose('Atomically export twelve non-publishable rich review pages to private CI');
+
+
+/**
+ * F1-174: persist a reviewed-content PATCH as an entirely NEW, nonpublishable
+ * PRIVATE synthetic review bundle. This is not a client editor or approval.
+ */
+Artisan::command('sites:export-editorial-package-fixture {product=onepage} {preset=classic}', function (): int {
+    if (PHP_SAPI!=='cli' || !app()->environment('testing') ||
+        getenv('GITHUB_ACTIONS')!=='true' ||
+        getenv('SITES_SYNTHETIC_EDITORIAL_REVIEW')!=='1' ||
+        getenv('SITES_F174_EDITORIAL_PACKAGE')!=='1') {
+        $this->error('Edited package requires isolated GitHub CLI/testing flags.');
+        return Command::FAILURE;
+    }
+    $product=(string)$this->argument('product');
+    $preset=(string)$this->argument('preset');
+    if (!in_array($product,['onepage','landing_page'],true) ||
+        !in_array($preset,['classic','modern','warm'],true)) {
+        $this->error('Unsupported fictional product or theme.');
+        return Command::FAILURE;
+    }
+
+    $fixture=base_path('../../fixtures/sites/f1-170-process-copy.synthetic.json');
+    $private=storage_path('app/private');
+    $destination=$private.'/sites-f1-174-'.$product.'-'.$preset.'-edited';
+    if (!is_file($fixture) || is_link($fixture) ||
+        is_link($private) || is_link($destination) ||
+        file_exists($destination) || is_dir($destination)) {
+        $this->error('Unsafe fixture or existing edited package destination.');
+        return Command::FAILURE;
+    }
+    try {
+        $raw=(string)file_get_contents($fixture);
+        if ($raw==='' || strlen($raw)>8192) {
+            throw new \DomainException('Invalid fixture budget.');
+        }
+        $copy=json_decode($raw,true,16,JSON_THROW_ON_ERROR);
+        if (!is_array($copy) || array_is_list($copy) ||
+            ($copy['schemaVersion']??null)!=='sites.ai-copy.v4' ||
+            count($copy['faq']??[])!==2 ||
+            count($copy['processSteps']??[])!==3) {
+            throw new \DomainException('Fictional v4 fixture required.');
+        }
+        $tenant='tenant-f174';
+        $site='site-f174';
+        $beforeRef='release-f174-before-'.$product.'-'.$preset;
+        $afterRef='release-f174-after-'.$product.'-'.$preset;
+
+        $source=\Imagine\Sites\Production\SyntheticStructuredDraftAssembly::build(
+            $product,'Marca Fictícia Imagine',$preset,$copy,
+            $tenant,$site,'workflow-f174-before-'.$product.'-'.$preset,$beforeRef
+        );
+        $approved=$source->workflow->advance(
+            'imagine_reviewer','approve_internal',2,$source->artifact->digest
+        );
+
+        $faq=$copy['faq'];
+        $faq[0]['answer']='O texto demonstrativo foi editado pela equipe Imagine e precisa de uma nova revisão.';
+        $steps=$copy['processSteps'];
+        $steps[1]['description']='Uma alteração editorial fictícia gera outra versão, sem herdar aprovações anteriores.';
+        $changes=['faq'=>$faq,'processSteps'=>$steps];
+        $patch=[
+            'schemaVersion'=>'sites.editorial.patch.v1',
+            'expectedDigest'=>$source->artifact->digest,
+            'expectedRevision'=>$approved->revision,
+            'changes'=>$changes,
+        ];
+        $plan=\Imagine\Sites\Production\SyntheticEditorialPatchV1::propose(
+            $approved,$source->brief,$source->artifact,
+            $beforeRef,$afterRef,'imagine_reviewer',$patch
+        );
+        $after=array_replace($copy,$changes);
+        $draft=\Imagine\Sites\Production\SyntheticStructuredDraftAssembly::build(
+            $product,'Marca Fictícia Imagine',$preset,$after,
+            $tenant,$site,'workflow-f174-after-'.$product.'-'.$preset,$afterRef
+        );
+        if ($plan->changedFields!==['faq','processSteps'] ||
+            $plan->draftWorkflow->artifactDigest!==null ||
+            !hash_equals($plan->nextArtifact->digest,$draft->artifact->digest) ||
+            !hash_equals($plan->nextArtifact->html,$draft->artifact->html)) {
+            throw new \DomainException('Edited preview bytes diverge from patch.');
+        }
+
+        $dossier=\Imagine\Sites\Production\SyntheticInternalReviewDossier::fromDraft($draft);
+        $summary=$draft->reviewSummary();
+        if ($summary['workflowState']!=='internal_review' ||
+            $summary['publishable']!==false ||
+            $summary['officialClientAcceptance']!==false ||
+            $dossier->record['reviewerDecisionStatus']!=='pending' ||
+            $dossier->record['publishable']!==false) {
+            throw new \DomainException('Edited package could bypass internal review.');
+        }
+        $summary['reviewDossierDigest']=$dossier->digest;
+        $files=[
+            'index.html'=>$draft->artifact->html,
+            'internal-review-dossier.json'=>$dossier->json,
+            'internal-review-draft.json'=>json_encode(
+                $summary,JSON_THROW_ON_ERROR|JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE
+            )."\n",
+            'release-manifest.json'=>$draft->bundle->files['release-manifest.json'],
+        ];
+        if (!is_dir($private) && !mkdir($private,0700,true) && !is_dir($private)) {
+            throw new \DomainException('Private storage root unavailable.');
+        }
+        $proof=\Imagine\Sites\Production\SyntheticPrivateDraftWriter::create(
+            $destination,$files
+        );
+        if ($proof['releaseRef']!==$afterRef ||
+            !hash_equals($proof['artifactDigest'],$draft->artifact->digest) ||
+            !hash_equals($proof['dossierDigest'],$dossier->digest) ||
+            $proof['reviewerDecisionStatus']!=='pending' ||
+            $proof['publishable']!==false ||
+            $proof['officialClientAcceptance']!==false) {
+            throw new \DomainException('Edited package readback failed.');
+        }
+    } catch (\Throwable) {
+        $this->error('Edited review package failed closed; no publication occurred.');
+        return Command::FAILURE;
+    }
+    $this->line('F1-174 PRIVATE EDITED DRAFT: reviewer decision PENDING; not publishable.');
+    $this->line('Previous SHA-256: '.$source->artifact->digest);
+    $this->line('Edited SHA-256: '.$draft->artifact->digest);
+    $this->line('Release: '.$afterRef);
+    return Command::SUCCESS;
+})->purpose('Write a fictional edited page and pending review dossier to private CI');
