@@ -566,6 +566,7 @@ Route::get('/_lab/sites/v1/editorial-review', static function (Request $request)
             'reviewRoute'=>'/_lab/sites/v1/editorial-review',
             'richReview'=>true,
             'editorialPatchDetails'=>[
+                'previousHtml'=>$source->artifact->html,
                 'previousDigest'=>$source->artifact->digest,
                 'nextDigest'=>$draft->artifact->digest,
                 'changedFields'=>$plan->changedFields,
