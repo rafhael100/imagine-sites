@@ -40,6 +40,7 @@ final readonly class SyntheticStructuredDraftAssembly
         array $officialSectionOrder = ['highlights','process','faq'],
         bool $officialSectionNavigation = false,
         ?SyntheticBrandPaletteV1 $officialBrandPalette = null,
+        bool $officialSocialPreviewMetadata = false,
     ): self {
         // Content provider does NOT determine brand, product, style or tenant.
         $candidate=StructuredCopyCandidate::assemble(
@@ -59,6 +60,7 @@ final readonly class SyntheticStructuredDraftAssembly
             $officialSectionOrder,
             $officialSectionNavigation,
             $officialBrandPalette,
+            $officialSocialPreviewMetadata,
         );
         $artifact=(new StaticSiteRenderer())->render($brief);
         $qa=SyntheticPreviewQaReport::inspect($artifact);
