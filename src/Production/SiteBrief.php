@@ -26,6 +26,7 @@ final readonly class SiteBrief
         public array $processSteps = [],
         public array $sectionOrder = ['highlights','process','faq'],
         public bool $sectionNavigation = false,
+        public ?SyntheticBrandPaletteV1 $brandPalette = null,
     ) {
         if (!in_array($productCode, ['onepage', 'landing_page'], true)) {
             throw new InvalidArgumentException('Unsupported Imagine Sites product.');
