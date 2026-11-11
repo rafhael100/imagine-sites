@@ -1600,14 +1600,14 @@ Route::get('/_lab/sites/v1/composite-social', static function (Request $request)
             $parity->socialEnabled!==($socialCode==='on') ||
             ($parity->socialCard!==null)!==($socialCode==='on') ||
             $parity->canPublish() || $parity->canAcceptForClient() ||
-            $parity->canWriteCrm() || $parity->canSkipReview()) {
+            $parity->canWriteCrm() || $parity->canSkipReview() ||
+            $parity->canIndexOnSearchEngines()) {
             return response('Not found',404);
         }
-        // F1-216: display-only SEO snippet derives from the exact same
-        // noindex HTML and reviewed copy as the social card and iframe.
-        $seo=\Imagine\Sites\Production\SyntheticSeoSnippetInspectionV1::inspect(
-            $draft->brief,$draft->artifact
-        );
+        // F1-218: the SAME canonical four-file exported review verifies
+        // both its social card and SEO snippet. Never use an independent
+        // in-memory inspection as a substitute for private export readback.
+        $seo=$parity->seoSnippet;
         if (!hash_equals($seo->artifactDigest,$parity->artifactDigest) ||
             $seo->canPublish() || $seo->canIndexOnSearchEngines() ||
             $seo->canWriteSeoEngine() || $seo->canFetchExternalPages() ||

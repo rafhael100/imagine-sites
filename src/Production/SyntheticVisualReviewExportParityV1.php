@@ -18,6 +18,7 @@ final readonly class SyntheticVisualReviewExportParityV1
         public string $artifactDigest,
         public bool $socialEnabled,
         public ?SyntheticSocialCardInspectionV1 $socialCard,
+        public SyntheticSeoSnippetInspectionV1 $seoSnippet,
     ) {}
 
     /** @param array<string,string> $exportedFiles */
@@ -30,6 +31,9 @@ final readonly class SyntheticVisualReviewExportParityV1
         $readback=SyntheticPrivateSocialCardReadbackV1::inspect(
             $exportedFiles,$expected->brief
         );
+        $seoReadback=SyntheticPrivateSeoSnippetReadbackV1::inspect(
+            $exportedFiles,$expected->brief
+        );
         if (!hash_equals($proof['artifactDigest'],$expected->artifact->digest) ||
             !hash_equals($proof['artifactDigest'],$readback->artifactDigest) ||
             !hash_equals($expected->artifact->html,$exportedFiles['index.html']) ||
@@ -39,13 +43,18 @@ final readonly class SyntheticVisualReviewExportParityV1
             $proof['officialClientAcceptance']!==false ||
             $proof['reviewerDecisionStatus']!=='pending' ||
             $readback->socialMetadataEnabled!==$expected->brief->socialPreviewMetadata ||
-            ($readback->card!==null)!==$expected->brief->socialPreviewMetadata) {
+            ($readback->card!==null)!==$expected->brief->socialPreviewMetadata ||
+            !hash_equals($seoReadback->artifactDigest,$proof['artifactDigest']) ||
+            $seoReadback->releaseRef!==$proof['releaseRef'] ||
+            $seoReadback->snippet->canIndexOnSearchEngines() ||
+            $seoReadback->snippet->canPublish()) {
             throw new DomainException('visual_review_export_bytes_or_permissions_mismatch');
         }
 
         return new self(
             $proof['releaseRef'],$proof['artifactDigest'],
             $readback->socialMetadataEnabled,$readback->card,
+            $seoReadback->snippet,
         );
     }
 
@@ -53,4 +62,5 @@ final readonly class SyntheticVisualReviewExportParityV1
     public function canAcceptForClient():bool {return false;}
     public function canWriteCrm():bool {return false;}
     public function canSkipReview():bool {return false;}
+    public function canIndexOnSearchEngines():bool {return false;}
 }
