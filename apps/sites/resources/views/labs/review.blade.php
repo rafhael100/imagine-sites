@@ -162,6 +162,21 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
       <p class="sub">Mudar o menu gera novo hash e exige revisão da equipe Imagine.</p>
     </section>
     @endif
+    @if(($layoutRevisionDetails ?? null) !== null)
+    <section class="card" aria-labelledby="layout-diff-title">
+      <h2 id="layout-diff-title">Comparação antes e depois do layout</h2>
+      <p class="sub">A ordem e a navegação podem mudar sem alterar os textos. A decisão anterior não acompanha o novo layout.</p>
+      <dl>
+        <div><dt>SHA-256 anterior</dt><dd><code id="layout-previous-digest">{{ $layoutRevisionDetails['previousDigest'] }}</code></dd></div>
+        <div><dt>SHA-256 novo</dt><dd><code id="layout-next-digest">{{ $layoutRevisionDetails['nextDigest'] }}</code></dd></div>
+        <div><dt>Revisão anterior</dt><dd id="layout-prior-revision">{{ $layoutRevisionDetails['previousRevision'] }}</dd></div>
+        <div><dt>Revisão reaberta</dt><dd id="layout-reopened-revision">{{ $layoutRevisionDetails['reopenedRevision'] }} — rascunho, sem aceite</dd></div>
+        <div><dt>Ordem alterada</dt><dd id="layout-order-changed">{{ $layoutRevisionDetails['orderChanged'] ? 'Sim' : 'Não' }}</dd></div>
+        <div><dt>Menu alterado</dt><dd id="layout-navigation-changed">{{ $layoutRevisionDetails['navigationChanged'] ? 'Sim' : 'Não' }}</dd></div>
+      </dl>
+      <p class="locked">A prévia nova é apenas um renderizador de laboratório, não a continuidade persistida da revisão anterior. O Portal ainda não aprovou nada.</p>
+    </section>
+    @endif
     <section class="card" aria-labelledby="steps-title"><h2 id="steps-title">Etapas de revisão</h2>
       <ol class="steps">
         <li><span class="icon" aria-hidden="true">✓</span><b>Conteúdo estruturado</b><small>Briefing fictício validado</small></li>
