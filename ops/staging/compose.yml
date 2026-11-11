@@ -37,6 +37,9 @@ services:
     environment:
       APP_ENV: testing
       APP_DEBUG: "false"
+      # Preserve the runner's CI identity inside an isolated lab; local
+      # Docker Compose defaults to false and cannot enable the CI-only export.
+      GITHUB_ACTIONS: ${GITHUB_ACTIONS:-false}
       DB_CONNECTION: pgsql
       DB_HOST: sites-lab-db
       DB_PORT: "5432"
