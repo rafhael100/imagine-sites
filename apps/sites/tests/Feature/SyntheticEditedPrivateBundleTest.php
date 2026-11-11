@@ -37,6 +37,18 @@ final class SyntheticEditedPrivateBundleTest extends TestCase
         putenv('SITES_SYNTHETIC_EDITORIAL_REVIEW=1');
         putenv('SITES_F174_EDITORIAL_PACKAGE=1');
         parent::setUp();
+        // Fresh non-root Docker images do not ship storage/app/private.
+        // Create only the fixed, private test root; never follow a symlink
+        // or silently depend on a previous unrelated test's output.
+        $root=storage_path('app/private');
+        if (is_link($root) ||
+            (!is_dir($root) && !mkdir($root,0700,true) && !is_dir($root)) ||
+            !is_dir($root)) {
+            throw new \RuntimeException('Unsafe or unavailable private CI fixture root.');
+        }
+        if (!chmod($root,0700)) {
+            throw new \RuntimeException('Private CI fixture root requires mode 0700.');
+        }
     }
 
     protected function tearDown():void
