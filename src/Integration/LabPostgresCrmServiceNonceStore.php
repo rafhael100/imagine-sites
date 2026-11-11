@@ -55,7 +55,8 @@ final class LabPostgresCrmServiceNonceStore
             }
             $query=$this->db->prepare(
                 'SELECT f167_lab.reserve_synthetic_crm_service_nonce('.
-                '?::uuid,?::uuid,?::uuid,?::text,?::integer)'
+                'CAST(? AS uuid),CAST(? AS uuid),CAST(? AS uuid),'.
+                'CAST(? AS text),CAST(? AS integer))'
             );
             $query->execute([
                 strtolower($organizationReference),
