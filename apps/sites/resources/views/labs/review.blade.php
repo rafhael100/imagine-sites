@@ -78,7 +78,7 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
   <aside class="sidebar" aria-label="Painel de revisão">
     <section class="card" aria-labelledby="product-title"><h2 id="product-title">Tipo de site</h2><p class="sub">Alternar modelos de teste</p>
       <nav class="tabs" aria-label="Alternar produto">
-        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product=onepage&amp;device={{ $device }}{{ $galleryMode ? '' : '&preset='.$preset }}{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}" @if($product==='onepage') aria-current="page" @endif>Onepage</a>
+        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product=onepage&amp;device={{ $device }}{{ $galleryMode ? '' : '&preset='.$preset }}{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}{{ ($brandPaletteCode ?? null) === null ? '' : '&palette='.$brandPaletteCode }}" @if($product==='onepage') aria-current="page" @endif>Onepage</a>
         <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product=landing_page&amp;device={{ $device }}{{ $galleryMode ? '' : '&preset='.$preset }}{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.($anchorNavMode==='on'?'off':$anchorNavMode) }}" @if($product==='landing_page') aria-current="page" @endif>Landing Page</a>
       </nav>
     </section>
@@ -86,9 +86,9 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
     <section class="card" aria-labelledby="style-title"><h2 id="style-title">Estilo visual</h2>
       <p class="sub">Cada tema possui HTML e SHA-256 próprios.</p>
       <nav class="tabs" aria-label="Alternar tema">
-        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product={{ $product }}&amp;device={{ $device }}&amp;preset=classic{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}" @if($preset==='classic') aria-current="page" @endif>Classic</a>
-        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product={{ $product }}&amp;device={{ $device }}&amp;preset=modern{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}" @if($preset==='modern') aria-current="page" @endif>Modern</a>
-        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product={{ $product }}&amp;device={{ $device }}&amp;preset=warm{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}" @if($preset==='warm') aria-current="page" @endif>Warm</a>
+        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product={{ $product }}&amp;device={{ $device }}&amp;preset=classic{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}{{ ($brandPaletteCode ?? null) === null ? '' : '&palette='.$brandPaletteCode }}" @if($preset==='classic') aria-current="page" @endif>Classic</a>
+        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product={{ $product }}&amp;device={{ $device }}&amp;preset=modern{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}{{ ($brandPaletteCode ?? null) === null ? '' : '&palette='.$brandPaletteCode }}" @if($preset==='modern') aria-current="page" @endif>Modern</a>
+        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product={{ $product }}&amp;device={{ $device }}&amp;preset=warm{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}{{ ($brandPaletteCode ?? null) === null ? '' : '&palette='.$brandPaletteCode }}" @if($preset==='warm') aria-current="page" @endif>Warm</a>
       </nav>
       <p class="sub">Trocar o tema exige nova revisão interna da versão gerada.</p>
     </section>
@@ -140,7 +140,7 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
           'faq_services_process'=>'FAQ / Serviços / Etapas',
           'faq_process_services'=>'FAQ / Etapas / Serviços'
         ] as $sectionOrderOption=>$sectionOrderLabel)
-          <a href="{{ $reviewRoute }}?product={{ $product }}&amp;device={{ $device }}&amp;preset={{ $preset }}&amp;order={{ $sectionOrderOption }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}" @if($sectionOrderCode===$sectionOrderOption) aria-current="page" @endif>{{ $sectionOrderLabel }}</a>
+          <a href="{{ $reviewRoute }}?product={{ $product }}&amp;device={{ $device }}&amp;preset={{ $preset }}&amp;order={{ $sectionOrderOption }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}{{ ($brandPaletteCode ?? null) === null ? '' : '&palette='.$brandPaletteCode }}" @if($sectionOrderCode===$sectionOrderOption) aria-current="page" @endif>{{ $sectionOrderLabel }}</a>
         @endforeach
       </nav>
       <p class="sub">O conteúdo não muda. A aprovação da disposição anterior não é reutilizada.</p>
@@ -175,6 +175,28 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
         <div><dt>Menu alterado</dt><dd id="layout-navigation-changed">{{ $layoutRevisionDetails['navigationChanged'] ? 'Sim' : 'Não' }}</dd></div>
       </dl>
       <p class="locked">A prévia nova é apenas um renderizador de laboratório, não a continuidade persistida da revisão anterior. O Portal ainda não aprovou nada.</p>
+    </section>
+    @endif
+    @if(($brandPaletteCode ?? null) !== null)
+    <section class="card" aria-labelledby="brand-palette-title">
+      <h2 id="brand-palette-title">Cores da identidade visual</h2>
+      <p class="sub">Compare cores de demonstração escolhidas pela equipe Imagine, com limite mínimo de contraste. A seleção gera novo hash e exige revisão.</p>
+      <nav class="tabs" aria-label="Alternar cores da marca">
+        @foreach(['default'=>'Tema original','ocean'=>'Oceano','plum'=>'Ameixa','forest'=>'Floresta'] as $brandOption=>$brandLabel)
+          <a href="{{ $reviewRoute }}?product={{ $product }}&amp;device={{ $device }}&amp;preset={{ $preset }}&amp;palette={{ $brandOption }}" @if($brandPaletteCode===$brandOption) aria-current="page" @endif>{{ $brandLabel }}</a>
+        @endforeach
+      </nav>
+      @if($brandPaletteContrast !== null)
+      <dl>
+        <div><dt>Contraste da abertura — início</dt><dd>{{ number_format($brandPaletteContrast['heroStart'],1,',','.') }}:1</dd></div>
+        <div><dt>Contraste da abertura — fim</dt><dd>{{ number_format($brandPaletteContrast['heroEnd'],1,',','.') }}:1</dd></div>
+        <div><dt>Contraste do botão</dt><dd>{{ number_format($brandPaletteContrast['button'],1,',','.') }}:1</dd></div>
+      </dl>
+      <p class="sub">Os três pares verificados atingem pelo menos 4,5:1 para texto normal. Isso não substitui uma auditoria de acessibilidade.</p>
+      @else
+      <p class="sub">Tema original sem alterações nas cores da marca.</p>
+      @endif
+      <p class="locked">Paletas predefinidas, sem CSS livre, envio de dados ou publicação.</p>
     </section>
     @endif
     <section class="card" aria-labelledby="steps-title"><h2 id="steps-title">Etapas de revisão</h2>
@@ -231,8 +253,8 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
   <section class="preview" aria-labelledby="preview-title">
     <div class="preview-head"><div><h2 id="preview-title">Prévia do site</h2><p class="sub">HTML exato do motor, isolado em iframe sandbox</p></div>
       <nav class="tabs" aria-label="Alternar dispositivo">
-        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product={{ $product }}&amp;device=desktop{{ $galleryMode ? '' : '&preset='.$preset }}{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}" @if($device==='desktop') aria-current="page" @endif>Desktop</a>
-        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product={{ $product }}&amp;device=mobile{{ $galleryMode ? '' : '&preset='.$preset }}{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}" @if($device==='mobile') aria-current="page" @endif>Mobile</a>
+        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product={{ $product }}&amp;device=desktop{{ $galleryMode ? '' : '&preset='.$preset }}{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}{{ ($brandPaletteCode ?? null) === null ? '' : '&palette='.$brandPaletteCode }}" @if($device==='desktop') aria-current="page" @endif>Desktop</a>
+        <a href="{{ $reviewRoute ?? '/_lab/sites/v1/review' }}?product={{ $product }}&amp;device=mobile{{ $galleryMode ? '' : '&preset='.$preset }}{{ ($richVariant ?? null) === null ? '' : '&variant='.$richVariant }}{{ ($sectionOrderCode ?? null) === null ? '' : '&order='.$sectionOrderCode }}{{ ($anchorNavMode ?? null) === null ? '' : '&nav='.$anchorNavMode }}{{ ($brandPaletteCode ?? null) === null ? '' : '&palette='.$brandPaletteCode }}" @if($device==='mobile') aria-current="page" @endif>Mobile</a>
       </nav>
     </div>
     <div class="workspace">
