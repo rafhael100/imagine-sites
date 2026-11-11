@@ -28,10 +28,11 @@ final class SyntheticSeoCopyPrivateDiffCliTest extends TestCase
         ]);
     }
 
-    private function compare(string $p,string $preset,string $social):int
+    private function compare(string $p,string $preset,string $social,bool $json=false):int
     {
         return Artisan::call('sites:diff-seo-copy-fixture',[
-            'product'=>$p,'preset'=>$preset,'social'=>$social
+            'product'=>$p,'preset'=>$preset,'social'=>$social,
+            '--evidence-json'=>$json
         ]);
     }
 
@@ -107,6 +108,38 @@ final class SyntheticSeoCopyPrivateDiffCliTest extends TestCase
                     self::assertStringContainsString(
                         'Social metadata: '.$social,$first
                     );
+                    self::assertMatchesRegularExpression(
+                        '/F1-229 evidence SHA-256: [a-f0-9]{64}/',$first
+                    );
+                    self::assertSame(0,$this->compare($p,$preset,$social,true));
+                    $json=trim(Artisan::output())."\n";
+                    $report=json_decode($json,true,8,JSON_THROW_ON_ERROR);
+                    self::assertSame(
+                        'sites.private-seo-change-evidence.synthetic.v1',
+                        $report['schemaVersion']
+                    );
+                    self::assertSame('none',$report['authority']);
+                    self::assertSame('pending',$report['reviewState']);
+                    self::assertSame(['seoTitle','seoDescription'],$report['changedFields']);
+                    self::assertSame($social==='on',$report['socialMetadataEnabled']);
+                    self::assertFalse($report['clientAccepted']);
+                    self::assertFalse($report['publishable']);
+                    self::assertFalse($report['searchIndexingAllowed']);
+                    self::assertFalse($report['seoEngineWriteAllowed']);
+                    self::assertCount(4,$report['filesSha256']['default']);
+                    self::assertCount(4,$report['filesSha256']['custom']);
+                    self::assertStringContainsString(
+                        'F1-229 evidence SHA-256: '.hash('sha256',$json),$first
+                    );
+                    self::assertStringNotContainsString(
+                        \Imagine\Sites\Production\SyntheticSeoCopyFixtureV1::CUSTOM_TITLE,
+                        $json
+                    );
+                    self::assertStringNotContainsString('tenant-f223',$json);
+                    self::assertStringNotContainsString('site-f223',$json);
+                    self::assertStringNotContainsString('https://',$json);
+                    self::assertSame(0,$this->compare($p,$preset,$social,true));
+                    self::assertSame($json,trim(Artisan::output())."\n");
                     self::assertMatchesRegularExpression(
                         '/Default SHA-256: [a-f0-9]{64}/',$first
                     );
