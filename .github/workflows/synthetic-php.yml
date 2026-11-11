@@ -69,3 +69,4 @@ jobs:
           php tests/f178-safe-section-anchor-navigation.php
           php tests/f185-canonical-private-package.php
           php tests/f187-combined-layout-revision.php
+          php tests/f190-brand-palette-contrast.php
