@@ -1675,7 +1675,9 @@ Artisan::command(
                     $copy,$product,$preset,$mode,$social
                 );
                 $briefs[$mode]=$expected->draft->brief;
-                if ($physical[$mode]['releaseRef']!==
+                if ($physical[$mode]['tenantRef']!==$expected->draft->manifest->tenantRef ||
+                    $physical[$mode]['siteRef']!==$expected->draft->manifest->siteRef ||
+                    $physical[$mode]['releaseRef']!==
                     $expected->draft->manifest->releaseRef ||
                     !hash_equals(
                         $physical[$mode]['artifactDigest'],

@@ -6,6 +6,10 @@ namespace Tests\Feature;
 
 use Illuminate\Support\Facades\Artisan;
 use Tests\TestCase;
+use Imagine\Sites\Production\SyntheticSeoCopyFixtureV1 as Fixture;
+use Imagine\Sites\Production\SyntheticStructuredDraftAssembly as Draft;
+use Imagine\Sites\Production\SyntheticPrivateReviewPackageV1 as Pack;
+use Imagine\Sites\Production\SyntheticPrivateDraftVerifier as Verifier;
 
 /** F1-227: exact read-only head diff between two private review packages. */
 final class SyntheticSeoCopyPrivateDiffCliTest extends TestCase
@@ -125,6 +129,50 @@ final class SyntheticSeoCopyPrivateDiffCliTest extends TestCase
             }
         }
         self::assertSame(12,$count);
+    }
+
+    public function test_valid_foreign_packages_cannot_replace_expected_scope():void
+    {
+        $copy=json_decode((string)file_get_contents(
+            base_path('../../fixtures/sites/f1-170-process-copy.synthetic.json')
+        ),true,16,JSON_THROW_ON_ERROR);
+        foreach(['default','custom'] as $mode) {
+            self::assertSame(0,$this->export('onepage','classic',$mode,'off'));
+        }
+        foreach(['tenant','site'] as $field) {
+            foreach([['custom'],['default','custom']] as $foreignModes) {
+                $snapshot=[];
+                foreach(['default','custom'] as $mode) {
+                    $expected=Fixture::build($copy,'onepage','classic',$mode,'off');
+                    $foreign=in_array($mode,$foreignModes,true);
+                    $tenant=$foreign && $field==='tenant'?'tenant-other':'tenant-f223';
+                    $site=$foreign && $field==='site'?'site-other':'site-f223';
+                    $draft=Draft::build(
+                        'onepage','Marca Fictícia Imagine','classic',$copy,
+                        $tenant,$site,'workflow-scope-test',
+                        $expected->draft->manifest->releaseRef,
+                        ['highlights','process','faq'],false,null,false,
+                        $expected->draft->brief->seoTitle,
+                        $expected->draft->brief->seoDescription
+                    );
+                    $files=Pack::fromPendingDraft($draft);
+                    self::assertSame($expected->draft->artifact->html,$files['index.html']);
+                    $dir=$this->location('onepage','classic',$mode,'off');
+                    foreach($files as $name=>$bytes) {
+                        self::assertSame(strlen($bytes),file_put_contents($dir.'/'.$name,$bytes));
+                        $snapshot[$dir.'/'.$name]=hash('sha256',$bytes);
+                    }
+                    $proof=Verifier::verifyDirectory($dir);
+                    self::assertSame($tenant,$proof['tenantRef']);
+                    self::assertSame($site,$proof['siteRef']);
+                }
+                self::assertSame(1,$this->compare('onepage','classic','off'));
+                self::assertStringNotContainsString('SEO COPY DIFFERENCE VERIFIED',Artisan::output());
+                foreach($snapshot as $path=>$digest) {
+                    self::assertSame($digest,hash_file('sha256',$path));
+                }
+            }
+        }
     }
 
     public function test_missing_half_and_disabled_gate_are_denied():void
