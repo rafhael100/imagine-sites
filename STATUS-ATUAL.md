@@ -1,5 +1,24 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Correção do comparador SEO — 11/11/2026
+
+Base: F1-227 / PR #259, SHA `cbc0186c85fba06103f4b1eb41f6944d92be10db`.
+O workflow principal [43099356573](https://github.com/rafhael100/imagine-sites/actions/runs/43099356573)
+falhou em PHP 8.3/8.4 no negativo F1-226: a substituição de `<body>` era
+inócua porque o renderer emite `<body data-site-product="…">`.
+
+- O teste passa a alterar a tag existente e exigir exatamente uma alteração,
+  inclusive no negativo de robots, antes de conferir a rejeição.
+- O readback SEO expõe tenant/site já verificados; o comparador exige igualdade
+  desses dois identificadores antes de reportar uma revisão SEO.
+- A matriz de 12 pares inclui pacotes independentes e válidos de outra empresa
+  ou outro site, com HTML idêntico, que devem falhar pelo motivo de escopo exato.
+- Validação da nova branch pendente de CI. PHP não está instalado neste executor.
+  Os resultados anteriores não certificam esta correção.
+
+Branch isolada e PR draft; sem merge em dev/main, deploy ou serviços reais.
+Referências sintéticas não concedem identidade autenticada; gates OP permanecem abertos.
+
 
 ## Continuidade do motor — F1-210 a F1-214 (11/11/2026)
 
