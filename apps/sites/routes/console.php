@@ -1609,3 +1609,106 @@ Artisan::command(
         return Command::SUCCESS;
     }
 )->purpose('Audit a previously exported, nonpublic SEO-copy review without changes');
+
+
+/**
+ * F1-227: read-only comparison of two ALREADY exported SEO copy packages.
+ * Never creates/overwrites a file or sends metadata to public SEO services.
+ */
+Artisan::command(
+    'sites:diff-seo-copy-fixture {product=onepage} {preset=classic} {social=off}',
+    function (): int {
+        if (PHP_SAPI!=='cli' || !app()->environment('testing') ||
+            getenv('GITHUB_ACTIONS')!=='true' ||
+            getenv('SITES_F227_SEO_DIFF')!=='1') {
+            $this->error('SEO copy comparison denied outside fixed CI laboratory.');
+            return Command::FAILURE;
+        }
+        $product=(string)$this->argument('product');
+        $preset=(string)$this->argument('preset');
+        $social=(string)$this->argument('social');
+        if (!in_array($product,['onepage','landing_page'],true) ||
+            !in_array($preset,['classic','modern','warm'],true) ||
+            !in_array($social,['off','on'],true)) {
+            $this->error('Unsupported fixed comparison selectors.');
+            return Command::FAILURE;
+        }
+
+        $fixture=base_path('../../fixtures/sites/f1-170-process-copy.synthetic.json');
+        $root=storage_path('app/private');
+        try {
+            if (!is_file($fixture) || is_link($fixture) ||
+                filesize($fixture)>8192 || !is_dir($root) || is_link($root)) {
+                throw new \DomainException('Expected private SEO fixture not present.');
+            }
+            $copy=json_decode((string)file_get_contents($fixture),
+                true,16,JSON_THROW_ON_ERROR);
+            if (!is_array($copy)) {
+                throw new \DomainException('Fixed SEO copy malformed.');
+            }
+            $files=[];
+            $briefs=[];
+            $physical=[];
+            foreach(['default','custom'] as $mode) {
+                $dir=$root.'/sites-f1-223-'.$product.'-'.$preset.'-'.$mode.'-'.$social;
+                if (!is_dir($dir) || is_link($dir)) {
+                    throw new \DomainException('Missing private SEO comparison half.');
+                }
+                $physical[$mode]=\Imagine\Sites\Production\SyntheticPrivateDraftVerifier::verifyDirectory(
+                    $dir
+                );
+                $files[$mode]=[];
+                foreach([
+                    'index.html','internal-review-dossier.json',
+                    'internal-review-draft.json','release-manifest.json'
+                ] as $name) {
+                    if (!is_file($dir.'/'.$name) || is_link($dir.'/'.$name)) {
+                        throw new \DomainException('Private comparison file unsafe.');
+                    }
+                    $bytes=file_get_contents($dir.'/'.$name);
+                    if (!is_string($bytes)) {
+                        throw new \DomainException('Failed to read a private comparison file.');
+                    }
+                    $files[$mode][$name]=$bytes;
+                }
+                $expected=\Imagine\Sites\Production\SyntheticSeoCopyFixtureV1::build(
+                    $copy,$product,$preset,$mode,$social
+                );
+                $briefs[$mode]=$expected->draft->brief;
+                if ($physical[$mode]['releaseRef']!==
+                    $expected->draft->manifest->releaseRef ||
+                    !hash_equals(
+                        $physical[$mode]['artifactDigest'],
+                        $expected->draft->artifact->digest
+                    )) {
+                    throw new \DomainException('Compared private SEO release not expected.');
+                }
+                $second=\Imagine\Sites\Production\SyntheticPrivateDraftVerifier::verifyDirectory($dir);
+                if ($second!==$physical[$mode]) {
+                    throw new \DomainException('Private comparison changed while reading.');
+                }
+            }
+            $diff=\Imagine\Sites\Production\SyntheticPrivateSeoCopyDiffV1::inspect(
+                $files['default'],$briefs['default'],
+                $files['custom'],$briefs['custom']
+            );
+            if ($diff->changedFields!==['seoTitle','seoDescription'] ||
+                $diff->socialEnabled!==($social==='on') ||
+                !hash_equals($diff->defaultDigest,$physical['default']['artifactDigest']) ||
+                !hash_equals($diff->customDigest,$physical['custom']['artifactDigest']) ||
+                $diff->canPublish() || $diff->canIndex() ||
+                $diff->canApproveForClient() || $diff->canWriteSeoEngine()) {
+                throw new \DomainException('SEO diff could claim unauthorized publication.');
+            }
+        } catch (\Throwable) {
+            $this->error('Private SEO copy comparison denied; no files or index changed.');
+            return Command::FAILURE;
+        }
+        $this->line('F1-227 SEO COPY DIFFERENCE VERIFIED: head only; pending, noindex.');
+        $this->line('Default SHA-256: '.$diff->defaultDigest);
+        $this->line('Custom SHA-256: '.$diff->customDigest);
+        $this->line('Changes: '.implode(',',$diff->changedFields));
+        $this->line('Social metadata: '.$social.'; body unchanged and no publication.');
+        return Command::SUCCESS;
+    }
+)->purpose('Diff two existing fictional SEO-copy review packages without writes');
