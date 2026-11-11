@@ -43,7 +43,7 @@ $forest=Palette::fromHex('#134a36','#1d5a43','#f4fff5','#134a36');
 $startOrder=['highlights','process','faq'];
 $nextOrder=['faq','process','highlights'];
 $total=0;
-$digests=[];
+$visualSignaturesByDigest=[];
 foreach(['onepage','landing_page'] as $product) {
     foreach(['classic','modern','warm'] as $preset) {
         foreach([null,$ocean] as $sourcePalette) {
@@ -113,7 +113,20 @@ foreach(['onepage','landing_page'] as $product) {
                     !$plan->canWriteCrm() &&
                     !$plan->canReusePreviousApproval(),
                     'visual changes never grant Portal, CRM or release authority');
-                $digests[]=$plan->nextArtifact->digest;
+                // Two different previous releases can converge to exactly
+                // the same visual target. That is a valid content-addressed
+                // collision, not a duplicated revision identity.
+                $signature=implode('|',[
+                    $product,$style,$palette?->cssRules()??'default',
+                    implode(',',$order),$nav?'on':'off'
+                ]);
+                $fingerprint=$plan->nextArtifact->digest;
+                if(isset($visualSignaturesByDigest[$fingerprint])) {
+                    check202($visualSignaturesByDigest[$fingerprint]===$signature,
+                        'same HTML digest must represent the same visual target');
+                }else {
+                    $visualSignaturesByDigest[$fingerprint]=$signature;
+                }
             }
             $try=static fn(
                 string $style,
@@ -168,8 +181,8 @@ foreach(['onepage','landing_page'] as $product) {
     }
 }
 check202($total===48,'48 changed presentations enter exactly one new review cycle');
-check202(count(array_unique($digests))===count($digests),
-    'all tested visual presentations must be byte-distinct');
+check202(count($visualSignaturesByDigest)>=18,
+    'composite test covers at least eighteen distinct visual targets');
 check202(deny202(static fn()=>Palette::fromHex(
     '#ffffff','#ffffff','#ffffff','#ffffff'
 )), 'low-contrast palette rejected before composite plan');
