@@ -1834,8 +1834,8 @@ Route::get('/_lab/sites/v1/secondary-cta-review', static function (Request $requ
     }
 
     $query=$request->query();
-    if (count($query)!==4 ||
-        array_diff(array_keys($query),['product','device','preset','cta'])!==[]) {
+    if (!in_array(count($query),[4,5],true) ||
+        array_diff(array_keys($query),['product','device','preset','cta','palette'])!==[]) {
         return response('Not found',404);
     }
     foreach ($query as $value) {
@@ -1845,10 +1845,13 @@ Route::get('/_lab/sites/v1/secondary-cta-review', static function (Request $requ
     $device=$query['device'];
     $preset=$query['preset'];
     $cta=$query['cta'];
+    $paletteCode=$query['palette']??null;
+    $palettes=\Imagine\Sites\Production\SyntheticVisualPresetCatalog::palettes();
     if (!in_array($product,['onepage','landing_page'],true) ||
         !in_array($device,['desktop','mobile'],true) ||
         !in_array($preset,['classic','modern','warm'],true) ||
-        !in_array($cta,['off','on'],true)) {
+        !in_array($cta,['off','on'],true) ||
+        ($paletteCode!==null && !array_key_exists($paletteCode,$palettes))) {
         return response('Not found',404);
     }
 
@@ -1866,16 +1869,22 @@ Route::get('/_lab/sites/v1/secondary-cta-review', static function (Request $requ
             count($copy['processSteps']??[])!==3) {
             return response('Not found',404);
         }
+        // F1-261: palette belongs to an allowlisted editor control, never
+        // a client/AI-provided CSS string or arbitrary URL parameter.
+        $palette=$paletteCode===null?null:$palettes[$paletteCode];
+        $sourceSuffix=$paletteCode===null?'':'-palette-'.$paletteCode;
         $args=[$product,'Marca Fictícia Imagine',$preset,$copy,
             'tenant-f254-fictional','site-f254-fictional'];
         $off=\Imagine\Sites\Production\SyntheticStructuredDraftAssembly::build(
-            ...[...$args,'workflow-f254-'.$product.'-'.$preset.'-off',
-                'release-f254-'.$product.'-'.$preset.'-off'],
+            ...[...$args,'workflow-f254-'.$product.'-'.$preset.$sourceSuffix.'-off',
+                'release-f254-'.$product.'-'.$preset.$sourceSuffix.'-off'],
+            officialBrandPalette:$palette,
             officialSecondaryCallToAction:false
         );
         $on=\Imagine\Sites\Production\SyntheticStructuredDraftAssembly::build(
-            ...[...$args,'workflow-f254-'.$product.'-'.$preset.'-on',
-                'release-f254-'.$product.'-'.$preset.'-on'],
+            ...[...$args,'workflow-f254-'.$product.'-'.$preset.$sourceSuffix.'-on',
+                'release-f254-'.$product.'-'.$preset.$sourceSuffix.'-on'],
+            officialBrandPalette:$palette,
             officialSecondaryCallToAction:true
         );
         $draft=$cta==='on'?$on:$off;
@@ -1920,6 +1929,7 @@ Route::get('/_lab/sites/v1/secondary-cta-review', static function (Request $requ
             'galleryMode'=>false,
             'reviewRoute'=>'/_lab/sites/v1/secondary-cta-review',
             'ctaMode'=>$cta,
+            'ctaPaletteCode'=>$paletteCode,
             'ctaDigestOff'=>$off->artifact->digest,
             'ctaDigestOn'=>$on->artifact->digest,
             'ctaEvidenceDigest'=>$ctaEvidence->recordDigest,
