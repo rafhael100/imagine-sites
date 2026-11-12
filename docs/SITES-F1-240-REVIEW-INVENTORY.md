@@ -49,3 +49,7 @@ Atualizar inventário local Git completo e o SHA a partir do candidato de integr
 ## Renovação F1-274 — 12/11/2026
 
 Recalcular diff Git completo na branch de integração F1-274 com base `dev` SHA `71b8ffe51139d0e70ed32591b07f295fb7bf5fe3`. O inventário F1-273 de 693 arquivos/195 sensíveis é histórico e deve ser substituído somente por novo resultado desta branch. Incluir arquivo de auditoria FAQ, teste negativo e CI.
+
+## Atualização F1-275 — 12/11/2026
+
+Novo candidato com endurecimento de gramática da seção FAQ. Recalcular no HEAD da integração F1-275 a lista Git completa de arquivos e caminhos sensíveis contra `dev` `71b8ffe51139d0e70ed32591b07f295fb7bf5fe3`. Os 697 arquivos e 196 caminhos de #322 são históricos e não provam o novo HEAD. Dez gates ainda bloqueados.
