@@ -1,5 +1,14 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuação F1-291 — capturas reais do shell Imagine em Chromium — 12/11/2026
+
+- F1-290/PR #354: aplicação dos tokens laranja/grafite do Portal Node e logo original no painel interno, sem mudar as prévias de clientes. O CI revelou e motivou correções de contraste sobre fundo cinza e teste que agora permite apenas a imagem oficial com src local.
+- F1-291: exportação privativa de HTML fictício via Laravel in-process com flag de GitHub Actions, screenshot real Chromium CDP em desktop (1365), tablet (820), mobile (390) e tela estreita (320); verificação de noindex, sandbox, logo real, origem local, responsividade e ausência de formulários/scripts.
+- Capturas e relatório SHA são artefatos temporários GitHub Actions, não material publicável; CI e revisão visual humana do novo HEAD ainda necessárias.
+- Dez gates BLOCKED, nenhuma promoção a dev/main, Cloudflare/DNS, VPS, CRM real, dados privados ou gastos.
+
+---
+
 ## Continuação F1-290 — identidade visual Portal Node na interface interna — 12/11/2026
 
 - Issue #351: identidade de painel de revisão Laravel com tokens oficiais do Portal PR #589 (laranja `#F9941D`, grafite `#171B19`, branco e cinza-claro), sem redesenho dos sites dos clientes.
