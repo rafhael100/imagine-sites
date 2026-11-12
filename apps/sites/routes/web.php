@@ -1879,9 +1879,15 @@ Route::get('/_lab/sites/v1/secondary-cta-review', static function (Request $requ
             officialSecondaryCallToAction:true
         );
         $draft=$cta==='on'?$on:$off;
+        $ctaEvidence=\Imagine\Sites\Production\SyntheticSecondaryCtaChangeEvidenceV1::between($off,$on);
         $dossier=\Imagine\Sites\Production\SyntheticInternalReviewDossier::fromDraft($draft);
         $summary=$draft->reviewSummary();
-        if (hash_equals($off->artifact->digest,$on->artifact->digest) ||
+        if (!$ctaEvidence->stillMatches($off,$on) ||
+            $ctaEvidence->canPublish() ||
+            $ctaEvidence->canApproveForClient() ||
+            $ctaEvidence->canWriteCrm() ||
+            $ctaEvidence->canReuseApproval() ||
+            hash_equals($off->artifact->digest,$on->artifact->digest) ||
             $off->brief->secondaryCallToAction ||
             !$on->brief->secondaryCallToAction ||
             !\Imagine\Sites\Production\InertPreviewAudit::isSafe($off->artifact->html) ||
@@ -1904,6 +1910,8 @@ Route::get('/_lab/sites/v1/secondary-cta-review', static function (Request $requ
             'ctaMode'=>$cta,
             'ctaDigestOff'=>$off->artifact->digest,
             'ctaDigestOn'=>$on->artifact->digest,
+            'ctaEvidenceDigest'=>$ctaEvidence->recordDigest,
+            'ctaEvidenceRecord'=>$ctaEvidence->record,
             'brief'=>$draft->brief,
             'previewHtml'=>$draft->artifact->html,
             'digest'=>$draft->artifact->digest,
