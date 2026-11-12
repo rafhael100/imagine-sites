@@ -37,3 +37,7 @@ Nova branch de integração para F1-264/265: recomputar inventário Git completo
 ## Atualização F1-267 — 12/11/2026
 
 Reexecutar o inventário completo no HEAD do candidato F1-267, depois da correção de inicialização Chrome e da ampliação dos controles de deploy. Não reutilizar quantidades ou SHA do PR #309. Base `dev` inalterada: `71b8ffe51139d0e70ed32591b07f295fb7bf5fe3`. Dez gates bloqueados.
+
+## Revisão F1-269 — 12/11/2026
+
+Atualizar o inventário completo no HEAD do candidato F1-269. A referência 672 caminhos/189 sensíveis pertence exclusivamente ao PR #312 e não descreve os arquivos F1-268/269; recalcular o diff Git inteiro contra `dev` SHA `71b8ffe51139d0e70ed32591b07f295fb7bf5fe3`. Sem autorização de merge ou produção.
