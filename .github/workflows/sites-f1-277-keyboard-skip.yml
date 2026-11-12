@@ -1,0 +1,43 @@
+name: Sites F1-277 optional keyboard skip link (offline)
+on:
+  pull_request:
+    paths:
+      - 'src/Production/SiteBrief.php'
+      - 'src/Production/SyntheticStructuredDraftAssembly.php'
+      - 'src/Production/StaticSiteRenderer.php'
+      - 'src/Production/InertPreviewAudit.php'
+      - 'tests/f277-keyboard-skip-link.php'
+      - '.github/workflows/sites-f1-277-keyboard-skip.yml'
+permissions:
+  contents: read
+jobs:
+  keyboard-skip-php:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring,dom,xml
+          tools: none
+          coverage: none
+      - name: Assert exact keyboard skip semantics and original bytes
+        run: |
+          set -euo pipefail
+          php -l src/Production/SiteBrief.php
+          php -l src/Production/StaticSiteRenderer.php
+          php -l src/Production/InertPreviewAudit.php
+          php -l tests/f277-keyboard-skip-link.php
+          php tests/f39-qa-report.php
+          php tests/f27-offline-preview-audit.php
+          php tests/f277-keyboard-skip-link.php
+      - name: Scope
+        if: always()
+        run: echo 'Fictitious HTML only, no customer, signup, JS, remote links, CRM, secrets, publishing, or deploy.'
