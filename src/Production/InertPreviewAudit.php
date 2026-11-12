@@ -32,8 +32,9 @@ final class InertPreviewAudit
             'html'=>true, 'head'=>true, 'meta'=>true, 'title'=>true,
             'style'=>true, 'body'=>true, 'header'=>true, 'div'=>true,
             'span'=>true, 'nav'=>true, 'a'=>true, 'main'=>true,
-            'section'=>true, 'h1'=>true, 'h2'=>true, 'p'=>true,
-            'ul'=>true, 'li'=>true, 'footer'=>true,
+            'section'=>true, 'h1'=>true, 'h2'=>true, 'h3'=>true, 'p'=>true,
+            'ul'=>true, 'ol'=>true, 'li'=>true, 'footer'=>true,
+            'details'=>true, 'summary'=>true,
         ];
         $meta = [];
         $links = [];
@@ -47,6 +48,13 @@ final class InertPreviewAudit
             }
             $name = strtolower($match[2]);
             if (!isset($allowed[$name])) return ['active_or_unknown_element'];
+            // Native FAQ disclosure uses exactly attribute-free semantic tags.
+            // Do not accept open-by-default, toggles or injected attributes.
+            if (in_array($name,['details','summary'],true) &&
+                !in_array($tag,['<details>','</details>',
+                    '<summary>','</summary>'],true)) {
+                return ['unsafe_faq_disclosure_attributes'];
+            }
             if (preg_match('/\s(?:on[a-z]+|src|srcset|style|action|formaction|target|ping|download)\s*=/i', $tag)) {
                 return ['active_or_external_attribute'];
             }
@@ -70,18 +78,102 @@ final class InertPreviewAudit
             return ['invalid_preview_structure'];
         }
 
-        // Require exactly the five metadata tags of the safe renderer, in order.
-        // In particular, reject a second robots tag and any meta refresh.
+        // F1-274: the basic bundle auditor must also deny misplaced or
+        // noncanonical FAQ disclosures. The semantic DOM QA is performed
+        // separately; bundle verification uses this audit directly, so a
+        // recomputed SHA-256 must not bypass this structural boundary.
+        $faqDetails=substr_count($html,'<details>');
+        $faqSummaries=substr_count($html,'<summary>');
+        if ($faqDetails>0 || $faqSummaries>0 ||
+            str_contains($html,'</details>') ||
+            str_contains($html,'</summary>')) {
+            $faqStart='<section class="faq" id="perguntas" aria-labelledby="faq-title">';
+            $sectionMatches=preg_match_all(
+                '~'.preg_quote($faqStart,'~').'(.*?)</section>~s',
+                $html,$faqSections
+            );
+            if ($faqDetails<1 || $faqDetails>6 ||
+                $faqDetails!==$faqSummaries ||
+                substr_count($html,'</details>')!==$faqDetails ||
+                substr_count($html,'</summary>')!==$faqSummaries ||
+                $sectionMatches!==1) {
+                return ['noncanonical_faq_disclosure_inventory'];
+            }
+            $body=$faqSections[1][0];
+            // F1-275: enforce the complete renderer FAQ shell, not only the
+            // number of rows. Inserting extra inert divs, paragraphs or
+            // headings must not become a valid rehashed release bundle.
+            $prefix="\n      <div class=\"container\">\n".
+                "        <h2 id=\"faq-title\">Perguntas frequentes</h2>\n".
+                "        <ul>\n";
+            $suffix="\n        </ul>\n      </div>\n    ";
+            if (!str_starts_with($body,$prefix) ||
+                !str_ends_with($body,$suffix) ||
+                strlen($body)<=strlen($prefix)+strlen($suffix)) {
+                return ['noncanonical_faq_section_shell'];
+            }
+            $rowsBytes=substr($body,strlen($prefix),
+                strlen($body)-strlen($prefix)-strlen($suffix));
+            $rowsLines=explode("\n",$rowsBytes);
+            if (count($rowsLines)!==$faqDetails) {
+                return ['noncanonical_faq_row_inventory'];
+            }
+            foreach($rowsLines as $line) {
+                if (!preg_match(
+                    '~\A          <li><details><summary>[^<>]+</summary><p>[^<>]+</p></details></li>\z~D',
+                    $line
+                )) {
+                    return ['noncanonical_faq_row_shell'];
+                }
+            }
+            $rows=preg_match_all(
+                '~<li><details><summary>[^<>]+</summary><p>[^<>]+</p></details></li>~',
+                $body,$exactRows
+            );
+            // Every FAQ list item must have one summary and one paragraph;
+            // no loose, nested or cross-section disclosure elements.
+            if ($rows!==$faqDetails ||
+                substr_count($body,'<li>')!==$faqDetails ||
+                substr_count($body,'</li>')!==$faqDetails ||
+                substr_count($body,'<details>')!==$faqDetails ||
+                substr_count($body,'<summary>')!==$faqSummaries ||
+                substr_count($body,'<h3>')!==0 ||
+                substr_count($html,'.faq details { width: 100%; }')!==1 ||
+                substr_count($html,'.faq summary:focus-visible { outline: 3px solid #2366bc; outline-offset: 3px; }')!==1) {
+                return ['noncanonical_faq_disclosure_structure'];
+            }
+        }
+
+        // The previous five metadata tags remain mandatory and unchanged.
+        // F1-206 optionally adds EXACTLY seven fixed Open Graph/Twitter
+        // text-only tags. Extra robots/referrer/refresh/URLs are still denied.
         $expectedCsp = '<meta http-equiv="Content-Security-Policy" content="default-src '.
             "'none'; style-src 'unsafe-inline'; img-src 'self' data:; ".
             "base-uri 'none'; form-action 'none'; object-src 'none'\">";
-        if (count($meta) !== 5 ||
+        if (!in_array(count($meta),[5,12],true) ||
             $meta[0] !== '<meta charset="utf-8">' ||
             $meta[1] !== '<meta name="viewport" content="width=device-width, initial-scale=1">' ||
-            !preg_match('/\A<meta name="description" content="[^"<>]*">\z/D', $meta[2]) ||
+            !preg_match('/\A<meta name="description" content="([^"<>]*)">\z/D',
+                $meta[2],$baseDescription) ||
             $meta[3] !== '<meta name="robots" content="noindex, nofollow">' ||
             $meta[4] !== $expectedCsp) {
             return ['unsafe_or_modified_metadata'];
+        }
+        if (count($meta)===12) {
+            if ($meta[5]!=='<meta property="og:type" content="website">' ||
+                $meta[6]!=='<meta property="og:locale" content="pt_BR">' ||
+                !preg_match('/\A<meta property="og:title" content="([^"<>]*)">\z/D',
+                    $meta[7],$socialTitle) ||
+                $meta[8]!=='<meta property="og:description" content="'.
+                    $baseDescription[1].'">' ||
+                $meta[9]!=='<meta name="twitter:card" content="summary">' ||
+                $meta[10]!=='<meta name="twitter:title" content="'.
+                    $socialTitle[1].'">' ||
+                $meta[11]!=='<meta name="twitter:description" content="'.
+                    $baseDescription[1].'">' ||
+                !str_contains($html,'<title>'.$socialTitle[1].'</title>')) {
+                return ['unsafe_or_modified_social_metadata'];
+            }
         }
 
         foreach ($links as $link) {
@@ -89,6 +181,11 @@ final class InertPreviewAudit
                 '<a href="#beneficios">',
                 '<a href="#sobre">',
                 '<a class="btn" href="#contato">',
+                '<a class="btn secondary-cta" href="#contato">',
+                '<a class="skip-to-main" href="#principal">',
+                '<a href="#solucoes">',
+                '<a href="#etapas">',
+                '<a href="#perguntas">',
             ], true)) {
                 return ['nonlocal_navigation'];
             }
