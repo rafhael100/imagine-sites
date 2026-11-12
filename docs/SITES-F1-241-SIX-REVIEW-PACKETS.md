@@ -46,3 +46,7 @@ Regerar seis pacotes com os hashes do inventário F1-240 desta integração. Inc
 ## Renovação F1-274 — 12/11/2026
 
 Regerar os seis pacotes usando hashes do inventário F1-240 deste candidato. A revisão AppSec do pacote de HTML deve inspecionar também a nova gramática FAQ de `InertPreviewAudit`, os testes de manifesto recomputado e a defesa em profundidade de `SyntheticPreviewQaReport`. Não autoriza merge nem produção.
+
+## Atualização F1-275 — 12/11/2026
+
+Regerar os seis pacotes do diff F1-240 deste SHA e incluir o código de `InertPreviewAudit`, o novo teste de gramática exata e todas as verificações do pacote QA. São evidências para revisores independentes, nunca autorização para merge, release ou produção.
