@@ -1,0 +1,39 @@
+name: Sites F1-51 static design presets - synthetic PHP
+on:
+  pull_request:
+    paths:
+      - 'src/Production/SiteBrief.php'
+      - 'src/Production/StaticSiteRenderer.php'
+      - 'tests/f51-style-presets.php'
+      - '.github/workflows/sites-f1-51-style-presets.yml'
+      - 'docs/SITES-F1-51-STYLE-PRESETS.md'
+permissions:
+  contents: read
+jobs:
+  offline-design:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          extensions: mbstring
+          coverage: none
+      - name: Syntax of preset implementation and safety suite
+        run: |
+          php -l src/Production/SiteBrief.php
+          php -l src/Production/StaticSiteRenderer.php
+          php -l tests/f51-style-presets.php
+      - name: Exercise all six static preview/theme combinations and anti-injection
+        run: php tests/f51-style-presets.php
+      - name: Explicit nonpublishable scope
+        if: always()
+        run: echo "Theme variants only on synthetic HTML, without provider, client assets, web hosting, CRM, or public DNS."

@@ -1,0 +1,64 @@
+name: Sites F1-163 real Chrome QA of Laravel rich review gallery
+on:
+  pull_request:
+    paths:
+      - 'ci/f163_rich_gallery_cdp.py'
+      - 'apps/sites/routes/console.php'
+      - 'apps/sites/routes/web.php'
+      - 'apps/sites/resources/views/labs/review.blade.php'
+      - '.github/workflows/sites-f1-163-rich-gallery-chrome.yml'
+permissions:
+  contents: read
+jobs:
+  real-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      APP_ENV: testing
+      SITES_SYNTHETIC_HTTP: '1'
+      SITES_SYNTHETIC_REVIEW_UI: '1'
+      SITES_SYNTHETIC_RICH_REVIEW: '1'
+      SITES_SYNTHETIC_RICH_EXPORT: '1'
+      SITES_SYNTHETIC_EXPORT: '0'
+      SITES_SYNTHETIC_STYLE_EXPORT: '0'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring,xml,dom,curl,pdo,pdo_pgsql
+          tools: composer:v2
+          coverage: none
+      - name: Lint Python and Laravel export command
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ci/f163_rich_gallery_cdp.py ci/f43_cdp.py ci/f44_contrast.py
+          php -l apps/sites/routes/console.php
+      - name: Install locked Laravel fixture dependencies without scripts
+        working-directory: apps/sites
+        run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
+      - name: Export exactly twelve immutable rich Laravel review pages offline
+        working-directory: apps/sites
+        run: |
+          set -euo pipefail
+          php artisan sites:export-rich-gallery-fixture
+          test -f storage/app/private/sites-f1-162-rich-gallery/gallery-manifest.json
+      - name: Inspect outer UI and exact sandboxed HTML with real Chromium
+        run: |
+          set -euo pipefail
+          browser=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
+          if test -z "$browser"; then
+            echo "Preinstalled Chromium unavailable: do not install new software." >&2
+            exit 1
+          fi
+          "$browser" --version
+          python3 ci/f163_rich_gallery_cdp.py \
+            apps/sites/storage/app/private/sites-f1-162-rich-gallery "$browser"
+      - name: Destroy local gallery and ephemeral Python bytecode
+        if: always()
+        run: |
+          rm -rf apps/sites/storage/app/private/sites-f1-162-rich-gallery
+          rm -rf ci/__pycache__
+          echo "Fictional review content and browser traces were not published."

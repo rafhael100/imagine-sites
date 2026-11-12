@@ -1,7 +1,11 @@
 name: Sites Engine - testes sinteticos (sem deploy)
 on:
   push:
+    branches: [main]
   pull_request:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -20,7 +24,7 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
           tools: none
-          extensions: mbstring
+          extensions: mbstring,dom,xml
           coverage: none
       - name: PHP syntax
         run: |
@@ -42,3 +46,61 @@ jobs:
           php tests/f29-structured-copy.php
           php tests/f30-ai-credit-quota.php
           php tests/f31-portal-handoff.php
+          php tests/f39-qa-report.php
+          php tests/f45-review-handoff-envelope.php
+          php tests/f48-current-portal-authority.php
+          php tests/f50-review-epoch.php
+          php tests/f51-style-presets.php
+          php tests/f54-style-revision.php
+          php tests/f55-crm-lead-preflight.php
+          php tests/f130-crm-binding-epoch-preflight.php
+          php tests/f63-editorial.php
+          php tests/f68-content-revision.php
+          php tests/f71-structured-draft.php
+          php tests/f75-canonical-bundle.php
+          php tests/f76-internal-review-evidence.php
+          php tests/f77-review-dossier.php
+          php tests/f89-loopback-served-artifact.php
+          php tests/f102-portal-project-snapshot.php
+          php tests/f109-portal-auth-schema-parity.php
+          php tests/f169-process-steps-copy-v4.php
+          php tests/f171-editorial-patch.php
+          php tests/f175-static-section-order.php
+          php tests/f178-safe-section-anchor-navigation.php
+          php tests/f185-canonical-private-package.php
+          php tests/f187-combined-layout-revision.php
+          php tests/f204-visual-preset-catalog.php
+          php tests/f205-composite-visual-private-package.php
+          php tests/f206-social-preview-metadata.php
+          php tests/f207-social-preview-revision.php
+          php tests/f209-composite-social-private-package.php
+          php tests/f210-social-card-inspection.php
+          php tests/f211-private-social-card-readback.php
+          php tests/f213-visual-review-export-parity.php
+          php tests/f215-seo-snippet-inspection.php
+          php tests/f217-private-seo-readback.php
+          php tests/f218-seo-social-parity.php
+          php tests/f220-editorial-seo-copy.php
+          php tests/f221-seo-copy-revision.php
+          php tests/f224-seo-copy-review-export-parity.php
+          php tests/f226-private-seo-copy-diff.php
+          php tests/f228-private-seo-change-evidence.php
+          php tests/f231-seo-cross-channel-provenance.php
+          php tests/f232-pg-migration-target-fence.php
+          php tests/f235-portal-editorial-handoff-consumer.php
+          php tests/f247-direct-brief-text-safety.php
+          php tests/f249-nav-touch-targets.php
+          php tests/f253-secondary-local-cta.php
+          php tests/f256-cta-comparison-evidence.php
+          php tests/f257-cta-private-package-parity.php
+          php tests/f260-branded-secondary-cta.php
+          php tests/f262-contact-privacy-preflight.php
+          php tests/f263-contact-crm-admission.php
+          php tests/f157-static-faq-content.php
+          php tests/f270-faq-native-disclosure.php
+          php tests/f271-faq-disclosure-revision.php
+          php tests/f274-faq-bundle-fence.php
+          php tests/f190-brand-palette-contrast.php
+          php tests/f200-layout-change-evidence.php
+          php tests/f202-composite-visual-revision.php
+          python3 ci/f214_social_regression_contract.py

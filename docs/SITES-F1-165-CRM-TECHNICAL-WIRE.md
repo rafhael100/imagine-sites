@@ -1,0 +1,9 @@
+# F1-165 — Preparação de requisição técnica assinada, com contrato real do CRM
+
+O Sites já verificava em F1-150 o reconhecimento pelo CRM F3-48 de uma assinatura HMAC construída manualmente no teste. A F1-165 transforma a construção da assinatura em um objeto de domínio PHP reutilizável, **estritamente de laboratório**, o SyntheticCrmTechnicalHandoffV1.
+
+A classe serializa os oito campos técnicos do CRM imagine.lead-intake v1, preservando a ordem do contrato. Constrói authentication com issued_at, expires_at, nonce UUIDv4 e mac HMAC-SHA256, com domínios distintos para deliver e lookup. Impõe janela máxima de cinco minutos, tolerância de 30 segundos para emissão futura, controle do tamanho da mensagem e rejeição de operações/valores não previstos.
+
+Segurança: o método somente executa sob PHP CLI, APP_ENV=testing, GITHUB_ACTIONS=true e SITES_F165_SYNTHETIC_AUTH=1. Usa chave **pública e fictícia** embutida na classe, nunca uma credencial ou variável secreta. Não conhece vínculo independente, não gerencia a rotação de chaves, não possui nonce store, não realiza HTTP, não transporta dados pessoais, não registra consentimento e não recebe confirmação CRM. Todas as permissões operacionais são false, inclusive autenticar serviço, aceitar lead, devolver ACK ou marcar entregue. Um MAC que o CRM parseia não prova que o Portal autorizou a requisição.
+
+A suíte f165-crm-technical-handoff-wire-parity.php usa o **código PHP real fixado** no commit CRM F3-49 0ee32ec1268047a52b5429622fb5f34716f818ae, validado em PHP 8.3/8.4. Exercita os dois domínios e nega MAC cruzado, alteração de submissão ou destino, janela vencida, nonce inválido e ambiente sem flags. Mantém regressão F1-150. Não constitui integração de produção: OP04 #36, AppSec, consentimento, duas captações independentes e todos os gates continuam pendentes. Não há deploy nem custo.

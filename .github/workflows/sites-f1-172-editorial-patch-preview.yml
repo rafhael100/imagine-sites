@@ -1,0 +1,46 @@
+name: Sites F1-172 in-process Laravel editorial before/after review
+on:
+  pull_request:
+    paths:
+      - 'apps/sites/routes/web.php'
+      - 'apps/sites/resources/views/labs/review.blade.php'
+      - 'apps/sites/tests/Feature/SyntheticEditorialPatchPreviewTest.php'
+      - '.github/workflows/sites-f1-172-editorial-patch-preview.yml'
+permissions:
+  contents: read
+jobs:
+  immutable-editorial-preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring,dom,xml,curl,pdo,pdo_pgsql
+          tools: composer:v2
+          coverage: none
+      - name: Lint private Laravel review and new test
+        run: |
+          set -euo pipefail
+          php -l apps/sites/routes/web.php
+          php -l apps/sites/tests/Feature/SyntheticEditorialPatchPreviewTest.php
+      - name: Install test dependencies from committed lock
+        working-directory: apps/sites
+        run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
+      - name: Verify guarded patch review and old UI regressions
+        working-directory: apps/sites
+        env:
+          APP_ENV: testing
+        run: |
+          set -euo pipefail
+          php artisan test --filter='(SyntheticEditorialPatchPreviewTest|SyntheticProcessReviewComparisonTest|SyntheticRichReviewComparisonTest|SyntheticRichReviewUiTest)' --no-ansi
+      - name: Scope
+        if: always()
+        run: echo "Fictional content only; no public editor, real clients, IAM, CRM, publishing, storage or deploy."
