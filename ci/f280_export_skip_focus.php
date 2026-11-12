@@ -18,7 +18,7 @@ if (!is_string($temp) || $temp==='' || !is_dir($temp) ||
     is_link($source) || filesize($source)>8192) {
     throw new RuntimeException('F1-280 fixture path unavailable.');
 }
-$destination=$temp.'/sites-f280-native-faq.json';
+$destination=$temp.'/sites-f280-skip-focus.json';
 if (file_exists($destination) || is_link($destination)) {
     throw new RuntimeException('F1-280 refuses existing preview file.');
 }
