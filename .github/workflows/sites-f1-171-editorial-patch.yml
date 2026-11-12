@@ -1,0 +1,39 @@
+name: Sites F1-171 constrained Imagine editorial patch and review reset
+on:
+  pull_request:
+    paths:
+      - 'src/Production/SyntheticEditorialPatchV1.php'
+      - 'tests/f171-editorial-patch.php'
+      - '.github/workflows/sites-f1-171-editorial-patch.yml'
+permissions:
+  contents: read
+jobs:
+  editor-patch-review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring,dom
+          tools: none
+          coverage: none
+      - name: Lint patch and source review classes
+        run: |
+          set -euo pipefail
+          php -l src/Production/SyntheticEditorialPatchV1.php
+          php -l tests/f171-editorial-patch.php
+      - name: Patch comparison, immutable copy and adversarial tests
+        run: |
+          set -euo pipefail
+          php tests/f171-editorial-patch.php
+          php tests/f68-content-revision.php
+          php tests/f169-process-steps-copy-v4.php
+          echo "Pure editorial proposal with fictional copy. No live editor, customer data, approval or publication."
