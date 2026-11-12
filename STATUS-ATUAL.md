@@ -1,5 +1,17 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Retomada de integração técnica — F1-235 a F1-239 (11/11/2026)
+
+**Cinco entregas novas verificadas sem pausa por aprovação intermediária:**
+- [#270](https://github.com/rafhael100/imagine-sites/pull/270), F1-235: contrato F48 do Portal consumido pelo Sites — 7/7 CI;
+- [#271](https://github.com/rafhael100/imagine-sites/pull/271), F1-236: classe PHP real do Portal F48 validada em PHP 8.3/8.4 contra consumidor Sites — 5/5 CI;
+- [#272](https://github.com/rafhael100/imagine-sites/pull/272), F1-237: cache real com Nginx/PHP-FPM em rede isolada — 5/5 CI;
+- [#273](https://github.com/rafhael100/imagine-sites/pull/273), F1-238: seis páginas HTML demonstrativas completas, com manifesto, noindex e checksums; artifact disponível no [run 43136612542](https://github.com/rafhael100/imagine-sites/actions/runs/43136612542) — 6/6 CI;
+- [#274](https://github.com/rafhael100/imagine-sites/pull/274), F1-239: doze screenshots reais desktop/mobile no Chromium, com manifesto e artifact temporário no [run 43137073718](https://github.com/rafhael100/imagine-sites/actions/runs/43137073718) — 5/5 CI.
+
+**Candidato novo de integração:** base `dev` `71b8ffe`, fonte `ba5d5ed`, 943 commits à frente e 0 atrás na comparação inicial. Documento: `docs/SITES-F1-239-DEV-INTEGRATION-REVIEW-2026-11-11.md`. Os PRs continuam draft, sem merges/deploy. Os testes de demo não equivalem a Portal IAM, aceite real, publicação, CDN, backup, CRM/captação, ou go-live.
+
+
 ## Integração, correções de segurança e prova HTTP — 11/11/2026
 
 - [PR #266](https://github.com/rafhael100/imagine-sites/pull/266): candidato de integração da cadeia F1-38..231 para **revisão em `dev`**, não mesclado. No head `9da3fd7ba27a878c16e671577f86b4485ae7724f`, **83 workflows CI aprovados**.
