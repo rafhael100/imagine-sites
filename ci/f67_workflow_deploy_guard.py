@@ -16,6 +16,15 @@ PROHIBITED = (
     (r"\bgh\s+(?:workflow\s+run|release\s+create)\b", "workflow/release mutation"),
     (r"\buses:\s*(?:cloudflare/pages-action|cloudflare/wrangler-action|peaceiris/actions-gh-pages|JamesIves/github-pages-deploy-action)@", "publishing action"),
     (r"\b(?:deployments|pages|id-token):\s*write\b", "write-level deployment permission"),
+    # F1-267: other documented Wrangler deployment variants, command
+    # runners and production infrastructure mutations. A regex scanner
+    # cannot establish safety of arbitrary shell scripts: manual AppSec stays
+    # required for every CI/workflow change.
+    (r"\b(?:npx(?:\s+--yes)?|pnpm\s+(?:exec|dlx)|yarn\s+dlx|bunx)\s+wrangler\s+(?:deploy|publish|pages\s+(?:deploy|deployment\s+create)|versions\s+(?:upload|deploy)|triggers\s+deploy)\b", "wrapped Cloudflare deploy"),
+    (r"\bwrangler\s+(?:versions\s+(?:upload|deploy)|triggers\s+deploy|pages\s+deployment\s+create)\b", "Cloudflare alternative deploy"),
+    (r"\bwrangler\s+(?:--(?:env|config|name)\s+\S+\s+){1,4}(?:deploy|publish)\b", "flagged Cloudflare deploy"),
+    (r"\b(?:terraform\s+(?:apply|destroy)|pulumi\s+up|gcloud\s+run\s+deploy|aws\s+s3\s+sync|docker\s+push)\b", "infrastructure or artifact mutation"),
+    (r"\b(?:actions|contents|packages):\s*write\b", "write-level repository permission"),
 )
 CHECKS = [(re.compile(p, re.IGNORECASE), description) for p, description in PROHIBITED]
 
@@ -41,6 +50,17 @@ def self_test() -> None:
         "uses: peaceiris/actions-gh-pages@v4",
         "permissions:\n  pages: write",
         "permissions:\n  id-token: write",
+        "run: pnpm exec wrangler deploy",
+        "run: npx --yes wrangler pages deploy ./dist",
+        "run: wrangler versions upload",
+        "run: wrangler versions deploy",
+        "run: wrangler triggers deploy",
+        "run: wrangler pages deployment create",
+        "run: wrangler --env production deploy",
+        "run: terraform apply",
+        "run: pulumi up",
+        "run: docker push example.invalid/image:latest",
+        "permissions:\\n  actions: write",
     ]
     for sample in bad:
         assert scan(sample), f"missed dangerous workflow fixture: {sample}"
@@ -49,6 +69,8 @@ def self_test() -> None:
         "uses: actions/checkout@v4",
         "permissions:\n  contents: read",
         "run: php -v",
+        "run: node --test ci/f265_edge_signature.test.mjs",
+        "run: python3 ci/f67_workflow_deploy_guard.py",
     ]
     for sample in safe:
         assert not scan(sample), f"incorrectly denied a known safe fixture: {sample}"
@@ -59,6 +81,8 @@ def main() -> None:
     files = sorted(WORKFLOWS.glob("*.yml")) + sorted(WORKFLOWS.glob("*.yaml"))
     assert files, "missing workflow inventory"
     for file in files:
+        if not file.is_file() or file.is_symlink():
+            raise AssertionError(f"{file.relative_to(ROOT)}: unsafe workflow path")
         reasons = scan(file.read_text(encoding="utf-8"))
         if reasons:
             raise AssertionError(f"{file.relative_to(ROOT)}: forbidden: {', '.join(reasons)}")
