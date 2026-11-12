@@ -1,5 +1,15 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuação F1-275 — 12/11/2026
+
+- F1-275 / PR #323: gramática exata da seção FAQ (incluindo o contêiner e linhas, não apenas contagem de tags), com rehash malicioso recusado; workflow específico de PHP aprovado.
+- Candidato anterior F1-274 / PR #322: **106/106 workflows PASS**, 697 arquivos e 196 caminhos de revisão independente distribuídos em seis pacotes F1-241.
+- Novo candidato F1-275 em `integration/sites-f1-275-dev-review-candidate-2026-11-12` exige auditoria do próprio SHA e revisão independente; os números de #322 são históricos.
+- `dev/main` intactas, issue #281 sem proteção administrativa; dez gates `BLOCKED`, sem merge/deploy/cliente/CRM/domínio/credenciais.
+
+---
+
+
 ## Continuação F1-274 — 12/11/2026
 
 - F1-270–F1-273: FAQ expansível nativa, revisão isolada, Laravel e prova de teclado Chrome; candidato #320 **105/105 CI PASS**, inventário F1-240 693 caminhos/195 sensíveis em seis lotes F1-241.
