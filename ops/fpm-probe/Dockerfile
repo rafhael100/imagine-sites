@@ -27,8 +27,13 @@ WORKDIR /workspace/apps/sites
 ENV APP_ENV=testing APP_DEBUG=false SITES_SYNTHETIC_HTTP=1 \
     SITES_SYNTHETIC_REVIEW_UI=1 SITES_SYNTHETIC_RICH_REVIEW=1 \
     SITES_F222_SEO_COPY_REVIEW=1
-RUN php artisan route:cache \
-    && php artisan route:list --json | grep -q '_lab/sites/v1/create-project'
+RUN php -r 'echo "F237 build PHP SAPI=",PHP_SAPI,", env=",getenv("APP_ENV"),", flag=",getenv("SITES_SYNTHETIC_HTTP"),"\\n";' \
+    && php artisan route:list --json > /tmp/f237-routes-before.json \
+    && (grep -q '_lab/sites/v1/create-project' /tmp/f237-routes-before.json || (cat /tmp/f237-routes-before.json && exit 1)) \
+    && php artisan route:cache \
+    && php artisan route:list --json > /tmp/f237-routes-after.json \
+    && (grep -q '_lab/sites/v1/create-project' /tmp/f237-routes-after.json || (cat /tmp/f237-routes-after.json && exit 1)) \
+    && rm -f /tmp/f237-routes-before.json /tmp/f237-routes-after.json
 USER 10001:10001
 # Base image listens only inside the Compose internal network on port 9000.
 CMD ["php-fpm","-F"]
