@@ -45,6 +45,7 @@ final readonly class SyntheticStructuredDraftAssembly
         ?string $officialSeoDescription = null,
         bool $officialSecondaryCallToAction = false,
         bool $officialFaqDisclosure = false,
+        bool $officialSkipToMain = false,
     ): self {
         // Content provider does NOT determine brand, product, style or tenant.
         $candidate=StructuredCopyCandidate::assemble(
@@ -68,6 +69,7 @@ final readonly class SyntheticStructuredDraftAssembly
             $officialSeoTitle,$officialSeoDescription,
             $officialSecondaryCallToAction,
             $officialFaqDisclosure,
+            $officialSkipToMain,
         );
         $artifact=(new StaticSiteRenderer())->render($brief);
         $qa=SyntheticPreviewQaReport::inspect($artifact);
