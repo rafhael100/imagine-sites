@@ -1,55 +1,53 @@
 # ADR-SITES-015 — Política de hostname canônico para sites, landing pages e aplicações Imagine
 
-**Status:** PROPOSTA DE PADRONIZAÇÃO TRANSVERSAL — aguardando aceite de arquitetura; somente documental.
-**Data:** 2026-11-12
-**Alcance:** Imagine Sites, Imagine Comercial, Portal, CRM, SEO Engine, Performance AI, Universidade, AI Agents e futuros sites de clientes.
-**Importante:** este documento não aprova migração, modifica DNS, altera ambientes, cria custos ou autoriza publicação.
+**Decisão interna:** PADRÃO SEM WWW (apex-first), definido pelo titular do projeto em 12/11/2026.
+**Status de execução:** DOCUMENTAL; migrações e publicação ainda NÃO AUTORIZADAS.
+**Alcance:** Imagine Sites, Imagine Comercial, Portal, CRM, SEO Engine, Performance AI, Universidade, AI Agents e novos clientes.
+**Importante:** este documento não modifica DNS, cria custos, publica páginas, ativa redirecionamentos ou aprova a migração de domínios existentes.
 
-## Decisão recomendada
+## Decisão de arquitetura
 
-1. **Site público com domínio próprio, novo e sem histórico canônico:** usar `https://www.dominio.com.br/` como **host canônico do conteúdo**; o domínio apex `https://dominio.com.br/` será host alternativo para redirecionamento **301 ou 308** a partir de homologação, preservando caminho e parâmetros que forem seguros e apropriados. HTTP deve chegar ao destino HTTPS canônico com o menor número de saltos possível.
-2. **Landing page no mesmo site e com finalidade SEO:** priorizar `https://www.dominio.com.br/campanha/` (ou caminho publicável equivalente) quando o cliente deseja concentrar o conteúdo no site atual.
-3. **Landing page independente por campanha/subdomínio:** usar `https://campanha.dominio.com.br/` ou `https://lp.dominio.com.br/`, **sem** `www.campanha`; se indexável, ela terá canonical próprio aprovado. Se apenas captação/anúncios e não houver objetivo de indexação, decidir indexabilidade por página/cliente, não por convenção de host.
-4. **Aplicações e interfaces autenticadas:** `https://portal.dominio.com.br/`, `https://crm.dominio.com.br/`, `https://api.dominio.com.br/`, `https://dev.dominio.com.br/`; **sem** prefixo `www`. Cada host tem políticas próprias de TLS, acesso, headers, cookies e autorização.
-5. **Sites já publicados / clientes com SEO consolidado:** manter o host canônico existente (com ou sem `www`) **até** migração específica formalmente aprovada; nunca forçar a convenção nova causando mudança SEO silenciosa.
-6. **Imagine Comercial (legado):** a propriedade indexada usa `https://www.imaginecomunicacao.com.br/` como homepage canônica; a origem Astro candidata foi construída sem `www`. Proposta é adotar o legado com `www` como host final para evitar mudança adicional, **mas somente depois de revisão de canonical, mapa de 27 caminhos legados, métricas/inspeção GSC, staging e homologação do cutover**.
+1. **Novo site público com domínio próprio e sem histórico indexado:** origem canônica sugerida `https://dominio.com.br/` (apex, sem `www`). O alias `https://www.dominio.com.br/` deve ser avaliado para redirecionamento permanente 301/308 **somente depois** de domínio verificado, TLS, plano de rotas, aprovação e teste em staging.
+2. **Landing page dentro do site:** usar `https://dominio.com.br/campanha/` se fizer parte da mesma propriedade. Não criar `www` obrigatório.
+3. **Landing page/campanha independente:** preferir `https://campanha.dominio.com.br/` ou `https://lp.dominio.com.br/`, sem `www.campanha`. Indexação/canonical exigem decisão editorial/SEO por projeto; não são consequências automáticas do tipo de página.
+4. **Aplicações autenticadas e APIs:** `https://portal.dominio.com.br/`, `https://crm.dominio.com.br/`, `https://api.dominio.com.br/` e ambientes técnicos próprios, sem `www`; cookies host-only, autenticação e autorização por recurso.
+5. **Sites legados de clientes:** host histórico (com ou sem `www`) é preservado até plano formal de migração SEO com evidências e aceite específico. A preferência global por apex **não** é autorização para fazer redirects ou trocar canonical em sites já indexados.
+6. **Imagine Comercial legado:** a propriedade `www.imaginecomunicacao.com.br` possui histórico indexado; a candidata Astro foi preparada sem `www`. Não alterar host público agora. Estudar migração futura para `https://imaginecomunicacao.com.br/` por URL (incluindo os 27 caminhos legados), GSC, equivalência de conteúdo, staging e 301/308 homologado. Manter em HOLD até aprovação específica.
+7. **Limitação técnica:** caso apex não possa ser provisionado com o DNS/Cloudflare for SaaS de terceiros sem recursos pagos, NÃO criar gastos nem alterar silenciosamente o canônico para `www`. Documentar incompatibilidade e solicitar solução técnica ou exceção explícita por projeto.
 
-## Justificativa técnica
+## Fundamentação e segurança
 
-- **SEO:** o Google não concede vantagem intrínseca ao prefixo; é essencial eleger um único canônico, emitir sinais consistentes e usar redirecionamentos permanentes quando apropriado, evitando duplicação e cadeias.
-- **DNS/escala:** `www` é subdomínio normal e pode apontar por CNAME ao provedor SaaS. Isso facilita provisionamento para clientes que usam DNS externos. Apex é suportado pela Cloudflare (CNAME flattening) quando a zona usa esse DNS, mas **Cloudflare for SaaS com apex em DNS de terceiros pode requerer recursos adicionais/Enterprise**, a validar caso a caso; não presumir custo zero nem capacidade global.
-- **Plataformas:** subdomínios distintos separam origem e facilitam aplicações independentes. `www` não é uma exigência para APIs, CRM e Portal.
-- **Sessões:** usar cookies host-only (sem `Domain` amplo) por padrão; `www` sozinho **não garante isolamento de cookies, segurança ou tenants**. IAM, MFA, CORS e validação de host continuam exigidos.
+- O Google não privilegia `www` ou apex por si só: consistência de canonical, links, sitemap, redirects e estabilidade editorial importa mais.
+- Apex não é um CNAME DNS ordinário; Cloudflare DNS oferece flattening em zonas que controla, mas Cloudflare for SaaS com DNS externo/apex pode exigir capacidades especiais. A política comercial não presume suporte universal ou plano Enterprise.
+- Aplicações e websites têm origens separadas; host por si só não é prova de posse, autenticação, tenant ou consentimento. Cookies de sessão devem ser host-only por padrão, sem `Domain` compartilhado amplo.
+- Nunca confiar no cabeçalho Host/Forwarded enviado pelo visitante para inferir canônico ou montar redirect sem validação por allowlist própria de domínio verificado.
 
-## Critérios de implementação na plataforma Sites
+## Modelo de configuração futura, por projeto
 
-### Regra de configuração, por projeto
+Registrar `canonicalOrigin` (URL HTTPS exata), `alternateOrigins` verificadas, `hostClass` (`public_site`, `campaign_subdomain`, `application`, `legacy_preserved`) e `approvalState`. A política sugere apex para novos sites públicos, mas NÃO emite redirect e NÃO aprova publicação. Host legado e exceções deliberadas precisam de aprovação específica e trilha imutável. O campo de hostname jamais será fonte de permissão para publicar, atender leads ou liberar cliente.
 
-Registrar explicitamente `canonicalOrigin`, `alternateOrigins`, `hostClass` (`public_site`, `campaign_subdomain`, `application` ou `legacy_preserved`) e `approvalState` na camada de domínio; não derivar autorização a partir da string do host. A criação de um novo site público pode **sugerir** `www`, mas a ativação depende de verificação do domínio, TLS, consentimento/aceite, política de DNS e processo de release.
+## Gates obrigatórios antes de publicar ou migrar
 
-### Gates antes de permitir tráfego externo
+- Comprovar propriedade/controle de ambos os hosts, DNS suportado e certificados TLS válidos; não pressupor custo zero se o provedor exigir apex proxy especial.
+- Conferir host de origem real e redirects com trajetória finita, preservação de caminho, query string somente quando segura, sem open redirect, troca de tenant, loops, cadeia ou downgrade HTTP.
+- Conferir `rel=canonical`, sitemap, URLs OG e links internos; páginas legais e URLs sem correspondência ficam em HOLD e exigem revisão individual.
+- Validar HTTPS, HSTS, cookies host-only, cache, segurança de headers e hostnames desconhecidos em staging sem cliente real.
+- Capturar baseline de SEO/GSC e plano de rollback manual. Execução de DNS, 301/308, Cloudflare, prod, `main` e dados pessoais requer autorização operacional e evidência separadas.
 
-- Provar controle do domínio e validade do certificado para host principal e alternativo;
-- Verificar a rota de origem e o redirecionamento com caminho preservado; impedir loop, cadeia, host externo ou abertura involuntária de app;
-- Garantir `canonical`, sitemap, metadados Open Graph, dados estruturados e links internos consistentes; validar também `hreflang` e idiomas se existirem;
-- Revisar todas as rotas antigas relevantes individualmente e manter páginas jurídicas, multilíngues e produtos sem equivalência em HOLD;
-- Testar `www`/apex/HTTP/HTTPS e rollback em staging isolado; registrar aprovação de SEO, conteúdo, segurança e direção;
-- Não executar migração DNS, Cloudflare, 301/308, main, dados reais ou deploy como efeito de aprovação deste ADR.
+## Casos de teste obrigatórios
 
-### Testes futuros obrigatórios
+1. Novo `dominio.com.br` sugere apex HTTPS, `www.dominio.com.br` como alias apenas candidato.
+2. `www` legado aprovado permanece canônico e não muda sem ato específico de migração.
+3. Landing page de subdomínio, Portal, CRM e API não recebem prefixo `www`.
+4. Host inválido, credenciais no URL, porta pública inesperada, HTTP como canonical, Unicode confusável, IP literal, nomes com sufixo malicioso e múltiplos redirects são recusados.
+5. Fluxos e testes sintéticos jamais alteram DNS, ativam proxies, publicam conteúdo, criam conta paga ou tornam `operational-readiness` verdadeiro.
 
-- Site novo: canonical `www`, apex alternativo e redirect somente após flag externa de publicação aprovada;
-- Site legado `apex`: conservar canonical histórico sem alteração implícita;
-- Campanha independente e portal/app: sem `www` adicional;
-- Host desconhecido/inválido, mistura HTTP/HTTPS, header `Host` forjado, múltiplos redirects, parâmetros sensíveis e dados cruzados: falhar fechado;
-- Nenhuma alteração de DNS, API Cloudflare, links reais ou publicação causada por testes.
+## Referências técnicas
 
-## Fontes e observações
+- Google Search Central: https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls
+- Cloudflare Workers Custom Domains: https://developers.cloudflare.com/workers/configuration/routing/custom-domains/
+- Cloudflare for SaaS: https://developers.cloudflare.com/cloudflare-for-platforms/cloudflare-for-saas/
+- Cloudflare DNS CNAME flattening: https://developers.cloudflare.com/dns/cname-flattening/set-up-cname-flattening/
+- MDN Set-Cookie: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Set-Cookie
 
-- Google Search Central — consolidação de conteúdo duplicado e migração permanente: https://developers.google.com/search/docs/fundamentals/get-started
-- Cloudflare Workers — Custom Domains e redirects www/apex: https://developers.cloudflare.com/workers/configuration/routing/custom-domains/
-- Cloudflare for SaaS — Custom Hostnames e Apex Proxying: https://developers.cloudflare.com/cloudflare-for-platforms/cloudflare-for-saas/
-- Cloudflare DNS — CNAME flattening: https://developers.cloudflare.com/dns/cname-flattening/set-up-cname-flattening/
-- MDN — cookies host-only: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Set-Cookie
-
-**Status final deste ADR: NÃO IMPLEMENTADO.** Abrir entregas separadas por projeto e ambiente após aceite explícito, garantindo isolamento e rollback.
+**Status final:** política aprovada como padrão editorial/arquitetural; NÃO IMPLEMENTADA em DNS, app ou publicação. Gates operacionais continuam BLOCKED.
