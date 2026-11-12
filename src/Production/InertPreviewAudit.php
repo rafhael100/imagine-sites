@@ -107,6 +107,7 @@ final class InertPreviewAudit
                 '<a href="#beneficios">',
                 '<a href="#sobre">',
                 '<a class="btn" href="#contato">',
+                '<a class="btn secondary-cta" href="#contato">',
                 '<a href="#solucoes">',
                 '<a href="#etapas">',
                 '<a href="#perguntas">',
