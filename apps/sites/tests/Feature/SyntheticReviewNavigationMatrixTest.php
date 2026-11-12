@@ -70,7 +70,14 @@ final class SyntheticReviewNavigationMatrixTest extends TestCase
                 self::assertSame('no-referrer',$frame->getAttribute('referrerpolicy'));
                 self::assertSame(0,$xp->query('//form|//script|//button|//input')->length);
                 self::assertSame(0,$xp->query('//link[@rel="stylesheet"]')->length);
-                self::assertSame(0,$xp->query('//img[@src]')->length);
+                // Original Imagine Node logo is the ONLY approved shell image.
+                // The customer iframe remains sandboxed with no external assets.
+                $images=$xp->query('//img[@src]');
+                self::assertSame(1,$images->length);
+                $brandImage=$images->item(0);
+                self::assertInstanceOf(DOMElement::class,$brandImage);
+                self::assertSame('/assets/logo-imagine.png',$brandImage->getAttribute('src'));
+                self::assertSame('Imagine',$brandImage->getAttribute('alt'));
 
                 $inner=$frame->getAttribute('srcdoc');
                 self::assertStringStartsWith('<!doctype html>',$inner);
