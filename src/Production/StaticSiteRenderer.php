@@ -165,7 +165,7 @@ FAQ;
     .header-inner { display: flex; gap: 24px; flex-wrap: wrap; align-items: center; justify-content: space-between; padding-block: 20px; }
     .brand { font-size: 1.15rem; font-weight: 800; letter-spacing: -.02em; }
     nav { display: flex; gap: 24px; }
-    nav a { text-decoration: none; font-weight: 600; }
+    nav a { text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; min-height: 44px; padding-block: 8px; }
     .tagline { color: #5f6e80; font-size: .9rem; }
     .hero { background: linear-gradient(120deg, #122b4d, #285c88); color: #fff; padding-block: clamp(64px, 9vw, 136px); }
     .hero-inner { max-width: 780px; }
@@ -174,7 +174,7 @@ FAQ;
     h2 { font-size: clamp(1.6rem, 3vw, 2.4rem); line-height: 1.18; letter-spacing: -.025em; overflow-wrap: anywhere; }
     p { max-width: 70ch; }
     .lead { font-size: clamp(1.05rem, 2vw, 1.3rem); opacity: .92; }
-    .btn { display: inline-flex; padding: 14px 28px; margin-top: 22px; border-radius: 9px; background: #fff; color: #173e69; font-weight: 800; text-decoration: none; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 14px 28px; margin-top: 22px; border-radius: 9px; background: #fff; color: #173e69; font-weight: 800; text-decoration: none; }
     section { padding-block: 64px; }
     .benefits ul { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 18px; list-style: none; padding: 0; }
     .benefits li { background: #fff; padding: 24px; border: 1px solid #e4eaf1; border-radius: 12px; box-shadow: 0 4px 20px rgba(16,37,57,.04); }
