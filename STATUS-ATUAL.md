@@ -1,5 +1,15 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuação F1-290 — identidade visual Portal Node na interface interna — 12/11/2026
+
+- Issue #351: identidade de painel de revisão Laravel com tokens oficiais do Portal PR #589 (laranja `#F9941D`, grafite `#171B19`, branco e cinza-claro), sem redesenho dos sites dos clientes.
+- PNG original importado do Portal Node com hash de objeto Git idêntico (`678adeceb3a8ecdaeb6b576b9ee18d1bf0396f77`); inclusão no cabeçalho interno, com CSP `img-src 'self' data:` nos 16 laboratórios que reutilizam a view.
+- Testes de fonte/tokens/contraste, Laravel in-process, fronteira de `srcdoc`, SHA e rotas desabilitadas; CI PHP 8.3/8.4 dedicada. Revisão visual humana/screenshot ainda não validada.
+- Origem do trabalho: PR #353 em `27bfd56b4b2ab85f5c188cea04667bc32e1f75f3` (**119/119 workflows success**, 762 arquivos / 215 sensíveis auditados). Esta nova etapa exige CI própria.
+- `dev/main` sem merge, regras administrativas faltando (#281), 10 gates BLOCKED; nenhuma execução de infraestrutura ou publicação.
+
+---
+
 ## Continuação F1-289 — mapa SEO canônico privado — 12/11/2026
 
 - Após F1-288, implementação de mapa de URLs canônicas e sitemap XML candidato, em memória, com origem sem www para novos sites públicos.
