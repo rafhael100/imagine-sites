@@ -107,6 +107,7 @@ jobs:
           php tests/f287-apex-canonical-policy.php
           php tests/f288-canonical-redirect-review.php
           php tests/f289-seo-canonical-map.php
+          php tests/f290-imagine-shell-contract.php
           php tests/f157-static-faq-content.php
           php tests/f270-faq-native-disclosure.php
           php tests/f271-faq-disclosure-revision.php
