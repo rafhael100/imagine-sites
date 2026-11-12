@@ -53,3 +53,7 @@ Recalcular diff Git completo na branch de integração F1-274 com base `dev` SHA
 ## Atualização F1-275 — 12/11/2026
 
 Novo candidato com endurecimento de gramática da seção FAQ. Recalcular no HEAD da integração F1-275 a lista Git completa de arquivos e caminhos sensíveis contra `dev` `71b8ffe51139d0e70ed32591b07f295fb7bf5fe3`. Os 697 arquivos e 196 caminhos de #322 são históricos e não provam o novo HEAD. Dez gates ainda bloqueados.
+
+## Renovação F1-280 — 12/11/2026
+
+Novo candidato com os módulos de tempo e contexto de retry CRM e conserto Chrome F1-59. Recomputar o diff Git completo do HEAD F1-280 contra a base `dev` `71b8ffe51139d0e70ed32591b07f295fb7bf5fe3`, inclusive `src/Integration`, `src/Domain`, tests e workflows. Não reutilizar contagens de F1-275 nem supor aprovação por CI.
