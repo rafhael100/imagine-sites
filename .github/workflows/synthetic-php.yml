@@ -99,6 +99,7 @@ jobs:
           php tests/f277-lead-retry-deadline.php
           php tests/f278-crm-response-policy.php
           php tests/f279-crm-backoff-composition.php
+          php tests/f280-crm-pinned-retry-context.php
           php tests/f157-static-faq-content.php
           php tests/f270-faq-native-disclosure.php
           php tests/f271-faq-disclosure-revision.php
