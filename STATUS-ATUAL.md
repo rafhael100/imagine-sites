@@ -1,5 +1,13 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuação F1-294 — diagnosticar emissor v3 Portal atual, fail-closed — 12/11/2026
+
+- Auditoria de dois SHAs reais e públicos do Portal: `47514f4eac64a3d7ab0a0924cc890fb5a124d8b8` (fast-track vigente consultado) e `8d1e20bc5c39dc4106b549c5e979351b5c766615` (emissor v3 histórico). A versão vigente não contém o caminho esperado do emissor histórico; **paridade no commit antigo não comprova integração operacional corrente**.
+- Novo F1-294 CLI Python read-only e GitHub Actions clona os SHAs exatos, verifica SHA/blob da implementação histórica e emite NO-GO para integração mesmo quando o código v3 aparece, até homologação humana de identidade, autorização e transporte.
+- F1-293 (parent SHA `b0ac0a86ade02fd5a4d7e697df15c05ef7b10f0a`) concluiu 12/12 workflows `success`, com parse canônico do envelope v3 anterior a MAC e nonce.
+- Dependências OP01 e branch protection #281 permanecem abertas, readiness BLOCKED 10/10. Nada de merge, live IAM, CRM/Portal real, DNS, VPS ou deploy.
+
+---
 ## Continuação F1-293 — bytes do envelope v3 sem duplicatas e sem normalização — 12/11/2026
 
 - A assinatura v3 anterior verificava arrays após decodificação, não os bytes brutos do futuro endpoint. Adicionados os métodos `verifyCanonicalJsonSignature` e `verifyCanonicalJson` em `SyntheticCommercialEpochSignedCommand`, recusando duplicatas JSON, BOM, whitespace, aliases Unicode, alteração de tipos e payload não canônico **antes** da validação da MAC e da reserva de nonce.
