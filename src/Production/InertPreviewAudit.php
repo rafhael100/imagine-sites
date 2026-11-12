@@ -71,9 +71,20 @@ final class InertPreviewAudit
                 ], true)) return ['unsupported_product_body'];
             }
         }
+        $plainMainCount=substr_count($html,'<main id="principal">');
+        $focusMainCount=substr_count($html,'<main id="principal" tabindex="-1">');
+        $skipAnchor='<a class="skip-to-main" href="#principal">Pular para o conteúdo</a>';
+        $skipAnchorCount=substr_count($html,$skipAnchor);
         if ($bodyCount !== 1 || $styleCount !== 1 || $h1Count !== 1 ||
             substr_count($html, '<h1 id="hero-title">') !== 1 ||
-            substr_count($html, '<main id="principal">') !== 1 ||
+            $plainMainCount+$focusMainCount !== 1 ||
+            $skipAnchorCount>1 ||
+            ($skipAnchorCount===1 && (
+                $focusMainCount!==1 ||
+                !str_contains($html,">\n  ".$skipAnchor."\n  <header>") ||
+                substr_count($html,'.skip-to-main:focus-visible { transform: translateY(0); outline: 3px solid #2366bc; outline-offset: 3px; }')!==1
+            )) ||
+            ($skipAnchorCount===0 && $plainMainCount!==1) ||
             substr_count($html, '<section class="contact" id="contato"') !== 1) {
             return ['invalid_preview_structure'];
         }
