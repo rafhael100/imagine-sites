@@ -1,0 +1,60 @@
+name: Sites F1-213 exact private reviewer/export parity
+on:
+  pull_request:
+    paths:
+      - 'src/Production/SyntheticVisualReviewExportParityV1.php'
+      - 'apps/sites/routes/web.php'
+      - 'tests/f213-visual-review-export-parity.php'
+      - 'apps/sites/tests/Feature/SyntheticVisualReviewExportParityTest.php'
+      - '.github/workflows/sites-f1-213-review-export-parity.yml'
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  exact-review-export:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 17
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    env:
+      APP_ENV: testing
+      SITES_F205_VISUAL_PACKAGE: '1'
+      SITES_F211_SOCIAL_READBACK: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring,dom,xml,curl,pdo,pdo_pgsql
+          tools: composer:v2
+          coverage: none
+      - name: Lint and inspect exact design/export bytes
+        run: |
+          set -euo pipefail
+          php -l src/Production/SyntheticVisualReviewExportParityV1.php
+          php -l apps/sites/routes/web.php
+          php -l tests/f213-visual-review-export-parity.php
+          php -l apps/sites/tests/Feature/SyntheticVisualReviewExportParityTest.php
+          php tests/f213-visual-review-export-parity.php
+      - name: Install reproducible Laravel test packages
+        working-directory: apps/sites
+        run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
+      - name: Compare real private file bytes with in-process reviewer
+        working-directory: apps/sites
+        env:
+          SITES_F212_COMPOSITE_SOCIAL_REVIEW: '1'
+        run: |
+          set -euo pipefail
+          php artisan test --filter='(SyntheticVisualReviewExportParityTest|SyntheticCompositeSocialReviewTest|SyntheticPrivateSocialCardReadbackTest)' --no-ansi
+      - name: Ephemeral only
+        if: always()
+        working-directory: apps/sites
+        run: |
+          rm -rf storage/app/private/sites-f1-205-*
+          echo "No real client, social network calls, customer acceptance, CRM, deployment or external cost."

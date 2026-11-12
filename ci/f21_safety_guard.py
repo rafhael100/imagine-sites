@@ -37,6 +37,20 @@ for expected in ["PHP_SAPI !== 'cli'","environment('testing')","SITES_SYNTHETIC_
  assert expected in routes, f"Missing synthetic route safeguard: {expected}"
 print("PASS in-process lab route remains test-only with DENY defaults")
 
+# F1-233: route registration checks are not sufficient when a test-generated
+# Laravel route cache is reused by a different runtime. Require a GLOBAL,
+# request-time middleware fence on all synthetic routes.
+bootstrap=(repo/"apps/sites/bootstrap/app.php").read_text(encoding="utf-8")
+route_fence=(repo/"apps/sites/app/Http/Middleware/SyntheticLabRouteFence.php").read_text(encoding="utf-8")
+assert "$middleware->append(\\App\\Http\\Middleware\\SyntheticLabRouteFence::class)" in bootstrap, "Global lab route guard removed from bootstrap"
+for fragment in [
+    "_lab/sites/v1", "PHP_SAPI!=='cli'",
+    "environment('testing')", "SITES_SYNTHETIC_HTTP",
+    "REMOTE_ADDR", "127.0.0.1", "Not found',404",
+]:
+    assert fragment in route_fence, f"Missing cached-route request-time guard: {fragment}"
+print("PASS cached synthetic routes need global request-time CLI/testing/loopback fence")
+
 for path in repo.rglob("*"):
  if not path.is_file(): continue
  if ".git" in path.parts: continue

@@ -1,5 +1,344 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Retomada de integração técnica — F1-235 a F1-239 (11/11/2026)
+
+**Cinco entregas novas verificadas sem pausa por aprovação intermediária:**
+- [#270](https://github.com/rafhael100/imagine-sites/pull/270), F1-235: contrato F48 do Portal consumido pelo Sites — 7/7 CI;
+- [#271](https://github.com/rafhael100/imagine-sites/pull/271), F1-236: classe PHP real do Portal F48 validada em PHP 8.3/8.4 contra consumidor Sites — 5/5 CI;
+- [#272](https://github.com/rafhael100/imagine-sites/pull/272), F1-237: cache real com Nginx/PHP-FPM em rede isolada — 5/5 CI;
+- [#273](https://github.com/rafhael100/imagine-sites/pull/273), F1-238: seis páginas HTML demonstrativas completas, com manifesto, noindex e checksums; artifact disponível no [run 43136612542](https://github.com/rafhael100/imagine-sites/actions/runs/43136612542) — 6/6 CI;
+- [#274](https://github.com/rafhael100/imagine-sites/pull/274), F1-239: doze screenshots reais desktop/mobile no Chromium, com manifesto e artifact temporário no [run 43137073718](https://github.com/rafhael100/imagine-sites/actions/runs/43137073718) — 5/5 CI.
+
+**Candidato novo de integração:** base `dev` `71b8ffe`, fonte `ba5d5ed`, 943 commits à frente e 0 atrás na comparação inicial. Documento: `docs/SITES-F1-239-DEV-INTEGRATION-REVIEW-2026-11-11.md`. Os PRs continuam draft, sem merges/deploy. Os testes de demo não equivalem a Portal IAM, aceite real, publicação, CDN, backup, CRM/captação, ou go-live.
+
+
+## Integração, correções de segurança e prova HTTP — 11/11/2026
+
+- [PR #266](https://github.com/rafhael100/imagine-sites/pull/266): candidato de integração da cadeia F1-38..231 para **revisão em `dev`**, não mesclado. No head `9da3fd7ba27a878c16e671577f86b4485ae7724f`, **83 workflows CI aprovados**.
+- [PR #267](https://github.com/rafhael100/imagine-sites/pull/267): F1-232, bloqueio do destino das migrations PG18 F1-93/F1-94 com enum de bancos descartáveis, host e porta efetivos, executor GitHub Actions, usuário de teste e flag explícita. **8/8 workflows CI aprovados** no head `fa39340bcec780ca6eb76a453bf0cae769966f2f`.
+- [PR #268](https://github.com/rafhael100/imagine-sites/pull/268): F1-233, middleware **global por requisição** que impede acesso a `/_lab/sites/v1/*` fora de CLI/testing/loopback mesmo com rotas previamente cacheadas. Regressões antigas adaptadas para negar IP remoto (404) e conferir método HTTP inválido a partir do loopback (405). **15/15 workflows CI aprovados** no head `2268dc60a8c2539b04220d8c76126ed414f1d00c`.
+- [PR #269](https://github.com/rafhael100/imagine-sites/pull/269): F1-234, prova HTTP em PHP `cli-server`, sem rede pública. O GitHub Actions **compilou rotas sintéticas em cache** e mesmo assim o servidor não-CLI retornou 404 às rotas de laboratório, enquanto `/up` retornou 200. Resultado confirmado nas matrizes PHP 8.3 e 8.4; **5/5 workflows CI aprovados** no head `c2b16953f06bfad46bb5d92118e7bd9affd19b8e`.
+
+**Status:** todos os PRs permanecem em `draft`; `dev` e `main` não foram promovidas. A validação por CI e pelo servidor HTTP local **não comprova** isolamento, IAM, backups, publicação ou desempenho operacional da VPS/Cloudflare. `config/operational-readiness.json` continua `BLOCKED`, com 10 gates falsos. Controle de consolidação: [issue #263](https://github.com/rafhael100/imagine-sites/issues/263). Bloqueadores P0: OP01–OP05 e SITES-GATE.
+
+
+## Correção do comparador SEO — 11/11/2026
+
+Base: F1-227 / PR #259, SHA `cbc0186c85fba06103f4b1eb41f6944d92be10db`.
+O workflow principal [43099356573](https://github.com/rafhael100/imagine-sites/actions/runs/43099356573)
+falhou em PHP 8.3/8.4 no negativo F1-226: a substituição de `<body>` era
+inócua porque o renderer emite `<body data-site-product="…">`.
+
+- O teste passa a alterar a tag existente e exigir exatamente uma alteração,
+  inclusive no negativo de robots, antes de conferir a rejeição.
+- O readback SEO expõe tenant/site já verificados; o comparador exige igualdade
+  desses dois identificadores antes de reportar uma revisão SEO.
+- A matriz de 12 pares inclui pacotes independentes e válidos de outra empresa
+  ou outro site, com HTML idêntico, que devem falhar pelo motivo de escopo exato.
+- Validação da nova branch pendente de CI. PHP não está instalado neste executor.
+  Os resultados anteriores não certificam esta correção.
+
+Branch isolada e PR draft; sem merge em dev/main, deploy ou serviços reais.
+Referências sintéticas não concedem identidade autenticada; gates OP permanecem abertos.
+
+
+## Continuidade do motor — F1-210 a F1-214 (11/11/2026)
+
+**Cinco entregas consecutivas concluídas na cadeia de rascunhos; suítes específicas PHP 8.3/8.4 aprovadas.** Partimos da branch F1-209, sem repetir entregas antigas, e avançamos em prévias de compartilhamento e paridade entre revisão e exportação.
+
+| Etapa | PR draft | CI verificado | Entrega |
+| --- | --- | --- | --- |
+| F1-210 | [#242](https://github.com/rafhael100/imagine-sites/pull/242) | [Run 43075842454](https://github.com/rafhael100/imagine-sites/actions/runs/43075842454) | Cartão social **somente de texto** no revisor Laravel; conferência dos sete metadados OG/Twitter contra bytes SHA-256, sem URL/imagem/remoto |
+| F1-211 | [#243](https://github.com/rafhael100/imagine-sites/pull/243) | [Run 43076757986](https://github.com/rafhael100/imagine-sites/actions/runs/43076757986) | Auditoria CLI de pacote privado já salvo, readback dos quatro arquivos, rejeição de adulteração, symlinks e opções inválidas |
+| F1-212 | [#244](https://github.com/rafhael100/imagine-sites/pull/244) | [Run 43077772547](https://github.com/rafhael100/imagine-sites/actions/runs/43077772547) | Uma tela de revisão para tema, paleta, ordem, menu e social; seletores preservam escolhas e Landing recusa menu extra |
+| F1-213 | [#245](https://github.com/rafhael100/imagine-sites/pull/245) | [Run 43078512582](https://github.com/rafhael100/imagine-sites/actions/runs/43078512582) | Teste ponta a ponta: HTML do iframe **byte a byte idêntico** a index.html exportado e verificado pelo auditor |
+| F1-214 | [#246](https://github.com/rafhael100/imagine-sites/pull/246) | [Sites Engine 43079064307](https://github.com/rafhael100/imagine-sites/actions/runs/43079064307) e [Laravel 43079064327](https://github.com/rafhael100/imagine-sites/actions/runs/43079064327) | Regressões F1-209/210/211/213 obrigatórias em cada PR + main; script de guarda detecta 14 mutações inseguras |
+
+**Política preservada:** rascunhos `draft` encadeados, sem merge em `main`/`dev` ou deploy. Toda fixture usa dados inventados, artefatos internos `noindex`, revisão pendente e `publishable=false`, `officialClientAcceptance=false`. Nenhum lead, credencial, imagem remota, chamada a rede social, CRM real, VPS, DNS ou Cloudflare foi utilizado. Os gates OP01 #33, OP02 #34, OP04 #36 e **10/10 controles de produção** continuam bloqueados; testes CI não equivalem a autenticação ou autorização operacional.
+
+**Próximo marco para transformar em serviço:** identidade S2S verificada Portal–Sites–CRM, revisão AppSec/DBA, captação dupla com consentimento, armazenamento e confirmação oficial, retenção LGPD, homologação com infraestrutura real e critérios de aceite; não acionar esses fluxos a partir de código de laboratório.
+
+
+
+## Continuidade F1-169 a F1-181 — conteúdo, edição e layout (11/11/2026)
+
+**13 entregas consecutivas em PRs draft encadeados; todas as suítes de CI específicas concluídas com sucesso.** A sequência acrescentou funcionalidades reais ao motor estático de Onepage/Landing Page, mas elas continuam isoladas em laboratórios de dados fictícios, sem qualquer publicação, captação real, integração CRM operacional ou aceite de cliente.
+
+| Entrega | PR | CI específico aprovado | Capacidade implementada |
+| --- | --- | --- | --- |
+| F1-169 | [#207](https://github.com/rafhael100/imagine-sites/pull/207) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/43009029417) | Seção ordenada “Como funciona”, schema de cópia v4, revisão invalida hash anterior |
+| F1-170 | [#208](https://github.com/rafhael100/imagine-sites/pull/208) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/43009678448) | Comparação no Laravel de serviços+etapas e página completa |
+| F1-171 | [#209](https://github.com/rafhael100/imagine-sites/pull/209) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/43010528618) | Patch editorial limitado a cópia, com revisão e SHA-256 fixados |
+| F1-172 | [#210](https://github.com/rafhael100/imagine-sites/pull/210) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/43011231411) | Revisor Laravel antes/depois, hashes e campos editados |
+| F1-173 | [#211](https://github.com/rafhael100/imagine-sites/pull/211) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/43011672952) | Chrome real: 36 inspeções de responsividade das etapas |
+| F1-174 | [#212](https://github.com/rafhael100/imagine-sites/pull/212) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/43012231772) | Pacote privado pós-edição com HTML, manifesto, resumo e dossiê verificados |
+| F1-175 | [#213](https://github.com/rafhael100/imagine-sites/pull/213) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/43015092590) | Seis permutações das seções, digest novo e revisão reiniciada |
+| F1-176 | [#214](https://github.com/rafhael100/imagine-sites/pull/214) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/43015615406) | UI Laravel para seis ordens: 72 combinações de revisão |
+| F1-177 | [#215](https://github.com/rafhael100/imagine-sites/pull/215) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/43016026865) | Chrome real: 108 inspeções de layouts com seções reordenadas |
+| F1-178 | [#216](https://github.com/rafhael100/imagine-sites/pull/216) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/43016687698) | Links internos opt-in de Onepage, sem URLs externas ou controle pela IA |
+| F1-179 | [#217](https://github.com/rafhael100/imagine-sites/pull/217) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/43017288882) | Chrome real: 54 inspeções do menu em 320/390/1365px |
+| F1-180 | [#218](https://github.com/rafhael100/imagine-sites/pull/218) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/43017860728) | UI Laravel para comparar menu ligado/desligado |
+| F1-181 | [#219](https://github.com/rafhael100/imagine-sites/pull/219) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/43018600418) | Revisão combinada de ordem de seções e estado do menu: 108 visualizações |
+
+### Limites e próximos gates
+
+- **Estas entregas NÃO são deploy, publicação nem editor de cliente.** As flags de laboratório e rótulos de papéis sintéticos não equivalem a identidade/autorização. Artefatos continuam noindex, não publicáveis, com aceite oficial do Portal pendente.
+- As PRs estão em *draft*, encadeadas entre si; **nenhuma foi incorporada a dev/main**, e não houve operação na VPS, Cloudflare, DNS, CRM real ou dados pessoais.
+- [OP01 #33](https://github.com/rafhael100/imagine-sites/issues/33): autenticação real e identidade/autorização confiável do Portal; [OP02 #34](https://github.com/rafhael100/imagine-sites/issues/34): revisão independente de SQL, RLS, IAM e segurança; [OP04 #36](https://github.com/rafhael100/imagine-sites/issues/36): dois ingressos de lead independentes, consentimento, confirmação durável no CRM, retenção LGPD, observabilidade e homologação. **10/10 gates de produção permanecem BLOCKED.**
+- Próximos trabalhos dentro do escopo autorizado: testes sintéticos de regressão/a11y, consolidação de branches sob revisão controlada e documentação de critérios de aceite; qualquer serviço real exige gate de segurança/infraestrutura próprio antes da implementação operacional.
+
+
+## Continuidade sem pausa — F1-148 a F1-156 (11/11/2026)
+
+**Nove entregas encadeadas, revisadas no GitHub Actions.** Elas continuam em PRs `draft` com base na cadeia anterior F1-142..147, e preservam os controles de AGENTS.md. Os testes de banco usam PostgreSQL 18 **descartável**, contas fictícias, PHP 8.3/8.4, sem dados pessoais, endpoints públicos ou produção.
+
+| Etapa | PR | CI específico aprovado | Alteração |
+| --- | --- | --- | --- |
+| F1-148 | [#185](https://github.com/rafhael100/imagine-sites/pull/185) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/42950292386) | Lease limitado ao T0+432h, sem cinco minutos extras antes do vencimento |
+| F1-149 | [#186](https://github.com/rafhael100/imagine-sites/pull/186) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/42950729275) | Lease exige binding/site/formulário/destino/revisão correntes e bloqueio transacional |
+| F1-150 | [#187](https://github.com/rafhael100/imagine-sites/pull/187) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/42951250666) | Código PHP real do CRM F3-46/47/48, JSON estrito e HMAC de metadados sem falsa permissão |
+| F1-151 | [#188](https://github.com/rafhael100/imagine-sites/pull/188) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/42951676941) | Código PHP real do Portal F133 confrontado com CreateProject v1 do Sites |
+| F1-152 | [#189](https://github.com/rafhael100/imagine-sites/pull/189) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/42951987344) | Decoder canônico de CreateProject no Sites: bytes, ordem e chaves duplicadas |
+| F1-153 | [#190](https://github.com/rafhael100/imagine-sites/pull/190) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/42952367289) | Paridade real com CRM para mínimo de formulário, retorno apenas de booleanos, sem PII |
+| F1-154 | [#191](https://github.com/rafhael100/imagine-sites/pull/191) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/42952818678) | Retira outbox técnico expirado por T0 original preservando tombstone de idempotência |
+| F1-155 | [#192](https://github.com/rafhael100/imagine-sites/pull/192) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/42953219100) | Une prazo, lease e descarte no **mesmo T0 da primeira persistência**, não no timestamp de outbox |
+| F1-156 | [#193](https://github.com/rafhael100/imagine-sites/pull/193) | [GitHub Actions](https://github.com/rafhael100/imagine-sites/actions/runs/42953802190) | História única de UUID de lease, inclusive após substituição e descarte de outbox, contra replay |
+
+**Diferença entre evidência de CI e produção:** toda execução acima é sintética; não existe autenticação S2S operacional Portal–Sites–CRM, confirmação de lead com resposta oficial, consentimento/retirada de dados, dois ingressos físicos, retenção LGPD de backups, política definitiva de tombstone, parecer AppSec/DBA independente nem homologação real na infraestrutura. Estas dependências estão em [OP01 #33](https://github.com/rafhael100/imagine-sites/issues/33), [OP02 #34](https://github.com/rafhael100/imagine-sites/issues/34) e [OP04 #36](https://github.com/rafhael100/imagine-sites/issues/36). **10/10 gates operacionais BLOCKED**. PRs empilhados sem merge na `dev` ou `main`; nenhum deploy, VPS, DNS, Cloudflare, PII ou custos. Nunca promover `LAB_*`, `CLAIM_RECORDED_UNVERIFIED`, `LEASED_*_UNVERIFIED` ou schema canônico a autorização de coleta, ACK, entrega CRM ou publicação.
+
+## Continuidade encadeada — F1-142 a F1-147 (10/11/2026, America/Sao_Paulo)
+
+**Resumo:** seis entregas implementadas em PRs draft empilhados, sem deploy ou merge em `dev/main`. Todas as matrizes específicas PostgreSQL 18 / PHP 8.3 e 8.4 passaram na HEAD dos respectivos PRs. Estes testes são de **laboratório sintético**, não evidência de sistema operacional pronto.
+
+| Etapa | Evidência no GitHub | Avanço real do laboratório |
+| --- | --- | --- |
+| F1-142 | [PR #178](https://github.com/rafhael100/imagine-sites/pull/178), [CI](https://github.com/rafhael100/imagine-sites/actions/runs/42946802537) | Revoga acesso da role CI à função sem escopo e usa `SESSION_USER` associado a uma organização fictícia. Dois logins distintos não registram claim em outra organização. |
+| F1-143 | [PR #179](https://github.com/rafhael100/imagine-sites/pull/179), [CI](https://github.com/rafhael100/imagine-sites/actions/runs/42947220971) | Mapeamento de login ganha revisão monotônica e revogação. Bloqueio de linha até COMMIT impede revogação concorrente durante claim; sessão já conectada perde permissão técnica após revogação. |
+| F1-144 | [PR #180](https://github.com/rafhael100/imagine-sites/pull/180), [CI](https://github.com/rafhael100/imagine-sites/actions/runs/42947602914) | Adaptador PHP/PDO restrito a CLI/testing e transação. Todos os resultados do claim técnico são somente diagnósticos, nunca ACK/delivery/retry. |
+| F1-145 | [PR #181](https://github.com/rafhael100/imagine-sites/pull/181), [CI](https://github.com/rafhael100/imagine-sites/actions/runs/42948198889) | Inserção de claim e outbox de metadados **na mesma transação**; sem duplicação em replay, sem gravação residual em rollback. |
+| F1-146 | [PR #182](https://github.com/rafhael100/imagine-sites/pull/182), [CI](https://github.com/rafhael100/imagine-sites/actions/runs/42948629412) | Lease técnico `SKIP LOCKED` sem worker/envio. Classificação 72 horas iniciais e recuperação até o prazo original total de 432 horas, com recusa após expiração. |
+| F1-147 | [PR #183](https://github.com/rafhael100/imagine-sites/pull/183), [CI](https://github.com/rafhael100/imagine-sites/actions/runs/42948981033) | Adaptador PHP/PDO da lease; códigos controlados, transação obrigatória, ausência permanente de autorização para envio, ACK ou status entregue. |
+
+**Advertência operacional:** a ligação de login PostgreSQL a organização não substitui IAM de Portal, autorização de usuário ou autenticação S2S. A conta DB CI e todos os UUIDs/senhas são **fictícios**; NÃO usar como credenciais ou endpoints de produção. O outbox de F1-145 contém só metadados e estado `pending_unverified`: não transporta lead, não inclui consentimento, não chama CRM e não confirma entrega. A lease F1-146/147 é apenas classificação, não worker real. A simulação de passagem do tempo nos testes de lease usa somente administrador de base descartável; não é permissão para alterar T0 do cliente.
+
+**Pendências P0 mantidas:** [OP01 #33](https://github.com/rafhael100/imagine-sites/issues/33) identidade/verificação real Portal; [OP02 #34](https://github.com/rafhael100/imagine-sites/issues/34) segurança operacional PostgreSQL/RLS; [OP04 #36](https://github.com/rafhael100/imagine-sites/issues/36) dois ingressos reais de lead, confirmação CRM, consentimento e LGPD; revisão SEG/DBA/AppSec **independente**, teste de ponta a ponta em infraestrutura autorizada e liberação comercial. **10/10 gates de produção permanecem BLOCKED**; nenhum merge em `dev/main`, VPS, deploy, DNS, Cloudflare, PII ou gastos. Continuar apenas nas etapas autocontidas enquanto as dependências de segurança/infraestrutura persistirem.
+
+## Continuidade supervisionada — F1-133 e F1-134 (10/11/2026)
+
+- [Sites PR #169 / F1-133](https://github.com/rafhael100/imagine-sites/pull/169): adicionou **ledger de metadados de lead exclusivo do CI** em PostgreSQL 18 (`sites_f133_lead_lab`), com PK (organização, submissão), seis UUIDs sintéticos, hora T0 do banco, role restrita com SELECT/INSERT por coluna, `ENABLE/FORCE RLS` e sem UPDATE/DELETE/TRUNCATE. Prova de concorrência física entre **duas conexões PDO**, SQLSTATE 55P03 no segundo INSERT enquanto o primeiro está pendente, replay após COMMIT sem duplicata, contexto/destino CRM original preservados, rollback, isolamento por tenant e timestamp não forjável. **Cinco workflows concluídos com sucesso**, incluindo a matriz PostgreSQL 18 PHP8.3/8.4, Laravel, testes sintéticos, RLS básico e safety.
+- [Sites PR #170 / F1-134](https://github.com/rafhael100/imagine-sites/pull/170): novo `LabPostgresCrmLeadMetadataReadback` verifica uma linha existente sob transação, banco e role CI esperados, recusando contexto incorreto, ausência de registro e qualquer mudança de vínculo/site/formulário/destino. `SyntheticCrmLeadMetadataReadbackAssessment` devolve apenas códigos diagnósticos, com reserva, ACK, entrega CRM e retry automático **sempre false**, inclusive após correspondência de metadados. **PostgreSQL 18 PHP8.3/8.4, Laravel, testes sintéticos e safety aprovados** na HEAD com código; o workflow Docker ainda estava concluindo na última consulta.
+- **GUC `app.tenant_id` NÃO autentica um tenant** se o cliente puder executar SQL arbitrário. A tabela é apenas fixture no banco descartável e não garante CAS operacional, dois ingressos físicos independentes, idempotência global entre datacenters, endpoint, identidade/verificação de vínculo real, recibo, ACK CRM, retenção LGPD nem consentimento. Os requisitos OP04 #36 continuam P0 e devem passar por SEG/DBA/AppSec independente.
+- PRs #169 e #170 seguem **draft empilhados**, sem merge em dev/main, deploy, cliente/PII, formulário real, VPS, DNS, Cloudflare ou novas despesas. **10/10 gates de produção BLOCKED**.
+
+
+## Continuidade supervisionada — F1-132 (10/11/2026)
+
+- [Sites PR #168 — F1-132](https://github.com/rafhael100/imagine-sites/pull/168): implementou `SyntheticCrmLeadLedgerIntentV1`, que calcula fingerprint sintético de **organização + submissão** e compara vínculo, site, formulário e destino CRM original sem permitir reatribuição da mesma entrega. O teste `tests/f132-crm-ledger-evidence-cross-repo.php` executa o código-fonte real do CRM F3-07/F3-12 fixado na revisão `a2f29c8e19185e3451fe953f6fe9c9c9bcbbe3ef` (CRM draft PR #49), em PHP8.3/8.4.
+- O validador `SyntheticIdempotencyCasInspector` do CRM prova que duas verificações concorrentes dão apenas `ATOMIC_STORE_REQUIRED` **sem eleger vencedor nem reservar**, e que mudança do destino original não se transforma em nova entrega. Revisão obsoleta, estados reservados, desconhecidos ou finais, operação forçada e overflow de versão continuam DENY.
+- O `SyntheticDeliveryEvidenceInspector` real do CRM prova que **HTTP 200/201 ou um UUID alegado de registro não confirmam entrega**, assim como timeouts, retorno 202, vínculo divergente ou status de CRM não verificado. Não há ACK ao visitante, retry automático ou marcação de lead entregue. O fingerprint é não secreto e não substitui CAS global, vínculo autenticado ou recibo durável.
+- Workflows **cross-repo CRM PHP8.3/8.4, testes sintéticos, Laravel e safety concluídos com sucesso** no SHA de código da F1-132. Docker isolado estava em execução na primeira validação. A suíte anterior F1-131 continua incluída.
+- [OP04 #36](https://github.com/rafhael100/imagine-sites/issues/36) permanece integralmente ABERTA: sem dois ingressos físicos, armazenamento/T0 servidor, CAS global, confirmação CRM, identidade autenticada, LGPD operacional, homologação e revisão SEG/DBA/AppSec. **10/10 gates de produção BLOCKED**.
+- PR draft empilhado sobre #167, sem merge dev/main, deploy, site ou formulário público, envio de lead, PII, VPS, DNS, Cloudflare ou despesas.
+
+
+## Continuidade supervisionada — F1-130 / F1-131 (10/11/2026)
+
+- [Sites PR #166 — F1-130](https://github.com/rafhael100/imagine-sites/pull/166): pré-teste sintético de retry de leads Sites–CRM ganhou fontes **independentes de época positiva e default DENY**. Exige época Sites e CRM estáveis antes/depois de verificar vínculo, destino CRM original, revisão, atividade e frescor, detectando A→B→A mesmo se os snapshots voltarem aos mesmos valores. Preserva T0 servidor alegado do recibo fictício e janela rígida **72h + 360h = 432h**. **4/4 workflows aprovados na HEAD de código**: PHP8.3/8.4 sintético, Laravel, safety e Docker.
+- [Sites PR #167 — F1-131](https://github.com/rafhael100/imagine-sites/pull/167): novo gerador estrito de envelope **apenas de metadados** (oito campos, sem PII/T0/consentimento), validado pelo código PHP real `SyntheticLeadEnvelopeV1Inspector` do CRM Imagine no SHA fixo `a2f29c8e19185e3451fe953f6fe9c9c9bcbbe3ef` (CRM draft PR #49). O CRM retorna sempre `STRUCTURE_ONLY_UNVERIFIED` sem direito de submissão, ACK ou entrega. Negativas cobrem campos extras, destino forjado, UUID inválido e versões divergentes. **5/5 workflows aprovados na HEAD de código**, incluindo cross-repo CRM PHP8.3/8.4, Laravel, testes sintéticos, safety e Docker.
+- O trabalho está restrito a fixtures e compatibilidade estrutural; **nenhuma chamada ao CRM, submissão de lead, endpoint, autenticação de origem, binding real, idempotência global, LGPD operacional ou recibo durável** foi implementada. O PR CRM #49 é proposta em draft. A issue [OP04 #36](https://github.com/rafhael100/imagine-sites/issues/36) mantém **todos** os critérios de produção pendentes, inclusive dois ingressos fisicamente independentes e SEG/DBA.
+- PRs draft empilhados, sem merge dev/main, deploy, publicação, cliente/PII, VPS, DNS, Cloudflare ou despesas adicionais. **10/10 gates operacionais de produção permanecem BLOCKED.**
+
+
+## Continuidade supervisionada — F1-128 / F1-129 (10/11/2026)
+
+- [Sites PR #164 — F1-128](https://github.com/rafhael100/imagine-sites/pull/164): validadores HMAC v1/v2/v3 separados em `verifySignature` (verificação criptográfica/canônica sem storage) e `verify` (consumo definitivo do nonce). A pré-verificação comercial v3 não instancia mais replay store falso; a classe temporária `LabPreflightNoPersistReplayStore` foi desativada para retornar DENY. Com dois bancos PostgreSQL 18 efêmeros, os testes comprovam no laboratório que verificar a assinatura repetidamente não consome nonce, enquanto a admissão durável só o aceita uma vez. **Seis workflows distintos aprovados na HEAD mais recente do PR**, incluindo cross-repo PHP8.3/8.4, PostgreSQL18, Docker, Laravel, testes sintéticos e safety.
+- [Sites PR #165 — F1-129](https://github.com/rafhael100/imagine-sites/pull/165): a prévia HTML inerte Onepage/Landing Page recebeu **dois novos checks de QA sem alteração do renderer**: seção `aria-labelledby` deve referenciar título h1/h2 não vazio dentro da própria seção; links e CTAs devem ter texto/label acessível. Foram adicionadas cinco mutações negativas, mantendo testes de scripts, âncoras, IDs únicos e `noindex`. **Quatro workflows distintos aprovados**: PHP 8.3/8.4 sintético, Laravel, segurança e Docker isolado. Não constitui auditoria WCAG ou aprovação humana.
+- Ambos PRs permanecem **draft e empilhados**, não mesclados em dev/main. O código de assinatura e as páginas continuam em laboratório sintético; sem emissão operacional autenticada pelo Portal, IAM, vault, epoch comercial durável, HTTPS homologado, checklist real de publicação ou revisão independente AppSec. A pré-validação sem nonce não equivale a autorização de projeto.
+- **10/10 gates operacionais de produção permanecem BLOCKED.** Nenhum deploy, site publicado, cliente, PII, VPS/Cloudflare, DNS ou novas despesas.
+
+
+## Continuidade supervisionada — F1-128 (10/11/2026)
+
+- [Sites PR #164 — F1-128](https://github.com/rafhael100/imagine-sites/pull/164): refatorou os verificadores sintéticos HMAC v1/v2/v3 para **separar a validação estrita de assinatura e comando** (`verifySignature`, sem nenhum ReplayStore) do passo definitivo de consumo único (`verify(..., ReplayStore)`). `LabSignedProjectIntake` usa a pré-verificação sem armazenamento temporário de nonces, consulta a revisão comercial e só então registra o nonce no `LabPostgresReplayStore` restrito. `LabPreflightNoPersistReplayStore` foi desativado, retornando sempre DENY.
+- A regressão PostgreSQL 18 PHP8.3/8.4 verifica pré-validação repetível sem consumo, suporte v1/v2, alteração de HMAC v3 recusada, idempotência e replay negado entre duas conexões. **Seis workflows distintos concluídos com sucesso** na HEAD de código: PostgreSQL18, cross-repo Portal→Sites, sintéticos, Laravel, Docker isolado e safety.
+- O trabalho permanece exclusivamente de **laboratório CLI/testing**, com fontes de chave/época/pedido fictícias, sem IAM oficial, OAuth/mTLS, vault, emissão operacional Portal, teste HTTPS, homologação na VPS ou parecer AppSec independente. A validação pura HMAC **não é autorização** e jamais deve substituir o consumo durável de nonce.
+- PR draft empilhado sobre #163 e anteriores, sem merge em dev/main, deploy, DNS, Cloudflare, dados pessoais, servidor VPS nem custos. **10/10 gates operacionais continuam BLOCKED.**
+
+
+## Continuidade supervisionada — F1-126 e F1-127 (10/11/2026)
+
+- [Sites PR #162 — F1-126](https://github.com/rafhael100/imagine-sites/pull/162): cenário de indisponibilidade de revisão comercial em **três fases** de admissão HMAC v3: antes da reserva do nonce, após a reserva e no pré-COMMIT de um novo projeto. Com duas bases PostgreSQL 18 descartáveis, comprova rollback, recuperações distintas e uso obrigatório de novo nonce após a reserva. **Quatro workflows aprovados**, incluindo PostgreSQL18 PHP8.3/8.4, Laravel, sintéticos e safety.
+- [Sites PR #163 — F1-127](https://github.com/rafhael100/imagine-sites/pull/163): corrigiu o risco de confundir o `LabPreflightNoPersistReplayStore`, que **nunca registra nonces**, com um armazenamento definitivo `ReplayStore`. Em modo v3 o intake agora exige a classe restrita `LabPostgresReplayStore` antes de consultar a autoridade. Testes recusam o preflight e um stub sempre-ALLOW, sem consulta comercial nem mutação de projeto; confirmam que o nonce permanece disponível no PostgreSQL e será consumido uma só vez. **Cinco workflows distintos aprovados na HEAD de código**, incluindo PostgreSQL18 PHP8.3/8.4, Laravel, sintéticos, safety e Docker isolado.
+- Os dois PRs permanecem empilhados e em **draft**, sem merge em dev/main ou deploy. A política de tipo de storage é exclusiva do **laboratório CLI/testing PostgreSQL 18**, não uma especificação final da infraestrutura de produção; o sistema não tem Portal IAM real, fonte de autorização monotônica durável, credenciais S2S, vault, observabilidade ou parecer AppSec independente.
+- **10/10 gates de produção permanecem BLOCKED**. Nenhuma alteração de VPS, Cloudflare, DNS, dados de clientes ou novos custos.
+
+
+## Continuidade supervisionada — F1-123..125 e Portal F1-15..16 (10/11/2026)
+
+- [Portal PR #270 / F1-15](https://github.com/rafhael100/imagine-portal/pull/270): fonte independente de geração de autorização comercial por pedido, padrão DENY, evita revogação/restauração A→B→A durante emissão. **Dois workflows concluídos com sucesso** (testes do Portal e Laravel/PHP 8.3/8.4).
+- [Sites PR #159 / F1-123](https://github.com/rafhael100/imagine-sites/pull/159): prova cross-repo com o código Portal fixado em `24081214446da198ea551fb18ee35d6948f3da5d`; para Onepage/Landing Page, época comercial divergente nega emissão mesmo se o snapshot do pedido voltou a ser idêntico. **Quatro workflows concluídos com sucesso**, inclusive PHP8.3/8.4.
+- [Portal PR #273 / F1-16](https://github.com/rafhael100/imagine-portal/pull/273): versão sintética **HMAC v3** autentica `commercialEpoch` junto de `keyEpoch`; `issueCommercialEpochSigned` obtém ambos das fontes candidatas, nunca do chamador. **Dois workflows concluídos com sucesso** no Portal.
+- [Sites PR #160 / F1-124](https://github.com/rafhael100/imagine-sites/pull/160): verificador HMAC v3 e teste cross-repo real usando Portal fixado em `8d1e20bc5c39dc4106b549c5e979351b5c766615`. Compara envelopes para Onepage/Landing Page e recusa época comercial antiga, alteração não assinada e replay. **Cinco workflows distintos aprovados**, incluindo cross-repo PHP8.3/8.4, Laravel, safety, sintéticos e Docker.
+- [Sites PR #161 / F1-125](https://github.com/rafhael100/imagine-sites/pull/161): modo CLI/testing **v3 explícito**, sem downgrade; fonte independente de época comercial padrão DENY. Autentica HMAC antes de consulta por recurso sem consumir nonce, reconsulta epoch antes do consumo durável e outra vez no início e pré-COMMIT da admissão PostgreSQL18. Testes em duas bases descartáveis e PHP8.3/8.4 comprovam rejeição de revisão obsoleta e HMAC alterada, rollback, nonce persistido e nova assinatura para retry. PostgreSQL18, Laravel, safety e sintéticos passaram na HEAD de código; Docker ainda era executado na última consulta.
+- Os PRs permanecem **draft e empilhados**, sem merge em dev/main, publicação, cliente/PII, DNS, VPS/Cloudflare ou novas despesas. O Portal não possui emissor/autorizador operacional v3; épocas/chaves usadas nos testes são fixtures em memória, não prova de IAM, vault, monotonicidade durável ou identidade mutuamente autenticada. Falta homologação HTTPS real, revisão independente AppSec, auditoria, contrato aprovado e acesso autorizado à infraestrutura. **10/10 gates operacionais de produção permanecem BLOCKED.**
+
+
+## Continuidade supervisionada — Portal F1-15/16 e Sites F1-123/124 (10/11/2026)
+
+- [Portal PR #270 — F1-15](https://github.com/rafhael100/imagine-portal/pull/270): fonte comercial independente de época positiva, padrão DENY, evita revogação/restauração A→B→A do mesmo pedido durante emissão. PHP8.3/8.4, Laravel e testes gerais do Portal aprovados em dois workflows.
+- [Sites PR #159 — F1-123](https://github.com/rafhael100/imagine-sites/pull/159): o workflow cross-repo usa Portal fixado no commit `24081214446da198ea551fb18ee35d6948f3da5d`, provando em Onepage/Landing Page que a mudança da época comercial nega emissão mesmo com snapshot idêntico. Quatro workflows distintos aprovados, incluindo cross-repo PHP8.3/8.4.
+- [Portal PR #273 — F1-16](https://github.com/rafhael100/imagine-portal/pull/273): envelope sintético HMAC **v3** com campo `commercialEpoch` autenticado, além do `keyEpoch`; nova emissão protegida `issueCommercialEpochSigned` sem receber épocas nem segredo do chamador. Testes gerais e Laravel aprovados.
+- [Sites PR #160 — F1-124](https://github.com/rafhael100/imagine-sites/pull/160): verificador sintético HMAC v3 exige época comercial corrente, autentica campo contra MAC e preserva nonce/contrato da v2. Cross-repo PHP8.3/8.4, Laravel, testes sintéticos e safety aprovados na HEAD com código; Docker isolado ainda estava em execução na última consulta. O verificador **não** usa fonte IAM real: as épocas esperadas vêm das fixtures.
+- PRs **draft e empilhados**, sem merge em dev/main, publicação, cliente, VPS, DNS, Cloudflare ou custo. Emissor e verificador v3 continuam apenas no laboratório; integração ao admission store PostgreSQL, fonte confiável e durável de autorização comercial, autenticação S2S, vault, revogação, auditoria, homologação HTTPS e parecer independente AppSec ainda não existem. **10/10 gates operacionais BLOCKED.**
+
+
+## Continuidade supervisionada — Portal F1-14 / Sites F1-122 (10/11/2026)
+
+- [Portal PR #267 — F1-14](https://github.com/rafhael100/imagine-portal/pull/267): `LabPortalSitesVersionedIssuer` agora consulta o contrato/pedido comercial **duas vezes**, incluindo a última consulta antes de devolver HMAC v2. Mudança de elegibilidade, revisão ou empresa entre as consultas resulta DENY; testes do Portal e Laravel PHP8.3/8.4 passaram nos dois workflows.
+- [Sites PR #158 — F1-122](https://github.com/rafhael100/imagine-sites/pull/158): CI cross-repo lê a revisão Portal fixa `2be656bdbf5a6d6fa00e563fd5b5e4942b54cd2c`, prova para Onepage e Landing Page que **revogação, nova revisão contratual ou mudança de empresa durante emissão** não devolvem envelope. Após restabelecimento fictício, o Portal pode emitir nova assinatura verificada pelo Sites. Quatro workflows concluídos com sucesso na HEAD de código, incluindo cross-repo PHP8.3/8.4, Laravel, testes sintéticos e safety.
+- As fontes comerciais, de chave e época continuam em memória e não são IAM/vault oficiais; nem o emissor Portal F1-14 nem o receptor Sites F1-122 são endpoints operacionais. A segunda leitura não é transação atômica e não impede revogação posterior. Requer autenticação mútua, fonte contratual real, auditoria, homologação HTTPS e revisão AppSec independente.
+- **10/10 gates operacionais continuam BLOCKED.** Todos os PRs são drafts empilhados; nenhum merge em dev/main, deploy, cliente, PII, DNS, VPS/Cloudflare ou nova despesa.
+
+
+## Continuidade supervisionada — Portal F1-13 e Sites F1-121 (10/11/2026)
+
+- [Portal PR #264 — F1-13](https://github.com/rafhael100/imagine-portal/pull/264): `LabPortalSitesVersionedIssuer` constrói comando com fonte comercial Portal em DENY por padrão, obtém **chave e época em um mesmo registro** de `PortalSitesSigningMaterialSource` independente, e reconsulta a fonte após assinar para negar troca do segredo ou da revisão durante a emissão. O método de entrada NÃO recebe segredo ou `keyEpoch` do solicitante. Testes Laravel PHP8.3/8.4 e Node.js aprovados nos dois workflows observados. A fonte continua fixture sintética sem IAM real.
+- [Sites PR #157 — F1-121](https://github.com/rafhael100/imagine-sites/pull/157): a suíte cross-repo usa checkout Portal fixado na revisão pública `b2bfd8e8c3e5f646764b4b3d91ce34612886d452`; com Onepage e Landing Page, compara byte a byte a MAC v2 emitida pela nova fronteira do Portal e aceita pelo Sites. Nega fonte indisponível, alteração de `keyEpoch` entre as duas leituras e ausência de fonte comercial. **Quatro workflows distintos concluídos com sucesso**, incluindo cross-repo PHP8.3/8.4, Laravel, testes sintéticos e safety.
+- As duas alterações continuam em PRs **draft e empilhados**; não foram mescladas. A origem de chaves/época NÃO é key vault, IAM, OAuth, mTLS, revisão monotônica em banco, aceite real nem autorização de domínio/cliente. A dupla leitura não é commit distribuído e não elimina revogação após assinatura. A revisão AppSec independente e o teste HTTPS de homologação ainda são pendências.
+- **10/10 gates operacionais permanecem BLOCKED**, sem deploy, merge em main/dev, publicação, dados reais, VPS/Cloudflare, DNS nem gasto novo.
+
+
+## Continuidade supervisionada — F1-119 / F1-120 (10/11/2026)
+
+- [Portal PR #258 / F1-12](https://github.com/rafhael100/imagine-portal/pull/258): criado **emissor PHP v2 independente** de envelope HMAC com `keyEpoch` no Imagine Portal, empilhado sobre o candidato histórico Portal #105. Os workflows Node.js e Laravel/PHP 8.3/8.4 passaram. Não é emissor IAM operacional do Portal nem está em main/dev.
+- [Sites PR #155 / F1-119](https://github.com/rafhael100/imagine-sites/pull/155): `tests/f23-cross-repo.php` usa as classes reais da revisão pública **fixa** do Portal `855212e93649235715202390f296444d91b6609e`, compara todo o envelope emitido e verificado em Sites para Onepage/Landing Page e exige recusa de v1 como v2, HMAC alterada, revisão de chave antiga e nonce repetido. **Quatro workflows distintos aprovados**, incluindo cross-repo PHP8.3/8.4, Laravel, sintéticos e safety.
+- [Sites PR #156 / F1-120](https://github.com/rafhael100/imagine-sites/pull/156): nenhuma versão de envelope é aceita implicitamente: `SITES_F118_REQUIRE_EPOCH_SIGNED=1` habilita v2, `SITES_F118_ALLOW_LEGACY_V1_LAB=1` habilita v1 **somente em testes CLI**, e ausência/ambas as opções negam antes de consumir nonce. PG18 PHP8.3/8.4, Laravel, sintéticos e safety aprovados na primeira execução; Docker estava em validação na última consulta. Sem endpoint e sem promoção de v1.
+- Os três PRs permanecem drafts empilhados em branches isoladas. **Não** há serviço oficial de autorização Portal, identidade mutuamente autenticada, vault/geração monotônica real, chave de produção, aceite do cliente ou liberação de site. O Portal atual na linha principal não foi alterado. A integração HTTP/HTTPS de homologação e revisão AppSec independente ainda são necessárias.
+- Nenhum merge em dev/main, deploy, DNS, VPS, dados reais ou gasto adicional. **10/10 gates operacionais de produção permanecem BLOCKED.**
+
+
+## Continuidade supervisionada — F1-117 / F1-118 (10/11/2026)
+
+- [PR #153 — F1-117](https://github.com/rafhael100/imagine-sites/pull/153): a assinatura HMAC candidata foi ligada a uma fonte independente de época monotônica de chave (`PortalSigningKeyEpochSource`), cujo padrão é DENY. Uma rotação A→B→A durante o commit é detectada pela mudança da revisão mesmo com segredo final igual, com rollback de projeto/admissão e testes em duas bases efêmeras PG18. **Cinco workflows distintos concluídos com sucesso**: PostgreSQL18 PHP8.3/8.4, Laravel, Docker, testes sintéticos e safety.
+- [PR #154 — F1-118](https://github.com/rafhael100/imagine-sites/pull/154): formato de comando HMAC sintético **v2** com `keyEpoch` autenticado pelo MAC. Sob `SITES_F118_REQUIRE_EPOCH_SIGNED=1`, v1 é negado e uma mensagem antiga é rejeitada após A→B→A anterior à operação, mesmo se o segredo original tiver sido restaurado. Os testes exigem MAC válido, revisão corrente e nonce único entre duas conexões/bases PG18. **Cinco workflows distintos concluídos com sucesso** na HEAD com código: PostgreSQL18 PHP8.3/8.4, Laravel, testes sintéticos, safety e Docker isolado. Nenhuma integração operacional foi ativada.
+- **Limite essencial:** o novo v2 não é atualmente emitido por um serviço oficial do Portal nem foi homologado entre as branches atuais dos dois repositórios. O v1 permanece apenas no laboratório legado sem flag v2; as fontes de chaves e épocas são fixtures, não vault, IAM ou autenticação serviço-serviço real.
+- Ambos os PRs continuam draft/empilhados sobre #152 e anteriores, sem merge em dev/main, sem cliente, PII, DNS, VPS/Cloudflare, deploy ou novos custos. A revisão AppSec independente e a integração autenticada seguem pendentes na [issue OP01 #33](https://github.com/rafhael100/imagine-sites/issues/33). **10/10 gates operacionais BLOCKED.**
+
+
+## Continuidade supervisionada — F1-115 / F1-116 (10/11/2026)
+
+- [PR #151 — F1-115](https://github.com/rafhael100/imagine-sites/pull/151): removeu a chave HMAC fornecida pelo chamador da entrada assinada; o serviço consulta `PortalSigningKeySource` independente, por padrão DENY, com emissor/audiência fixos. Testes de revogação, erro e rotação com duas conexões/bases PostgreSQL; **cinco workflows distintos concluídos com sucesso**, incluindo PostgreSQL18 PHP8.3/8.4 e Docker.
+- [PR #152 — F1-116](https://github.com/rafhael100/imagine-sites/pull/152): o gateway candidato reconsulta a chave de assinatura na admissão inicial e antes do commit, retornando DENY se alterada. Testes de revogação exatamente no pré-COMMIT comprovam rollback de projeto+admissão e replay idempotente apenas com nonce novo. Os cinco workflows distintos executados na primeira HEAD do PR concluíram com sucesso; revisão independente ainda pendente.
+- [Pauta AppSec independente](https://github.com/rafhael100/imagine-sites/blob/fix/sites-f1-116-final-signing-key-recheck-2026-11-10/docs/SITES-F1-116-INDEPENDENT-APPSEC-REVIEW-PACKET.md): evidências, riscos não cobertos e critérios concretos de revisão do OP01 [#33](https://github.com/rafhael100/imagine-sites/issues/33) e OP02 [#34](https://github.com/rafhael100/imagine-sites/issues/34). Nenhum parecer independente ou integração real foi concluído.
+- Todos os PRs permanecem empilhados como drafts, sem merge em dev/main, deploy, dados reais, VPS/Cloudflare, domínio ou despesas. Chave fictícia HMAC e fontes em memória não são identidade oficial do Portal, e a GUC de tenant do PostgreSQL não é IAM. **10/10 gates de produção BLOCKED.**
+
+
+## Continuidade supervisionada — F1-112..114 (10/11/2026)
+
+- [PR #148 — F1-112](https://github.com/rafhael100/imagine-sites/pull/148): o armazenador de nonces `LabPostgresReplayStore` revalida **em cada consumo** o contexto CLI/testing, a flag de laboratório, a base e a role PostgreSQL restrita, os privilégios de `pg_roles` e a ausência de transação controlada externamente. Testes negativos rejeitam `RESET ROLE`, revogação de flag, execução fora de testing e transação com possibilidade de rollback. **Seis workflows distintos concluíram com sucesso**, incluindo F1-14 e F1-94 PHP8.3/8.4.
+- [PR #149 — F1-113](https://github.com/rafhael100/imagine-sites/pull/149): teste na base efêmera remove temporariamente `INSERT` da role de nonces e comprova falha fechada sem mutar projeto. Após restaurar a permissão, a mesma mensagem ainda não consumida pode ser processada uma única vez. **Quatro workflows distintos aprovados**, incluindo PostgreSQL18 PHP8.3/8.4.
+- [PR #150 — F1-114](https://github.com/rafhael100/imagine-sites/pull/150): cenário oposto: o nonce já foi consumido, mas a conta restrita perde temporariamente `SELECT` na admissão. A transação de projeto recusa, o ledger permanece inalterado, a mensagem original não pode ser reutilizada e **um novo nonce assinado** permite replay idempotente. **Quatro workflows distintos aprovados** antes desta atualização documental, incluindo PostgreSQL18 PHP8.3/8.4.
+- As três etapas estão empilhadas sobre #147 e anteriores em PRs draft; não há autorização de merge. O teste mostra que armazenamento de replay e admissão não compartilham commit distribuído: o ponto da falha determina se o nonce original pode ou não ser reutilizado.
+- Sem Portal IAM real, revogação operacional, gestão de chaves, prova de aceite, banco de produção/backup, VPS homologada, Cloudflare, DNS, cliente ou publicação. **10/10 gates operacionais BLOCKED**; nenhum merge em dev/main, deploy, dados reais ou gasto adicional.
+
+
+## Continuidade supervisionada — F1-110 e F1-111 (10/11/2026)
+
+- [PR #146 — F1-110](https://github.com/rafhael100/imagine-sites/pull/146): fluxo CLI/testing `LabSignedProjectIntake` encadeia envelope de comando com HMAC sintética, nonce consumido pelo `ReplayStore`, gateway de autorização independente e admissão transacional de projeto em PostgreSQL18. Foram incluídos testes para payload alterado, nonce repetido, autorização negada/revogada, repetição idempotente e compatibilidade com snapshot/epoch F1-102/105. Os cinco workflows observados terminaram com sucesso, incluindo matriz PG18 PHP8.3/8.4 e Docker. Nenhuma operação real é habilitada.
+- [PR #147 — F1-111](https://github.com/rafhael100/imagine-sites/pull/147): execução integrada com **duas bases de dados descartáveis** no mesmo serviço PostgreSQL CI, separando o ledger de projetos do armazenamento de nonce F1-12/F1-14. Duas conexões PDO distintas demonstram replay recusado entre sessões; assinatura nova e autorização fictícia permitem somente admissão idempotente; nega adulteração de tenant, revogação e escopo externo. CI da F1-111 aprovado nas quatro matrizes distintas, incluindo PostgreSQL18 PHP8.3/8.4.
+- As duas entregas continuam empilhadas sobre #145 e anteriores, em branches isoladas e PRs draft. Não houve merge em dev/main, deploy, integração real Portal IAM, ativação de VPS, DNS, dados pessoais, aceite do cliente ou despesas novas.
+- A conta SQL do tenant e a HMAC de laboratório não conferem identidade operacional; o contexto GUC do PostgreSQL pode ser forjado por SQL direto. Nonce e gravação de projeto em bancos diferentes não possuem commit distribuído. A origem confiável, gestão de chaves, revogação operacional, backup/HA e revisão independente AppSec ainda estão pendentes. **10/10 gates de produção permanecem BLOCKED.**
+
+
+## Continuidade supervisionada — F1-107..109 (10/11/2026)
+
+- [PR #143 — F1-107](https://github.com/rafhael100/imagine-sites/pull/143): `fromCanonicalJson` recusa chaves duplicadas, byte encoding não canônico, whitespace, JSON inválido e mais de 4096 bytes. PHP8.3/8.4, Laravel, testes sintéticos, segurança e Docker concluídos com sucesso. **Não verifica assinatura nem IAM.**
+- [PR #144 — F1-108](https://github.com/rafhael100/imagine-sites/pull/144): estende `tests/f23-cross-repo.php` para comprovar compatibilidade do comando real de uma **revisão pública fixada** do Portal com o snapshot estrito do Sites para Onepage e Landing Page. Um erro de autoload do teste foi encontrado e corrigido; a matriz cross-repo PHP8.3/8.4 foi aprovada, além de Laravel, sintéticos e safety. Não se trata da branch corrente do Portal nem de IAM operacional.
+- [PR #145 — F1-109](https://github.com/rafhael100/imagine-sites/pull/145): centraliza a versão e campos do decoder de autorização e adiciona sentinela CI contra divergência entre JSON Schema e PHP, incluindo status, campos obrigatórios, tipos, contrato CreateProject, TTL e campos proibidos. CI da F1-109 concluído com sucesso nos cinco workflows distintos executados.
+- Estes PRs estão empilhados sobre #142 e anteriores, em branches isoladas e como rascunhos. Exigem revisão independente antes de qualquer merge.
+- **10/10 gates de produção seguem BLOCKED**: sem autenticação real do Portal, assinatura, prova de aceite, integração pública, Cloudflare, VPS homologada, cliente, DNS, deploy, alterações dev/main ou custos adicionais.
+
+
+## Continuidade supervisionada — F1-105 / F1-106 (10/11/2026)
+
+- [PR #141 — F1-105](https://github.com/rafhael100/imagine-sites/pull/141): o gateway candidato Portal→Sites passou a exigir revisão atual da autorização por fonte independente de epoch; snapshot elegível ainda válido não pode ser reutilizado quando a revisão consultada diverge. Fonte ausente, inválida ou indisponível nega por padrão. Testes no CLI PHP 8.3/8.4 e no PostgreSQL 18 descartável cobrem revogação, epoch divergente e alteração de epoch entre a autorização inicial e o commit. Os cinco workflows distintos executados na HEAD F1-105 concluíram com sucesso; sem merge.
+- [PR #142 — F1-106](https://github.com/rafhael100/imagine-sites/pull/142): contrato candidato JSON Schema v1 e `fromArray` estrito para o registro do snapshot, com versão obrigatória, seis campos exatos, comando vinculado, tipos e TTL. Testes PHP8.3/8.4 contra campos extras, formatos inválidos, empresas diferentes e expiração. Aguardar CI final da própria HEAD.
+- Os dois PRs são empilhados e ainda dependem de #140 e linhas anteriores; revisão independente AppSec, contrato real do Portal, IAM autenticado e revogação operacional permanecem pendentes.
+- Fontes de snapshot e epoch são **fictícias**; duas fontes igualmente obsoletas não comprovam autorização corrente. A GUC de tenant do PostgreSQL pode ser forjada com SQL direto; não disponibilizar acesso arbitrário ao banco. **10/10 gates operacionais BLOCKED**, nenhuma publicação, merge em dev/main, PII, DNS, despesa ou uso da VPS.
+
+
+## Evolução supervisionada — F1-103 e F1-104 (10/11/2026)
+
+- [PR #139 — F1-103](https://github.com/rafhael100/imagine-sites/pull/139): a política candidata F1-102 de snapshot Portal, com vínculo exato empresa/contrato/operação/idempotência e TTL limitado, foi conectada **somente no teste PG18 descartável** ao serviço de admissão de projetos. Sem snapshot, com grant expirado/revogado, ou com operação diferente, não admite; decisão corrente fictícia permite gravar ou fazer replay idempotente. Testes PG18 PHP8.3/8.4 aprovados; sem IAM real.
+- [PR #140 — F1-104](https://github.com/rafhael100/imagine-sites/pull/140): rechecagem do gateway de autorização imediatamente antes do COMMIT tanto para projeto+admissão quanto para replay; revogação intermediária faz rollback e preserva o ledger. Testes de PostgreSQL18 PHP8.3/8.4, Laravel, domínio e gate de segurança aprovados na HEAD de código antes da atualização documental; CI final de HEAD precisa ser conferido. Nenhum merge.
+- Branches empilhadas: #140 depende #139, #138, #137, #136, #135, #134, #133 e agregado #132. Revisão independente AppSec ainda não concluída.
+- Este avanço não habilita Portal IAM oficial, assinatura, aceite do cliente, CRM/AI Agents reais, Cloudflare, VPS, domínio, deploy nem dados de cliente. `imagine_sites.tenant_ref` é forjável por SQL direto; as checagens não comprovam identidade. **10/10 gates operacionais BLOCKED** e sem custos/merges/publicação.
+
+
+## Continuidade supervisionada — F1-100..102 (10/11/2026)
+
+- F1-100: rechecagem da autorização Portal *fictícia* antes do commit de consulta da revisão vigente, com teste de revogação intermediária e rollback; [PR #136](https://github.com/rafhael100/imagine-sites/pull/136). Os cinco workflows distintos executados concluíram com sucesso, sem aprovação operacional.
+- F1-101: rechecagem da mesma autoridade antes do commit tanto da nova gravação quanto de replay idempotente, com testes de revogação e rollback sobre PG18; [PR #137](https://github.com/rafhael100/imagine-sites/pull/137). Depende de #136; revisão CI na HEAD deve ser conferida antes de qualquer integração.
+- F1-102: snapshot candidato de autorização do projeto Portal-Sites, vinculado campo a campo a tenant, pedido, contrato/revisão, produto, operação e chave idempotente, status e TTL máximo de 30 segundos. Source default DENY, modo CLI/testing explícito, fonte fictícia em memória; suíte PHP8.3/8.4 incorporada. NÃO há IAM real ou autorização de produção.
+- As novas alterações são PRs empilhados em branches isoladas sobre as etapas F1-99..97 e o PR agregado #132. Nenhum merge em dev/main, deploy, publicação, dados pessoais ou despesas novas.
+- PostgreSQL tenant GUC não autentica recurso; a checagem em tempo limitado ainda pode ficar obsoleta depois; assinatura/aceite do cliente e revogação operacional seguem ausentes. **10/10 gates em config/operational-readiness.json permanecem BLOCKED.**
+
+
+## Continuidade supervisionada — 10/11/2026 (F1-97..99)
+
+- [PR #133 — F1-97](https://github.com/rafhael100/imagine-sites/pull/133): rechecagem dos quatro arquivos privados no replay idempotente, antes do COMMIT; simulação de alteração durante avaliação de autoridade e restauração. Suítes CI relevantes concluídas com sucesso. Sem merge.
+- [PR #134 — F1-98](https://github.com/rafhael100/imagine-sites/pull/134): leitor da revisão vigente adquire lock compartilhado por empresa/site na mesma chave do gravador F1-95. PostgreSQL18, Laravel, guardas, testes sintéticos e Docker isolado concluídos com sucesso. Sem merge.
+- [PR #135 — F1-99](https://github.com/rafhael100/imagine-sites/pull/135): verificador de arquivos privados nega caminho com qualquer ancestral simbólico e arquivo com hardlink (nlink diferente de 1). Testes negativos novos de symlink parental e hardlink externo. **CI da HEAD ainda requer verificação de todos os jobs relevantes; não é aprovação para integração**.
+- A progressão é de PRs empilhados: #135 depende de #134, que depende de #133 e da consolidação #132. Todos seguem em revisão; não modificar dev/main, não fazer deploy, não publicar HTML para clientes.
+- Ressalvas: a GUC PostgreSQL é controlável por SQL direto, não é IAM. Locks só coordenam processos cooperantes; verificação de caminho não impede troca TOCTOU; arquivos não são snapshot distribuído nem prova de aceite. **10/10 gates operacionais permanecem BLOCKED**.
+
+
+## Atualização — 10/11/2026 (linha supervisionada de desenvolvimento)
+
+### Marco atual F1-96 — PR agregado #132
+
+- [PR #132](https://github.com/rafhael100/imagine-sites/pull/132): consolidação F1-45..96 para revisão independente em `dev`, **sem merge, deploy, gastos ou dados reais**. A HEAD final precisa passar a matriz de CI e ainda depende de revisão humana/AppSec.
+- [PR #130 — F1-95](https://github.com/rafhael100/imagine-sites/pull/130): serviço real de laboratório `LabVerifiedDraftRevisionStore` grava revisões em `sites_drafts` após verificar os 4 arquivos privados, projeto admitido F1-94, hashes de HTML/dossiê e autorização fictícia atual. Sequência rígida, replay da última revisão exato e advisory lock por empresa/site; não é serviço público.
+- [PR #131 — F1-96](https://github.com/rafhael100/imagine-sites/pull/131): `LabVerifiedLatestDraftReader` revalida autorização antes da leitura e compara a revisão vigente do PostgreSQL 18 com os arquivos privados; nega versões antigas, diretórios ausentes, bytes alterados e permissão revogada. **Suíte integrada com 37 assertivas por versão PHP 8.3/8.4** aprovada em CI individual.
+- **Limites:** RLS com `imagine_sites.tenant_ref` é forjável por usuário SQL; diretório local não dá snapshot atômico nem storage imutável; gateway Portal dos testes é ficcional. Sem IAM, aceite real, CRM, Cloudflare, observador HTTPS externo, VPS homologada ou AppSec independente, os **10 gates operacionais seguem BLOCKED**. Nenhuma publicação ou integração em `dev`/`main` ocorreu.
+- [PR #129](https://github.com/rafhael100/imagine-sites/pull/129): agregado anterior, aprovado em 24 workflows e 41/41 jobs, mas **não mesclado** e substituído pela consolidação #132.
+
+### Marco anterior F1-94 — PR agregado #129 (histórico)
+
+- [PR #129](https://github.com/rafhael100/imagine-sites/pull/129): histórico de F1-45..94, aprovado anteriormente em 24 workflows e 41/41 jobs, substituído pelo #132. Sem merge ou deploy.
+- [PR #128 — F1-94](https://github.com/rafhael100/imagine-sites/pull/128): segunda migração real `sites_project_admissions` e admissão transacional de projeto sob gateway `PortalProjectAuthorityGateway` **DENY por padrão**. Idempotência baseada em empresa, operação, site, pedido, contrato, revisão e hash semântico, com rollback em conflitos. Os seis workflows individuais passaram, incluindo PostgreSQL 18 com **25 assertivas por versão PHP 8.3/8.4**.
+- O novo teste comprova que o trigger bloqueia UPDATE/DELETE e a FK exige projeto da própria empresa. Também comprova **limite de segurança: o usuário SQL que controla `imagine_sites.tenant_ref` pode assumir o contexto de outra empresa**. Portanto, RLS/GUC não equivalem a identidade/isolamento operacional confiável; é indispensável autenticação real no Portal e restrição absoluta ao usuário SQL.
+- [PR #127](https://github.com/rafhael100/imagine-sites/pull/127) passou anteriormente em 23 workflows distintos e 39/39 jobs; agora é proposta histórica substituída, **não mesclada**. O mesmo ocorre com PRs agregados antigos. Os dez gates `BLOCKED` continuam sem evidência operacional, pois não existem ainda IAM real, Cloudflare público, CRM/IA operacionais ou VPS homologada.
+- Preservados: nenhum dado real, contratação, DNS, código em `dev`/`main`, deploy, publicação ou aceite do cliente. Revisão independente obrigatória antes de merge.
+
+### Marco anterior F1-93 — PR agregado #127 (histórico)
+
+- [PR #127](https://github.com/rafhael100/imagine-sites/pull/127): registro da consolidação até F1-93, **substituída pelo PR #129**, sem merge em `dev`/`main` e sem liberação operacional. O CI de sua HEAD anterior passou em 23 workflows e 39/39 jobs.
+- [PR #125 — F1-92](https://github.com/rafhael100/imagine-sites/pull/125): correção da validação do snapshot do Portal usando o mesmo instante confiável do envelope HMAC v2; testes de expiração, revogação e nonce. **Seis workflows acionados aprovados**.
+- [PR #126 — F1-93](https://github.com/rafhael100/imagine-sites/pull/126): migração Laravel real cria `sites_projects`/`sites_drafts` em PostgreSQL 18 efêmero, RLS FORCE, constraints de produto/revisão/hash e trigger contra UPDATE/DELETE. **PHP 8.3 e 8.4 aprovados**, 16 checagens por job, role não privilegiada, cross-tenant, transação sem vazamento e rollback destrutivo proibido. O trigger SQL precisou de correção de delimitador e depois passou.
+- **Limite de segurança explícito:** o valor `imagine_sites.tenant_ref` em `SET LOCAL` pode ser manipulado por acesso SQL direto; **não é identidade nem autorização por empresa**. Só usar com conexão restrita, código autenticado pelo Portal e sem SQL arbitrário. A migração nega execução fora de `APP_ENV=testing` + `SITES_F93_SCHEMA_LAB=1`.
+- O PR #124 passou previamente **22 workflows e 37/37 jobs**, porém é proposta anterior e NÃO foi mesclado. Dev/main e os dez gates `BLOCKED` seguem inalterados. VPS, CRM, IA e Cloudflare reais, domínio, backup, LGPD/AppSec e aceite expresso do cliente seguem pendentes.
+
+### Marco anterior F1-91 — PR agregado #124 (histórico)
+
+- [PR #124](https://github.com/rafhael100/imagine-sites/pull/124): registro histórico até F1-91, aprovado anteriormente em 22 workflows e 37/37 jobs. Substituído pela revisão de #127, **sem merge ou liberação de produção**.
+- **F1-90:** a tela local não simula mais aprovação interna por GET; `internal_review` revisão 2, dossiê SHA-256 e QA pendentes, sem API pública. Validado anteriormente em 21 workflows e 36/36 jobs no PR #122.
+- **F1-91:** `composer validate` e auditoria `composer audit --locked` tanto do conjunto completo quanto das dependências de produção. No PR #123 o job aprovou e declarou `No security vulnerability advisories found` em ambas as consultas (10/11/2026), sujeito à atualização dos feeds e à nova execução no agregado.
+- Propostas agregadas anteriores #114, #117, #120 e #122 são histórico substituído, **não foram mescladas**. Identidade/aceite real Portal, CRM, Cloudflare/CDN, AppSec independente e VPS Leaseweb continuam não homologados. Os dez gates `BLOCKED` permanecem intactos.
+
+### Continuidade F1-88..90 — 10/11/2026
+
+- [PR #120 — consolidação F1-45..89](https://github.com/rafhael100/imagine-sites/pull/120): **registro histórico substituído**; foi aprovado em 21 workflows e 36/36 jobs, e encerrado sem merge.
+- [PR #118 — F1-88](https://github.com/rafhael100/imagine-sites/pull/118): prova conjunta de dossiê e HTML privado em disco + decisão editorial persistida/relida com role PostgreSQL por tenant.
+- [PR #119 — F1-89](https://github.com/rafhael100/imagine-sites/pull/119): prova por GET dos bytes HTML efetivamente servidos em servidor HTTP de **loopback**, sem alegar observação Cloudflare remota.
+- [PR #121 — F1-90](https://github.com/rafhael100/imagine-sites/pull/121): a tela visual deixa de chamar a transição de **aprovação interna simulada** ao abrir a prévia, usando um dossiê ainda pendente de revisão, SHA-256 próprio e nenhum formulário/ação para aprovação/publicação. Validação CI desta alteração ainda subordinada ao PR.
+- O PR agregado histórico #114 foi **encerrado sem merge**, substituído pelas propostas posteriores. `dev`/`main` e os dez gates `BLOCKED` permanecem inalterados. Isso ainda NÃO é Portal autenticado, evidência de cliente, CRM, HTTPS/CDN real, VPS homologada ou autorização operacional.
+
+- **Registro histórico (substituído):** [PR #114](https://github.com/rafhael100/imagine-sites/pull/114) reunia a linha F1-45..F1-85, com **21 workflows distintos e 36/36 jobs aprovados** no head `940c9dc`, incluindo Laravel PHP 8.3/8.4, PostgreSQL 18, cópia/restauração de banco descartável, Chromium e execução real de laboratório Docker com usuário PostgreSQL sem superuser. **PR posteriormente encerrado sem merge, substituído por #120; nenhum destes códigos foi integrado em `dev` ou `main`**.
+- **F1-86:** [PR #115](https://github.com/rafhael100/imagine-sites/pull/115) implementa verificação **após gravação em disco** do pacote privado de revisão com quatro arquivos, hashes e conteúdo canônico, sem links simbólicos/arquivos extras, mais comando Laravel de leitura somente e negativos. Submetido à validação CI, dependente da linha F1-85.
+- **Estado real:** as classes e testes de laboratório não concedem identidade do Portal, aceite do cliente, Cloudflare, IA/n8n real, CRM, backup da VPS, avaliação AppSec independente ou go-live. **10/10 gates operacionais continuam `BLOCKED`**, issues #33–#38 abertas. Não houve publicação, DNS ou alteração de produção nesta linha.
+- Documentação atualizada em [README.md](README.md), incluindo comandos fictícios do gerador e do verificador. Os registros anteriores abaixo preservam o histórico de PRs individuais e não indicam que etapas ainda em draft foram mescladas.
+
 **09/11/2026 — integração de desenvolvimento e entrega de critérios de homologação.**
 
 - `dev` consolidou F1-01..22 via PRs #24–#29, mantendo `main` intacta.
@@ -18,7 +357,30 @@
 - [PR #52](https://github.com/rafhael100/imagine-sites/pull/52) — F1-35, claim único SQL de proposta de revisão atual, com RLS, versão, digest, revogação e unicidade. **5 workflows CI PASS; integrado em `dev` (`7cd20e8`).** Sem dispatch real nem aceite.
 - [PR #53](https://github.com/rafhael100/imagine-sites/pull/53) — F1-36, créditos fictícios em Postgres descartável com quota transacional e teste concorrente de duas conexões. CI PostgreSQL, PHP/Laravel e safety guard PASS; merge em `dev` (`c9a14fe`). Não é gasto real.
 - [PR #54](https://github.com/rafhael100/imagine-sites/pull/54) — F1-37, comando Laravel CLI de teste gera Onepage/Landing fictícias, pacote privado e proposta Portal com digest exato, sem aceitação nem publicação. CI PHP 8.3/8.4, Laravel, bundle e safety guard PASS; merge em `dev` (`a8d26fc`).
+- [PR #63](https://github.com/rafhael100/imagine-sites/pull/63) — F1-45, assinatura HMAC sintética de proposta Sites→Portal, vínculo exato a tenant/site/release/revisão/hash, anti-replay e verificador de autoridade atual DENY-default. **CI PHP 8.3/8.4, Laravel e safety guard PASS** (`368ea0d`); draft sem merge. Não é identidade ou aceite operacional.
+- [PR #64](https://github.com/rafhael100/imagine-sites/pull/64) — F1-46, JSON Schema candidato + envelope gerado pelo PHP e assinatura HMAC verificada independentemente em Python, com negativos de payload. **CI PHP 8.3/8.4, contratos, Laravel e safety guard PASS** (`a8a3dd8`); draft dependente de #63, sem endpoint real.
+- [PR #65](https://github.com/rafhael100/imagine-sites/pull/65) — F1-47, nonce durável em Postgres 18 descartável, issuer e RLS isolados, expiração, duas conexões PDO independentes e negativa por revogação sintética antes do consumo. **CI PG 18/PHP 8.3/8.4, Laravel e safety guard PASS** (`527e34c`); draft dependente de #64. Sem integração real.
+- [PR #68](https://github.com/rafhael100/imagine-sites/pull/68) — F1-48, gateway DENY-default com snapshot independente de revisão Portal (tenant, site, versão, digest, revogação). **3 workflows CI PASS** em `7a0a9f3`, inclusive PHP 8.3/8.4. Draft sem merge; não implementa identidade ou aceite real.
+- [PR #69](https://github.com/rafhael100/imagine-sites/pull/69) — F1-49, fonte SQL atual de duas empresas com RLS e nonce PostgreSQL 18. **Jobs PostgreSQL 8.3/8.4 PASS no descendente `2c75e04` (PR #71)**; primeira rodada do próprio PR falhou sem criar jobs. Não é autoridade operacional.
+- [PR #71](https://github.com/rafhael100/imagine-sites/pull/71) — F1-50, HMAC v2 inclui authorizationRevision e nega token de epoch anterior após revogação/reativação. **Testes de domínio PHP 8.3/8.4 PASS em `6264fb6` (PR #74)**; workflow próprio não criou jobs. Não resolve TOCTOU/identidade real.
+- [PR #72](https://github.com/rafhael100/imagine-sites/pull/72) — F1-51, presets Classic/Modern/Warm, versão clássica byte-idêntica, anti-injeção e SHA imutável; **testes puros PHP 8.3/8.4 PASS em `6264fb6` (PR #74)**. CI próprio incompleto por job não iniciado; não publica.
+- [PR #73](https://github.com/rafhael100/imagine-sites/pull/73) — F1-52, seis prévias e screenshots Chromium distintos, manifesto SHA-256, arquivos apagados. **Smoke Chromium CI PASS** em `0878e65`, bem como testes puros PHP 8.3/8.4; outros workflows sofreram falhas sem jobs. Não é homologação visual total.
+- [PR #74](https://github.com/rafhael100/imagine-sites/pull/74) — F1-53, revisão Laravel CLI seleciona tema, gera versão exata com SHA, preserva Classic anterior. **Job de testes Laravel PHP 8.4 PASS em `6264fb6`**; PHP 8.3 do workflow específico não iniciou, logo a matriz Laravel está incompleta. Core PHP 8.3/8.4, bundle e safety guard PASS. Sem aceite/publicação.
+- [PR #75](https://github.com/rafhael100/imagine-sites/pull/75) — F1-54, troca de estilo retorna a NOVO draft com revisão/release/digest diferentes e revisão interna obrigatória, sem autoaprovar. **3 workflows PASS** (`4fdb40b`). PR draft sem merge.
+- [PR #76](https://github.com/rafhael100/imagine-sites/pull/76) — F1-55, preflight de lead requer vínculos independentes Sites+CRM e preserva destino, T0, 72h/432h; nega revogação, divergência e recibo entregue. **3 workflows PASS** (`14c7786`). Sem PII ou chamadas reais.
+- [PR #77](https://github.com/rafhael100/imagine-sites/pull/77) — F1-56, integração dos PRs visuais #56..62 com a linha atual, preservando os novos temas, Laravel e regras CRM. **7 workflows PASS** (`e20ba16`), após correção da limpeza do perfil Chromium. Nenhum merge/deploy.
+- [PR #78](https://github.com/rafhael100/imagine-sites/pull/78) — F1-57, seletor Classic/Modern/Warm na UI CLI/testing, navegação por produto/dispositivo, revisão e SHA exatos. **5 workflows PASS** (`27edaa2`) após corrigir erro de diretiva Blade e tornar o teste Chrome preciso sobre foco (sem afirmar navegação interna no iframe). Galeria F1-41 Classic-only; F1-52 valida renderizações temáticas separadas. Sem aceite/publicação.
+- **F1-58 (PR draft pendente de CI):** galeria de revisão de 12 páginas HTML em CLI/testing, cobrindo 2 produtos × 2 visualizações × 3 temas, links offline, hashes exatos, CSP e publicação/aceite negados. Sem cliente, serviço público ou Cloudflare.
+- [PR #80](https://github.com/rafhael100/imagine-sites/pull/80) — F1-59, Chromium audita 12 prévias HTML internas, overflow e contraste de fundos sólidos. **4 workflows CI PASS** (`9557a02`); draft sem merge, não certifica WCAG.
+- **F1-60 (PR draft CI pendente):** demonstração em PostgreSQL descartável: consumir nonce de revisão v2 sob os mesmos locks de autorização e concessão de papel, com negativas por revogação, epoch, cross-tenant e concorrência. Não resolve revogação distribuída real.
+- [PR #83](https://github.com/rafhael100/imagine-sites/pull/83) — F1-62, 324 amostras de contraste do degradê da hero e 12 verificações extras a 320px no Chromium. **4 workflows PASS** (`e71f52c`); draft, não equivale a WCAG.
+- [PR #84](https://github.com/rafhael100/imagine-sites/pull/84) — F1-63, QA editorial orientativo no painel privado (título, descrição, CTA, benefícios), sem alterar HTML ou conceder aceite. **7 workflows PASS** (`6f6f04b`), em draft.
+- [PR #85](https://github.com/rafhael100/imagine-sites/pull/85) — F1-64, inventário legível/JSON dos 10 gates operacionais BLOQUEADOS, links para issues #33–#38, testes de mutações que não concedem ALLOW. **3 workflows PASS** (`1d2e7fa`); draft, sem acessar provedores.
 - [SITES-HOMOLOGATION-ENTRY](docs/SITES-HOMOLOGATION-ENTRY-2026-11-09.md) — matriz de entrada e bloqueadores com issues #33–#38.
+
+**CI F1-49..53: nota operacional:** algumas execuções do GitHub Actions tiveram resultado global `failure` com zero ou menos jobs do que a matriz solicitada. Foram registrados **somente os jobs realmente executados como PASS**, não a validação integral dos workflows incompletos. É obrigatório repetir os jobs faltantes antes de qualquer merge/homologação. Esta falha não foi atribuída a código nem a um incidente externo sem evidência conclusiva.
+
+**Paridade entre repositórios:** [Portal PR #171](https://github.com/rafhael100/imagine-portal/pull/171) (PORTAL-SITES-F1-12) implementou o consumidor sintético DENY-default da proposta assinada de revisão v2 Sites→Portal. **CI Laravel PHP 8.3/8.4 e testes gerais Portal PASS** (`e753e68`). Continua sem identidade operacional, aceite real ou merge.
 
 **Ainda não há ambiente operacional Sites publicado.** P0/RF-PEND/RV-CT/AppSec/LGPD, contratos financeiros, identidade, Cloudflare/DNS, banco produtivo, geração real por IA/n8n, captação/CRM fisicamente redundante e backups/restore continuam não homologados.
 
