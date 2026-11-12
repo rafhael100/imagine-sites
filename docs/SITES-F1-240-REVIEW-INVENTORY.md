@@ -41,3 +41,7 @@ Reexecutar o inventário completo no HEAD do candidato F1-267, depois da correç
 ## Revisão F1-269 — 12/11/2026
 
 Atualizar o inventário completo no HEAD do candidato F1-269. A referência 672 caminhos/189 sensíveis pertence exclusivamente ao PR #312 e não descreve os arquivos F1-268/269; recalcular o diff Git inteiro contra `dev` SHA `71b8ffe51139d0e70ed32591b07f295fb7bf5fe3`. Sem autorização de merge ou produção.
+
+## Renovação F1-273 — 12/11/2026
+
+Atualizar inventário local Git completo e o SHA a partir do candidato de integração F1-273 e da base fixa `dev` `71b8ffe51139d0e70ed32591b07f295fb7bf5fe3`. Incluir mudanças no renderizador FAQ, QA DOM, plano editorial, Laravel e testes Chromium. A contagem 678/191 pertence somente ao PR #315; não reutilizar no novo HEAD. Dez gates permanecem BLOCKED.
