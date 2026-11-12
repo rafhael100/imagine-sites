@@ -116,9 +116,11 @@ PROCESS;
         $faqSection = '';
         if ($brief->faq !== []) {
             $faqItems = implode("\n", array_map(
-                static fn (array $entry): string =>
-                    '          <li><h3>'.$escape($entry['question']).'</h3><p>'.
-                    $escape($entry['answer']).'</p></li>',
+                static fn (array $entry): string => $brief->faqDisclosure
+                    ? '          <li><details><summary>'.$escape($entry['question']).
+                      '</summary><p>'.$escape($entry['answer']).'</p></details></li>'
+                    : '          <li><h3>'.$escape($entry['question']).'</h3><p>'.
+                      $escape($entry['answer']).'</p></li>',
                 $brief->faq,
             ));
             $faqSection = <<<FAQ
@@ -268,6 +270,20 @@ CSS;
     .faq p { margin: 0; overflow-wrap: anywhere; }
 CSS;
             $html = str_replace("  </style>\n</head>", $faqCss."\n  </style>\n</head>", $html);
+        }
+
+        // F1-270: opt-in native details/summary; no JavaScript, network,
+        // remote assets or new source of editorial copy. Legacy FAQ bytes
+        // remain identical when the editor has not enabled this mode.
+        if ($brief->faqDisclosure) {
+            $disclosureCss = <<<'CSS'
+    .faq details { width: 100%; }
+    .faq summary { cursor: pointer; font-weight: 700; min-height: 44px; display: list-item; padding: 12px 8px; overflow-wrap: anywhere; }
+    .faq summary:focus-visible { outline: 3px solid #2366bc; outline-offset: 3px; }
+    .faq details[open] summary { margin-bottom: 8px; }
+CSS;
+            $html=str_replace("  </style>\n</head>",
+                $disclosureCss."\n  </style>\n</head>",$html);
         }
 
         // F1-51: conservative, predefined offline design tokens only.
