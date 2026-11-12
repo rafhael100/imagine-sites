@@ -1,5 +1,14 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuação F1-292 — OpenAPI CreateProject envelope v3 sem downgrade — 12/11/2026
+
+- Achado P0 OP01: OpenAPI v1 anterior descrevia CreateProject com assinatura v1, enquanto LabSignedProjectIntake moderno tem seleção explícita de v3 com keyEpoch + commercialEpoch. Compatibilidade histórica mantida, novo contrato v3 isolado; sem ativar API.
+- Novos JSON Schema e OpenAPI v3 candidate descrevem formato unívoco sem fallback v1/v2; JSON Schema não é autenticação/autorização.
+- Testes Python conferem drift PHP/OpenAPI, sem servidores e campos restritos. Testes PHP verificam HMAC v3, prazo, replay sintético, tenant, epochs e negação de downgrade; workflow dedicado PHP 8.3/8.4.
+- Dependências OP01 abertas: mTLS/identidade gerenciada, nonce durável sob concorrência, fonte Portal independente, revogação monotônica após restore e homologação HTTPS. Dez gates BLOCKED, nenhuma implantação.
+- Base #356 validou 121/121 workflows, 773 arquivos e 217 sensíveis; a F1-292 exige CI própria.
+
+---
 ## Continuação F1-291 — capturas reais do shell Imagine em Chromium — 12/11/2026
 
 - F1-290/PR #354: aplicação dos tokens laranja/grafite do Portal Node e logo original no painel interno, sem mudar as prévias de clientes. O CI revelou e motivou correções de contraste sobre fundo cinza e teste que agora permite apenas a imagem oficial com src local.
