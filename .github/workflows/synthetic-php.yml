@@ -97,6 +97,7 @@ jobs:
           php tests/f262-contact-privacy-preflight.php
           php tests/f263-contact-crm-admission.php
           php tests/f277-lead-retry-deadline.php
+          php tests/f278-crm-response-policy.php
           php tests/f157-static-faq-content.php
           php tests/f270-faq-native-disclosure.php
           php tests/f271-faq-disclosure-revision.php
