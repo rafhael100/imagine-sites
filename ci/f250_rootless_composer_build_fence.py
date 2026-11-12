@@ -20,8 +20,41 @@ def inspect(path: str, source: str) -> None:
     ]
     if not meaningful or not meaningful[0].startswith("FROM php:8.4-"):
         raise ValueError("F1-250 unexpected container base")
-    if source.count("COPY apps/sites/") != 1 or "COPY . " in source:
-        raise ValueError("F1-250 broad build context denied")
+    # F1-252: whitelist ALL Dockerfile copy instructions, not only the
+    # app copy count. A stray COPY/ADD can silently introduce .env, keys,
+    # build artifacts or unreviewed files into an otherwise isolated lab.
+    # Fold Dockerfile continuation lines before inspecting instructions.
+    logical = []
+    pending = ""
+    for raw in source.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        pending += (" " if pending else "") + line.rstrip("\\").rstrip()
+        if line.endswith("\\"):
+            continue
+        logical.append(pending)
+        pending = ""
+    if pending:
+        raise ValueError("F1-252 dangling Dockerfile continuation")
+    if len([line for line in logical if re.match(r"(?i)^FROM\s+", line)]) != 1:
+        raise ValueError("F1-252 exactly one build stage required")
+    if any(re.match(r"(?i)^ADD\s+", line) for line in logical):
+        raise ValueError("F1-252 ADD instruction forbidden")
+    copies = [line for line in logical if re.match(r"(?i)^COPY\s+", line)]
+    expected_copies = {
+        "COPY --from=composer:2 /usr/bin/composer /usr/bin/composer",
+        "COPY apps/sites/ ./apps/sites/",
+        "COPY src/ ./src/",
+        "COPY fixtures/ ./fixtures/",
+        "COPY labs/ ./labs/",
+        "COPY contracts/ ./contracts/",
+    }
+    if len(copies) != len(expected_copies) or set(copies) != expected_copies:
+        raise ValueError("F1-252 unexpected Dockerfile COPY or build context")
+    # Reject extra install commands hidden in a separate RUN instruction.
+    if sum(len(re.findall(r"\bcomposer\s+install\b", line)) for line in logical) != 1:
+        raise ValueError("F1-252 multiple Composer installation commands")
     users=[(i,s) for i,s in enumerate(meaningful) if s.startswith("USER ")]
     if len(users)!=1 or users[0][1]!="USER 10001:10001":
         raise ValueError("F1-250 requires a single non-root runtime user")
@@ -57,6 +90,11 @@ def test_negatives(path: str, source: str) -> None:
         "root-runtime":source.replace("USER 10001:10001","USER root",1),
         "no-user":source.replace("USER 10001:10001","",1),
         "wide-context":source+"\nCOPY . /workspace\n",
+        "secret-copy":source+"\nCOPY apps/sites/.env /tmp/.env\n",
+        "copy-flags":source+"\nCOPY --chown=root:root . /tmp\n",
+        "remote-add":source+"\nADD https://example.invalid/shell /tmp/shell\n",
+        "second-stage":source+"\nFROM alpine:3.20\n",
+        "extra-composer":source+"\nRUN composer install --no-plugins --no-scripts\n",
     }
     mutations["discovery-before-user"]=source.replace(
         "USER 10001:10001",
