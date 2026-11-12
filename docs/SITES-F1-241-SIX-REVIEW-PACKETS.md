@@ -58,3 +58,7 @@ Gerar novamente seis lotes e SHA de inventário F1-240 completo deste HEAD. Audi
 ## Atualização F1-286 — 12/11/2026
 
 Regerar seis pacotes no SHA exato F1-286 e inspecionar AppSec/UX da rota Laravel, navegação em iframe sandbox, política de retry Chrome apenas pré-captura e integração CRM. Auditoria de CI não é aprovação de produção, merge nem aceitação de cliente.
+
+## Renovação de seis pacotes A11Y + CRM pós-vínculo — 12/11/2026
+
+Regenerar pacotes por SHA do inventário F1-240 atual. AppSec revisa a independência de verificação de tempo e contexto, garantia de foco em Chrome e que nenhuma assinatura/relógio sintético autoriza dispatch. DBA/Portal/CRM verificam T0 durável, revogação e isolamento. Somente revisão, sem produção ou merge.
