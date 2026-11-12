@@ -50,3 +50,7 @@ Regerar os seis pacotes usando hashes do inventário F1-240 deste candidato. A r
 ## Atualização F1-275 — 12/11/2026
 
 Regerar os seis pacotes do diff F1-240 deste SHA e incluir o código de `InertPreviewAudit`, o novo teste de gramática exata e todas as verificações do pacote QA. São evidências para revisores independentes, nunca autorização para merge, release ou produção.
+
+## Renovação F1-280 — 12/11/2026
+
+Gerar novamente todos os seis pacotes a partir do inventário F1-240 do SHA exato. Exigir revisão AppSec sobre T0 e idempotência, tratamento 202/409, Retry-After, cross-tenant e garantia de que nenhum código sintético pode despachar leads. Dez gates seguem `BLOCKED`, e `dev/main` precisam de proteção administrativa.
