@@ -1834,8 +1834,14 @@ Route::get('/_lab/sites/v1/secondary-cta-review', static function (Request $requ
     }
 
     $query=$request->query();
-    if (!in_array(count($query),[4,5],true) ||
-        array_diff(array_keys($query),['product','device','preset','cta','palette'])!==[]) {
+    // F1-261: exact required-key set prevents 500 on missing parameters.
+    // The optional palette cannot take the place of a mandatory CTA field.
+    $expected=['product','device','preset','cta'];
+    if (array_key_exists('palette',$query)) $expected[]='palette';
+    $keys=array_keys($query);
+    sort($keys,SORT_STRING);
+    sort($expected,SORT_STRING);
+    if ($keys!==$expected) {
         return response('Not found',404);
     }
     foreach ($query as $value) {
