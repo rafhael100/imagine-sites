@@ -71,7 +71,8 @@ export async function renderSyntheticPreview(request, fixture) {
       !fixture.html.includes('<meta name="robots" content="noindex, nofollow">') ||
       !fixture.html.includes('Prévia demonstrativa: formulários e envio de dados permanecem desabilitados.') ||
       /<\s*(script|form|iframe|object|embed|svg|link|base)\b/i.test(fixture.html) ||
-      /(?:https?:\/\/|javascript:|data:)/i.test(fixture.html)) {
+      /(?:https?:\/\/|javascript:)/i.test(fixture.html) ||
+      /(?:href|src|action)\s*=\s*['\"]\s*data:/i.test(fixture.html)) {
     return denied(503);
   }
   const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
