@@ -59,6 +59,7 @@ assert290(!str_contains($css,'@import') &&
     !str_contains($css,'<form'),
     'no imports, external URLs, scripts or forms');
 assert290(str_contains($css,'--sites-shell-bg: var(--imagine-surface)') &&
+    str_contains($css,'--sites-shell-muted-readable: #686868;') &&
     str_contains($css,'--sites-shell-accent-text: var(--imagine-orange-text)'),
     'shell aliases derive from shared Imagine tokens');
 assert290(str_contains($css,'a:focus-visible') &&
@@ -82,6 +83,7 @@ foreach([
     ['#9b4d00','#fff1e0'],
     ['#b75c00','#ffffff'],
     ['#737373','#ffffff'],
+    ['#686868','#f7f7f8'],
     ['#171b19','#ffffff']
 ] as [$a,$b]) {
     assert290(contrast290($a,$b)>=4.5,
