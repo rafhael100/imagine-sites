@@ -27,12 +27,15 @@ RUN groupadd --gid 10001 siteslab \
     && : > apps/sites/.env \
     && chmod 0600 apps/sites/.env \
     && cd apps/sites \
-    && COMPOSER_ALLOW_SUPERUSER=1 composer install --no-interaction --prefer-dist --no-progress \
+    && COMPOSER_ALLOW_SUPERUSER=1 composer install --no-interaction --prefer-dist --no-progress --no-scripts --no-plugins \
     && chown -R 10001:10001 storage bootstrap/cache \
     && chown 10001:10001 .env
 
 USER 10001:10001
 WORKDIR /workspace/apps/sites
 ENV APP_ENV=testing APP_DEBUG=false
+# Laravel package discovery runs as the unprivileged CI runtime user,
+# not as Composer's build-time root. No automatic package scripts/plugins.
+RUN php artisan package:discover --ansi
 # Nothing listens on HTTP: one-off test process exits on completion.
 CMD ["php", "artisan", "test", "--no-ansi"]
