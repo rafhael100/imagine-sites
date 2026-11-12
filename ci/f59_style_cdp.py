@@ -99,6 +99,7 @@ def main():
         profile=Path(tmp)/"profile"
         chrome=subprocess.Popen([
             BROWSER,"--headless=new","--no-sandbox","--disable-gpu",
+            "--disable-dev-shm-usage",
             "--disable-background-networking","--disable-extensions",
             "--disable-sync","--no-first-run","--no-default-browser-check",
             "--remote-debugging-port=0",f"--user-data-dir={profile}","about:blank"
