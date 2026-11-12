@@ -1,0 +1,9 @@
+# F1-149 — Lease técnico rejeita vínculo obsoleto ou revogado
+
+**Lacuna corrigida.** A F1-146 validava o login de banco e a expiração do T0, mas ainda não conferia a revisão corrente do vínculo ao reservar uma intenção técnica. Após alteração do destino CRM ou revogação do vínculo, uma linha antiga permanecia elegível a lease (embora o resultado ainda não autorizasse envio real). A F1-149 elimina esta elegibilidade indevida no laboratório.
+
+A seleção agora exige um binding vigente com a **mesma organização, vínculo, revisão, site, formulário e destino CRM** dos metadados imutáveis do outbox. Primeiro, `EXISTS` filtra linhas obsoletas antes da ordenação e evita que bloqueiem as novas. Após obter `FOR UPDATE OF outbox SKIP LOCKED`, a função relê e bloqueia a linha de vínculo com `FOR SHARE`, na **mesma transação** da lease. Uma mudança concorrente que ocorrer antes do bloqueio é recusada, e um UPDATE de revogação/roteamento após a checagem espera o commit. O diagnóstico `BINDING_NOT_CURRENT`, quando observado, permanece estritamente DENY no adaptador PHP.
+
+O teste PG18 PHP8.3/8.4 cria o outbox da revisão 7, altera destino e revisão para 8, confirma que o registro antigo não pode receber lease, cria uma intenção nova que pode ser classificada, prova que a alteração concorrente da revisão 9 fica bloqueada até o commit e finalmente revoga o binding. A organização B não é afetada. Toda linha continua `pending_unverified` sem ACK.
+
+**Limites:** PostgreSQL de CI com logins fictícios não autentica o Portal ou usuário do site. A trava não cobre mudanças originadas em banco externo do Portal/CRM, não há protocolo distribuído, worker, payload, consentimento, PII ou recebimento CRM. Homologação, IAM S2S e avaliação AppSec/DBA independente continuam pendentes; OP04 #36 e os 10 gates de produção seguem BLOCKED. Sem merge dev/main, VPS, DNS, deploy ou gastos.

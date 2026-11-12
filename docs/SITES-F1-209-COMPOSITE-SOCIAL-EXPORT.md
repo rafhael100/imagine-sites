@@ -1,0 +1,11 @@
+# F1-209 — Visual e metadados sociais em um só plano e pacote privado
+
+A F1-203 permitiu revisar tema, cores, seções e menu; a F1-205 exportou 216 composições privadas; a F1-206/208 acrescentou metadados de compartilhamento social. A F1-209 integra essa quinta dimensão ao mesmo fluxo de revisão e exportação, sem inventar aprovação ou habilitar sites públicos.
+
+O `SyntheticCompositeVisualRevisionPlan` recebe um quinto valor opcional `requestedSocialPreviewMetadata`, além do tema, paleta, ordem das seções e navegação. Na ausência do argumento, mantém exatamente o comportamento F1-202 e preserva a configuração social anterior. Quando a opção é explicitamente alterada, o plano registra `socialMetadataChanged`, recalcula HTML SHA-256 e requer **uma única nova revisão** com workflow DRAFTING sem digest aprovado. Continua recusando fontes não aprovadas, papel inadequado, versões obsoletas e revisões sem diferença real; não concede publicar, aceitar cliente nem operar CRM.
+
+O exportador privado F1-205 passa a receber argumento extra `{social=off}`, em enum fechada off/on. O padrão mantém os nomes/bytes antigos. Quando ativado, o nome do release e da pasta recebe sufixo fixo `-social-on`, incluído no allowlist do gravador atômico. A opção `social=on` funciona em Onepage e Landing Page, com ou sem outras mudanças de tema/cor/ordem/menu. A saída contém os quatro arquivos privados canônicos de revisão, sempre `noindex,nofollow`, sem `og:url`, `og:image` ou scripts/formulários.
+
+A suíte PHP8.3/8.4 verifica **216 novas combinações** com metadados ligados, além das 216 existentes com metadados desligados: 432 desenhos no total. Verifica unicidade de hashes, equivalência ao plano de revisão, ausência de aprovação e detecção de adulteração. A suíte Laravel de integração grava opções representativas, valida dados, bloqueia caminhos indevidos, repetição, symlink e arquivos alterados. O Docker isolado executa novamente a suíte completa.
+
+Esse pacote é uma fixture interna para revisão, não uma captura de leads, publicação, geração de URL pública, ativo de cliente, marca autenticada ou entrega CRM. Sem alterações na main, VPS, Cloudflare, DNS, custo ou dados pessoais. OP01/02/04 e dez gates operacionais continuam bloqueados.

@@ -1,0 +1,74 @@
+name: Sites F1-155 original first-persisted T0 across lease and retention
+on:
+  pull_request:
+    paths:
+      - 'labs/postgres/f1-146-metadata-outbox-lease.sql'
+      - 'tests/f146-pg-outbox-lease.php'
+      - 'tests/f155-pg-identity-t0-lease-and-retention.php'
+      - '.github/workflows/sites-f1-155-original-t0-lease.yml'
+permissions:
+  contents: read
+jobs:
+  original-t0-authority:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: f140-fictional-admin-ci-only
+          POSTGRES_DB: sites_f140_atomic_lab
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sites_f140_atomic_lab"
+          --health-interval 5s --health-timeout 3s --health-retries 12
+    env:
+      APP_ENV: testing
+      SITES_F140_PG_LAB: '1'
+      DB_HOST: 127.0.0.1
+      DB_DATABASE: sites_f140_atomic_lab
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGDATABASE: sites_f140_atomic_lab
+      PGUSER: postgres
+      PGPASSWORD: f140-fictional-admin-ci-only
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo,pdo_pgsql
+          tools: none
+          coverage: none
+      - name: Install PG client in runner
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Install synthetic binding, outbox, lease and retention chain
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-140-atomic-binding-claim.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-141-monotonic-binding-trigger.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-142-db-login-tenant-fence.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-143-login-revocation-fence.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-145-atomic-technical-outbox.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-146-metadata-outbox-lease.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-154-expired-outbox-retention.sql
+      - name: Compare expired identity clock with manipulated outbox timestamp
+        run: |
+          set -euo pipefail
+          php -l tests/f155-pg-identity-t0-lease-and-retention.php
+          php tests/f155-pg-identity-t0-lease-and-retention.php
+      - name: No real delivery or retention
+        if: always()
+        run: echo "Only fictional PG18/CI metadata; no customer, operational deletion, CRM ACK or deploy."
