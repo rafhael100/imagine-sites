@@ -50,3 +50,7 @@ Regerar os seis pacotes usando hashes do inventário F1-240 deste candidato. A r
 ## Atualização F1-275 — 12/11/2026
 
 Regerar os seis pacotes do diff F1-240 deste SHA e incluir o código de `InertPreviewAudit`, o novo teste de gramática exata e todas as verificações do pacote QA. São evidências para revisores independentes, nunca autorização para merge, release ou produção.
+
+## Renovação F1-284 — 12/11/2026
+
+Gerar novamente seis lotes e SHA de inventário F1-240 completo deste HEAD. Auditoria humana obrigatória de contexto CRM/T0/revogação e HTML skip-to-main, acessibilidade de teclado, scripts CDP, segurança de CI e regras de proteção das branches. CI verde não equivale a aprovação humana, aceite de cliente ou publicação.
