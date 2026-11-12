@@ -110,7 +110,12 @@ final class SyntheticSkipNavigationReviewTest extends TestCase
                         $skip='<a class="skip-content" href="#principal">Pular para o conteúdo</a>';
                         self::assertSame($mode==='on'?1:0,
                             substr_count($inner,$skip));
-                        self::assertStringContainsString('<main id="principal">',$inner);
+                        self::assertStringContainsString(
+                            $mode==='on'
+                              ? '<main id="principal" tabindex="-1">'
+                              : '<main id="principal">',
+                            $inner
+                        );
                         self::assertStringNotContainsString('<form',$inner);
                         self::assertStringNotContainsString('<script',$inner);
                         self::assertStringNotContainsString('https://',$inner);
