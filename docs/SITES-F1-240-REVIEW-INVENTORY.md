@@ -29,3 +29,7 @@ A integração F1-258 reúne PRs #293–#299. A origem #299 estava 1046 commits 
 ## Renovação F1-263 — 12/11/2026
 
 A branch de revisão F1-263 reúne #301–#305 sobre a base fixa `dev` SHA `71b8ffe51139d0e70ed32591b07f295fb7bf5fe3`. A contagem anterior de 641 arquivos/177 caminhos sensíveis refere-se a #300, e **não** vale para este novo HEAD. Reexecutar o inventário Git completo, conferir o digest e todos os dez gates `BLOCKED`; sem merge ou go-live.
+
+## Renovação F1-265 — 12/11/2026
+
+Nova branch de integração para F1-264/265: recomputar inventário Git completo a partir da base `dev` SHA `71b8ffe51139d0e70ed32591b07f295fb7bf5fe3`. A contagem F1-263 de 658 arquivos/184 sensíveis é histórica e não pode ser reutilizada. Não promover sem dez gates operacionais fechados e revisão independente de Cloudflare Worker e assinatura.
