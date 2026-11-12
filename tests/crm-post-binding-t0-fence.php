@@ -52,7 +52,7 @@ $ids=[
 ];
 $t0=new DateTimeImmutable('2026-11-12T12:00:00+00:00');
 $deadline=new LeadDeadline($t0);
-$plus=static fn(int $s):DateTimeImmutable=>$t0->modify("+$s seconds");
+$plus=static fn(int $s):DateTimeImmutable=>\n    $t0->modify(($s>=0?'+':'').$s.' seconds');
 $original=new Intent(new Envelope(...$ids));
 $retry=new Intent(new Envelope(...$ids));
 $attempt=Retry::assess($deadline,$plus(300),1,$t0,true);
