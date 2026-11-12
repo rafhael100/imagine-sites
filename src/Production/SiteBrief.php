@@ -32,6 +32,8 @@ final readonly class SiteBrief
         public ?string $seoDescription = null,
         // F1-253: editor-owned, optional inert local conversion CTA.
         public bool $secondaryCallToAction = false,
+        // F1-270: editor-only native FAQ disclosure, no script or form.
+        public bool $faqDisclosure = false,
     ) {
         if (!in_array($productCode, ['onepage', 'landing_page'], true)) {
             throw new InvalidArgumentException('Unsupported Imagine Sites product.');
@@ -96,6 +98,9 @@ final readonly class SiteBrief
                 throw new InvalidArgumentException('Duplicate FAQ question.');
             }
             $normalizedQuestions[$key] = true;
+        }
+        if ($faqDisclosure && $faq===[]) {
+            throw new InvalidArgumentException('FAQ disclosure requires FAQ entries.');
         }
         // Optional static service highlights, never data collection forms.
         if (count($highlights) > 4 || !array_is_list($highlights)) {

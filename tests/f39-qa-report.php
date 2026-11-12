@@ -33,7 +33,8 @@ foreach (['onepage','landing_page'] as $product) {
     $artifact=$renderer->render($brief);
     $report=QA::inspect($artifact);
     f39Assert($report->passedStructuralChecks,'valid '.$product.' template passes structural checks');
-    f39Assert(count($report->checks)===9,'F1-129 exact structural/accessibility check inventory: '.$product);
+    f39Assert(count($report->checks)===10 && array_key_exists('faq_disclosure_semantics',$report->checks),
+        'F1-270 updated semantic FAQ accessibility check inventory: '.$product);
     f39Assert(!in_array(false,$report->checks,true),'all individual checks pass: '.$product);
 }
 $base=$renderer->render(new SiteBrief('onepage','Marca Fictícia Imagine',

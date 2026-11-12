@@ -96,6 +96,8 @@ jobs:
           php tests/f260-branded-secondary-cta.php
           php tests/f262-contact-privacy-preflight.php
           php tests/f263-contact-crm-admission.php
+          php tests/f157-static-faq-content.php
+          php tests/f270-faq-native-disclosure.php
           php tests/f190-brand-palette-contrast.php
           php tests/f200-layout-change-evidence.php
           php tests/f202-composite-visual-revision.php

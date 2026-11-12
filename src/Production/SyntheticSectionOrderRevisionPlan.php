@@ -77,6 +77,7 @@ final readonly class SyntheticSectionOrderRevisionPlan
             $approvedBrief->socialPreviewMetadata,
             $approvedBrief->seoTitle,$approvedBrief->seoDescription,
             $approvedBrief->secondaryCallToAction,
+            $approvedBrief->faqDisclosure,
         );
         $nextArtifact=$renderer->render($nextBrief);
         if (hash_equals($nextArtifact->digest,$approvedArtifact->digest) ||
