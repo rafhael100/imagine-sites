@@ -7,6 +7,8 @@
  *
  * No client data, R2/KV, DNS, remote fetch, forms, analytics or publication.
  */
+import {inspectSyntheticReleaseSignature} from './release-signature.mjs';
+
 const SYNTHETIC_HOST = 'preview.imagine.invalid';
 const encoder = new TextEncoder();
 
@@ -87,6 +89,26 @@ export async function renderSyntheticPreview(request, fixture) {
       'Content-Length': String(bytes.length),
     },
   });
+}
+
+/**
+ * F1-265: signed, digest-bound, local-only preview. The verification key
+ * is supplied by the disposable test; its possession NEVER grants real
+ * publisher or client-acceptance authority. Live fetch remains disabled.
+ */
+export async function renderSignedSyntheticPreview(
+  request,fixture,envelope,publicKey,nowSeconds
+) {
+  const assessment=await inspectSyntheticReleaseSignature(
+    envelope,publicKey,nowSeconds
+  );
+  if(!assessment.signatureValid ||
+     !fixture ||
+     typeof fixture.digest!=='string' ||
+     envelope.payload.htmlSha256!==fixture.digest) {
+    return denied(503);
+  }
+  return renderSyntheticPreview(request,fixture);
 }
 
 /**
