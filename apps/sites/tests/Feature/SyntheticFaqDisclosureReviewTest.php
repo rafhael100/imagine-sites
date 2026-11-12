@@ -116,8 +116,12 @@ final class SyntheticFaqDisclosureReviewTest extends TestCase
                             substr_count($inner,'<details>'));
                         self::assertSame($faq==='on'?2:0,
                             substr_count($inner,'<summary>'));
+                        self::assertSame(1,preg_match(
+                            '/<section class="faq"[^>]*>(.*?)<\/section>/s',
+                            $inner,$faqSection
+                        ));
                         self::assertSame($faq==='on'?0:2,
-                            substr_count($inner,'<h3>'));
+                            substr_count($faqSection[1],'<h3>'));
                         self::assertStringNotContainsString('<form',$inner);
                         self::assertStringNotContainsString('<script',$inner);
                         self::assertStringNotContainsString('https://',$inner);
