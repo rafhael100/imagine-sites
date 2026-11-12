@@ -1,5 +1,15 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuação F1-287 — domínios canônicos sem www — 12/11/2026
+
+- Decisão transversal apex-first registrada no ADR-SITES-015 / PR #347; preservar host indexado legado até migração SEO aprovada.
+- Novo componente de domínio puro SyntheticCanonicalOriginPlanV1 propõe apex HTTPS para site novo, subdomínios próprios para campanha e aplicativo, e preserva canônico histórico sob HOLD.
+- Validação negativa de hosts/URLs ambíguos, testes F1-287 e CI PHP 8.3/8.4; **sempre** mayPublish=false e mayRedirect=false.
+- Branch de trabalho feat/sites-f1-287-canonical-apex-policy-2026-11-12 criada sobre o candidato avançado de PR #346; integração em dev depende de revisão independente e proteção de branches na issue #281.
+- Dez gates operacionais seguem BLOCKED. Sem merge, Cloudflare/DNS, VPS, dados reais, credenciais, redirect ou deploy.
+
+---
+
 ## Continuação A11Y e CRM POSTBIND T0 — 12/11/2026
 
 - Candidato avançado F1-286 #338 preservado; PRs redundantes #339–#343 encerrados sem merge, com referências cruzadas.
