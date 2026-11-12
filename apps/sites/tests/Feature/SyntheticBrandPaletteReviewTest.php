@@ -164,7 +164,8 @@ final class SyntheticBrandPaletteReviewTest extends TestCase
         }
         $this->withServerVariables(['REMOTE_ADDR'=>'203.0.113.103'])
             ->get(self::PATH.$valid)->assertNotFound();
-        $this->post(self::PATH.$valid)->assertStatus(405);
+        $this->withServerVariables(['REMOTE_ADDR'=>'127.0.0.1'])
+            ->post(self::PATH.$valid)->assertStatus(405);
     }
 
     public function test_prior_review_route_does_not_inherit_palette_settings():void
