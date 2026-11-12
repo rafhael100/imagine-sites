@@ -15,7 +15,7 @@ import subprocess
 import sys
 import time
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import Request, build_opener, ProxyHandler
 
 ROOT = Path(__file__).resolve().parent.parent
 APP = ROOT / "apps" / "sites"
@@ -23,6 +23,7 @@ HOST = "127.0.0.1"
 PORT = 18091
 BASE = f"http://{HOST}:{PORT}"
 ROUTES = APP / "bootstrap" / "cache"
+NO_PROXY = build_opener(ProxyHandler({}))
 
 
 def allowed_runner() -> None:
@@ -51,7 +52,7 @@ def status(path: str, method: str = "GET") -> int:
         headers={"Content-Type": "application/json"},
     )
     try:
-        with urlopen(request, timeout=2) as response:
+        with NO_PROXY.open(request, timeout=2) as response:
             return response.status
     except HTTPError as error:
         return error.code
