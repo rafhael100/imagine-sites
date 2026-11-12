@@ -1,0 +1,34 @@
+name: Sites F1-139 synthetic binding revision fence
+
+on:
+  pull_request:
+    paths:
+      - 'src/Integration/SyntheticLeadBindingRevision*.php'
+      - 'src/Integration/SyntheticLeadBindingAuthority*.php'
+      - 'src/Integration/SyntheticCrmLeadEnvelopeV1Draft.php'
+      - 'tests/f139-synthetic-binding-revision-fence.php'
+      - '.github/workflows/sites-f1-139-binding-revision-fence.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  revision-fence-lab:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - name: Lint PHP and run revision revalidation lab (no I/O)
+        run: |
+          php -l src/Integration/SyntheticLeadBindingRevisionAssessment.php
+          php -l src/Integration/SyntheticLeadBindingRevisionFence.php
+          php -l tests/f139-synthetic-binding-revision-fence.php
+          php tests/f139-synthetic-binding-revision-fence.php
