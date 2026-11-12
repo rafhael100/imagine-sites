@@ -54,3 +54,7 @@ Regerar os seis pacotes do diff F1-240 deste SHA e incluir o código de `InertPr
 ## Renovação F1-284 — 12/11/2026
 
 Gerar novamente seis lotes e SHA de inventário F1-240 completo deste HEAD. Auditoria humana obrigatória de contexto CRM/T0/revogação e HTML skip-to-main, acessibilidade de teclado, scripts CDP, segurança de CI e regras de proteção das branches. CI verde não equivale a aprovação humana, aceite de cliente ou publicação.
+
+## Atualização F1-286 — 12/11/2026
+
+Regerar seis pacotes no SHA exato F1-286 e inspecionar AppSec/UX da rota Laravel, navegação em iframe sandbox, política de retry Chrome apenas pré-captura e integração CRM. Auditoria de CI não é aprovação de produção, merge nem aceitação de cliente.
