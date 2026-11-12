@@ -5,6 +5,7 @@ on:
       - 'apps/sites/routes/web.php'
       - 'apps/sites/resources/views/labs/review.blade.php'
       - 'apps/sites/tests/Feature/SyntheticSecondaryCtaReviewTest.php'
+      - 'apps/sites/tests/Feature/SyntheticBrandedCtaReviewTest.php'
       - 'src/Production/SyntheticSecondaryCtaChangeEvidenceV1.php'
       - 'src/Production/SyntheticPrivateSecondaryCtaParityV1.php'
       - 'tests/f257-cta-private-package-parity.php'
@@ -46,7 +47,7 @@ jobs:
           set -euo pipefail
           php ../../tests/f256-cta-comparison-evidence.php
           php ../../tests/f257-cta-private-package-parity.php
-          php artisan test --filter='(SyntheticSecondaryCtaReviewTest|SyntheticAnchorNavigationReviewTest|SyntheticRichReviewUiTest)' --no-ansi
+          php artisan test --filter='(SyntheticSecondaryCtaReviewTest|SyntheticBrandedCtaReviewTest|SyntheticAnchorNavigationReviewTest|SyntheticRichReviewUiTest)' --no-ansi
       - name: Scope
         if: always()
         run: echo 'Private fixture-only, deny by default, no client review, form, CRM, publication, DNS, VPS or paid service.'
