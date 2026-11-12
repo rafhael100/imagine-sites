@@ -100,6 +100,7 @@ jobs:
           php tests/f270-faq-native-disclosure.php
           php tests/f271-faq-disclosure-revision.php
           php tests/f274-faq-bundle-fence.php
+          php tests/f275-faq-exact-shell.php
           php tests/f190-brand-palette-contrast.php
           php tests/f200-layout-change-evidence.php
           php tests/f202-composite-visual-revision.php

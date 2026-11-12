@@ -100,6 +100,32 @@ final class InertPreviewAudit
                 return ['noncanonical_faq_disclosure_inventory'];
             }
             $body=$faqSections[1][0];
+            // F1-275: enforce the complete renderer FAQ shell, not only the
+            // number of rows. Inserting extra inert divs, paragraphs or
+            // headings must not become a valid rehashed release bundle.
+            $prefix="\n      <div class=\"container\">\n".
+                "        <h2 id=\"faq-title\">Perguntas frequentes</h2>\n".
+                "        <ul>\n";
+            $suffix="\n        </ul>\n      </div>\n    ";
+            if (!str_starts_with($body,$prefix) ||
+                !str_ends_with($body,$suffix) ||
+                strlen($body)<=strlen($prefix)+strlen($suffix)) {
+                return ['noncanonical_faq_section_shell'];
+            }
+            $rowsBytes=substr($body,strlen($prefix),
+                strlen($body)-strlen($prefix)-strlen($suffix));
+            $rowsLines=explode("\n",$rowsBytes);
+            if (count($rowsLines)!==$faqDetails) {
+                return ['noncanonical_faq_row_inventory'];
+            }
+            foreach($rowsLines as $line) {
+                if (!preg_match(
+                    '~\A          <li><details><summary>[^<>]+</summary><p>[^<>]+</p></details></li>\z~D',
+                    $line
+                )) {
+                    return ['noncanonical_faq_row_shell'];
+                }
+            }
             $rows=preg_match_all(
                 '~<li><details><summary>[^<>]+</summary><p>[^<>]+</p></details></li>~',
                 $body,$exactRows
