@@ -84,7 +84,9 @@ final class InertPreviewAudit
         // recomputed SHA-256 must not bypass this structural boundary.
         $faqDetails=substr_count($html,'<details>');
         $faqSummaries=substr_count($html,'<summary>');
-        if ($faqDetails>0 || $faqSummaries>0) {
+        if ($faqDetails>0 || $faqSummaries>0 ||
+            str_contains($html,'</details>') ||
+            str_contains($html,'</summary>')) {
             $faqStart='<section class="faq" id="perguntas" aria-labelledby="faq-title">';
             $sectionMatches=preg_match_all(
                 '~'.preg_quote($faqStart,'~').'(.*?)</section>~s',
