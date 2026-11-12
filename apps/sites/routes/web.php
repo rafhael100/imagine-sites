@@ -2110,3 +2110,141 @@ Route::get('/_lab/sites/v1/faq-disclosure-review', static function (Request $req
             "base-uri 'none'; frame-ancestors 'none'",
     ]);
 })->name('sites.lab.faq-disclosure-review');
+
+
+/**
+ * F1-279: loopback-only visual review of a fixed keyboard skip link.
+ * This is NOT a customer control, HTTP authorizer or publication gateway.
+ */
+Route::get('/_lab/sites/v1/skip-navigation-review', static function (Request $request) {
+    if (PHP_SAPI!=='cli' || !app()->environment('testing') ||
+        getenv('SITES_SYNTHETIC_HTTP')!=='1' ||
+        getenv('SITES_SYNTHETIC_REVIEW_UI')!=='1' ||
+        getenv('SITES_F279_SKIP_REVIEW')!=='1' ||
+        !in_array($request->ip(),['127.0.0.1','::1'],true)) {
+        return response('Not found',404);
+    }
+    $query=$request->query();
+    $keys=array_keys($query);
+    sort($keys,SORT_STRING);
+    if ($keys!==['device','preset','product','skip']) {
+        return response('Not found',404);
+    }
+    foreach ($query as $value) {
+        if (!is_string($value) || $value==='') return response('Not found',404);
+    }
+    $product=$query['product'];
+    $preset=$query['preset'];
+    $device=$query['device'];
+    $skip=$query['skip'];
+    if (!in_array($product,['onepage','landing_page'],true) ||
+        !in_array($preset,['classic','modern','warm'],true) ||
+        !in_array($device,['desktop','mobile'],true) ||
+        !in_array($skip,['off','on'],true)) {
+        return response('Not found',404);
+    }
+    try {
+        $source=base_path('../../fixtures/sites/f1-170-process-copy.synthetic.json');
+        if (!is_file($source) || is_link($source) || filesize($source)>8192) {
+            return response('Not found',404);
+        }
+        $copy=json_decode((string)file_get_contents($source),
+            true,16,JSON_THROW_ON_ERROR);
+        if (!is_array($copy) || array_is_list($copy) ||
+            ($copy['schemaVersion']??null)!=='sites.ai-copy.v4' ||
+            count($copy['faq']??[])!==2 ||
+            count($copy['highlights']??[])!==2 ||
+            count($copy['processSteps']??[])!==3) {
+            return response('Not found',404);
+        }
+        $args=[$product,'Marca Fictícia Imagine',$preset,$copy,
+            'tenant-f279-fictional','site-f279-fictional'];
+        $off=\Imagine\Sites\Production\SyntheticStructuredDraftAssembly::build(
+            ...[...$args,'workflow-f279-'.$product.'-'.$preset.'-off',
+                'release-f279-'.$product.'-'.$preset.'-off'],
+            officialSkipToContentLink:false
+        );
+        $on=\Imagine\Sites\Production\SyntheticStructuredDraftAssembly::build(
+            ...[...$args,'workflow-f279-'.$product.'-'.$preset.'-on',
+                'release-f279-'.$product.'-'.$preset.'-on'],
+            officialSkipToContentLink:true
+        );
+        $offBrief=get_object_vars($off->brief);
+        $onBrief=get_object_vars($on->brief);
+        unset($offBrief['skipToContentLink'],$onBrief['skipToContentLink']);
+        $offFiles=\Imagine\Sites\Production\SyntheticPrivateReviewPackageV1::
+            fromPendingDraft($off);
+        $onFiles=\Imagine\Sites\Production\SyntheticPrivateReviewPackageV1::
+            fromPendingDraft($on);
+        $offProof=\Imagine\Sites\Production\SyntheticPrivateDraftVerifier::
+            verifyBytes($offFiles);
+        $onProof=\Imagine\Sites\Production\SyntheticPrivateDraftVerifier::
+            verifyBytes($onFiles);
+        $draft=$skip==='on'?$on:$off;
+        $summary=$draft->reviewSummary();
+        $dossier=\Imagine\Sites\Production\SyntheticInternalReviewDossier::
+            fromDraft($draft);
+        $link='<a class="skip-content" href="#principal">Pular para o conteúdo</a>';
+        if ($offBrief!==$onBrief ||
+            $off->brief->skipToContentLink ||
+            !$on->brief->skipToContentLink ||
+            $off->artifact->digest===$on->artifact->digest ||
+            str_contains($off->artifact->html,$link) ||
+            substr_count($on->artifact->html,$link)!==1 ||
+            !\Imagine\Sites\Production\InertPreviewAudit::isSafe($off->artifact->html) ||
+            !\Imagine\Sites\Production\InertPreviewAudit::isSafe($on->artifact->html) ||
+            !$off->structuralReport->passedStructuralChecks ||
+            !$on->structuralReport->passedStructuralChecks ||
+            ($offProof['artifactDigest']??null)!==$off->artifact->digest ||
+            ($onProof['artifactDigest']??null)!==$on->artifact->digest ||
+            $draft->workflow->state!=='internal_review' ||
+            $summary['internalReviewRequired']!==true ||
+            $summary['portalAuthorityRequired']!==true ||
+            $summary['officialClientAcceptance']!==false ||
+            $summary['publishable']!==false ||
+            $dossier->record['reviewerDecisionStatus']!=='pending' ||
+            $dossier->record['publishable']!==false) {
+            return response('Not found',404);
+        }
+        $comparisonDigest=hash('sha256',implode("\x00",[
+            'sites.synthetic.skip-navigation-review.v1',
+            $off->artifact->digest,$on->artifact->digest,
+            hash('sha256',implode("\x00",array_values($offFiles))),
+            hash('sha256',implode("\x00",array_values($onFiles))),
+        ]));
+        $page=view('labs.review',[
+            'product'=>$product,'preset'=>$preset,'device'=>$device,
+            'galleryMode'=>false,
+            'reviewRoute'=>'/_lab/sites/v1/skip-navigation-review',
+            'skipMode'=>$skip,
+            'skipDigestOff'=>$off->artifact->digest,
+            'skipDigestOn'=>$on->artifact->digest,
+            'skipComparisonDigest'=>$comparisonDigest,
+            'brief'=>$draft->brief,
+            'previewHtml'=>$draft->artifact->html,
+            'digest'=>$draft->artifact->digest,
+            'reviewSnapshot'=>$summary,
+            'dossierDigest'=>$dossier->digest,
+            'requiredAcknowledgments'=>$dossier->record['requiredReviewerAcknowledgments'],
+            'qaChecks'=>$draft->structuralReport->checks,
+            'editorialChecks'=>$draft->editorialReport->checks,
+            'editorialSuggestions'=>$draft->editorialReport->suggestions,
+        ])->render();
+    } catch (\Throwable) {
+        return response('Not found',404);
+    }
+
+    return response($page,200,[
+        'Content-Type'=>'text/html; charset=UTF-8',
+        'Cache-Control'=>'private, no-store, max-age=0',
+        'X-Content-Type-Options'=>'nosniff',
+        'X-Frame-Options'=>'DENY',
+        'Referrer-Policy'=>'no-referrer',
+        'X-Robots-Tag'=>'noindex, nofollow, noarchive',
+        'Permissions-Policy'=>'camera=(), microphone=(), geolocation=()',
+        'Content-Security-Policy'=>"default-src 'none'; script-src 'none'; ".
+            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src data:; ".
+            "connect-src 'none'; form-action 'none'; object-src 'none'; ".
+            "base-uri 'none'; frame-ancestors 'none'",
+    ]);
+})->name('sites.lab.skip-navigation-review');
