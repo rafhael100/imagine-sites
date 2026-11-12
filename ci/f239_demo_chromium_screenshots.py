@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""F1-239: real local Chrome screenshots of six fixed F1-238 previews.
+"""F1-239/F1-244: full-page Chrome screenshots at three responsive widths.
 
 No external pages, browser downloads, customer data, uploaded source snippets,
 dynamic URLs or public hosting. Chrome receives the exact audited HTML bytes
@@ -27,6 +27,7 @@ OUTPUT = ROOT / "apps/sites/storage/app/private/f239-demo-screenshots"
 VIEWPORTS = {
     "desktop": (1365, 900, False),
     "mobile": (390, 844, True),
+    "narrow": (320, 740, True),
 }
 
 
@@ -159,14 +160,35 @@ def main(browser: str) -> None:
                             time.sleep(0.05)
                         else:
                             fail("fixture did not render completely")
-                        dims = c.evaluate("""(() => ({
-                          width:innerWidth,
-                          scroll:document.documentElement.scrollWidth,
-                          body:document.body.scrollWidth,
-                          heading:document.querySelectorAll('main h1').length,
-                          form:document.querySelectorAll('script,form,iframe').length,
-                          robots:document.querySelector('meta[name="robots"]')?.content
-                        }))()""")
+                        dims = c.evaluate("""(() => {
+                          const links=[...document.querySelectorAll('a[href]')];
+                          const cta=document.querySelector('.hero a.btn[href="#contato"]');
+                          const bounds=cta?.getBoundingClientRect();
+                          return {
+                            width:innerWidth,
+                            scroll:document.documentElement.scrollWidth,
+                            body:document.body.scrollWidth,
+                            fullHeight:Math.ceil(Math.max(
+                              document.documentElement.scrollHeight,
+                              document.body.scrollHeight
+                            )),
+                            heading:document.querySelectorAll('main h1').length,
+                            form:document.querySelectorAll('script,form,iframe').length,
+                            robots:document.querySelector('meta[name="robots"]')?.content,
+                            anchorsLocal:links.every(a=>{
+                              const href=a.getAttribute('href');
+                              return href.startsWith('#') && !!document.getElementById(href.slice(1));
+                            }),
+                            linksNamed:links.length>0 && links.every(a=>a.textContent.trim().length>0),
+                            ctaHeight:bounds?.height||0,
+                            ctaWidth:bounds?.width||0,
+                            ctaLeft:bounds?.left||0,
+                            ctaRight:bounds?.right||0,
+                            richSections:['solucoes','etapas','perguntas'].every(
+                              id=>document.getElementById(id)!==null
+                            )
+                          };
+                        })()""")
                         if (
                             dims["width"] != width
                             or dims["scroll"] > width + 2
@@ -174,20 +196,58 @@ def main(browser: str) -> None:
                             or dims["heading"] != 1
                             or dims["form"] != 0
                             or dims["robots"] != "noindex, nofollow"
+                            or not dims["anchorsLocal"]
+                            or not dims["linksNamed"]
+                            or not dims["richSections"]
+                            or dims["ctaHeight"] < 44
+                            or dims["ctaWidth"] < 44
+                            or dims["ctaLeft"] < -1
+                            or dims["ctaRight"] > width + 2
+                            or dims["fullHeight"] <= height
+                            or dims["fullHeight"] > 12000
                         ):
-                            fail("real Chromium page overflow or active content")
+                            fail("real Chromium full-page accessibility/viewport check failed: "
+                                 + filename + " " + device)
+                        # A screenshot of the visible viewport cannot show
+                        # the optional highlights, process and FAQ underneath.
+                        # Capture all verified content with a fixed, bounded
+                        # CDP clip. No screenshot of a user-supplied URL.
+                        page_height = dims["fullHeight"]
                         shot = c.call("Page.captureScreenshot", {
-                            "format": "png", "captureBeyondViewport": False,
+                            "format": "png", "captureBeyondViewport": True,
                             "fromSurface": True,
+                            "clip": {
+                                "x": 0, "y": 0, "width": width,
+                                "height": page_height, "scale": 1,
+                            },
                         })
                         content = base64.b64decode(shot["data"], validate=True)
                         if (
                             not content.startswith(b"\x89PNG\r\n\x1a\n")
                             or len(content) < 8000
-                            or struct.unpack(">II", content[16:24]) != (width, height)
+                            or struct.unpack(">II", content[16:24]) != (width, page_height)
                         ):
-                            fail("incomplete or unexpected screenshot dimensions")
-                        dest_name = filename.replace(".html", f"-{device}.png")
+                            fail("incomplete or unexpected full-page PNG dimensions")
+                        # Test actual Enter activation of the first local link,
+                        # not just whether an href string exists.
+                        first_link = c.evaluate("""(() => {
+                          const first=document.querySelector('a[href]');
+                          if (!first) return null;
+                          first.focus();
+                          return first.getAttribute('href');
+                        })()""")
+                        if (not isinstance(first_link,str) or
+                            not first_link.startswith("#")):
+                            fail("missing keyboard-first local link")
+                        enter = {
+                            "key": "Enter", "code": "Enter",
+                            "windowsVirtualKeyCode": 13, "nativeVirtualKeyCode": 13,
+                        }
+                        c.call("Input.dispatchKeyEvent", {"type": "rawKeyDown", **enter})
+                        c.call("Input.dispatchKeyEvent", {"type": "keyUp", **enter})
+                        if c.evaluate("location.hash") != first_link:
+                            fail("first link cannot be activated using Enter")
+                        dest_name = filename.replace(".html", f"-{device}-full.png")
                         dest = OUTPUT / dest_name
                         if dest.exists() or dest.is_symlink():
                             fail("duplicate or linked screenshot target")
@@ -197,11 +257,15 @@ def main(browser: str) -> None:
                             "page": filename,
                             "viewport": device,
                             "width": width,
-                            "height": height,
+                            "height": page_height,
+                            "viewportHeight": height,
+                            "fullPage": True,
+                            "keyboardLinkActivated": True,
                             "sha256": hashlib.sha256(content).hexdigest(),
                             "bytes": len(content),
                         }
-                        print("PASS F1-239", dest_name, f"{width}x{height}")
+                        print("PASS F1-244", dest_name, f"{width}x{page_height}",
+                              "local links, keyboard, full-page content")
             finally:
                 c.close()
         finally:
@@ -212,10 +276,12 @@ def main(browser: str) -> None:
                 chrome.kill()
                 chrome.wait(timeout=5)
 
-    if len(captured) != 12 or len({v["sha256"] for v in captured.values()}) != 12:
-        fail("expected 12 distinct real Chrome PNG captures")
+    if len(captured) != 18 or len({v["sha256"] for v in captured.values()}) != 18:
+        fail("expected 18 distinct full-page real Chrome PNG captures")
     output_manifest = {
-        "schema": "imagine-sites.synthetic-demo-screenshots.v1",
+        "schema": "imagine-sites.synthetic-demo-screenshots.v2",
+        "fullPage": True,
+        "viewports": ["desktop", "mobile", "narrow"],
         "sourceManifestSha256": hashlib.sha256(
             (SOURCE / "manifest.json").read_bytes()
         ).hexdigest(),
@@ -228,9 +294,9 @@ def main(browser: str) -> None:
         json.dumps(output_manifest, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
-    if len(list(OUTPUT.iterdir())) != 13:
+    if len(list(OUTPUT.iterdir())) != 19:
         fail("unexpected screenshot artifact inventory")
-    print("PASS F1-239: 12 offline responsive PNGs, signed by hashes only; no network/deploy")
+    print("PASS F1-244: 18 full-page responsive PNGs at 1365/390/320px, local keyboard links; no network/deploy")
 
 
 if __name__ == "__main__":
