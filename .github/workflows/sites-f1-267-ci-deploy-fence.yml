@@ -1,0 +1,30 @@
+name: Sites F1-267 deny accidental CI deployments
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+      - 'ci/f67_workflow_deploy_guard.py'
+      - '.github/workflows/sites-f1-267-ci-deploy-fence.yml'
+permissions:
+  contents: read
+jobs:
+  deny-deploy-patterns:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Test negative fixtures and scan both workflow extensions
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ci/f67_workflow_deploy_guard.py
+          python3 ci/f67_workflow_deploy_guard.py
+          python3 ci/f21_safety_guard.py
+      - name: Confirm blocked operational release gates
+        run: |
+          set -euo pipefail
+          python3 ci/f64_readiness_inventory.py --self-test
+      - name: Scope
+        if: always()
+        run: echo 'Read-only static review; no deploy, secrets, server, provider API or authorization.'

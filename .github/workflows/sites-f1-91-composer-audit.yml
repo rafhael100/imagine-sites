@@ -1,0 +1,45 @@
+name: Sites F1-91 Composer locked dependency audit - security only, no deploy
+on:
+  pull_request:
+    paths:
+      - 'apps/sites/composer.json'
+      - 'apps/sites/composer.lock'
+      - '.github/workflows/sites-f1-91-composer-audit.yml'
+      - 'docs/SITES-F1-91-COMPOSER-AUDIT.md'
+permissions:
+  contents: read
+jobs:
+  locked-supply-chain-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          coverage: none
+      - name: Validate exact declared Composer dependencies and locked graph
+        working-directory: apps/sites
+        run: |
+          set -euo pipefail
+          composer --version
+          composer validate --strict --no-check-publish
+      - name: Reject known advisories across locked prod and dev dependencies
+        working-directory: apps/sites
+        run: |
+          set -euo pipefail
+          # Composer audit checks authoritative security advisory feeds.
+          # Fail closed if feeds are unavailable; no ignore flag or allowlist.
+          composer audit --locked --abandoned=report --format=plain
+      - name: Verify production-only dependency graph independently
+        working-directory: apps/sites
+        run: |
+          set -euo pipefail
+          composer audit --locked --no-dev --abandoned=report --format=plain
+      - name: State the scope
+        if: always()
+        run: |
+          echo 'F1-91 audits public pinned Composer dependencies. No secrets, application deployment, third-party paid service, production approval or customer data.'
