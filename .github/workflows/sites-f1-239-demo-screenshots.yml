@@ -69,8 +69,28 @@ jobs:
             echo 'Preinstalled Chromium is required; no browser download'
             exit 1
           fi
-          python3 ci/f239_demo_chromium_screenshots.py "$browser"
+          # F1-266: ONLY a pre-render Chrome bootstrap failure may retry.
+          # Rendering/QA failures must fail immediately with their real logs.
           dir='apps/sites/storage/app/private/f239-demo-screenshots'
+          bootstrap_log="$RUNNER_TEMP/sites-f266-chrome-startup.log"
+          set +e
+          python3 ci/f239_demo_chromium_screenshots.py "$browser" >"$bootstrap_log" 2>&1
+          first_status=$?
+          set -e
+          cat "$bootstrap_log"
+          if test "$first_status" -ne 0; then
+            if grep -Fq 'F1-239 Chromium DevTools port unavailable' "$bootstrap_log" \
+              && test -d "$dir" && ! test -L "$dir" \
+              && test "$(find "$dir" -mindepth 1 -maxdepth 1 | wc -l)" -eq 0; then
+              echo 'Retrying one cold Chrome bootstrap with fresh runner-local profile'
+              rmdir "$dir"
+              sleep 2
+              python3 ci/f239_demo_chromium_screenshots.py "$browser"
+            else
+              exit "$first_status"
+            fi
+          fi
+          rm -f "$bootstrap_log"
           test "$(find "$dir" -maxdepth 1 -type f | wc -l)" = 19
           grep -Fq '"publishable": false' "$dir/screenshot-manifest.json"
           grep -Fq '"containsClientData": false' "$dir/screenshot-manifest.json"
