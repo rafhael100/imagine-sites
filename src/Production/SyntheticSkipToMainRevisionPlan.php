@@ -45,7 +45,7 @@ final readonly class SyntheticSkipToMainRevisionPlan
         }
         if ($approvedBrief->skipToMain === $enableSkipToMain ||
             $previousReleaseRef === $nextReleaseRef) {
-            throw new DomainException('skip_to_main_requires_existing_faq_and_new_release');
+            throw new DomainException('skip_to_main_requires_mode_change_and_new_release');
         }
 
         $renderer=new StaticSiteRenderer();
