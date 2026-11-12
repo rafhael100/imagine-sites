@@ -73,6 +73,15 @@ final class SyntheticSecondaryCtaReviewTest extends TestCase
                         self::assertStringContainsString(
                             'Nenhuma; revisão pendente',$outer
                         );
+                        self::assertSame(1,preg_match(
+                            '/id="cta-package-evidence-digest">([a-f0-9]{64})<\/code>/',
+                            $outer,$packageProof
+                        ));
+                        self::assertStringContainsString(
+                            'Os arquivos privados de ambas as versões foram verificados',
+                            $outer
+                        );
+                        $packageHashes[$product][$preset][$mode][$device]=$packageProof[1];
                         $evidenceHashes[$product][$preset][$mode][$device]=$proof[1];
 
                         foreach (['off','on'] as $option) {
@@ -121,6 +130,11 @@ final class SyntheticSecondaryCtaReviewTest extends TestCase
                     $sha[$mode]=$byDevice['desktop'][1];
                 }
                 self::assertNotSame($sha['on'],$sha['off']);
+                self::assertSame(
+                    $packageHashes[$product][$preset]['off']['desktop'],
+                    $packageHashes[$product][$preset]['on']['mobile'],
+                    'The same verified four-file pair must bind every mode'
+                );
                 self::assertSame(
                     $evidenceHashes[$product][$preset]['off']['desktop'],
                     $evidenceHashes[$product][$preset]['on']['mobile'],
