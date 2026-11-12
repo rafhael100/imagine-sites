@@ -25,3 +25,7 @@ O artefato de relatório fica disponível por **7 dias** no GitHub Actions, sem 
 ## F1-258 — refresh obrigatório do inventário no candidato atual (12/11/2026)
 
 A integração F1-258 reúne PRs #293–#299. A origem #299 estava 1046 commits à frente de `dev` e zero atrás. **Não reutilizar** a contagem de caminhos nem o SHA de inventários anteriores. Executar o workflow F1-240 no HEAD do candidato de integração desta data, conferir o SHA completo, todos os caminhos e os dez gates BLOCKED; isso não autoriza merge ou deploy.
+
+## Renovação F1-263 — 12/11/2026
+
+A branch de revisão F1-263 reúne #301–#305 sobre a base fixa `dev` SHA `71b8ffe51139d0e70ed32591b07f295fb7bf5fe3`. A contagem anterior de 641 arquivos/177 caminhos sensíveis refere-se a #300, e **não** vale para este novo HEAD. Reexecutar o inventário Git completo, conferir o digest e todos os dez gates `BLOCKED`; sem merge ou go-live.
