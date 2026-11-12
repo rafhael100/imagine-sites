@@ -6,6 +6,8 @@ on:
       - 'apps/sites/resources/views/labs/review.blade.php'
       - 'apps/sites/tests/Feature/SyntheticSecondaryCtaReviewTest.php'
       - 'src/Production/SyntheticSecondaryCtaChangeEvidenceV1.php'
+      - 'src/Production/SyntheticPrivateSecondaryCtaParityV1.php'
+      - 'tests/f257-cta-private-package-parity.php'
       - 'tests/f256-cta-comparison-evidence.php'
       - '.github/workflows/sites-f1-254-cta-review.yml'
 permissions:
@@ -43,6 +45,7 @@ jobs:
         run: |
           set -euo pipefail
           php ../../tests/f256-cta-comparison-evidence.php
+          php ../../tests/f257-cta-private-package-parity.php
           php artisan test --filter='(SyntheticSecondaryCtaReviewTest|SyntheticAnchorNavigationReviewTest|SyntheticRichReviewUiTest)' --no-ansi
       - name: Scope
         if: always()

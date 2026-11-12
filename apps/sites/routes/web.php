@@ -1880,9 +1880,21 @@ Route::get('/_lab/sites/v1/secondary-cta-review', static function (Request $requ
         );
         $draft=$cta==='on'?$on:$off;
         $ctaEvidence=\Imagine\Sites\Production\SyntheticSecondaryCtaChangeEvidenceV1::between($off,$on);
+        // F1-258: this UI now reads evidence over the four exact private
+        // review files, not only over the in-memory HTML artefact digest.
+        $offFiles=\Imagine\Sites\Production\SyntheticPrivateReviewPackageV1::fromPendingDraft($off);
+        $onFiles=\Imagine\Sites\Production\SyntheticPrivateReviewPackageV1::fromPendingDraft($on);
+        $packageEvidence=\Imagine\Sites\Production\SyntheticPrivateSecondaryCtaParityV1::inspect(
+            $offFiles,$off->brief,$onFiles,$on->brief
+        );
         $dossier=\Imagine\Sites\Production\SyntheticInternalReviewDossier::fromDraft($draft);
         $summary=$draft->reviewSummary();
         if (!$ctaEvidence->stillMatches($off,$on) ||
+            !$packageEvidence->stillMatches($offFiles,$off->brief,$onFiles,$on->brief) ||
+            $packageEvidence->canPublish() ||
+            $packageEvidence->canAcceptForClient() ||
+            $packageEvidence->canWriteCrm() ||
+            $packageEvidence->canIndex() ||
             $ctaEvidence->canPublish() ||
             $ctaEvidence->canApproveForClient() ||
             $ctaEvidence->canWriteCrm() ||
@@ -1912,6 +1924,7 @@ Route::get('/_lab/sites/v1/secondary-cta-review', static function (Request $requ
             'ctaDigestOn'=>$on->artifact->digest,
             'ctaEvidenceDigest'=>$ctaEvidence->recordDigest,
             'ctaEvidenceRecord'=>$ctaEvidence->record,
+            'ctaPackageEvidenceDigest'=>$packageEvidence->digest,
             'brief'=>$draft->brief,
             'previewHtml'=>$draft->artifact->html,
             'digest'=>$draft->artifact->digest,
