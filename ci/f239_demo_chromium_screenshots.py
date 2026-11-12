@@ -257,6 +257,48 @@ def main(browser: str) -> None:
                         c.call("Input.dispatchKeyEvent", {"type": "keyUp", **enter})
                         if c.evaluate("location.hash") != first_link:
                             fail("first link cannot be activated using Enter")
+                        # F1-251: an authentic browser reflow check with
+                        # root text at 200%; no new screenshot is exported.
+                        # The generated static page remains unchanged.
+                        zoom = c.evaluate("""(() => {
+                          const root=document.documentElement;
+                          const base=parseFloat(getComputedStyle(root).fontSize);
+                          root.style.fontSize='200%';
+                          const increased=parseFloat(getComputedStyle(root).fontSize);
+                          const links=[...document.querySelectorAll('nav a')];
+                          const btn=document.querySelector('.hero a.btn');
+                          const cta=btn?.getBoundingClientRect();
+                          return {
+                            before:base,after:increased,
+                            width:innerWidth,
+                            scroll:Math.max(root.scrollWidth,document.body.scrollWidth),
+                            height:Math.max(root.scrollHeight,document.body.scrollHeight),
+                            navSafe:links.every(el=>{
+                              const r=el.getBoundingClientRect();
+                              return r.width>=24 && r.height>=44 &&
+                                r.left>=-1 && r.right<=innerWidth+2;
+                            }),
+                            ctaSafe:cta && cta.height>=44 && cta.width>=44 &&
+                              cta.left>=-1 && cta.right<=innerWidth+2,
+                            headings:[...document.querySelectorAll('h1,h2,h3')].every(
+                              el=>getComputedStyle(el).display!=='none'
+                            ),
+                            pages:document.querySelectorAll('main').length
+                          };
+                        })()""")
+                        if (
+                            not isinstance(zoom,dict)
+                            or zoom["after"] < zoom["before"]*1.9
+                            or zoom["width"] != width
+                            or zoom["scroll"] > width+2
+                            or zoom["height"] > 20000
+                            or not zoom["navSafe"]
+                            or not zoom["ctaSafe"]
+                            or not zoom["headings"]
+                            or zoom["pages"] != 1
+                        ):
+                            fail("200 percent text reflow/CTA/nav failed: "
+                                 + filename + " " + device)
                         dest_name = filename.replace(".html", f"-{device}-full.png")
                         dest = OUTPUT / dest_name
                         if dest.exists() or dest.is_symlink():
@@ -270,8 +312,10 @@ def main(browser: str) -> None:
                             "height": page_height,
                             "viewportHeight": height,
                             "fullPage": True,
+        "textReflow200PercentVerified": True,
                             "keyboardLinkActivated": True,
                             "navTouchTargetsVerified": True,
+                            "textReflow200PercentVerified": True,
                             "sha256": hashlib.sha256(content).hexdigest(),
                             "bytes": len(content),
                         }
@@ -308,6 +352,7 @@ def main(browser: str) -> None:
     if len(list(OUTPUT.iterdir())) != 19:
         fail("unexpected screenshot artifact inventory")
     print("PASS F1-244: 18 full-page responsive PNGs at 1365/390/320px, local keyboard links; no network/deploy")
+    print("PASS F1-251: 18 real Chromium text reflow checks at 200%, no overflow and accessible touch targets")
 
 
 if __name__ == "__main__":
