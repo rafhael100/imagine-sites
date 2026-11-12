@@ -96,6 +96,13 @@ final readonly class SyntheticPrivateSecondaryCtaParityV1
                 ENT_QUOTES|ENT_SUBSTITUTE|ENT_HTML5,'UTF-8').'</a></p>';
         $css="    .secondary-action { margin: 16px 0 0; }\n".
             "    .secondary-cta { background: #173e69; color: #fff; }\n";
+        if ($afterBrief->brandPalette!==null) {
+            $css="    .secondary-action { margin: 16px 0 0; }\n".
+                '    .secondary-cta { background: '.
+                $afterBrief->brandPalette->buttonBackground.'; color: '.
+                $afterBrief->brandPalette->buttonText.'; border: 2px solid '.
+                $afterBrief->brandPalette->buttonText."; }\n";
+        }
         if (substr_count($on,$button)!==1 ||
             substr_count($on,$css)!==1) {
             throw new DomainException('private_cta_parity_missing_fixed_button_or_css');

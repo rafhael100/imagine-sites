@@ -319,10 +319,19 @@ CSS,
             );
         }
         if ($brief->secondaryCallToAction) {
+            // F1-260: branded CTA uses only WCAG-checked, typed palette
+            // tokens. Existing default-CTA bytes remain unchanged.
             $secondaryCss = <<<'CSS'
     .secondary-action { margin: 16px 0 0; }
     .secondary-cta { background: #173e69; color: #fff; }
 CSS;
+            if ($brief->brandPalette !== null) {
+                $secondaryCss = "    .secondary-action { margin: 16px 0 0; }\n".
+                    '    .secondary-cta { background: '.
+                    $brief->brandPalette->buttonBackground.'; color: '.
+                    $brief->brandPalette->buttonText.'; border: 2px solid '.
+                    $brief->brandPalette->buttonText.'; }';
+            }
             $html=str_replace("  </style>\n</head>",$secondaryCss."\n  </style>\n</head>",$html);
         }
         return new ReleaseArtifact($html);

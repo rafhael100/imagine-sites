@@ -93,6 +93,7 @@ jobs:
           php tests/f253-secondary-local-cta.php
           php tests/f256-cta-comparison-evidence.php
           php tests/f257-cta-private-package-parity.php
+          php tests/f260-branded-secondary-cta.php
           php tests/f190-brand-palette-contrast.php
           php tests/f200-layout-change-evidence.php
           php tests/f202-composite-visual-revision.php
