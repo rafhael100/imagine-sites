@@ -151,6 +151,11 @@ FAQ;
         }
 
 
+        // F1-277: fixed local keyboard shortcut, never an arbitrary URL.
+        $skipLink = $brief->skipToContentLink
+            ? "\n  <a class=\"skip-content\" href=\"#principal\">Pular para o conteúdo</a>"
+            : '';
+
         $html = <<<HTML
 <!doctype html>
 <html lang="pt-BR">
@@ -191,7 +196,7 @@ FAQ;
     @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
   </style>
 </head>
-<body data-site-product="{$mode}">
+<body data-site-product="{$mode}">{$skipLink}
   <header><div class="container header-inner"><span class="brand">{$brand}</span>{$nav}</div></header>
   <main id="principal">
     <section class="hero" aria-labelledby="hero-title">
@@ -284,6 +289,17 @@ CSS;
 CSS;
             $html=str_replace("  </style>\n</head>",
                 $disclosureCss."\n  </style>\n</head>",$html);
+        }
+
+        // F1-277: a fixed skip link is visually hidden until keyboard focus.
+        // No JavaScript, remote resource or public navigation.
+        if ($brief->skipToContentLink) {
+            $skipCss = <<<'CSS'
+    .skip-content { position: absolute; top: 8px; left: 8px; z-index: 10; background: #fff; color: #122b4d; padding: 12px 18px; border: 2px solid #122b4d; border-radius: 8px; font-weight: 700; transform: translateY(-160%); }
+    .skip-content:focus-visible { transform: none; outline: 3px solid #2366bc; outline-offset: 3px; }
+CSS;
+            $html=str_replace("  </style>\n</head>",
+                $skipCss."\n  </style>\n</head>",$html);
         }
 
         // F1-51: conservative, predefined offline design tokens only.
