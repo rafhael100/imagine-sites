@@ -18,11 +18,12 @@ if (PHP_SAPI!=='cli' ||
 $repo=dirname(__DIR__);
 $vendor=$repo.'/apps/sites/vendor/autoload.php';
 $fixturePath=$repo.'/fixtures/sites/f1-06-onepage.synthetic.json';
+$richPath=$repo.'/fixtures/sites/f1-170-process-copy.synthetic.json';
 $private=$repo.'/apps/sites/storage/app/private';
 $dir=$private.'/f238-demo-previews';
 
-if (!is_file($vendor) || !is_file($fixturePath) ||
-    is_link($fixturePath) || is_link($private) || is_link($dir) ||
+if (!is_file($vendor) || !is_file($fixturePath) || !is_file($richPath) ||
+    is_link($fixturePath) || is_link($richPath) || is_link($private) || is_link($dir) ||
     file_exists($dir)) {
     throw new RuntimeException('F1-238 private fixture/output boundary not clean.');
 }
@@ -43,6 +44,18 @@ if (!is_array($fixture) ||
     $fixture['brand']!=='Aurora Exemplo' ||
     $fixture['productCode']!=='onepage') {
     throw new RuntimeException('Only the pinned Aurora Exemplo synthetic content is distributable.');
+}
+// F1-243: enrich the SAME six visual variations with the already-validated
+// v4 synthetic content contract. No extra customer data or AI provider.
+$rich=json_decode((string)file_get_contents($richPath),true,12,JSON_THROW_ON_ERROR);
+if (!is_array($rich) || array_keys($rich)!==[
+    'schemaVersion','headline','description','callToAction','benefits',
+    'faq','highlights','processSteps'
+] || $rich['schemaVersion']!=='sites.ai-copy.v4' ||
+    !is_array($rich['faq']) || count($rich['faq'])!==2 ||
+    !is_array($rich['highlights']) || count($rich['highlights'])!==2 ||
+    !is_array($rich['processSteps']) || count($rich['processSteps'])!==3) {
+    throw new RuntimeException('Only the reviewed fictional rich-v4 content fixture is supported.');
 }
 if (!is_dir($private) && !mkdir($private,0700,true) && !is_dir($private)) {
     throw new RuntimeException('Private demo output root unavailable.');
@@ -67,9 +80,12 @@ $links=[];
 foreach (['onepage','landing_page'] as $product) {
     foreach (['classic','modern','warm'] as $style) {
         $brief=new SiteBrief(
-            $product,
-            $fixture['brand'],$fixture['headline'],$fixture['description'],
-            $fixture['callToAction'],$fixture['benefits'],$style
+            $product, $fixture['brand'], $rich['headline'], $rich['description'],
+            $rich['callToAction'], $rich['benefits'], $style,
+            $rich['faq'], $rich['highlights'], $rich['processSteps'],
+            ['highlights','process','faq'], $product==='onepage',
+            null, true, $rich['headline'].' | '.$fixture['brand'],
+            $rich['description']
         );
         $artifact=(new StaticSiteRenderer())->render($brief);
         if (!InertPreviewAudit::isSafe($artifact->html) ||
@@ -80,6 +96,20 @@ foreach (['onepage','landing_page'] as $product) {
             stripos($artifact->html,'<script')!==false) {
             throw new RuntimeException('F1-238 preview failed independent inert QA.');
         }
+        // All six rich demos must actually expose the existing renderer's
+        // 3 editorial sections and 7 OG/Twitter social metadata tags.
+        foreach (['id="solucoes"','id="etapas"','id="perguntas"',
+                  '<meta property="og:type"','<meta name="twitter:card"'] as $token) {
+            if (!str_contains($artifact->html,$token)) {
+                throw new RuntimeException('F1-243 lost a promised rich section.');
+            }
+        }
+        if ($product==='onepage' &&
+            (!str_contains($artifact->html,'href="#solucoes"') ||
+             !str_contains($artifact->html,'href="#etapas"') ||
+             !str_contains($artifact->html,'href="#perguntas"'))) {
+            throw new RuntimeException('F1-243 Onepage rich navigation is missing.');
+        }
         $filename=$product.'-'.$style.'.html';
         $digest=write238($dir,$filename,$artifact->html);
         if ($digest!==$artifact->digest) {
@@ -88,6 +118,9 @@ foreach (['onepage','landing_page'] as $product) {
         $pages[$filename]=[
             'product'=>$product,'preset'=>$style,
             'sha256'=>$digest,'bytes'=>$artifact->sizeBytes,
+            'sections'=>['benefits','highlights','process','faq','contact'],
+            'navigation'=>$product==='onepage'?'section_anchors':'local_cta',
+            'socialMetadata'=>true,
         ];
         $humanProduct=$product==='onepage'?'Onepage':'Landing Page';
         $links[]='<li><a href="'.$filename.'">'.$humanProduct.
@@ -121,7 +154,7 @@ $index=<<<HTML
 <body>
   <main>
     <h1>Imagine Sites — galeria demonstrativa</h1>
-    <p>Seis páginas HTML fictícias: Onepage e Landing Page nos estilos Classic, Modern e Warm. Abra qualquer opção no navegador para conferir estrutura e responsividade.</p>
+    <p>Seis páginas HTML fictícias: Onepage e Landing Page nos estilos Classic, Modern e Warm. Cada exemplo demonstra serviços, etapas de produção, perguntas frequentes, SEO e prévia social em layout responsivo.</p>
     <p><strong>Não são sites publicados.</strong> Marca Aurora Exemplo fictícia, sem clientes, formulários, envio de dados, scripts ou conexão à internet. O aceite do cliente e a publicação permanecem desabilitados.</p>
     <ul>
       {$linksHtml}
@@ -136,6 +169,8 @@ $readme=<<<TXT
 IMAGINE SITES — F1-238 GALERIA FICTICIA DE DEMONSTRACAO
 
 Abra index.html no navegador para navegar entre as 6 paginas.
+F1-243 usa a fixture ficticia v4 com servicos, etapas, FAQ e metadados
+sociais; navegacao por secoes na Onepage, sem funcionalidades ativas.
 Todas as paginas sao autocontidas, sem JavaScript, formularios,
 imagens remotas, dados pessoais, integracao CRM ou publicacao.
 A marca 'Aurora Exemplo' e inteiramente ficticia.
@@ -152,6 +187,8 @@ $manifest=json_encode([
     'schema'=>'imagine-sites.synthetic-demo-gallery.v1',
     'productCodes'=>['onepage','landing_page'],
     'stylePresets'=>['classic','modern','warm'],
+    'editorialFixture'=>'fixtures/sites/f1-170-process-copy.synthetic.json',
+    'richSections'=>['highlights','process','faq'],
     'demoOnly'=>true,
     'approvedForClient'=>false,
     'publishable'=>false,
@@ -189,3 +226,4 @@ foreach($hashes as $filename=>$digest) {
 }
 echo "PASS F1-238: six distinct audited fictional HTML previews, no external assets.\n";
 echo "PASS F1-238: deterministic static index, manifest, SHA256SUMS and no publication power.\n";
+echo "PASS F1-243: all six product/preset variants include rich v4 services, steps, FAQ and social preview.\n";
