@@ -1,5 +1,16 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuação A11Y e CRM POSTBIND T0 — 12/11/2026
+
+- Candidato avançado F1-286 #338 preservado; PRs redundantes #339–#343 encerrados sem merge, com referências cruzadas.
+- PR #344: link de teclado agora foca `main#principal` efetivamente após Enter apenas no modo opt-in, mantendo bytes antigos quando desativado. **28/28 workflows PASS**.
+- PR #345: fence de prazo original T0+432h após releitura sintética do vínculo CRM. O teste dedicado PHP 8.3/8.4 aprovou; **não é autorização real de reenvio**.
+- Novo candidato `integration/sites-a11y-postbinding-t0-2026-11-12` exige inventário Git F1-240, seis pacotes F1-241 e todos os testes no SHA próprio; origem 1.262 commits ahead/0 behind `dev`.
+- `dev/main` intactas, ambas reportaram `protected:false` (issue #281); dez gates `BLOCKED`. Nenhum merge, deploy, serviço externo ou dado real.
+
+---
+
+
 ## Continuação F1-285–F1-286 — 12/11/2026
 
 - F1-285 / PR #336: revisor Laravel privado compara link de acessibilidade on/off em 24 prévias; workflow dedicado aprovado.
