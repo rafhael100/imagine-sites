@@ -182,6 +182,7 @@ final class InertPreviewAudit
                 '<a href="#sobre">',
                 '<a class="btn" href="#contato">',
                 '<a class="btn secondary-cta" href="#contato">',
+                '<a class="skip-content" href="#principal">',
                 '<a href="#solucoes">',
                 '<a href="#etapas">',
                 '<a href="#perguntas">',
