@@ -44,9 +44,7 @@ jobs:
         run: |
           set -euo pipefail
           docker compose -f ops/fpm-probe/compose.yml --profile ci build sites-fpm
-          image="$(docker compose -f ops/fpm-probe/compose.yml --profile ci images -q sites-fpm)"
-          test -n "$image"
-          docker image inspect "$image" --format '{{.Config.User}}' | grep -Fx '10001:10001'
+          docker image inspect imagine-sites-fpm-probe-sites-fpm --format '{{.Config.User}}' | grep -Fx '10001:10001'
       - name: Run Nginx and PHP-FPM on a Docker-only internal network
         run: |
           set -euo pipefail
