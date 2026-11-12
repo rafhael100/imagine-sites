@@ -155,6 +155,12 @@ FAQ;
         }
 
 
+        // A11Y: native fragment navigation focuses <main> only for the
+        // reviewer-selected keyboard shortcut. Default HTML stays identical.
+        $mainTag=$brief->skipToMain
+            ? '<main id="principal" tabindex="-1">'
+            : '<main id="principal">';
+
         $html = <<<HTML
 <!doctype html>
 <html lang="pt-BR">
@@ -197,7 +203,7 @@ FAQ;
 </head>
 <body data-site-product="{$mode}">
 {$skipLink}  <header><div class="container header-inner"><span class="brand">{$brand}</span>{$nav}</div></header>
-  <main id="principal">
+  {$mainTag}
     <section class="hero" aria-labelledby="hero-title">
       <div class="container hero-inner">
         <div class="eyebrow">{$brand}</div>
