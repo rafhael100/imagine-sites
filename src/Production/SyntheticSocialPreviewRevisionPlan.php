@@ -69,6 +69,7 @@ final readonly class SyntheticSocialPreviewRevisionPlan
             $approvedBrief->brandPalette,
             $enableSocialPreview,
             $approvedBrief->seoTitle,$approvedBrief->seoDescription,
+            $approvedBrief->secondaryCallToAction,
         );
         $nextArtifact=$renderer->render($nextBrief);
         if (hash_equals($nextArtifact->digest,$approvedArtifact->digest) ||

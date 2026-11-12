@@ -75,7 +75,8 @@ final readonly class SyntheticSeoCopyRevisionPlan
             $approvedBrief->brandPalette,
             $approvedBrief->socialPreviewMetadata,
             $requestedSeoTitle,
-            $requestedSeoDescription
+            $requestedSeoDescription,
+            $approvedBrief->secondaryCallToAction,
         );
         $nextArtifact=$renderer->render($nextBrief);
         if (hash_equals($nextArtifact->digest,$approvedArtifact->digest) ||

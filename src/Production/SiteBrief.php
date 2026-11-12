@@ -30,6 +30,8 @@ final readonly class SiteBrief
         public bool $socialPreviewMetadata = false,
         public ?string $seoTitle = null,
         public ?string $seoDescription = null,
+        // F1-253: editor-owned, optional inert local conversion CTA.
+        public bool $secondaryCallToAction = false,
     ) {
         if (!in_array($productCode, ['onepage', 'landing_page'], true)) {
             throw new InvalidArgumentException('Unsupported Imagine Sites product.');
