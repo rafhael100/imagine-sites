@@ -79,6 +79,7 @@ final readonly class SyntheticCompositeVisualRevisionPlan
             $requestedPalette,
             $requestedSocialPreviewMetadata??$approvedBrief->socialPreviewMetadata,
             $approvedBrief->seoTitle,$approvedBrief->seoDescription,
+            $approvedBrief->secondaryCallToAction,
         );
 
         $styleChanged=$nextBrief->stylePreset!==$approvedBrief->stylePreset;
