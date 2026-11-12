@@ -1,5 +1,15 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Integração, correções de segurança e prova HTTP — 11/11/2026
+
+- [PR #266](https://github.com/rafhael100/imagine-sites/pull/266): candidato de integração da cadeia F1-38..231 para **revisão em `dev`**, não mesclado. No head `9da3fd7ba27a878c16e671577f86b4485ae7724f`, **83 workflows CI aprovados**.
+- [PR #267](https://github.com/rafhael100/imagine-sites/pull/267): F1-232, bloqueio do destino das migrations PG18 F1-93/F1-94 com enum de bancos descartáveis, host e porta efetivos, executor GitHub Actions, usuário de teste e flag explícita. **8/8 workflows CI aprovados** no head `fa39340bcec780ca6eb76a453bf0cae769966f2f`.
+- [PR #268](https://github.com/rafhael100/imagine-sites/pull/268): F1-233, middleware **global por requisição** que impede acesso a `/_lab/sites/v1/*` fora de CLI/testing/loopback mesmo com rotas previamente cacheadas. Regressões antigas adaptadas para negar IP remoto (404) e conferir método HTTP inválido a partir do loopback (405). **15/15 workflows CI aprovados** no head `2268dc60a8c2539b04220d8c76126ed414f1d00c`.
+- [PR #269](https://github.com/rafhael100/imagine-sites/pull/269): F1-234, prova HTTP em PHP `cli-server`, sem rede pública. O GitHub Actions **compilou rotas sintéticas em cache** e mesmo assim o servidor não-CLI retornou 404 às rotas de laboratório, enquanto `/up` retornou 200. Resultado confirmado nas matrizes PHP 8.3 e 8.4; **5/5 workflows CI aprovados** no head `c2b16953f06bfad46bb5d92118e7bd9affd19b8e`.
+
+**Status:** todos os PRs permanecem em `draft`; `dev` e `main` não foram promovidas. A validação por CI e pelo servidor HTTP local **não comprova** isolamento, IAM, backups, publicação ou desempenho operacional da VPS/Cloudflare. `config/operational-readiness.json` continua `BLOCKED`, com 10 gates falsos. Controle de consolidação: [issue #263](https://github.com/rafhael100/imagine-sites/issues/263). Bloqueadores P0: OP01–OP05 e SITES-GATE.
+
+
 ## Correção do comparador SEO — 11/11/2026
 
 Base: F1-227 / PR #259, SHA `cbc0186c85fba06103f4b1eb41f6944d92be10db`.
