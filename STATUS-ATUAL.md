@@ -1,5 +1,17 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuação F1-270–F1-273 — 12/11/2026
+
+- F1-270 / PR #316: FAQ expansível nativa, modo opcional do editor e QA DOM sem scripts — **26/26 workflows PASS**.
+- F1-271 / PR #317: mudança de FAQ exige novo release e volta a `drafting` — **10/10 workflows PASS**.
+- F1-272 / PR #318: comparador de FAQ no Laravel, 24 prévias e pacote privado de 4 arquivos — **26/26 workflows PASS**.
+- F1-273 / PR #319: Chromium headless em 2 produtos × 3 telas com Tab/Enter/Espaço e 44px mínimos — **6/6 workflows PASS**.
+- Novo candidato: `integration/sites-f1-273-dev-review-candidate-2026-11-12` para `dev`; origem 1.152 commits ahead/0 behind antes da documentação. Reexecutar F1-240/F1-241 no próprio HEAD.
+- `dev/main` inalteradas, sem proteção GitHub ativa (issue #281); dez gates `BLOCKED`. **Nenhum merge/deploy, cliente real, captação, DNS, Cloudflare ou custo.**
+
+---
+
+
 ## Continuação F1-268 e F1-269 — 12/11/2026
 
 - F1-268 / PR #313: assinatura Ed25519 Base64URL única e expiração estrita — **5/5 workflows PASS**.
