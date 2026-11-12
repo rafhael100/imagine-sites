@@ -30,18 +30,18 @@ def inspect(path: str, source: str) -> None:
         line = raw.strip()
         if not line or line.startswith("#"):
             continue
-        pending += (" " if pending else "") + line.rstrip("\\\\").rstrip()
-        if line.endswith("\\\\"):
+        pending += (" " if pending else "") + line.rstrip("\\").rstrip()
+        if line.endswith("\\"):
             continue
         logical.append(pending)
         pending = ""
     if pending:
         raise ValueError("F1-252 dangling Dockerfile continuation")
-    if len([line for line in logical if re.match(r"(?i)^FROM\\s+", line)]) != 1:
+    if len([line for line in logical if re.match(r"(?i)^FROM\s+", line)]) != 1:
         raise ValueError("F1-252 exactly one build stage required")
-    if any(re.match(r"(?i)^ADD\\s+", line) for line in logical):
+    if any(re.match(r"(?i)^ADD\s+", line) for line in logical):
         raise ValueError("F1-252 ADD instruction forbidden")
-    copies = [line for line in logical if re.match(r"(?i)^COPY\\s+", line)]
+    copies = [line for line in logical if re.match(r"(?i)^COPY\s+", line)]
     expected_copies = {
         "COPY --from=composer:2 /usr/bin/composer /usr/bin/composer",
         "COPY apps/sites/ ./apps/sites/",
@@ -53,7 +53,7 @@ def inspect(path: str, source: str) -> None:
     if len(copies) != len(expected_copies) or set(copies) != expected_copies:
         raise ValueError("F1-252 unexpected Dockerfile COPY or build context")
     # Reject extra install commands hidden in a separate RUN instruction.
-    if sum(len(re.findall(r"\\bcomposer\\s+install\\b", line)) for line in logical) != 1:
+    if sum(len(re.findall(r"\bcomposer\s+install\b", line)) for line in logical) != 1:
         raise ValueError("F1-252 multiple Composer installation commands")
     users=[(i,s) for i,s in enumerate(meaningful) if s.startswith("USER ")]
     if len(users)!=1 or users[0][1]!="USER 10001:10001":
