@@ -1817,3 +1817,117 @@ Route::get('/_lab/sites/v1/seo-copy-review', static function (Request $request) 
             "base-uri 'none'; frame-ancestors 'none'",
     ]);
 })->name('sites.lab.seo-copy-review');
+
+
+/**
+ * F1-254: read-only private comparison of secondary CTA off/on.
+ * Fully synthetic: this route cannot authorize clients or publish a site.
+ * Top-level registration guard already requires PHP CLI and APP_ENV=testing.
+ */
+Route::get('/_lab/sites/v1/secondary-cta-review', static function (Request $request) {
+    if (PHP_SAPI!=='cli' || !app()->environment('testing') ||
+        getenv('SITES_SYNTHETIC_HTTP')!=='1' ||
+        getenv('SITES_SYNTHETIC_REVIEW_UI')!=='1' ||
+        getenv('SITES_F254_SECONDARY_CTA_REVIEW')!=='1' ||
+        !in_array($request->ip(),['127.0.0.1','::1'],true)) {
+        return response('Not found',404);
+    }
+
+    $query=$request->query();
+    if (count($query)!==4 ||
+        array_diff(array_keys($query),['product','device','preset','cta'])!==[]) {
+        return response('Not found',404);
+    }
+    foreach ($query as $value) {
+        if (!is_string($value) || $value==='') return response('Not found',404);
+    }
+    $product=$query['product'];
+    $device=$query['device'];
+    $preset=$query['preset'];
+    $cta=$query['cta'];
+    if (!in_array($product,['onepage','landing_page'],true) ||
+        !in_array($device,['desktop','mobile'],true) ||
+        !in_array($preset,['classic','modern','warm'],true) ||
+        !in_array($cta,['off','on'],true)) {
+        return response('Not found',404);
+    }
+
+    try {
+        $fixture=base_path('../../fixtures/sites/f1-170-process-copy.synthetic.json');
+        if (!is_file($fixture) || is_link($fixture) || filesize($fixture)>8192) {
+            return response('Not found',404);
+        }
+        $copy=json_decode((string)file_get_contents($fixture),
+            true,16,JSON_THROW_ON_ERROR);
+        if (!is_array($copy) || array_is_list($copy) ||
+            ($copy['schemaVersion']??null)!=='sites.ai-copy.v4' ||
+            count($copy['faq']??[])!==2 ||
+            count($copy['highlights']??[])!==2 ||
+            count($copy['processSteps']??[])!==3) {
+            return response('Not found',404);
+        }
+        $args=[$product,'Marca Fictícia Imagine',$preset,$copy,
+            'tenant-f254-fictional','site-f254-fictional'];
+        $off=\Imagine\Sites\Production\SyntheticStructuredDraftAssembly::build(
+            ...[...$args,'workflow-f254-'.$product.'-'.$preset.'-off',
+                'release-f254-'.$product.'-'.$preset.'-off'],
+            officialSecondaryCallToAction:false
+        );
+        $on=\Imagine\Sites\Production\SyntheticStructuredDraftAssembly::build(
+            ...[...$args,'workflow-f254-'.$product.'-'.$preset.'-on',
+                'release-f254-'.$product.'-'.$preset.'-on'],
+            officialSecondaryCallToAction:true
+        );
+        $draft=$cta==='on'?$on:$off;
+        $dossier=\Imagine\Sites\Production\SyntheticInternalReviewDossier::fromDraft($draft);
+        $summary=$draft->reviewSummary();
+        if (hash_equals($off->artifact->digest,$on->artifact->digest) ||
+            $off->brief->secondaryCallToAction ||
+            !$on->brief->secondaryCallToAction ||
+            !\Imagine\Sites\Production\InertPreviewAudit::isSafe($off->artifact->html) ||
+            !\Imagine\Sites\Production\InertPreviewAudit::isSafe($on->artifact->html) ||
+            !$off->structuralReport->passedStructuralChecks ||
+            !$on->structuralReport->passedStructuralChecks ||
+            $draft->workflow->state!=='internal_review' ||
+            $summary['internalReviewRequired']!==true ||
+            $summary['officialClientAcceptance']!==false ||
+            $summary['publishable']!==false ||
+            $dossier->record['reviewerDecisionStatus']!=='pending' ||
+            $dossier->record['publishable']!==false ||
+            $dossier->record['officialClientAcceptance']!==false) {
+            return response('Not found',404);
+        }
+        $page=view('labs.review',[
+            'product'=>$product,'device'=>$device,'preset'=>$preset,
+            'galleryMode'=>false,
+            'reviewRoute'=>'/_lab/sites/v1/secondary-cta-review',
+            'ctaMode'=>$cta,
+            'ctaDigestOff'=>$off->artifact->digest,
+            'ctaDigestOn'=>$on->artifact->digest,
+            'brief'=>$draft->brief,
+            'previewHtml'=>$draft->artifact->html,
+            'digest'=>$draft->artifact->digest,
+            'reviewSnapshot'=>$summary,'dossierDigest'=>$dossier->digest,
+            'requiredAcknowledgments'=>$dossier->record['requiredReviewerAcknowledgments'],
+            'qaChecks'=>$draft->structuralReport->checks,
+            'editorialChecks'=>$draft->editorialReport->checks,
+            'editorialSuggestions'=>$draft->editorialReport->suggestions,
+        ])->render();
+    } catch (\Throwable) {
+        return response('Not found',404);
+    }
+
+    return response($page,200,[
+        'Content-Type'=>'text/html; charset=UTF-8',
+        'Cache-Control'=>'private, no-store, max-age=0',
+        'X-Content-Type-Options'=>'nosniff',
+        'X-Frame-Options'=>'DENY',
+        'Referrer-Policy'=>'no-referrer',
+        'X-Robots-Tag'=>'noindex, nofollow, noarchive',
+        'Permissions-Policy'=>'camera=(), microphone=(), geolocation=()',
+        'Content-Security-Policy'=>"default-src 'none'; script-src 'none'; ".
+          "style-src 'unsafe-inline'; frame-src 'self' about:; img-src data:; ".
+          "connect-src 'none'; form-action 'none'; object-src 'none'; ".
+          "base-uri 'none'; frame-ancestors 'none'",
+    ]);
+})->name('sites.lab.secondary-cta-review');
