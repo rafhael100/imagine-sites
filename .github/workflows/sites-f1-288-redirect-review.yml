@@ -1,0 +1,32 @@
+name: Sites F1-288 safe canonical redirect review (offline)
+on:
+  pull_request:
+    paths:
+      - 'src/Domain/SyntheticCanonicalRedirectReviewV1.php'
+      - 'tests/f288-canonical-redirect-review.php'
+      - '.github/workflows/sites-f1-288-redirect-review.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  what-if-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          coverage: none
+      - name: Strictly offline redirects
+        run: |
+          php -l src/Domain/SyntheticCanonicalRedirectReviewV1.php
+          php -l tests/f288-canonical-redirect-review.php
+          php tests/f288-canonical-redirect-review.php

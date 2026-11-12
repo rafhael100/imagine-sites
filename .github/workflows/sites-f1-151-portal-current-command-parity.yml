@@ -1,0 +1,49 @@
+name: Sites F1-151 actual Portal F133 CreateProject source parity
+on:
+  pull_request:
+    paths:
+      - 'src/Integration/SiteProjectCommand.php'
+      - 'contracts/portal-sites/v1/create-project.schema.json'
+      - 'tests/f151-portal-current-create-project-parity.php'
+      - '.github/workflows/sites-f1-151-portal-current-command-parity.yml'
+permissions:
+  contents: read
+jobs:
+  portal-create-project-parity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout immutable Portal F133 source
+        uses: actions/checkout@v4
+        with:
+          repository: rafhael100/imagine-portal
+          ref: a997b7433e70259e05a3539a4e5301c8b5f79915
+          path: portal-current
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          coverage: none
+      - name: Verify checked-out Portal revision
+        run: |
+          set -euo pipefail
+          test "$(git -C portal-current rev-parse HEAD)" = a997b7433e70259e05a3539a4e5301c8b5f79915
+          test -f portal-current/apps/portal/app/Domain/SiteIntake/SiteEngineCreateProjectCandidateValidator.php
+          test -f portal-current/apps/portal/app/Domain/SiteIntake/SiteEngineSchemaDriftGate.php
+          test -f portal-current/apps/portal/app/Domain/ServicePortfolio/PortfolioProduct.php
+          test -f portal-current/apps/portal/labs/sites-intake-f55/create-project.schema.snapshot.json
+          php -l tests/f151-portal-current-create-project-parity.php
+          php -l src/Integration/SiteProjectCommand.php
+      - name: Assert real two-repository CreateProject v1 compatibility
+        run: |
+          set -euo pipefail
+          php tests/f151-portal-current-create-project-parity.php
+          echo "No authenticated Portal operation, contract eligibility or publication."
