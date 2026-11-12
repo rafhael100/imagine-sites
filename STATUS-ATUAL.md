@@ -1,5 +1,15 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuação F1-264 e F1-265 — 12/11/2026
+
+- PR #307 / F1-264: prévia Cloudflare Worker de laboratório usando HTML SHA-256 do motor PHP real, apenas `.invalid` e `noindex`; handler público permanentemente 503 — **5/5 workflows PASS**.
+- PR #308 / F1-265: assinatura Ed25519 canônica, audiência, prazo máximo 300 s, checksum e negação de publicação; signatário ainda não verificado — **6/6 workflows PASS**.
+- Candidato de integração F1-265: `integration/sites-f1-265-dev-review-candidate-2026-11-12`, base `dev` `71b8ffe51139d0e70ed32591b07f295fb7bf5fe3`, origem 1.092 commits ahead e 0 behind. Inventário F1-240/241 deve ser gerado novamente neste HEAD, sem reutilizar as contagens do PR #306.
+- Nenhum merge, deploy, cliente, DNS, Cloudflare, VPS, credencial, lead/consentimento real ou gasto. Dez gates `BLOCKED`, issue #281 ainda requer proteção administrativa e revisão independente.
+
+---
+
+
 ## Continuação F1-259 a F1-263 — 12/11/2026
 
 Novo candidato de revisão, sem merge: `integration/sites-f1-263-dev-review-candidate-2026-11-12`, base `dev` SHA `71b8ffe51139d0e70ed32591b07f295fb7bf5fe3`.
