@@ -81,7 +81,10 @@ def main(browser: str) -> None:
 
     OUTPUT.mkdir(mode=0o700)
     captured = {}
-    with tempfile.TemporaryDirectory(prefix="sites-f239-chrome-") as tmp:
+    # Chrome may still flush an ephemeral profile from a child after its main
+    # process exits. Do not invalidate VERIFIED screenshots over that CI-only
+    # cleanup race; GitHub removes its runner and its browser profile.
+    with tempfile.TemporaryDirectory(prefix="sites-f239-chrome-", ignore_cleanup_errors=True) as tmp:
         profile = Path(tmp) / "profile"
         chrome = subprocess.Popen(
             [
