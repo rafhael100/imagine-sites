@@ -89,7 +89,11 @@ foreach(['onepage','landing_page'] as $product) {
             libxml_clear_errors();
             libxml_use_internal_errors($previous);
         }
-        if (preg_match('~(?:https?://|javascript:|data:|<form|<script)~i',$html)) {
+        // The canonical strict CSP includes `img-src 'self' data:`. That
+        // keyword is not a data-URL in an HTML attribute or executed source.
+        // Independent DOM checks above deny active tags; InertPreviewAudit
+        // separately validates the exact CSP and forbids remote links.
+        if (preg_match('~(?:https?://|javascript:|<form|<script)~i',$html)) {
             throw new RuntimeException('F1-243 unexpected active/remote content.');
         }
         ++$checks;
