@@ -1,5 +1,14 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuação F1-289 — mapa SEO canônico privado — 12/11/2026
+
+- Após F1-288, implementação de mapa de URLs canônicas e sitemap XML candidato, em memória, com origem sem www para novos sites públicos.
+- Respeita legado com www indexado, campanhas em subdomínios próprios, valida URLs por allowlist e recusa paths perigosos e classes de aplicativos autenticados.
+- indexable=false e mayServe=false em todas as respostas; previews continuam noindex, sem DNS, Cloudflare, publicação ou envio a crawlers.
+- Testes PHP 8.3/8.4 dedicados e suite sintética principal devem ser concluídos no HEAD deste trabalho.
+- Auditoria anterior consolidada #349: 117/117 workflows success, 753 caminhos de diff, 213 sensíveis, 6 pacotes. Dez gates BLOCKED, dev/main sem revisão/proteção administrativa atestada.
+
+---
 ## Continuação F1-288 — preflight offline de redirecionamento canônico — 12/11/2026
 
 - PR #349 consolidou F1-287 + ADR-015; SHA 4d7a7982bed62b622d519ab316d55ff0ddce5419: **117/117 workflows success**, incluindo F1-240/F1-241. Inventário completo: **753 caminhos**, **213 sensíveis**, seis pacotes com hash. Isso não é revisão humana nem liberação de produção.
