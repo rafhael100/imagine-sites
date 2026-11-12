@@ -6,6 +6,10 @@ on:
       - 'fixtures/sites/f1-06-onepage.synthetic.json'
       - 'fixtures/sites/f1-170-process-copy.synthetic.json'
       - 'ci/f243_verify_rich_demo.php'
+      - 'ci/f245_verify_copy_review_gate.php'
+      - 'src/Production/SyntheticStructuredDraftAssembly.php'
+      - 'src/Production/StructuredCopyCandidate.php'
+      - 'docs/SITES-F1-245-COPY-TO-REVIEW-E2E.md'
       - 'docs/SITES-F1-243-RICH-DEMO-GALLERY.md'
       - 'src/Production/StaticSiteRenderer.php'
       - 'src/Production/SiteBrief.php'
@@ -50,6 +54,8 @@ jobs:
           php ci/f238_generate_demo_gallery.php
           php -l ci/f243_verify_rich_demo.php
           php ci/f243_verify_rich_demo.php
+          php -l ci/f245_verify_copy_review_gate.php
+          php ci/f245_verify_copy_review_gate.php
           cd apps/sites/storage/app/private/f238-demo-previews
           test "$(find . -maxdepth 1 -type f | wc -l)" = 10
           sha256sum -c SHA256SUMS
