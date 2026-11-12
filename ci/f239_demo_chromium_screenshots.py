@@ -93,6 +93,7 @@ def main(browser: str) -> None:
                 "--headless=new",
                 "--no-sandbox",
                 "--disable-gpu",
+                "--disable-dev-shm-usage",
                 "--disable-background-networking",
                 "--disable-extensions",
                 "--disable-sync",
