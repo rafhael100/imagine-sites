@@ -80,6 +80,7 @@ final readonly class SyntheticStyleRevisionPlan
             $approvedBrief->seoTitle,$approvedBrief->seoDescription,
             $approvedBrief->secondaryCallToAction,
             $approvedBrief->faqDisclosure,
+            $approvedBrief->skipToContentLink,
         );
         $nextArtifact = $renderer->render($newBrief);
         if (hash_equals($approvedArtifact->digest, $nextArtifact->digest)) {
