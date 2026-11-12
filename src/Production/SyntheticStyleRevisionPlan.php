@@ -78,6 +78,7 @@ final readonly class SyntheticStyleRevisionPlan
             $approvedBrief->brandPalette,
             $approvedBrief->socialPreviewMetadata,
             $approvedBrief->seoTitle,$approvedBrief->seoDescription,
+            $approvedBrief->secondaryCallToAction,
         );
         $nextArtifact = $renderer->render($newBrief);
         if (hash_equals($approvedArtifact->digest, $nextArtifact->digest)) {
