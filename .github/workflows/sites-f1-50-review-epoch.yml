@@ -1,0 +1,45 @@
+name: Sites F1-50 epoch-bound signed review envelope - synthetic only
+on:
+  pull_request:
+    paths:
+      - 'src/Security/SyntheticReviewHandoffEpochEnvelope.php'
+      - 'src/Application/SnapshotReviewBindingPolicy.php'
+      - 'src/Application/SnapshotBoundReviewAuthorityGateway.php'
+      - 'contracts/portal-sites/v1/review-handoff-epoch-envelope.schema.json'
+      - 'tests/f50-review-epoch.php'
+      - 'tests/f50_epoch_schema.py'
+      - '.github/workflows/sites-f1-50-review-epoch.yml'
+      - 'docs/SITES-F1-50-REVIEW-EPOCH.md'
+permissions:
+  contents: read
+jobs:
+  epoch-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          extensions: mbstring
+          coverage: none
+      - name: Syntax of pure security lab types
+        run: |
+          php -l src/Security/SyntheticReviewHandoffEpochEnvelope.php
+          php -l src/Application/SnapshotReviewBindingPolicy.php
+          php -l tests/f50-review-epoch.php
+          python3 -m json.tool contracts/portal-sites/v1/review-handoff-epoch-envelope.schema.json >/dev/null
+      - name: Test revocation then reactivation cannot revive signed old epoch
+        run: |
+          php tests/f50-review-epoch.php
+          python3 tests/f50_epoch_schema.py
+      - name: Explicit scope
+        if: always()
+        run: echo "No trusted signer, real identity, distributed transaction, client acceptance or deploy."

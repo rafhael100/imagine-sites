@@ -1,0 +1,70 @@
+name: Sites F1-60 atomic Portal authority and v2 nonce - disposable PG18
+on:
+  pull_request:
+    paths:
+      - 'labs/security/f1-60-atomic-review-v2.sql'
+      - 'tests/f60-pg-atomic-review.php'
+      - '.github/workflows/sites-f1-60-atomic-review-v2.yml'
+      - 'docs/SITES-F1-60-ATOMIC-REVIEW-V2.md'
+permissions:
+  contents: read
+jobs:
+  atomic-review-v2:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: nonce-lab-fictional-only
+          POSTGRES_DB: sites_auth_replay_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sites_auth_replay_lab"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      SITES_F60_PG_LAB: '1'
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: nonce-lab-fictional-only
+      PGDATABASE: sites_auth_replay_lab
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          extensions: pdo,pdo_pgsql
+          coverage: none
+      - name: Require local PostgreSQL client (runner packages only)
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Create throwaway role and current-authority tables
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f labs/security/f1-12-nonce-schema.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/security/f1-47-review-nonce-schema.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/security/f1-49-current-review-source.sql
+          psql -X -v ON_ERROR_STOP=1 -f labs/security/f1-60-atomic-review-v2.sql
+      - name: PHP syntax, PostgreSQL role security and concurrent revocation checks
+        run: |
+          php -l tests/f60-pg-atomic-review.php
+          php tests/f60-pg-atomic-review.php
+      - name: No operational service credentials or deployment
+        if: always()
+        run: echo 'Fictional DB-only role + nonce lock proof. No production IAM, HMAC service, Site/Portal deployment or client data.'

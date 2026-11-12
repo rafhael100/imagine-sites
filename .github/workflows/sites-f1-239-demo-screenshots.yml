@@ -1,0 +1,87 @@
+name: Sites F1-244 full-page responsive Chrome screenshots 1365/390/320 (fictional)
+on:
+  pull_request:
+    paths:
+      - 'ci/f238_generate_demo_gallery.php'
+      - 'ci/f239_demo_chromium_screenshots.py'
+      - 'ci/f43_cdp.py'
+      - 'fixtures/sites/f1-06-onepage.synthetic.json'
+      - 'fixtures/sites/f1-170-process-copy.synthetic.json'
+      - 'ci/f243_verify_rich_demo.php'
+      - 'ci/f245_verify_copy_review_gate.php'
+      - 'src/Production/SyntheticStructuredDraftAssembly.php'
+      - 'src/Production/StructuredCopyCandidate.php'
+      - 'docs/SITES-F1-245-COPY-TO-REVIEW-E2E.md'
+      - 'docs/SITES-F1-243-RICH-DEMO-GALLERY.md'
+      - 'src/Production/StaticSiteRenderer.php'
+      - '.github/workflows/sites-f1-239-demo-screenshots.yml'
+      - 'docs/SITES-F1-239-RESPONSIVE-DEMO-SCREENSHOTS.md'
+      - 'docs/SITES-F1-244-FULL-PAGE-CHROMIUM-QA.md'
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  chrome-screenshots:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      GITHUB_ACTIONS: 'true'
+      SITES_F238_DEMO_ARTIFACT: '1'
+      SITES_F239_DEMO_SCREENSHOT: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          extensions: mbstring,dom,xml
+          coverage: none
+      - name: Syntax and generated-source audit
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ci/f239_demo_chromium_screenshots.py ci/f43_cdp.py
+          php -l ci/f238_generate_demo_gallery.php
+          cd apps/sites && composer install --no-interaction --no-progress --prefer-dist --no-scripts
+          cd ../..
+          php ci/f238_generate_demo_gallery.php
+          php ci/f243_verify_rich_demo.php
+          php -l ci/f245_verify_copy_review_gate.php
+          php ci/f245_verify_copy_review_gate.php
+          cd apps/sites/storage/app/private/f238-demo-previews
+          sha256sum -c SHA256SUMS
+      - name: Render twelve real Chromium PNGs without remote requests
+        run: |
+          set -euo pipefail
+          browser=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
+          if test -z "$browser"; then
+            echo 'Preinstalled Chromium is required; no browser download'
+            exit 1
+          fi
+          python3 ci/f239_demo_chromium_screenshots.py "$browser"
+          dir='apps/sites/storage/app/private/f239-demo-screenshots'
+          test "$(find "$dir" -maxdepth 1 -type f | wc -l)" = 19
+          grep -Fq '"publishable": false' "$dir/screenshot-manifest.json"
+          grep -Fq '"containsClientData": false' "$dir/screenshot-manifest.json"
+          grep -Fq '"fullPage": true' "$dir/screenshot-manifest.json"
+          grep -Fq '"keyboardLinkActivated": true' "$dir/screenshot-manifest.json"
+      - name: Upload ONLY fictional gallery screenshots for temporary review
+        uses: actions/upload-artifact@v4
+        with:
+          name: imagine-sites-fullpage-responsive-fictional
+          path: apps/sites/storage/app/private/f239-demo-screenshots/
+          retention-days: 7
+          if-no-files-found: error
+      - name: Delete generated HTML and PNGs from the runner
+        if: always()
+        run: |
+          rm -rf apps/sites/storage/app/private/f238-demo-previews
+          rm -rf apps/sites/storage/app/private/f239-demo-screenshots
+      - name: Define boundaries
+        if: always()
+        run: echo 'Synthetic local Chrome PNGs only; no clients, SaaS integration, VPS, Cloudflare, publication, or DNS.'
