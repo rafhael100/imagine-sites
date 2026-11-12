@@ -14,8 +14,8 @@ if (PHP_SAPI!=='cli' || getenv('GITHUB_ACTIONS')!=='true' ||
 }
 
 $portalRoot=getenv('SITES_F236_PORTAL_ROOT');
-if (!is_string($portalRoot) ||
-    $portalRoot!==__DIR__.'/../portal-f48') {
+if (!is_string($portalRoot) || !is_dir($portalRoot) ||
+    realpath($portalRoot)!==realpath(__DIR__.'/../portal-f48')) {
     throw new RuntimeException('Unexpected external repository test path.');
 }
 $source=$portalRoot.'/apps/portal/app/Domain/SiteIntake/SiteEngineHandoffPreviewEnvelope.php';
