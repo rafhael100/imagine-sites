@@ -28,7 +28,12 @@ def key(client: CDP, name: str, code: str, number: int) -> None:
         "key": name, "code": code,
         "windowsVirtualKeyCode": number, "nativeVirtualKeyCode": number,
     }
-    client.call("Input.dispatchKeyEvent", {"type": "rawKeyDown", **params})
+    down={"type": "keyDown", **params}
+    if name == "Enter":
+        down["text"]="\r"
+    elif name == " ":
+        down["text"]=" "
+    client.call("Input.dispatchKeyEvent", down)
     client.call("Input.dispatchKeyEvent", {"type": "keyUp", **params})
 
 
@@ -182,12 +187,18 @@ def main(browser: str) -> None:
                         if focused != "SUMMARY":
                             fail(product + " first summary is not focusable")
                         key(client,"Enter","Enter",13)
-                        if not client.evaluate("""(() => {
+                        enter_state=client.evaluate("""(() => {
                           const all=[...document.querySelectorAll('section.faq details')];
-                          return all[0].open && !all[1].open &&
-                            all[0].querySelector('p').getBoundingClientRect().height>0;
-                        })()"""):
-                            fail(product + " Enter did not reveal FAQ answer")
+                          return {
+                            first:all[0].open,second:all[1].open,
+                            firstHeight:all[0].querySelector('p').getBoundingClientRect().height,
+                            active:document.activeElement?.tagName,
+                          };
+                        })()""")
+                        if not (enter_state["first"] and not enter_state["second"]
+                            and enter_state["firstHeight"] > 0):
+                            fail(product + " Enter did not reveal FAQ answer: " +
+                                 str(enter_state))
                         key(client," ","Space",32)
                         if not client.evaluate(
                             "!document.querySelector('section.faq details').open"
