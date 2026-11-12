@@ -75,6 +75,10 @@ SOCIAL;
             '<section class="about" id="sobre" aria-labelledby="sobre-title"><div class="container">'.
             '<h2 id="sobre-title">Sobre '.$brand.'</h2><p>'.$description.'</p></div></section>' : '';
         $mode = $isOnepage ? 'onepage' : 'landing-page';
+        // F1-282: optional, fixed keyboard bypass before the header.
+        $skipLink=$brief->skipToMain
+            ? '  <a class="skip-to-main" href="#principal">Pular para o conteúdo</a>'."\n"
+            : '';
         $highlightsSection = '';
         if ($brief->highlights !== []) {
             $highlightItems = implode("\n", array_map(
@@ -192,7 +196,7 @@ FAQ;
   </style>
 </head>
 <body data-site-product="{$mode}">
-  <header><div class="container header-inner"><span class="brand">{$brand}</span>{$nav}</div></header>
+{$skipLink}  <header><div class="container header-inner"><span class="brand">{$brand}</span>{$nav}</div></header>
   <main id="principal">
     <section class="hero" aria-labelledby="hero-title">
       <div class="container hero-inner">
@@ -349,6 +353,16 @@ CSS;
                     $brief->brandPalette->buttonText.'; }';
             }
             $html=str_replace("  </style>\n</head>",$secondaryCss."\n  </style>\n</head>",$html);
+        }
+        if ($brief->skipToMain) {
+            // The link only becomes visible when keyboard-focused.
+            // No script, network, custom href or user-controlled CSS.
+            $skipCss = <<<'CSS'
+    .skip-to-main { position: absolute; inset: 0 auto auto 0; z-index: 100; padding: 12px 18px; min-height: 44px; background: #fff; color: #173e69; font-weight: 800; transform: translateY(-200%); }
+    .skip-to-main:focus-visible { transform: translateY(0); outline: 3px solid #2366bc; outline-offset: 3px; }
+CSS;
+            $html=str_replace("  </style>\n</head>",
+                $skipCss."\n  </style>\n</head>",$html);
         }
         return new ReleaseArtifact($html);
     }
