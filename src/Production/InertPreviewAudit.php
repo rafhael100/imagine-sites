@@ -34,6 +34,7 @@ final class InertPreviewAudit
             'span'=>true, 'nav'=>true, 'a'=>true, 'main'=>true,
             'section'=>true, 'h1'=>true, 'h2'=>true, 'h3'=>true, 'p'=>true,
             'ul'=>true, 'ol'=>true, 'li'=>true, 'footer'=>true,
+            'details'=>true, 'summary'=>true,
         ];
         $meta = [];
         $links = [];
@@ -47,6 +48,13 @@ final class InertPreviewAudit
             }
             $name = strtolower($match[2]);
             if (!isset($allowed[$name])) return ['active_or_unknown_element'];
+            // Native FAQ disclosure uses exactly attribute-free semantic tags.
+            // Do not accept open-by-default, toggles or injected attributes.
+            if (in_array($name,['details','summary'],true) &&
+                !in_array($tag,['<details>','</details>',
+                    '<summary>','</summary>'],true)) {
+                return ['unsafe_faq_disclosure_attributes'];
+            }
             if (preg_match('/\s(?:on[a-z]+|src|srcset|style|action|formaction|target|ping|download)\s*=/i', $tag)) {
                 return ['active_or_external_attribute'];
             }
