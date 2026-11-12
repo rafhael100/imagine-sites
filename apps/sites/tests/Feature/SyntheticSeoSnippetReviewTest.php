@@ -184,7 +184,8 @@ final class SyntheticSeoSnippetReviewTest extends TestCase
         $this->get($url.'&canonical=https://example.com')->assertNotFound();
         $this->withServerVariables(['REMOTE_ADDR'=>'203.0.113.68'])
             ->get($url)->assertNotFound();
-        $this->post($url)->assertStatus(405);
+        $this->withServerVariables(['REMOTE_ADDR'=>'127.0.0.1'])
+            ->post($url)->assertStatus(405);
     }
 
     public function test_other_reviewer_routes_do_not_inherit_seo_preview():void
