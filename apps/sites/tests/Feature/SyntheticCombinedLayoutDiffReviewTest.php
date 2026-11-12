@@ -192,7 +192,8 @@ final class SyntheticCombinedLayoutDiffReviewTest extends TestCase
         }
         $this->withServerVariables(['REMOTE_ADDR'=>'192.0.2.77'])
             ->get(self::PATH.$valid)->assertNotFound();
-        $this->post(self::PATH.$valid)->assertStatus(405);
+        $this->withServerVariables(['REMOTE_ADDR'=>'127.0.0.1'])
+            ->post(self::PATH.$valid)->assertStatus(405);
     }
 
     public function test_older_layout_comparer_does_not_inherit_review_reset_ui():void
