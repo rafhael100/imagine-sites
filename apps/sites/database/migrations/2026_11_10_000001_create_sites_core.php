@@ -15,13 +15,18 @@ return new class extends Migration {
      */
     public function up(): void
     {
-        if (
-            !app()->environment('testing') ||
-            getenv('SITES_F93_SCHEMA_LAB') !== '1' ||
-            DB::getDriverName() !== 'pgsql'
-        ) {
-            throw new RuntimeException('F1-93 schema migration restricted to opt-in PG testing lab.');
-        }
+        // F1-232: verify the EFFECTIVE Laravel connection config before
+        // any DDL. Merely setting APP_ENV=testing or a synthetic flag must
+        // never permit migrations in a CRM/Portal/remote PostgreSQL.
+        \Imagine\Sites\Persistence\LabMigrationTargetFenceV1::assertAllowed(
+            'f93',app()->environment(),
+            getenv('GITHUB_ACTIONS') === 'true',
+            getenv('SITES_F93_SCHEMA_LAB') === '1',
+            DB::getDriverName(),DB::getDatabaseName(),
+            (string)DB::connection()->getConfig('host'),
+            DB::connection()->getConfig('port'),
+            (string)DB::connection()->getConfig('username')
+        );
         Schema::create('sites_projects', static function (Blueprint $table): void {
             $table->string('tenant_ref', 128);
             $table->string('site_ref', 128);
