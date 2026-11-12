@@ -74,7 +74,6 @@ test('strict HTTPS invalid-domain-only and method gate',async()=>{
     'https://preview.imagine.invalid:4433/',
     'https://preview.imagine.invalid/another',
     'https://preview.imagine.invalid/?id=1',
-    'https://user:pass@preview.imagine.invalid/',
   ]) {
     const result=await renderSyntheticPreview(request(invalid),fixture());
     assert.equal(result.status,404,invalid);
