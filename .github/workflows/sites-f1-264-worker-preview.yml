@@ -1,0 +1,52 @@
+name: Sites F1-264 offline Cloudflare Worker preview (hard-disabled)
+on:
+  pull_request:
+    paths:
+      - 'ops/cloudflare-worker/src/index.mjs'
+      - 'ci/f264_export_edge_preview.php'
+      - 'ci/f264_worker_preview.test.mjs'
+      - '.github/workflows/sites-f1-264-worker-preview.yml'
+permissions:
+  contents: read
+jobs:
+  fixed-private-preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      APP_ENV: testing
+      GITHUB_ACTIONS: 'true'
+      SITES_F264_EDGE_PREVIEW: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring,dom,xml
+          tools: composer:v2
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Generate reviewed fictional HTML from actual PHP engine
+        run: |
+          set -euo pipefail
+          php -l ci/f264_export_edge_preview.php
+          node --check ops/cloudflare-worker/src/index.mjs
+          node --check ci/f264_worker_preview.test.mjs
+          cd apps/sites
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts
+          cd ../..
+          php ci/f264_export_edge_preview.php
+          test -s "$RUNNER_TEMP/sites-f264-preview-fixture.json"
+      - name: Test real Worker-compatible response, security headers and denial
+        run: |
+          set -euo pipefail
+          node --test ci/f264_worker_preview.test.mjs
+      - name: Remove private fixture from CI runner
+        if: always()
+        run: rm -f "$RUNNER_TEMP/sites-f264-preview-fixture.json"
+      - name: Scope
+        if: always()
+        run: echo 'Cloudflare Worker code is NOT deployed. Default fetch is hard-disabled; no network, DNS, KV, R2, clients or provider tokens.'

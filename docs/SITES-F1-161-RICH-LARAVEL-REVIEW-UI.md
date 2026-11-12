@@ -1,0 +1,9 @@
+# F1-161 — A nova Onepage/Landing rica chega à interface privada de revisão Laravel
+
+As etapas F1-157/158/159 criaram FAQs e cards de serviços no motor de geração, e F1-160 comprovou sua renderização em Chromium. Mas a interface de revisão Laravel existente ainda lia apenas a cópia fictícia v1. A F1-161 conecta uma cópia demonstrativa fechada v3 (com dois cards e duas FAQs) a uma nova rota **exclusivamente de laboratório** /_lab/sites/v1/rich-review.
+
+A rota somente é registrada em PHP CLI com APP_ENV=testing e SITES_SYNTHETIC_HTTP=1, e a execução requer, além dos controles de revisão legados, SITES_SYNTHETIC_RICH_REVIEW=1 e IP de loopback. A entrada só aceita product/device/preset dentre enumerações fixas; nenhuma submissão de texto, upload, cliente ou dado pessoal é aceita. O conteúdo vem exclusivamente do arquivo interno fixtures/sites/f1-161-rich-copy.synthetic.json. O artefato passa pela montagem estruturada, validação HTML, geração de dossiê, estado internal_review e hashes vinculados.
+
+A mesma interface labs.review reaproveita o iframe sandbox, sem scripts/formulários e sem poder de aprovação ou publicação. A navegação passa a aceitar um caminho de laboratório explicitamente fornecido pelo servidor; a rota antiga usa o caminho original por padrão, preservando todas as prévias e galerias anteriores. Para rich-review o painel explica que há duas soluções e duas perguntas e que tudo permanece pendente.
+
+A suíte Laravel F1-161 (PHP8.3 e 8.4) cobre 2 produtos × 3 estilos × 2 dispositivos, hash exato do HTML, headers no-store/noindex/CSP/frame DENY, ausência de scripts/formulários, troca de tema/produto/dispositivo, modo antigo, parâmetros adversariais e o desligamento das flags. Isso não constitui um serviço público nem avaliação visual humana. OP01/OP02/OP04 e os dez gates de produção permanecem bloqueados; PR draft, sem merge, deploy, VPS ou custos.
