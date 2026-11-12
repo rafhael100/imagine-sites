@@ -78,6 +78,44 @@ final class InertPreviewAudit
             return ['invalid_preview_structure'];
         }
 
+        // F1-274: the basic bundle auditor must also deny misplaced or
+        // noncanonical FAQ disclosures. The semantic DOM QA is performed
+        // separately; bundle verification uses this audit directly, so a
+        // recomputed SHA-256 must not bypass this structural boundary.
+        $faqDetails=substr_count($html,'<details>');
+        $faqSummaries=substr_count($html,'<summary>');
+        if ($faqDetails>0 || $faqSummaries>0) {
+            $faqStart='<section class="faq" id="perguntas" aria-labelledby="faq-title">';
+            $sectionMatches=preg_match_all(
+                '~'.preg_quote($faqStart,'~').'(.*?)</section>~s',
+                $html,$faqSections
+            );
+            if ($faqDetails<1 || $faqDetails>6 ||
+                $faqDetails!==$faqSummaries ||
+                substr_count($html,'</details>')!==$faqDetails ||
+                substr_count($html,'</summary>')!==$faqSummaries ||
+                $sectionMatches!==1) {
+                return ['noncanonical_faq_disclosure_inventory'];
+            }
+            $body=$faqSections[1][0];
+            $rows=preg_match_all(
+                '~<li><details><summary>[^<>]+</summary><p>[^<>]+</p></details></li>~',
+                $body,$exactRows
+            );
+            // Every FAQ list item must have one summary and one paragraph;
+            // no loose, nested or cross-section disclosure elements.
+            if ($rows!==$faqDetails ||
+                substr_count($body,'<li>')!==$faqDetails ||
+                substr_count($body,'</li>')!==$faqDetails ||
+                substr_count($body,'<details>')!==$faqDetails ||
+                substr_count($body,'<summary>')!==$faqSummaries ||
+                substr_count($body,'<h3>')!==0 ||
+                substr_count($html,'.faq details { width: 100%; }')!==1 ||
+                substr_count($html,'.faq summary:focus-visible { outline: 3px solid #2366bc; outline-offset: 3px; }')!==1) {
+                return ['noncanonical_faq_disclosure_structure'];
+            }
+        }
+
         // The previous five metadata tags remain mandatory and unchanged.
         // F1-206 optionally adds EXACTLY seven fixed Open Graph/Twitter
         // text-only tags. Extra robots/referrer/refresh/URLs are still denied.
