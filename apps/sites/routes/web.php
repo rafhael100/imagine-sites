@@ -135,7 +135,7 @@ Route::get('/_lab/sites/v1/review', static function (Request $request) {
         'X-Robots-Tag'=>'noindex, nofollow, noarchive',
         'Permissions-Policy'=>'camera=(), microphone=(), geolocation=()',
         'Content-Security-Policy'=>"default-src 'none'; script-src 'none'; ".
-          "style-src 'unsafe-inline'; frame-src 'self' about:; img-src data:; ".
+          "style-src 'unsafe-inline'; frame-src 'self' about:; img-src 'self' data:; ".
           "connect-src 'none'; form-action 'none'; object-src 'none'; ".
           "base-uri 'none'; frame-ancestors 'none'",
     ]);
@@ -342,7 +342,7 @@ Route::get('/_lab/sites/v1/rich-review', static function (Request $request) {
         'X-Robots-Tag'=>'noindex, nofollow, noarchive',
         'Permissions-Policy'=>'camera=(), microphone=(), geolocation=()',
         'Content-Security-Policy'=>"default-src 'none'; script-src 'none'; ".
-            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src data:; ".
+            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src 'self' data:; ".
             "connect-src 'none'; form-action 'none'; object-src 'none'; ".
             "base-uri 'none'; frame-ancestors 'none'",
     ]);
@@ -459,7 +459,7 @@ Route::get('/_lab/sites/v1/rich-compare', static function (Request $request) {
         'X-Robots-Tag'=>'noindex, nofollow, noarchive',
         'Permissions-Policy'=>'camera=(), microphone=(), geolocation=()',
         'Content-Security-Policy'=>"default-src 'none'; script-src 'none'; ".
-            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src data:; ".
+            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src 'self' data:; ".
             "connect-src 'none'; form-action 'none'; object-src 'none'; ".
             "base-uri 'none'; frame-ancestors 'none'",
     ]);
@@ -593,7 +593,7 @@ Route::get('/_lab/sites/v1/editorial-review', static function (Request $request)
         'X-Robots-Tag'=>'noindex, nofollow, noarchive',
         'Permissions-Policy'=>'camera=(), microphone=(), geolocation=()',
         'Content-Security-Policy'=>"default-src 'none'; script-src 'none'; ".
-            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src data:; ".
+            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src 'self' data:; ".
             "connect-src 'none'; form-action 'none'; object-src 'none'; ".
             "base-uri 'none'; frame-ancestors 'none'",
     ]);
@@ -704,7 +704,7 @@ Route::get('/_lab/sites/v1/section-order', static function (Request $request) {
         'X-Robots-Tag'=>'noindex, nofollow, noarchive',
         'Permissions-Policy'=>'camera=(), microphone=(), geolocation=()',
         'Content-Security-Policy'=>"default-src 'none'; script-src 'none'; ".
-            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src data:; ".
+            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src 'self' data:; ".
             "connect-src 'none'; form-action 'none'; object-src 'none'; ".
             "base-uri 'none'; frame-ancestors 'none'",
     ]);
@@ -807,7 +807,7 @@ Route::get('/_lab/sites/v1/anchor-navigation', static function (Request $request
         'X-Robots-Tag'=>'noindex, nofollow, noarchive',
         'Permissions-Policy'=>'camera=(), microphone=(), geolocation=()',
         'Content-Security-Policy'=>"default-src 'none'; script-src 'none'; ".
-            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src data:; ".
+            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src 'self' data:; ".
             "connect-src 'none'; form-action 'none'; object-src 'none'; ".
             "base-uri 'none'; frame-ancestors 'none'",
     ]);
@@ -925,7 +925,7 @@ Route::get('/_lab/sites/v1/layout-options', static function (Request $request) {
         'X-Robots-Tag'=>'noindex, nofollow, noarchive',
         'Permissions-Policy'=>'camera=(), microphone=(), geolocation=()',
         'Content-Security-Policy'=>"default-src 'none'; script-src 'none'; ".
-            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src data:; ".
+            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src 'self' data:; ".
             "connect-src 'none'; form-action 'none'; object-src 'none'; ".
             "base-uri 'none'; frame-ancestors 'none'",
     ]);
@@ -1089,7 +1089,7 @@ Route::get('/_lab/sites/v1/layout-diff', static function (Request $request) {
         'X-Robots-Tag'=>'noindex, nofollow, noarchive',
         'Permissions-Policy'=>'camera=(), microphone=(), geolocation=()',
         'Content-Security-Policy'=>"default-src 'none'; script-src 'none'; ".
-            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src data:; ".
+            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src 'self' data:; ".
             "connect-src 'none'; form-action 'none'; object-src 'none'; ".
             "base-uri 'none'; frame-ancestors 'none'",
     ]);
@@ -1196,7 +1196,7 @@ Route::get('/_lab/sites/v1/brand-palette', static function (Request $request) {
         'X-Robots-Tag'=>'noindex, nofollow, noarchive',
         'Permissions-Policy'=>'camera=(), microphone=(), geolocation=()',
         'Content-Security-Policy'=>"default-src 'none'; script-src 'none'; ".
-            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src data:; ".
+            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src 'self' data:; ".
             "connect-src 'none'; form-action 'none'; object-src 'none'; ".
             "base-uri 'none'; frame-ancestors 'none'",
     ]);
@@ -1379,7 +1379,7 @@ Route::get('/_lab/sites/v1/visual-change', static function (Request $request) {
         'X-Robots-Tag'=>'noindex, nofollow, noarchive',
         'Permissions-Policy'=>'camera=(), microphone=(), geolocation=()',
         'Content-Security-Policy'=>"default-src 'none'; script-src 'none'; ".
-            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src data:; ".
+            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src 'self' data:; ".
             "connect-src 'none'; form-action 'none'; object-src 'none'; ".
             "base-uri 'none'; frame-ancestors 'none'",
     ]);
@@ -1524,7 +1524,7 @@ Route::get('/_lab/sites/v1/social-preview', static function (Request $request) {
         'X-Robots-Tag'=>'noindex, nofollow, noarchive',
         'Permissions-Policy'=>'camera=(), microphone=(), geolocation=()',
         'Content-Security-Policy'=>"default-src 'none'; script-src 'none'; ".
-            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src data:; ".
+            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src 'self' data:; ".
             "connect-src 'none'; form-action 'none'; object-src 'none'; ".
             "base-uri 'none'; frame-ancestors 'none'",
     ]);
@@ -1660,7 +1660,7 @@ Route::get('/_lab/sites/v1/composite-social', static function (Request $request)
         'X-Robots-Tag'=>'noindex, nofollow, noarchive',
         'Permissions-Policy'=>'camera=(), microphone=(), geolocation=()',
         'Content-Security-Policy'=>"default-src 'none'; script-src 'none'; ".
-            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src data:; ".
+            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src 'self' data:; ".
             "connect-src 'none'; form-action 'none'; object-src 'none'; ".
             "base-uri 'none'; frame-ancestors 'none'",
     ]);
@@ -1812,7 +1812,7 @@ Route::get('/_lab/sites/v1/seo-copy-review', static function (Request $request) 
         'X-Robots-Tag'=>'noindex, nofollow, noarchive',
         'Permissions-Policy'=>'camera=(), microphone=(), geolocation=()',
         'Content-Security-Policy'=>"default-src 'none'; script-src 'none'; ".
-            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src data:; ".
+            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src 'self' data:; ".
             "connect-src 'none'; form-action 'none'; object-src 'none'; ".
             "base-uri 'none'; frame-ancestors 'none'",
     ]);
@@ -1963,7 +1963,7 @@ Route::get('/_lab/sites/v1/secondary-cta-review', static function (Request $requ
         'X-Robots-Tag'=>'noindex, nofollow, noarchive',
         'Permissions-Policy'=>'camera=(), microphone=(), geolocation=()',
         'Content-Security-Policy'=>"default-src 'none'; script-src 'none'; ".
-          "style-src 'unsafe-inline'; frame-src 'self' about:; img-src data:; ".
+          "style-src 'unsafe-inline'; frame-src 'self' about:; img-src 'self' data:; ".
           "connect-src 'none'; form-action 'none'; object-src 'none'; ".
           "base-uri 'none'; frame-ancestors 'none'",
     ]);
@@ -2105,7 +2105,7 @@ Route::get('/_lab/sites/v1/faq-disclosure-review', static function (Request $req
         'X-Robots-Tag'=>'noindex, nofollow, noarchive',
         'Permissions-Policy'=>'camera=(), microphone=(), geolocation=()',
         'Content-Security-Policy'=>"default-src 'none'; script-src 'none'; ".
-            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src data:; ".
+            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src 'self' data:; ".
             "connect-src 'none'; form-action 'none'; object-src 'none'; ".
             "base-uri 'none'; frame-ancestors 'none'",
     ]);
@@ -2246,7 +2246,7 @@ Route::get('/_lab/sites/v1/skip-link-review', static function (Request $request)
         'X-Robots-Tag'=>'noindex, nofollow, noarchive',
         'Permissions-Policy'=>'camera=(), microphone=(), geolocation=()',
         'Content-Security-Policy'=>"default-src 'none'; script-src 'none'; ".
-            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src data:; ".
+            "style-src 'unsafe-inline'; frame-src 'self' about:; img-src 'self' data:; ".
             "connect-src 'none'; form-action 'none'; object-src 'none'; ".
             "base-uri 'none'; frame-ancestors 'none'",
     ]);
