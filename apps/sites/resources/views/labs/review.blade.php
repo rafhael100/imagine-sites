@@ -80,10 +80,11 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
 .editorial-note{padding:9px 10px;border-radius:8px;background:#f4f7fb;color:#394f68;font-size:.76rem}
 @media(max-width:940px){.layout{grid-template-columns:1fr}.sidebar{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:610px){header,.intro{flex-direction:column;align-items:flex-start}.sidebar{grid-template-columns:1fr}.workspace{padding:10px 8px;min-height:0}iframe{height:480px}}
+@include('labs.imagine-shell')
 </style>
 </head>
 <body>
-<header><div class="brand">Imagine Sites<small>Laboratório de revisão visual</small></div><span class="flag">Somente dados fictícios</span></header>
+<header><div class="brand"><img class="imagine-original-logo" src="/assets/logo-imagine.png" alt="Imagine" width="140"><span class="brand-app">Sites<small>Laboratório de revisão visual</small></span></div><span class="flag">Somente dados fictícios</span></header>
 <main>
 <div class="intro">
   <div><div class="kicker">Produção de sites / Revisão</div><h1>Confira a prévia antes de avançar</h1><p class="sub">Experiência de demonstração. Nenhuma ação aprova ou publica um site.</p></div>
