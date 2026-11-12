@@ -1,0 +1,37 @@
+name: Sites F1-281 CRM binding recheck before synthetic retry
+on:
+  pull_request:
+    paths:
+      - 'src/Integration/SyntheticCrmRetryBindingRecheckV1.php'
+      - 'tests/f281-crm-retry-binding-recheck.php'
+      - '.github/workflows/sites-f1-281-crm-recheck.yml'
+permissions:
+  contents: read
+jobs:
+  revoked-and-changed-binding:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+          tools: none
+          coverage: none
+      - name: Verify revocation, cross-tenant and double-read timing
+        run: |
+          set -euo pipefail
+          php -l src/Integration/SyntheticCrmRetryBindingRecheckV1.php
+          php -l tests/f281-crm-retry-binding-recheck.php
+          php tests/f280-crm-pinned-retry-context.php
+          php tests/f281-crm-retry-binding-recheck.php
+      - name: Scope
+        if: always()
+        run: echo 'Synthetic injected authority snapshots; no identity, CRM traffic, queue, visitor data or deploy.'
