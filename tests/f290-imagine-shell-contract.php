@@ -88,6 +88,6 @@ foreach([
         'WCAG AA small-text/focus colors '.$a.' on '.$b);
 }
 assert290(contrast290('#f9941d','#ffffff')<4.5 &&
-    !preg_match('/\bcolor\s*:\s*var\(--imagine-orange\)/',$css),
+    !preg_match('/(?:^|[;{])\s*color\s*:\s*var\(--imagine-orange\)/m',$css),
     'decorative orange is not used as small text on white');
 echo "$checks F1-290 Imagine Node brand contract assertions passed; no customer CSS changed.\n";
