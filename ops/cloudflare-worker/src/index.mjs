@@ -8,6 +8,7 @@
  * No client data, R2/KV, DNS, remote fetch, forms, analytics or publication.
  */
 import {inspectSyntheticReleaseSignature} from './release-signature.mjs';
+import {inspectSyntheticNonceReplay} from './nonce-ledger.mjs';
 
 const SYNTHETIC_HOST = 'preview.imagine.invalid';
 const encoder = new TextEncoder();
@@ -109,6 +110,26 @@ export async function renderSignedSyntheticPreview(
     return denied(503);
   }
   return renderSyntheticPreview(request,fixture);
+}
+
+/**
+ * F1-269: verify a nonce in an ephemeral synthetic ledger. The public
+ * Worker fetch remains hard-disabled; this helper is for offline tests.
+ */
+export async function renderNonceFencedSyntheticPreview(
+  request,fixture,envelope,publicKey,nowSeconds,ledger
+) {
+  const canonical=await renderSyntheticPreview(request,fixture);
+  if(canonical.status!==200 ||
+     typeof fixture?.digest!=='string' ||
+     envelope?.payload?.htmlSha256!==fixture.digest) return canonical.status===200
+      ? denied(503) : canonical;
+
+  const assessment=await inspectSyntheticNonceReplay(
+    envelope,publicKey,nowSeconds,ledger
+  );
+  if(!assessment.syntheticReservation) return denied(503);
+  return canonical;
 }
 
 /**
