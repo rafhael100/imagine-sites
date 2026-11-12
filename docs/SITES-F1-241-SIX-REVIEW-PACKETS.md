@@ -26,3 +26,7 @@ Os seis lotes precisam ser gerados novamente a partir do inventário F1-240 do S
 ## Renovação F1-263 — 12/11/2026
 
 Gerar novamente os seis pacotes de revisão no mesmo SHA do candidato F1-263 com os hashes provenientes do F1-240 novo. Destinar para exame independente, com prioridade nas classes de privacidade de contato, contrato CRM, integridade de revisão, segurança de rotas e CI. Resultados de testes antigos não substituem revisão humana; dez gates de produção permanecem fechados.
+
+## Renovação F1-265 — 12/11/2026
+
+Regenerar seis pacotes usando o SHA exato do inventário F1-240 da nova branch de integração. Incluir auditoria AppSec independente do módulo `ops/cloudflare-worker`, audiência `.invalid`, verificação de relógio/assinatura, política de negação e CI Node 22; não confundir assinatura de fixture com autoridade real do Portal. Sem merge, publicação ou liberação de gates.
