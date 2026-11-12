@@ -17,3 +17,18 @@ jobs:
           persist-credentials: false
       - name: Verify no active deployment and production readiness remains blocked
         run: python3 ci/f21_safety_guard.py
+      - name: Inventory all pending operational blockers (read-only, never ALLOW)
+        run: |
+          python3 ci/f64_readiness_inventory.py --self-test
+          python3 ci/f64_readiness_inventory.py
+          python3 ci/f66_readiness_cli_contract.py
+          python3 ci/f67_workflow_deploy_guard.py
+          python3 ci/f73_staging_lab_contract.py
+          python3 ci/f74_docker_lab_boundary.py
+      - name: Validate rendered Compose laboratory isolation (no containers started)
+        env:
+          SITES_LAB_DB_PASSWORD: CI-FIXTURE-NOT-A-REAL-SECRET
+          SITES_LAB_DB_ADMIN_PASSWORD: CI-FIXTURE-SEPARATE-SUPERUSER-PASSWORD
+        run: |
+          set -euo pipefail
+          docker compose -f ops/staging/compose.yml --profile lab config --format json | python3 ci/f74_docker_lab_boundary.py --rendered-stdin
