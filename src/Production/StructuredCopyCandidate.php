@@ -20,6 +20,17 @@ final class StructuredCopyCandidate
     private const COPY_FIELDS = [
         'schemaVersion', 'headline', 'description', 'callToAction', 'benefits',
     ];
+    private const COPY_FIELDS_V2 = [
+        'schemaVersion', 'headline', 'description', 'callToAction', 'benefits', 'faq',
+    ];
+    private const COPY_FIELDS_V3 = [
+        'schemaVersion', 'headline', 'description', 'callToAction',
+        'benefits', 'faq', 'highlights',
+    ];
+    private const COPY_FIELDS_V4 = [
+        'schemaVersion', 'headline', 'description', 'callToAction',
+        'benefits', 'faq', 'highlights', 'processSteps',
+    ];
 
     /** @param array<string,mixed> $candidate */
     public static function assemble(
@@ -31,11 +42,20 @@ final class StructuredCopyCandidate
         if ($maxBytes < 512 || $maxBytes > 32768) {
             throw new InvalidArgumentException('Invalid synthetic output size budget.');
         }
+        // Version 1 is frozen. Version 2 explicitly carries structured FAQ
+        // questions; neither version may define the official product or brand.
+        $version = $candidate['schemaVersion'] ?? null;
+        $expected = match ($version) {
+            'sites.ai-copy.v1' => self::COPY_FIELDS,
+            'sites.ai-copy.v2' => self::COPY_FIELDS_V2,
+            'sites.ai-copy.v3' => self::COPY_FIELDS_V3,
+            'sites.ai-copy.v4' => self::COPY_FIELDS_V4,
+            default => throw new DomainException('untrusted_ai_response_schema'),
+        };
         $actual = array_keys($candidate);
-        $expected = self::COPY_FIELDS;
         sort($actual);
         sort($expected);
-        if ($actual !== $expected || ($candidate['schemaVersion'] ?? null) !== 'sites.ai-copy.v1') {
+        if ($actual !== $expected) {
             throw new DomainException('untrusted_ai_response_schema');
         }
         try {
@@ -61,6 +81,62 @@ final class StructuredCopyCandidate
                 throw new DomainException('unsafe_ai_benefit');
             }
         }
+        $faq = [];
+        if (in_array($version, ['sites.ai-copy.v2', 'sites.ai-copy.v3', 'sites.ai-copy.v4'], true)) {
+            $faq = $candidate['faq'];
+            if (!is_array($faq) || !array_is_list($faq) || count($faq) > 6) {
+                throw new DomainException('invalid_ai_faq_list');
+            }
+            foreach ($faq as $entry) {
+                if (!is_array($entry) ||
+                    array_keys($entry) !== ['question', 'answer'] ||
+                    !is_string($entry['question']) ||
+                    !is_string($entry['answer']) ||
+                    !self::safePlainCopy($entry['question']) ||
+                    !self::safePlainCopy($entry['answer'])) {
+                    throw new DomainException('unsafe_ai_faq_entry');
+                }
+            }
+        }
+
+        $highlights = [];
+        if (in_array($version, ['sites.ai-copy.v3', 'sites.ai-copy.v4'], true)) {
+            $highlights = $candidate['highlights'];
+            if (!is_array($highlights) || !array_is_list($highlights) ||
+                count($highlights) < 1 || count($highlights) > 4) {
+                throw new DomainException('invalid_ai_highlight_list');
+            }
+            foreach ($highlights as $item) {
+                if (!is_array($item) ||
+                    array_keys($item) !== ['title', 'description'] ||
+                    !is_string($item['title']) ||
+                    !is_string($item['description']) ||
+                    !self::safePlainCopy($item['title']) ||
+                    !self::safePlainCopy($item['description'])) {
+                    throw new DomainException('unsafe_ai_highlight_entry');
+                }
+            }
+        }
+
+        $processSteps = [];
+        if ($version === 'sites.ai-copy.v4') {
+            $processSteps = $candidate['processSteps'];
+            if (!is_array($processSteps) || !array_is_list($processSteps) ||
+                count($processSteps) < 1 || count($processSteps) > 5) {
+                throw new DomainException('invalid_ai_process_steps');
+            }
+            foreach ($processSteps as $step) {
+                if (!is_array($step) ||
+                    array_keys($step) !== ['title', 'description'] ||
+                    !is_string($step['title']) ||
+                    !is_string($step['description']) ||
+                    !self::safePlainCopy($step['title']) ||
+                    !self::safePlainCopy($step['description'])) {
+                    throw new DomainException('unsafe_ai_process_step');
+                }
+            }
+        }
+
         try {
             return new SiteBrief(
                 $officialProductCode,
@@ -69,6 +145,10 @@ final class StructuredCopyCandidate
                 $candidate['description'],
                 $candidate['callToAction'],
                 $benefits,
+                'classic',
+                $faq,
+                $highlights,
+                $processSteps,
             );
         } catch (InvalidArgumentException $e) {
             throw new DomainException('invalid_ai_brief_constraints', previous:$e);
