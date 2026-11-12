@@ -34,7 +34,7 @@ jobs:
         run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
       - name: PHP syntax (application and tests)
         run: |
-          for f in apps/sites/artisan apps/sites/bootstrap/*.php apps/sites/routes/*.php apps/sites/public/index.php apps/sites/tests/*.php apps/sites/tests/Feature/*.php apps/sites/app/Providers/*.php; do php -l "$f" || exit 1; done
+          for f in apps/sites/artisan apps/sites/bootstrap/*.php apps/sites/routes/*.php apps/sites/public/index.php apps/sites/tests/*.php apps/sites/tests/Feature/*.php apps/sites/app/Providers/*.php apps/sites/app/Http/Middleware/*.php; do php -l "$f" || exit 1; done
       - name: Verify production routes stay absent by default
         working-directory: apps/sites
         run: |
