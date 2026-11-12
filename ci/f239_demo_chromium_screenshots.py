@@ -180,6 +180,12 @@ def main(browser: str) -> None:
                               return href.startsWith('#') && !!document.getElementById(href.slice(1));
                             }),
                             linksNamed:links.length>0 && links.every(a=>a.textContent.trim().length>0),
+                            navTargetCount:document.querySelectorAll('nav a').length,
+                            navTargetsSafe:[...document.querySelectorAll('nav a')].every(a=>{
+                              const rect=a.getBoundingClientRect();
+                              return rect.height >= 44 && rect.width >= 24 &&
+                                rect.left >= -1 && rect.right <= innerWidth+2;
+                            }),
                             ctaHeight:bounds?.height||0,
                             ctaWidth:bounds?.width||0,
                             ctaLeft:bounds?.left||0,
@@ -198,6 +204,10 @@ def main(browser: str) -> None:
                             or dims["robots"] != "noindex, nofollow"
                             or not dims["anchorsLocal"]
                             or not dims["linksNamed"]
+                            or not dims["navTargetsSafe"]
+                            or dims["navTargetCount"] != (
+                                5 if filename.startswith("onepage") else 0
+                            )
                             or not dims["richSections"]
                             or dims["ctaHeight"] < 44
                             or dims["ctaWidth"] < 44
@@ -261,6 +271,7 @@ def main(browser: str) -> None:
                             "viewportHeight": height,
                             "fullPage": True,
                             "keyboardLinkActivated": True,
+                            "navTouchTargetsVerified": True,
                             "sha256": hashlib.sha256(content).hexdigest(),
                             "bytes": len(content),
                         }
