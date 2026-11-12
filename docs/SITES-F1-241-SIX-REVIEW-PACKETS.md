@@ -18,3 +18,7 @@ Cada pacote Markdown lista caminho, operação Git (A/M/D/T), sinalização de r
 O workflow `sites-f1-241-integration-review-packets.yml` refaz o inventário com checkout do SHA real do PR, valida a base `dev`, testa o classificador, publica o artefato **`imagine-sites-six-code-review-packets`**, com retenção de 7 dias, e remove os arquivos do runner após o upload. O inventário não contém código-fonte embutido nem credenciais: somente metadados de caminhos já existentes no Git.
 
 **Não é revisão executada nem autorização humana.** Os pacotes permitem que responsáveis por AppSec, DBA, Portal/CRM, arquitetura, acessibilidade e engenharia registrem findings em um trabalho rastreável. A avaliação humana, a resolução dos achados, o merge em `dev`, a integração real e qualquer deploy continuam dependentes dos gates do repositório. A `main` permanece inalterada.
+
+## F1-258 — renovação de seis lotes independentes (12/11/2026)
+
+Os seis lotes precisam ser gerados novamente a partir do inventário F1-240 do SHA exato do candidato F1-258, não dos pacotes F1-239/246/251. Revisar motor/CTA, Laravel, segurança, contratos, banco/RLS, cadeia CI e documentação, com reviewers AppSec, DBA, Portal e CRM. Pacotes de CI são evidência de diff, **nunca** revisão aprovada. Dez gates permanecem BLOCKED e as branches `dev/main` não devem ser alteradas por este relatório.
