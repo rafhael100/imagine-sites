@@ -60,6 +60,7 @@ final readonly class SyntheticContentRevisionPlan
             $approvedBrief->stylePreset !== $nextBrief->stylePreset ||
             $approvedBrief->sectionOrder !== $nextBrief->sectionOrder ||
             $approvedBrief->sectionNavigation !== $nextBrief->sectionNavigation ||
+            $approvedBrief->secondaryCallToAction !== $nextBrief->secondaryCallToAction ||
             $approvedBrief->brandPalette != $nextBrief->brandPalette ||
             $approvedBrief->socialPreviewMetadata !== $nextBrief->socialPreviewMetadata ||
             $approvedBrief->seoTitle !== $nextBrief->seoTitle ||
