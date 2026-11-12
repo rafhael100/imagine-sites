@@ -71,9 +71,11 @@ final class InertPreviewAudit
                 ], true)) return ['unsupported_product_body'];
             }
         }
+        $plainMain=substr_count($html,'<main id="principal">');
+        $focusMain=substr_count($html,'<main id="principal" tabindex="-1">');
         if ($bodyCount !== 1 || $styleCount !== 1 || $h1Count !== 1 ||
             substr_count($html, '<h1 id="hero-title">') !== 1 ||
-            substr_count($html, '<main id="principal">') !== 1 ||
+            $plainMain+$focusMain !== 1 ||
             substr_count($html, '<section class="contact" id="contato"') !== 1) {
             return ['invalid_preview_structure'];
         }
@@ -151,9 +153,13 @@ final class InertPreviewAudit
         if ($skipCount>1 ||
             ($skipCount===1 && (
                 !str_contains($html,">\n  ".$skipMarkup."\n  <header>") ||
+                $focusMain!==1 ||
                 substr_count($html,'.skip-content:focus-visible { transform: none; outline: 3px solid #2366bc; outline-offset: 3px; }')!==1
             )) ||
-            ($skipCount===0 && str_contains($html,'class="skip-content"'))) {
+            ($skipCount===0 && (
+                str_contains($html,'class="skip-content"') ||
+                $plainMain!==1
+            ))) {
             return ['noncanonical_skip_to_content'];
         }
 
