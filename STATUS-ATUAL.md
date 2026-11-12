@@ -1,5 +1,24 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuidade do Imagine Sites — candidato funcional F1-246 (11/11/2026)
+
+**Novas entregas completas em PRs draft, sem merge/deploy:**
+- [#277](https://github.com/rafhael100/imagine-sites/pull/277): candidato anterior de integração em `dev`, **87/87 workflows PASS** no próprio head.
+- [#278](https://github.com/rafhael100/imagine-sites/pull/278): F1-240, inventário Git completo sem o limite de 300 arquivos; **6/6 PASS**. Em sua versão foram catalogados **597 caminhos, 172** sensíveis.
+- [#279](https://github.com/rafhael100/imagine-sites/pull/279): F1-241, seis pacotes de revisão com hash; **6/6 PASS**, inventário do seu head com **600 caminhos/173** sensíveis.
+- [#280](https://github.com/rafhael100/imagine-sites/pull/280): F1-242, scanner CI inspeciona `.yml` e `.yaml`; **4/4 PASS**.
+- [#282](https://github.com/rafhael100/imagine-sites/pull/282): F1-243, seis HTMLs funcionais (Onepage/Landing × três estilos) com serviços, processo, FAQ, navegação, SEO e metadados sociais; **6/6 PASS**.
+- [#283](https://github.com/rafhael100/imagine-sites/pull/283): F1-244, 18 screenshots Chromium **full-page** em 1365/390/320px, com testes de CTA e teclado; **5/5 PASS**.
+- [#284](https://github.com/rafhael100/imagine-sites/pull/284): F1-245, geração pela cadeia real de copy v4 → QA → pacote SHA → revisão humana obrigatória (sem client approval); **6/6 PASS**.
+- [#285](https://github.com/rafhael100/imagine-sites/pull/285): F1-246, prova de **manifesto e digests idênticos em PHP 8.3/8.4**; **5/5 PASS**.
+- Atualização do candidato em `docs/SITES-F1-246-DEV-INTEGRATION-CANDIDATE-2026-11-11.md`: origem `2dc2c0cc8ba8ed9b76061ce70929db21ef668d81`, **971 commits à frente de `dev`, zero atrás** antes do novo commit de documentação. Uma nova PR agregadora será validada em separado.
+
+**Governança ainda bloqueada:** API de branches apontou `protected:false` em `dev` e `main`; issue [#281](https://github.com/rafhael100/imagine-sites/issues/281) exige configuração de proteção e revisores reais. Não fazer merge sem análise humana dos arquivos sensíveis, validação do ambiente e aprovação de mudanças.
+
+**Operação:** dez gates `BLOCKED`, sem produção Cloudflare, VPS, domínio, cliente, CRM/IA real, dados pessoais ou publicação. CI de material fictício não é autorização de go-live.
+
+---
+
 ## Integração, correções de segurança e prova HTTP — 11/11/2026
 
 - [PR #266](https://github.com/rafhael100/imagine-sites/pull/266): candidato de integração da cadeia F1-38..231 para **revisão em `dev`**, não mesclado. No head `9da3fd7ba27a878c16e671577f86b4485ae7724f`, **83 workflows CI aprovados**.
