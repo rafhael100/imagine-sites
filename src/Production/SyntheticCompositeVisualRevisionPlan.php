@@ -81,6 +81,7 @@ final readonly class SyntheticCompositeVisualRevisionPlan
             $approvedBrief->seoTitle,$approvedBrief->seoDescription,
             $approvedBrief->secondaryCallToAction,
             $approvedBrief->faqDisclosure,
+            $approvedBrief->skipToMain,
         );
 
         $styleChanged=$nextBrief->stylePreset!==$approvedBrief->stylePreset;

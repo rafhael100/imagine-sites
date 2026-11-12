@@ -78,6 +78,7 @@ final readonly class SyntheticSeoCopyRevisionPlan
             $requestedSeoDescription,
             $approvedBrief->secondaryCallToAction,
             $approvedBrief->faqDisclosure,
+            $approvedBrief->skipToMain,
         );
         $nextArtifact=$renderer->render($nextBrief);
         if (hash_equals($nextArtifact->digest,$approvedArtifact->digest) ||
