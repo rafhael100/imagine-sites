@@ -1,5 +1,17 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuação F1-281–F1-284 — 12/11/2026
+
+- F1-281 / #331: vínculo CRM ativo e mesma revisão verificados duas vezes depois do escopo/T0, sem autorização operacional — **9/9 workflows PASS**.
+- F1-282 / #332: skip link “Pular para o conteúdo” opcional, inert e com foco visível — **31/31 workflows PASS**.
+- F1-283 / #333: revisão obrigatória ao ativar/desativar o link, novo SHA e reseta aprovação — **10/10 workflows PASS**.
+- F1-284 / #334: Chrome real verificou primeiro Tab e Enter ao `#principal` em duas páginas x três telas — workflow dedicado PASS.
+- Candidato anterior F1-280 / #330: **110/110 CI PASS**, 721 arquivos e 204 sensíveis, seis pacotes de revisão.
+- Candidato F1-284: `integration/sites-f1-284-dev-review-candidate-2026-11-12`, exige CI completo e F1-240/241 deste HEAD. Base `dev` inalterada; `dev/main` `protected:false` na API (issue #281). Dez gates `BLOCKED`, sem merge/deploy/clientes.
+
+---
+
+
 ## Continuação F1-275 — 12/11/2026
 
 - F1-275 / PR #323: gramática exata da seção FAQ (incluindo o contêiner e linhas, não apenas contagem de tags), com rehash malicioso recusado; workflow específico de PHP aprovado.
