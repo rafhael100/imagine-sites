@@ -80,6 +80,18 @@ jobs:
             exit 1
           fi
           test "$(psql -X -tAc "SELECT to_regclass('public.sites_projects') IS NULL")" = t
+      - name: Reject running lab migrations outside GitHub Actions even with opt-in
+        working-directory: apps/sites
+        run: |
+          set -euo pipefail
+          php -l ../../src/Persistence/LabMigrationTargetFenceV1.php
+          php -l ../../tests/f232-pg-migration-target-fence.php
+          php ../../tests/f232-pg-migration-target-fence.php
+          if GITHUB_ACTIONS=false php artisan migrate --path=database/migrations/2026_11_10_000001_create_sites_core.php --force --no-interaction; then
+            echo 'Unsafe: F1-93 migration ran with CI provenance missing'
+            exit 1
+          fi
+          test "$(psql -X -tAc "SELECT to_regclass('public.sites_projects') IS NULL")" = t
       - name: Apply REAL Laravel migration only on disposable PG18
         working-directory: apps/sites
         run: |
