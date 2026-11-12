@@ -119,7 +119,8 @@ final class SyntheticEditorialPatchPreviewTest extends TestCase
         }
         $this->withServerVariables(['REMOTE_ADDR'=>'203.0.113.19'])
             ->get(self::PATH)->assertNotFound();
-        $this->post(self::PATH)->assertStatus(405);
+        $this->withServerVariables(['REMOTE_ADDR'=>'127.0.0.1'])
+            ->post(self::PATH)->assertStatus(405);
     }
 
     public function test_previous_reviewer_is_not_a_patch_editor():void
