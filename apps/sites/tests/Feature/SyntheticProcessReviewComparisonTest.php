@@ -140,6 +140,7 @@ final class SyntheticProcessReviewComparisonTest extends TestCase
         finally {putenv('SITES_SYNTHETIC_RICH_COMPARE=1');}
         $this->withServerVariables(['REMOTE_ADDR'=>'203.0.113.25'])
             ->get(self::PATH.'?variant=steps')->assertNotFound();
-        $this->post(self::PATH.'?variant=full')->assertStatus(405);
+        $this->withServerVariables(['REMOTE_ADDR'=>'127.0.0.1'])
+            ->post(self::PATH.'?variant=full')->assertStatus(405);
     }
 }

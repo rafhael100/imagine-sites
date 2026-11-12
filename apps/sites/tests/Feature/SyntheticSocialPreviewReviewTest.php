@@ -169,7 +169,8 @@ final class SyntheticSocialPreviewReviewTest extends TestCase
         }
         $this->withServerVariables(['REMOTE_ADDR'=>'203.0.113.10'])
             ->get(self::PATH.'?social=on')->assertNotFound();
-        $this->post(self::PATH.'?social=on')->assertStatus(405);
+        $this->withServerVariables(['REMOTE_ADDR'=>'127.0.0.1'])
+            ->post(self::PATH.'?social=on')->assertStatus(405);
     }
 
     public function test_previous_review_ui_does_not_inherit_social_toggle():void

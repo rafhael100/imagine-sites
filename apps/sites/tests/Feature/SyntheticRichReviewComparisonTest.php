@@ -136,7 +136,8 @@ final class SyntheticRichReviewComparisonTest extends TestCase
         }
         $this->withServerVariables(['REMOTE_ADDR'=>'203.0.113.25'])
             ->get(self::PATH.'?variant=both')->assertNotFound();
-        $this->post(self::PATH.'?variant=both')->assertStatus(405);
+        $this->withServerVariables(['REMOTE_ADDR'=>'127.0.0.1'])
+            ->post(self::PATH.'?variant=both')->assertStatus(405);
         $this->post('/api/sites/publish')->assertNotFound();
     }
 

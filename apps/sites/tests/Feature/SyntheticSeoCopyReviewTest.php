@@ -244,7 +244,8 @@ final class SyntheticSeoCopyReviewTest extends TestCase
         }
         $this->withServerVariables(['REMOTE_ADDR'=>'203.0.113.61'])
             ->get($valid)->assertNotFound();
-        $this->post($valid)->assertStatus(405);
+        $this->withServerVariables(['REMOTE_ADDR'=>'127.0.0.1'])
+            ->post($valid)->assertStatus(405);
     }
 
     public function test_other_reviewers_do_not_inherit_custom_seo_controls():void

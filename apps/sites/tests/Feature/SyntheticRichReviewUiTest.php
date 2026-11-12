@@ -120,7 +120,8 @@ final class SyntheticRichReviewUiTest extends TestCase
         }
         $this->withServerVariables(['REMOTE_ADDR'=>'203.0.113.100'])
             ->get(self::PATH)->assertNotFound();
-        $this->post(self::PATH)->assertStatus(405);
+        $this->withServerVariables(['REMOTE_ADDR'=>'127.0.0.1'])
+            ->post(self::PATH)->assertStatus(405);
         $this->get('/api/sites/publish')->assertNotFound();
     }
 

@@ -152,7 +152,8 @@ final class SyntheticSectionOrderReviewTest extends TestCase
         }
         $this->withServerVariables(['REMOTE_ADDR'=>'203.0.113.20'])
             ->get(self::PATH.'?order=services_process_faq')->assertNotFound();
-        $this->post(self::PATH.'?order=services_process_faq')->assertStatus(405);
+        $this->withServerVariables(['REMOTE_ADDR'=>'127.0.0.1'])
+            ->post(self::PATH.'?order=services_process_faq')->assertStatus(405);
     }
 
     public function test_each_flag_is_required_and_legacy_reviewer_unchanged():void
