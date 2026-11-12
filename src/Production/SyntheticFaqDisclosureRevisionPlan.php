@@ -72,7 +72,7 @@ final readonly class SyntheticFaqDisclosureRevisionPlan
             $approvedBrief->sectionOrder,$approvedBrief->sectionNavigation,
             $approvedBrief->brandPalette,$approvedBrief->socialPreviewMetadata,
             $approvedBrief->seoTitle,$approvedBrief->seoDescription,
-            $approvedBrief->secondaryCallToAction,$enableDisclosure
+            $approvedBrief->secondaryCallToAction,$enableDisclosure,$approvedBrief->skipToContentLink
         );
         $nextArtifact=$renderer->render($nextBrief);
         if (hash_equals($nextArtifact->digest,$approvedArtifact->digest) ||
