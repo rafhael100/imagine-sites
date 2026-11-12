@@ -105,6 +105,7 @@ jobs:
           php tests/f282-keyboard-skip-to-main.php
           php tests/f283-skip-link-review-transition.php
           php tests/f287-apex-canonical-policy.php
+          php tests/f288-canonical-redirect-review.php
           php tests/f157-static-faq-content.php
           php tests/f270-faq-native-disclosure.php
           php tests/f271-faq-disclosure-revision.php
