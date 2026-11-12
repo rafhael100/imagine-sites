@@ -1,5 +1,15 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuação F1-266 e F1-267 — 12/11/2026
+
+- F1-266 / PR #310: Chrome QA real corrigido com bootstrap conservador e retry único quando a porta CDP não aparece; **6/6 workflows PASS** na própria PR.
+- F1-267 / PR #311: workflow de segurança procura modos alternativos de publicação Wrangler, permissões de escrita e comandos de infraestrutura; CI dedicado PASS.
+- Candidato de integração F1-267 em PR draft para `dev`: substituir o candidato #309 (97/98, um erro Chrome) somente após TODOS os workflows novos e F1-240/241 no HEAD próprio.
+- Nenhuma mesclagem ou deploy; bloqueios de proteção de branches na issue #281; dez gates `BLOCKED`.
+
+---
+
+
 ## Continuação F1-264 e F1-265 — 12/11/2026
 
 - PR #307 / F1-264: prévia Cloudflare Worker de laboratório usando HTML SHA-256 do motor PHP real, apenas `.invalid` e `noindex`; handler público permanentemente 503 — **5/5 workflows PASS**.
