@@ -96,7 +96,7 @@ def assert_source(data: object) -> list[dict]:
             not isinstance(name, str) or len(name) > 500
             or not name or name in seen
             or any(ord(c) < 32 or ord(c) == 127 for c in name)
-            or "\`" in name or "|" in name
+            or "`" in name or "|" in name
             or not isinstance(item["requiresIndependentReview"], bool)
             or item["status"] not in ("A", "M", "D", "T")
         ):
@@ -163,8 +163,8 @@ def main() -> None:
         lines = [
             f"# F1-241 — {title}",
             "",
-            f"**Origem:** base \`{data['baseSha']}\` / HEAD \`{data['headSha']}\`",
-            f"**SHA-256 do inventario:** \`{data['pathsSha256']}\`",
+            f"**Origem:** base `{data['baseSha']}` / HEAD `{data['headSha']}`",
+            f"**SHA-256 do inventario:** `{data['pathsSha256']}`",
             f"**Escopo:** {len(files)} arquivos, {len(critical)} para revisao independente.",
             "",
             f"**Criterios:** {instructions}.",
@@ -176,7 +176,7 @@ def main() -> None:
         ]
         for item in files:
             lines.append(
-                f"| {item['status']} | \`{item['path']}\` | "
+                f"| {item['status']} | `{item['path']}` | "
                 f"{'SIM' if item['requiresIndependentReview'] else 'triagem normal'} |"
             )
         lines += [
