@@ -1,5 +1,13 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuação F1-288 — preflight offline de redirecionamento canônico — 12/11/2026
+
+- PR #349 consolidou F1-287 + ADR-015; SHA 4d7a7982bed62b622d519ab316d55ff0ddce5419: **117/117 workflows success**, incluindo F1-240/F1-241. Inventário completo: **753 caminhos**, **213 sensíveis**, seis pacotes com hash. Isso não é revisão humana nem liberação de produção.
+- Nova F1-288 introduz simulador de redirect 308 somente para origem www previamente listada em proposta de novo site apex, sem servir HTTP 30x.
+- Recusa URLs externas, cabeçalho Host, paths suspeitos, vazamento de query, mudanças de classe e hosts legados. PHP 8.3/8.4 e suíte sintética sob novo HEAD precisam aprovação específica.
+- Nenhuma aplicação real, DNS/TLS, Cloudflare, CRM, VPS, PII, custo, deploy ou merge ativado. Dez gates continuam BLOCKED; issue #281 pendente de branch protection e revisão independente.
+
+---
 ## Continuação F1-287 — domínios canônicos sem www — 12/11/2026
 
 - Decisão transversal apex-first registrada no ADR-SITES-015 / PR #347; preservar host indexado legado até migração SEO aprovada.
