@@ -41,6 +41,66 @@ final class SyntheticCommercialEpochSignedCommand
     }
 
     /**
+     * F1-293: require exact canonical JSON BYTES before interpreting a v3
+     * signed message. json_decode($raw, true) alone loses duplicate keys,
+     * escapes, whitespace and ambiguous numeric representations. A caller
+     * must never silently normalize those bytes into an authorized envelope.
+     *
+     * This is a strictly synthetic wire boundary; it supplies neither
+     * service identity, current Portal authority nor operational trust.
+     *
+     * @return array<string,mixed>
+     */
+    private static function parseCanonicalWire(string $raw): array
+    {
+        if ($raw === '' || strlen($raw) > 4096) {
+            throw new DomainException('Noncanonical v3 envelope size.');
+        }
+
+        try {
+            $decoded=json_decode($raw, false, 16, JSON_THROW_ON_ERROR);
+            if (!$decoded instanceof \stdClass ||
+                !isset($decoded->payload) ||
+                !$decoded->payload instanceof \stdClass ||
+                json_encode($decoded, self::FLAGS) !== $raw) {
+                // Re-encoding is strict: JSON parser canonicalization cannot
+                // hide duplicate object keys (even when their values agree).
+                throw new DomainException('Noncanonical v3 envelope bytes.');
+            }
+            $data=get_object_vars($decoded);
+            $data['payload']=get_object_vars($decoded->payload);
+            return $data;
+        } catch (\JsonException $e) {
+            throw new DomainException('Invalid canonical v3 JSON.',previous:$e);
+        }
+    }
+
+    /** Authenticate exact raw v3 JSON without reserving a nonce. */
+    public static function verifyCanonicalJsonSignature(
+        string $raw, string $secret, int $expectedKeyEpoch,
+        int $expectedCommercialEpoch, int $now
+    ): SiteProjectCommand {
+        return self::verifySignature(
+            self::parseCanonicalWire($raw),$secret,
+            $expectedKeyEpoch,$expectedCommercialEpoch,$now
+        );
+    }
+
+    /**
+     * Verify exact raw bytes, then reserve replay nonce with the explicitly
+     * injected store. Defaults to DENY, never to in-memory acceptance.
+     */
+    public static function verifyCanonicalJson(
+        string $raw, string $secret, int $expectedKeyEpoch,
+        int $expectedCommercialEpoch, int $now, ?ReplayStore $replay=null
+    ): SiteProjectCommand {
+        return self::verify(
+            self::parseCanonicalWire($raw),$secret,$expectedKeyEpoch,
+            $expectedCommercialEpoch,$now,$replay
+        );
+    }
+
+    /**
      * Validate v3 HMAC, key/commercial epochs and canonical command only.
      * No ReplayStore is instantiated or called in this preflight path.
      */
