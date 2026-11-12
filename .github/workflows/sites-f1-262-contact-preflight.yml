@@ -1,0 +1,35 @@
+name: Sites F1-262 privacy-safe contact preflight (offline)
+on:
+  pull_request:
+    paths:
+      - 'src/Integration/SyntheticContactPrivacyPreflightV1.php'
+      - 'src/Integration/SyntheticSiteContactMinimumInspector.php'
+      - 'tests/f262-contact-privacy-preflight.php'
+      - '.github/workflows/sites-f1-262-contact-preflight.yml'
+permissions:
+  contents: read
+jobs:
+  contact-private-lab:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+          tools: none
+          coverage: none
+      - name: Pure contact preflight and negative privacy tests
+        run: |
+          set -euo pipefail
+          php -l src/Integration/SyntheticContactPrivacyPreflightV1.php
+          php -l tests/f262-contact-privacy-preflight.php
+          php tests/f262-contact-privacy-preflight.php
+          echo 'No HTTP, real contacts, consent storage, CRM delivery, secrets or deployment.'

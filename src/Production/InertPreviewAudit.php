@@ -32,8 +32,9 @@ final class InertPreviewAudit
             'html'=>true, 'head'=>true, 'meta'=>true, 'title'=>true,
             'style'=>true, 'body'=>true, 'header'=>true, 'div'=>true,
             'span'=>true, 'nav'=>true, 'a'=>true, 'main'=>true,
-            'section'=>true, 'h1'=>true, 'h2'=>true, 'p'=>true,
-            'ul'=>true, 'li'=>true, 'footer'=>true,
+            'section'=>true, 'h1'=>true, 'h2'=>true, 'h3'=>true, 'p'=>true,
+            'ul'=>true, 'ol'=>true, 'li'=>true, 'footer'=>true,
+            'details'=>true, 'summary'=>true,
         ];
         $meta = [];
         $links = [];
@@ -47,6 +48,13 @@ final class InertPreviewAudit
             }
             $name = strtolower($match[2]);
             if (!isset($allowed[$name])) return ['active_or_unknown_element'];
+            // Native FAQ disclosure uses exactly attribute-free semantic tags.
+            // Do not accept open-by-default, toggles or injected attributes.
+            if (in_array($name,['details','summary'],true) &&
+                !in_array($tag,['<details>','</details>',
+                    '<summary>','</summary>'],true)) {
+                return ['unsafe_faq_disclosure_attributes'];
+            }
             if (preg_match('/\s(?:on[a-z]+|src|srcset|style|action|formaction|target|ping|download)\s*=/i', $tag)) {
                 return ['active_or_external_attribute'];
             }
@@ -70,18 +78,36 @@ final class InertPreviewAudit
             return ['invalid_preview_structure'];
         }
 
-        // Require exactly the five metadata tags of the safe renderer, in order.
-        // In particular, reject a second robots tag and any meta refresh.
+        // The previous five metadata tags remain mandatory and unchanged.
+        // F1-206 optionally adds EXACTLY seven fixed Open Graph/Twitter
+        // text-only tags. Extra robots/referrer/refresh/URLs are still denied.
         $expectedCsp = '<meta http-equiv="Content-Security-Policy" content="default-src '.
             "'none'; style-src 'unsafe-inline'; img-src 'self' data:; ".
             "base-uri 'none'; form-action 'none'; object-src 'none'\">";
-        if (count($meta) !== 5 ||
+        if (!in_array(count($meta),[5,12],true) ||
             $meta[0] !== '<meta charset="utf-8">' ||
             $meta[1] !== '<meta name="viewport" content="width=device-width, initial-scale=1">' ||
-            !preg_match('/\A<meta name="description" content="[^"<>]*">\z/D', $meta[2]) ||
+            !preg_match('/\A<meta name="description" content="([^"<>]*)">\z/D',
+                $meta[2],$baseDescription) ||
             $meta[3] !== '<meta name="robots" content="noindex, nofollow">' ||
             $meta[4] !== $expectedCsp) {
             return ['unsafe_or_modified_metadata'];
+        }
+        if (count($meta)===12) {
+            if ($meta[5]!=='<meta property="og:type" content="website">' ||
+                $meta[6]!=='<meta property="og:locale" content="pt_BR">' ||
+                !preg_match('/\A<meta property="og:title" content="([^"<>]*)">\z/D',
+                    $meta[7],$socialTitle) ||
+                $meta[8]!=='<meta property="og:description" content="'.
+                    $baseDescription[1].'">' ||
+                $meta[9]!=='<meta name="twitter:card" content="summary">' ||
+                $meta[10]!=='<meta name="twitter:title" content="'.
+                    $socialTitle[1].'">' ||
+                $meta[11]!=='<meta name="twitter:description" content="'.
+                    $baseDescription[1].'">' ||
+                !str_contains($html,'<title>'.$socialTitle[1].'</title>')) {
+                return ['unsafe_or_modified_social_metadata'];
+            }
         }
 
         foreach ($links as $link) {
@@ -89,6 +115,10 @@ final class InertPreviewAudit
                 '<a href="#beneficios">',
                 '<a href="#sobre">',
                 '<a class="btn" href="#contato">',
+                '<a class="btn secondary-cta" href="#contato">',
+                '<a href="#solucoes">',
+                '<a href="#etapas">',
+                '<a href="#perguntas">',
             ], true)) {
                 return ['nonlocal_navigation'];
             }
