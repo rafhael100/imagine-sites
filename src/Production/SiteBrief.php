@@ -43,7 +43,9 @@ final readonly class SiteBrief
             'description' => [$description, 600],
             'callToAction' => [$callToAction, 80],
         ] as $label => [$value, $max]) {
-            if (trim($value) === '' || strlen($value) > $max || !mb_check_encoding($value, 'UTF-8')) {
+            if (trim($value) === '' || strlen($value) > $max ||
+                !mb_check_encoding($value, 'UTF-8') ||
+                self::prohibitedStaticText($value)) {
                 throw new InvalidArgumentException('Invalid plain text: '.$label);
             }
         }
@@ -58,8 +60,8 @@ final readonly class SiteBrief
             if (trim($value)==='' || $value!==trim($value) ||
                 strlen($value)>$max ||
                 !mb_check_encoding($value,'UTF-8') ||
-                preg_match('/[\x00-\x1f\x7f<>]/u',$value) ||
-                preg_match('~(?:https?://|javascript:|data:)~i',$value)) {
+                preg_match('/[<>]/u',$value) ||
+                self::prohibitedStaticText($value)) {
                 throw new InvalidArgumentException(
                     'Invalid reviewer-controlled SEO copy: '.$field
                 );
@@ -83,8 +85,7 @@ final readonly class SiteBrief
                 $value = $entry[$field];
                 if (!is_string($value) || trim($value) === '' ||
                     strlen($value) > $max || !mb_check_encoding($value, 'UTF-8') ||
-                    preg_match('/[\\x00-\\x1f\\x7f]/u', $value) ||
-                    preg_match('~(?:https?://|javascript:|data:)~i', $value)) {
+                    self::prohibitedStaticText($value)) {
                     throw new InvalidArgumentException('Unsafe FAQ plain text.');
                 }
             }
@@ -107,8 +108,7 @@ final readonly class SiteBrief
                 $value = $item[$field];
                 if (!is_string($value) || trim($value) === '' ||
                     strlen($value) > $max || !mb_check_encoding($value, 'UTF-8') ||
-                    preg_match('/[\\x00-\\x1f\\x7f]/u', $value) ||
-                    preg_match('~(?:https?://|javascript:|data:)~i', $value)) {
+                    self::prohibitedStaticText($value)) {
                     throw new InvalidArgumentException('Unsafe highlight copy.');
                 }
             }
@@ -155,8 +155,7 @@ final readonly class SiteBrief
                 $value = $step[$field];
                 if (!is_string($value) || trim($value) === '' ||
                     strlen($value) > $max || !mb_check_encoding($value, 'UTF-8') ||
-                    preg_match('/[\x00-\x1f\x7f]/u', $value) ||
-                    preg_match('~(?:https?://|javascript:|data:)~i', $value)) {
+                    self::prohibitedStaticText($value)) {
                     throw new InvalidArgumentException('Unsafe process step text.');
                 }
             }
@@ -169,9 +168,25 @@ final readonly class SiteBrief
 
         foreach ($benefits as $benefit) {
             if (!is_string($benefit) || trim($benefit) === '' || strlen($benefit) > 180 ||
-                !mb_check_encoding($benefit, 'UTF-8')) {
+                !mb_check_encoding($benefit, 'UTF-8') ||
+                self::prohibitedStaticText($benefit)) {
                 throw new InvalidArgumentException('Invalid benefit list.');
             }
         }
+    }
+
+    /**
+     * F1-247. The direct editorial SiteBrief entry point must be at least
+     * as strict as the structured-copy adapter on invisible control text.
+     * Preserve ordinary HTML-looking characters; the renderer escapes
+     * those as inert text. Reject URL schemes and bidirectional overrides
+     * before building an approval-bound HTML digest.
+     */
+    private static function prohibitedStaticText(string $value): bool
+    {
+        return preg_match(
+            '/[\x00-\x1f\x7f\x{200E}\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}]/u',
+            $value
+        )===1 || preg_match('~(?:https?://|javascript:|data:)~i', $value)===1;
     }
 }
