@@ -1,0 +1,64 @@
+name: Sites F1-240 complete integration diff inventory (pinned dev, no merge)
+on:
+  pull_request:
+    paths:
+      - 'ci/f240_integration_change_inventory.py'
+      - '.github/workflows/sites-f1-240-integration-diff-inventory.yml'
+      - 'docs/SITES-F1-240-REVIEW-INVENTORY.md'
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  full-git-review-inventory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # This is the actual PR head, NOT GitHub's synthetic merge commit.
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Fetch only current dev ref for strict baseline comparison
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin +refs/heads/dev:refs/remotes/origin/dev
+          test "$(git rev-parse refs/remotes/origin/dev)" = 71b8ffe51139d0e70ed32591b07f295fb7bf5fe3
+      - name: Confirm parser rejects corrupted or ambiguous Git name-status
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ci/f240_integration_change_inventory.py
+          python3 ci/f240_integration_change_inventory.py --self-test
+      - name: Enumerate EVERY changed path and preserve all blocked gates
+        run: |
+          set -euo pipefail
+          python3 ci/f240_integration_change_inventory.py \
+            --expected-base 71b8ffe51139d0e70ed32591b07f295fb7bf5fe3 \
+            --output "$RUNNER_TEMP/sites-f240-integration-inventory.json"
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          x=json.loads((Path(os.environ['RUNNER_TEMP'])/'sites-f240-integration-inventory.json').read_text())
+          assert x['completeDiff'] is True
+          assert x['trackedChanges']==len(x['paths'])
+          assert x['blockedOperationalGates']==10
+          assert x['goLiveApproved'] is False
+          assert x['deploymentPerformed'] is False
+          assert x['independentReviewPaths']>0
+          print('PASS F1-240 full file inventory and high-risk review surfaces')
+          PY
+      - name: Upload temporary read-only integration review report
+        uses: actions/upload-artifact@v4
+        with:
+          name: imagine-sites-f240-complete-diff-inventory
+          path: ${{ runner.temp }}/sites-f240-integration-inventory.json
+          retention-days: 7
+          if-no-files-found: error
+      - name: Delete generated report from runner
+        if: always()
+        run: rm -f "$RUNNER_TEMP/sites-f240-integration-inventory.json"
+      - name: Scope
+        if: always()
+        run: echo 'Inventory only. Does not approve merge, deploy, live IAM, DNS, Cloudflare or customer content.'
