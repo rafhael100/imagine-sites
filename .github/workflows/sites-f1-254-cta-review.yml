@@ -1,0 +1,46 @@
+name: Sites F1-254 Laravel read-only CTA comparison
+on:
+  pull_request:
+    paths:
+      - 'apps/sites/routes/web.php'
+      - 'apps/sites/resources/views/labs/review.blade.php'
+      - 'apps/sites/tests/Feature/SyntheticSecondaryCtaReviewTest.php'
+      - '.github/workflows/sites-f1-254-cta-review.yml'
+permissions:
+  contents: read
+jobs:
+  private-cta-review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring,dom,xml,curl,pdo,pdo_pgsql
+          tools: composer:v2
+          coverage: none
+      - name: Syntax of fixed-only reviewer route and tests
+        run: |
+          set -euo pipefail
+          php -l apps/sites/routes/web.php
+          php -l apps/sites/tests/Feature/SyntheticSecondaryCtaReviewTest.php
+      - name: Install locked Laravel dependencies without scripts
+        working-directory: apps/sites
+        run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
+      - name: Check CTA controls and pre-existing isolated review
+        working-directory: apps/sites
+        env:
+          APP_ENV: testing
+        run: |
+          set -euo pipefail
+          php artisan test --filter='(SyntheticSecondaryCtaReviewTest|SyntheticAnchorNavigationReviewTest|SyntheticRichReviewUiTest)' --no-ansi
+      - name: Scope
+        if: always()
+        run: echo 'Private fixture-only, deny by default, no client review, form, CRM, publication, DNS, VPS or paid service.'
