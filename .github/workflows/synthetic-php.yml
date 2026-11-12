@@ -88,6 +88,7 @@ jobs:
           php tests/f231-seo-cross-channel-provenance.php
           php tests/f232-pg-migration-target-fence.php
           php tests/f235-portal-editorial-handoff-consumer.php
+          php tests/f247-direct-brief-text-safety.php
           php tests/f190-brand-palette-contrast.php
           php tests/f200-layout-change-evidence.php
           php tests/f202-composite-visual-revision.php
