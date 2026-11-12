@@ -179,6 +179,7 @@ final class SyntheticCompositeSocialReviewTest extends TestCase
         }
         $this->withServerVariables(['REMOTE_ADDR'=>'203.0.113.99'])
             ->get(self::PATH.$valid)->assertNotFound();
-        $this->post(self::PATH.$valid)->assertStatus(405);
+        $this->withServerVariables(['REMOTE_ADDR'=>'127.0.0.1'])
+            ->post(self::PATH.$valid)->assertStatus(405);
     }
 }
