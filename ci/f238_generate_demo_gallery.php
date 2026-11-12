@@ -29,8 +29,8 @@ if (!is_file($vendor) || !is_file($fixturePath) || !is_file($richPath) ||
 }
 require_once $vendor;
 
-use Imagine\Sites\Production\SiteBrief;
-use Imagine\Sites\Production\StaticSiteRenderer;
+use Imagine\Sites\Production\SyntheticStructuredDraftAssembly;
+use Imagine\Sites\Production\SyntheticProductionWorkflow;
 use Imagine\Sites\Production\InertPreviewAudit;
 use Imagine\Sites\Production\SyntheticPreviewQaReport;
 
@@ -79,15 +79,31 @@ $pages=[];
 $links=[];
 foreach (['onepage','landing_page'] as $product) {
     foreach (['classic','modern','warm'] as $style) {
-        $brief=new SiteBrief(
-            $product, $fixture['brand'], $rich['headline'], $rich['description'],
-            $rich['callToAction'], $rich['benefits'], $style,
-            $rich['faq'], $rich['highlights'], $rich['processSteps'],
+        // F1-245: exercise the REAL independent draft pipeline, not only
+        // raw renderer calls. Structured copy can set editorial fields
+        // but cannot set official product, brand, style, tenant or grants.
+        $draft=SyntheticStructuredDraftAssembly::build(
+            $product, $fixture['brand'], $style, $rich,
+            'tenant-f245-demo', 'site-f245-demo',
+            'workflow-f245-'.$product.'-'.$style,
+            'release-f245-'.$product.'-'.$style,
             ['highlights','process','faq'], $product==='onepage',
             null, true, $rich['headline'].' | '.$fixture['brand'],
             $rich['description']
         );
-        $artifact=(new StaticSiteRenderer())->render($brief);
+        $brief=$draft->brief;
+        $artifact=$draft->artifact;
+        $review=$draft->reviewSummary();
+        if ($draft->workflow->state!==SyntheticProductionWorkflow::INTERNAL_REVIEW ||
+            $draft->workflow->revision!==2 ||
+            !$draft->structuralReport->passedStructuralChecks ||
+            $review['internalReviewRequired']!==true ||
+            $review['portalAuthorityRequired']!==true ||
+            $review['officialClientAcceptance']!==false ||
+            $review['publishable']!==false ||
+            !hash_equals($draft->manifest->digest,$artifact->digest)) {
+            throw new RuntimeException('F1-245 cannot bypass human review/Portal gate.');
+        }
         if (!InertPreviewAudit::isSafe($artifact->html) ||
             !SyntheticPreviewQaReport::inspect($artifact)->passedStructuralChecks ||
             stripos($artifact->html,'http://')!==false ||
@@ -121,6 +137,12 @@ foreach (['onepage','landing_page'] as $product) {
             'sections'=>['benefits','highlights','process','faq','contact'],
             'navigation'=>$product==='onepage'?'section_anchors':'local_cta',
             'socialMetadata'=>true,
+            'copySchema'=>'sites.ai-copy.v4',
+            'draftState'=>SyntheticProductionWorkflow::INTERNAL_REVIEW,
+            'internalReviewRequired'=>true,
+            'portalAuthorityRequired'=>true,
+            'officialClientAcceptance'=>false,
+            'publishable'=>false,
         ];
         $humanProduct=$product==='onepage'?'Onepage':'Landing Page';
         $links[]='<li><a href="'.$filename.'">'.$humanProduct.
@@ -189,6 +211,10 @@ $manifest=json_encode([
     'stylePresets'=>['classic','modern','warm'],
     'editorialFixture'=>'fixtures/sites/f1-170-process-copy.synthetic.json',
     'richSections'=>['highlights','process','faq'],
+    'generationPath'=>'synthetic_structured_copy_to_internal_review',
+    'draftState'=>SyntheticProductionWorkflow::INTERNAL_REVIEW,
+    'internalReviewRequired'=>true,
+    'portalAuthorityRequired'=>true,
     'demoOnly'=>true,
     'approvedForClient'=>false,
     'publishable'=>false,
@@ -227,3 +253,4 @@ foreach($hashes as $filename=>$digest) {
 echo "PASS F1-238: six distinct audited fictional HTML previews, no external assets.\n";
 echo "PASS F1-238: deterministic static index, manifest, SHA256SUMS and no publication power.\n";
 echo "PASS F1-243: all six product/preset variants include rich v4 services, steps, FAQ and social preview.\n";
+echo "PASS F1-245: copy-v4 -> immutable private draft -> QA -> review_required; never client approval.\n";
