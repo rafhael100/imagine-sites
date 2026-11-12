@@ -45,3 +45,7 @@ Atualizar o inventário completo no HEAD do candidato F1-269. A referência 672 
 ## Renovação F1-273 — 12/11/2026
 
 Atualizar inventário local Git completo e o SHA a partir do candidato de integração F1-273 e da base fixa `dev` `71b8ffe51139d0e70ed32591b07f295fb7bf5fe3`. Incluir mudanças no renderizador FAQ, QA DOM, plano editorial, Laravel e testes Chromium. A contagem 678/191 pertence somente ao PR #315; não reutilizar no novo HEAD. Dez gates permanecem BLOCKED.
+
+## Renovação F1-274 — 12/11/2026
+
+Recalcular diff Git completo na branch de integração F1-274 com base `dev` SHA `71b8ffe51139d0e70ed32591b07f295fb7bf5fe3`. O inventário F1-273 de 693 arquivos/195 sensíveis é histórico e deve ser substituído somente por novo resultado desta branch. Incluir arquivo de auditoria FAQ, teste negativo e CI.
