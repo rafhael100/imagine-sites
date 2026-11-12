@@ -169,7 +169,8 @@ final class SyntheticAnchorNavigationReviewTest extends TestCase
         }
         $this->withServerVariables(['REMOTE_ADDR'=>'203.0.113.99'])
             ->get(self::PATH.'?nav=on')->assertNotFound();
-        $this->post(self::PATH.'?nav=on')->assertStatus(405);
+        $this->withServerVariables(['REMOTE_ADDR'=>'127.0.0.1'])
+            ->post(self::PATH.'?nav=on')->assertStatus(405);
     }
 
     public function test_legacy_review_never_displays_nav_toggle():void
