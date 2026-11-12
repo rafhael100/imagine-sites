@@ -42,3 +42,7 @@ Gerar seis pacotes independentes a partir do mesmo SHA do F1-240 atualizado. Adi
 ## Renovação F1-273 — 12/11/2026
 
 Regerar seis pacotes com os hashes do inventário F1-240 desta integração. Incluir revisão humana de HTML sem JS, funcionalidade de teclado, QA DOM, exatidão de release/digest, compatibilidade de copy/tema/SEO e rota Laravel privada. CI verde não autoriza publicação, merge ou revisão autossuficiente.
+
+## Renovação F1-274 — 12/11/2026
+
+Regerar os seis pacotes usando hashes do inventário F1-240 deste candidato. A revisão AppSec do pacote de HTML deve inspecionar também a nova gramática FAQ de `InertPreviewAudit`, os testes de manifesto recomputado e a defesa em profundidade de `SyntheticPreviewQaReport`. Não autoriza merge nem produção.
