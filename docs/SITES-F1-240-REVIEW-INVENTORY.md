@@ -61,3 +61,7 @@ Recalcular diff Git completo no SHA desta branch de integração, comparando com
 ## Atualização F1-286 — 12/11/2026
 
 Reexecutar inventário Git completo neste candidato, base `dev` `71b8ffe51139d0e70ed32591b07f295fb7bf5fe3`. Incluir rota e views Laravel da revisão de skip link, suite F1-255 Chrome bootstrap e documentos. O SHA e contagem de F1-280/F1-284 não substituem este inventário.
+
+## Renovação do inventário A11Y + CRM pós-vínculo — 12/11/2026
+
+Recalcular o diff Git local completo, sem truncamento, da nova branch `integration/sites-a11y-postbinding-t0-2026-11-12` contra `dev` SHA `71b8ffe51139d0e70ed32591b07f295fb7bf5fe3`. Incluir HTML tabindex focável, CI Chrome, Laravel, novo fence de T0+432h, testes CRM e workflows. Não reutilizar o inventário de #338 ou #324.
