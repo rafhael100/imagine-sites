@@ -54,7 +54,28 @@ jobs:
             echo "Preinstalled Chromium unavailable; no download or billing"
             exit 1
           fi
-          python3 ci/f59_style_cdp.py             apps/sites/storage/app/private/sites-f1-58-style-gallery "$browser"
+          # F1-276: rerun only on cold Chrome CDP bootstrap failure.
+          # Never retry test/contrast/layout failures, even transient ones.
+          log="$RUNNER_TEMP/f276-chrome-bootstrap.log"
+          set +e
+          python3 ci/f59_style_cdp.py \
+            apps/sites/storage/app/private/sites-f1-58-style-gallery \
+            "$browser" >"$log" 2>&1
+          result=$?
+          set -e
+          cat "$log"
+          if test "$result" -ne 0; then
+            if grep -Fq 'TimeoutError: Local Chrome DevTools port never became complete' "$log" \
+              && ! grep -Fq 'PASS F1-59' "$log"; then
+              echo 'Retry one clean, disposable Chrome profile for CDP startup only'
+              sleep 2
+              python3 ci/f59_style_cdp.py \
+                apps/sites/storage/app/private/sites-f1-58-style-gallery "$browser"
+            else
+              exit "$result"
+            fi
+          fi
+          rm -f "$log"
       - name: Remove fictional pages and browser traces
         if: always()
         working-directory: apps/sites
