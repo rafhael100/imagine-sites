@@ -48,6 +48,14 @@ jobs:
         env:
           SITES_SYNTHETIC_HTTP: '1'
         run: php artisan test --no-ansi
+      - name: Prove synthetic routes are denied by real non-CLI localhost HTTP SAPI
+        env:
+          APP_ENV: testing
+          SITES_F234_LOCAL_HTTP_LAB: '1'
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ci/f234_noncli_lab_http_smoke.py
+          python3 ci/f234_noncli_lab_http_smoke.py
       - name: Render fictional local preview only in testing mode
         working-directory: apps/sites
         env:
