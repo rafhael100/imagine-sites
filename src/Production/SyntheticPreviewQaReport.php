@@ -33,6 +33,7 @@ final readonly class SyntheticPreviewQaReport
             'link_accessible_names'=>false,
             'mobile_and_noindex'=>false,
             'no_executable_elements'=>false,
+            'faq_disclosure_semantics'=>false,
         ];
         $prior=libxml_use_internal_errors(true);
         try {
@@ -135,6 +136,30 @@ final readonly class SyntheticPreviewQaReport
             $robots=$xpath->query('//meta[@name="robots" and @content="noindex, nofollow"]');
             $checks['mobile_and_noindex']=$viewport!==false && $viewport->length===1 &&
                 $robots!==false && $robots->length===1;
+
+            // F1-270: a native interactive FAQ is opt-in, closed by
+            // default, with exactly one summary and one answer paragraph
+            // for each item. It cannot be injected in an unrelated region.
+            $details=$xpath->query('//details');
+            $summaries=$xpath->query('//summary');
+            $faqDetails=$xpath->query('//section[contains(concat(" ", normalize-space(@class), " "), " faq ")]//li/details');
+            $faqSemantics=$details!==false && $summaries!==false && $faqDetails!==false &&
+                $details->length===$faqDetails->length &&
+                $summaries->length===$details->length;
+            if ($faqSemantics) {
+                foreach ($details as $item) {
+                    if (!$item instanceof DOMElement ||
+                        $item->attributes->length!==0 ||
+                        $xpath->query('./summary',$item)?->length!==1 ||
+                        $xpath->query('./p',$item)?->length!==1 ||
+                        $xpath->query('.//details',$item)?->length!==0 ||
+                        $xpath->query('./summary/*',$item)?->length!==0) {
+                        $faqSemantics=false;
+                        break;
+                    }
+                }
+            }
+            $checks['faq_disclosure_semantics']=$faqSemantics;
 
             $active=$xpath->query('//script | //form | //iframe | //object | //embed | //svg');
             $checks['no_executable_elements']=$active!==false && $active->length===0;
