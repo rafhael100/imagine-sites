@@ -144,6 +144,19 @@ final class InertPreviewAudit
             }
         }
 
+        // F1-277: if enabled, this exact skip link must precede the header
+        // and be unique. No arbitrary local anchor can impersonate it.
+        $skipMarkup='<a class="skip-content" href="#principal">Pular para o conteúdo</a>';
+        $skipCount=substr_count($html,$skipMarkup);
+        if ($skipCount>1 ||
+            ($skipCount===1 && (
+                !str_contains($html,">\n  ".$skipMarkup."\n  <header>") ||
+                substr_count($html,'.skip-content:focus-visible { transform: none; outline: 3px solid #2366bc; outline-offset: 3px; }')!==1
+            )) ||
+            ($skipCount===0 && str_contains($html,'class="skip-content"'))) {
+            return ['noncanonical_skip_to_content'];
+        }
+
         // The previous five metadata tags remain mandatory and unchanged.
         // F1-206 optionally adds EXACTLY seven fixed Open Graph/Twitter
         // text-only tags. Extra robots/referrer/refresh/URLs are still denied.
