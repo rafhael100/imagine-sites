@@ -60,6 +60,7 @@ foreach(['onepage','landing_page'] as $product) {
         substr_count($html,'<details>')!==2 ||
         substr_count($html,'<summary>')!==2 ||
         substr_count($html,'<a class="skip-to-main" href="#principal">')!==1 ||
+        substr_count($html,'<main id="principal" tabindex="-1">')!==1 ||
         str_contains($html,'<script') ||
         str_contains($html,'<form')) {
         throw new RuntimeException('F1-284 refused unsafe or unverified FAQ draft.');

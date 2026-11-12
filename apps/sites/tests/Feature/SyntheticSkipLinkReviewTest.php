@@ -104,7 +104,10 @@ final class SyntheticSkipLinkReviewTest extends TestCase
                             hash('sha256',$inner),$digests['artifact-digest']
                         );
                         self::assertStringContainsString(
-                            '<main id="principal">',$inner
+                            $skip==='on'
+                                ? '<main id="principal" tabindex="-1">'
+                                : '<main id="principal">',
+                            $inner
                         );
                         self::assertSame($skip==='on'?1:0,
                             substr_count($inner,

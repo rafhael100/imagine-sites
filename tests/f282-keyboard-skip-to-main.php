@@ -70,6 +70,9 @@ foreach(['onepage','landing_page'] as $product) {
                 $on->reviewSummary()['officialClientAcceptance']===false &&
                 count(PrivateFiles::fromPendingDraft($on))===4,
                 'inert, QA-valid, private review package: '.$id);
+            check282(str_contains($html,'<main id="principal" tabindex="-1">') &&
+                str_contains($off->artifact->html,'<main id="principal">'),
+                'keyboard skip target is focusable only for opt-in: '.$id);
             check282(str_contains($html,'.skip-to-main:focus-visible') &&
                 str_contains($html,'transform: translateY(0);') &&
                 str_contains($html,'min-height: 44px;') &&
@@ -77,6 +80,26 @@ foreach(['onepage','landing_page'] as $product) {
                 !str_contains($html,'<script') &&
                 !str_contains($html,'https://'),
                 'visible focus, 44px target, no active elements: '.$id);
+            $badTabindex=str_replace(
+                '<main id="principal" tabindex="-1">',
+                '<main id="principal" tabindex="0">',$html
+            );
+            check282($badTabindex!==$html && !Audit::isSafe($badTabindex),
+                'focus target cannot become a regular tab stop: '.$id);
+            $lostFocusTarget=str_replace(
+                '<main id="principal" tabindex="-1">',
+                '<main id="principal">',$html
+            );
+            check282($lostFocusTarget!==$html && !Audit::isSafe($lostFocusTarget),
+                'opted-in skip link requires focusable target: '.$id);
+            $unexpectedFocus=str_replace(
+                '<main id="principal">',
+                '<main id="principal" tabindex="-1">',
+                $off->artifact->html
+            );
+            check282($unexpectedFocus!==$off->artifact->html &&
+                !Audit::isSafe($unexpectedFocus),
+                'historical no-skip artifact cannot silently change focus: '.$id);
             $tampered=str_replace('href="#principal"','href="https://evil.invalid"',$html);
             check282($tampered!==$html && !Audit::isSafe($tampered),
                 'externally redirected skip link denied: '.$id);

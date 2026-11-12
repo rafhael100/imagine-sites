@@ -60,7 +60,7 @@ def main(browser: str) -> None:
             or len(html.encode("utf-8"))>150000
             or hashlib.sha256(html.encode("utf-8")).hexdigest()!=entry["sha256"]
             or html.count('<a class="skip-to-main" href="#principal">')!=1
-            or html.count('<main id="principal">')!=1
+            or html.count('<main id="principal" tabindex="-1">')!=1
             or "noindex, nofollow" not in html
             or any(keyword in html.lower() for keyword in
                    ["<script","<form","https://","http://"])):
@@ -175,10 +175,14 @@ def main(browser: str) -> None:
                         jumped=client.evaluate("""(() => ({
                           hash:location.hash,
                           exists:!!document.querySelector('main#principal'),
+                          active:document.activeElement?.id,
+                          focusable:document.querySelector('main#principal')?.getAttribute('tabindex'),
                           stillLocal:location.protocol==='about:'
                         }))()""")
                         if (jumped["hash"]!="#principal"
-                            or not jumped["exists"] or not jumped["stillLocal"]):
+                            or not jumped["exists"] or not jumped["stillLocal"]
+                            or jumped["active"]!="principal"
+                            or jumped["focusable"]!="-1"):
                             fail(product+" "+device+" Enter did not bypass header: "+
                                  str(jumped))
                         print(
