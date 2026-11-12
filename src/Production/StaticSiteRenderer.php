@@ -19,6 +19,11 @@ final class StaticSiteRenderer
         $headline = $escape($brief->headline);
         $description = $escape($brief->description);
         $cta = $escape($brief->callToAction);
+        // F1-253: a second conversion link reuses approved copy and the
+        // fixed local contact anchor. No extra inputs, URLs or forms.
+        $secondaryActionMarkup = $brief->secondaryCallToAction
+            ? "\n        <p class=\"secondary-action\"><a class=\"btn secondary-cta\" href=\"#contato\">{$cta}</a></p>"
+            : '';
         $title = $escape($brief->seoTitle ?? ($brief->headline.' | '.$brief->brand));
         $seoDescription = $escape($brief->seoDescription ?? $brief->description);
         // F1-206: optional static Open Graph/Twitter text cards only.
@@ -200,7 +205,7 @@ FAQ;
         <h2 id="benefits-title">{$benefitsHeading}</h2>
         <ul>
 {$bullets}
-        </ul>
+        </ul>{$secondaryActionMarkup}
       </div>
     </section>
     {$about}
@@ -312,6 +317,13 @@ CSS,
                 $brief->brandPalette->cssRules()."\n  </style>\n</head>",
                 $html
             );
+        }
+        if ($brief->secondaryCallToAction) {
+            $secondaryCss = <<<'CSS'
+    .secondary-action { margin: 16px 0 0; }
+    .secondary-cta { background: #173e69; color: #fff; }
+CSS;
+            $html=str_replace("  </style>\n</head>",$secondaryCss."\n  </style>\n</head>",$html);
         }
         return new ReleaseArtifact($html);
     }
