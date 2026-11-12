@@ -1,5 +1,13 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuação F1-293 — bytes do envelope v3 sem duplicatas e sem normalização — 12/11/2026
+
+- A assinatura v3 anterior verificava arrays após decodificação, não os bytes brutos do futuro endpoint. Adicionados os métodos `verifyCanonicalJsonSignature` e `verifyCanonicalJson` em `SyntheticCommercialEpochSignedCommand`, recusando duplicatas JSON, BOM, whitespace, aliases Unicode, alteração de tipos e payload não canônico **antes** da validação da MAC e da reserva de nonce.
+- O verificador v3 mantém HMAC/keyEpoch/commercialEpoch, o replay store por padrão DENY e não altera nenhuma rota HTTP/cliente. CI dedicada PHP 8.3/8.4 e suíte geral passam a exercitar >25 verificações positivas/negativas.
+- Origem PR #358, SHA `563b8d8cd8877c4f55e681850a605928776897bc`: 122/122 workflows aprovados, 780 caminhos auditados / 220 sensíveis. **Esta entrega nova precisa passar seu próprio CI**, não herda automaticamente as provas anteriores.
+- Em paralelo, foi constatado que o emissor v3 só existe no SHA histórico `8d1e20bc5c39dc4106b549c5e979351b5c766615` do Portal, não no ref `dev/fast-track-portal-2026-11-05` inspecionado. Integração real permanece bloqueada; 10 gates BLOCKED, #33 e #281 abertos.
+
+---
 ## Continuação F1-292 — OpenAPI CreateProject envelope v3 sem downgrade — 12/11/2026
 
 - Achado P0 OP01: OpenAPI v1 anterior descrevia CreateProject com assinatura v1, enquanto LabSignedProjectIntake moderno tem seleção explícita de v3 com keyEpoch + commercialEpoch. Compatibilidade histórica mantida, novo contrato v3 isolado; sem ativar API.
