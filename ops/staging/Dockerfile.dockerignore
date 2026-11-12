@@ -1,0 +1,40 @@
+# F1-74: Dockerfile-specific allowlist; evaluated from repository root.
+# Dockerfile itself is handled by BuildKit and may not be copied.
+**
+!apps/
+!apps/sites/
+!apps/sites/**
+!src/
+!src/**
+!fixtures/
+!fixtures/**
+!labs/
+!labs/**
+!contracts/
+!contracts/**
+# Deny sensitive/generated paths again AFTER allow rules.
+**/.env
+**/.env.*
+**/.git
+**/.git/**
+**/.ssh
+**/.ssh/**
+**/vendor
+**/vendor/**
+**/node_modules
+**/node_modules/**
+**/storage
+**/storage/**
+**/bootstrap/cache
+**/bootstrap/cache/**
+**/.npmrc
+**/.composer/auth.json
+**/auth.json
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/id_rsa
+**/id_ed25519
+**/*credentials*
+**/*secret*
