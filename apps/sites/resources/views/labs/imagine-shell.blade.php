@@ -19,6 +19,7 @@
   --sites-shell-ink: var(--imagine-ink);
   --sites-shell-accent: var(--imagine-orange);
   --sites-shell-accent-text: var(--imagine-orange-text);
+  --sites-shell-muted-readable: #686868; /* Accessible on #F7F7F8 and white */
   font-family: var(--imagine-font-ui);
   color: var(--sites-shell-ink);
   background: var(--sites-shell-bg);
@@ -40,7 +41,7 @@ header .brand .brand-app { display:block;border-left:1px solid var(--imagine-bor
 header .brand small { color: var(--imagine-muted);letter-spacing:.04em; }
 .flag { background:var(--imagine-surface);border-color:var(--imagine-border);color:var(--imagine-ink);font-weight:700; }
 .kicker {color:var(--sites-shell-accent-text)}
-.sub, dt, .steps small, .foot, .chrome span, .locked, .editorial-summary .sub {color:var(--imagine-muted)}
+.sub, dt, .steps small, .foot, .chrome span, .locked, .editorial-summary .sub {color:var(--sites-shell-muted-readable)}
 .card,.preview {
   background:var(--imagine-white);
   color:var(--imagine-ink);
@@ -69,7 +70,7 @@ header .brand small { color: var(--imagine-muted);letter-spacing:.04em; }
 .layout-evidence-detail pre {border-color:var(--imagine-border);background:var(--imagine-surface)}
 .social-card-preview {background:var(--imagine-surface);border-color:var(--imagine-border)}
 .social-card-preview h3 {color:var(--imagine-ink)}
-.social-card-preview p {color:var(--imagine-muted)}
+.social-card-preview p {color:var(--sites-shell-muted-readable)}
 /* Status green/red/yellow remain semantic signals, never transformed into brand orange. */
 @media(max-width:610px) {
   header .brand {flex-wrap:wrap;gap:8px}
