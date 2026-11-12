@@ -20,6 +20,7 @@ on:
       - '.github/workflows/sites-f1-239-demo-screenshots.yml'
       - 'docs/SITES-F1-239-RESPONSIVE-DEMO-SCREENSHOTS.md'
       - 'docs/SITES-F1-244-FULL-PAGE-CHROMIUM-QA.md'
+      - 'docs/SITES-F1-251-TEXT-REFLOW-200-PERCENT.md'
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -73,6 +74,7 @@ jobs:
           test "$(find "$dir" -maxdepth 1 -type f | wc -l)" = 19
           grep -Fq '"publishable": false' "$dir/screenshot-manifest.json"
           grep -Fq '"containsClientData": false' "$dir/screenshot-manifest.json"
+          grep -Fq '"textReflow200PercentVerified": true' "$dir/screenshot-manifest.json"
           grep -Fq '"fullPage": true' "$dir/screenshot-manifest.json"
           grep -Fq '"keyboardLinkActivated": true' "$dir/screenshot-manifest.json"
       - name: Upload ONLY fictional gallery screenshots for temporary review
