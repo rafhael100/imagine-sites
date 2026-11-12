@@ -22,3 +22,7 @@ O workflow `sites-f1-241-integration-review-packets.yml` refaz o inventário com
 ## F1-258 — renovação de seis lotes independentes (12/11/2026)
 
 Os seis lotes precisam ser gerados novamente a partir do inventário F1-240 do SHA exato do candidato F1-258, não dos pacotes F1-239/246/251. Revisar motor/CTA, Laravel, segurança, contratos, banco/RLS, cadeia CI e documentação, com reviewers AppSec, DBA, Portal e CRM. Pacotes de CI são evidência de diff, **nunca** revisão aprovada. Dez gates permanecem BLOCKED e as branches `dev/main` não devem ser alteradas por este relatório.
+
+## Renovação F1-263 — 12/11/2026
+
+Gerar novamente os seis pacotes de revisão no mesmo SHA do candidato F1-263 com os hashes provenientes do F1-240 novo. Destinar para exame independente, com prioridade nas classes de privacidade de contato, contrato CRM, integridade de revisão, segurança de rotas e CI. Resultados de testes antigos não substituem revisão humana; dez gates de produção permanecem fechados.
