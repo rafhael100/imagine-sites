@@ -34,6 +34,8 @@ final readonly class SiteBrief
         public bool $secondaryCallToAction = false,
         // F1-270: editor-only native FAQ disclosure, no script or form.
         public bool $faqDisclosure = false,
+        // F1-277: editor-owned keyboard skip to main content.
+        public bool $skipToContentLink = false,
     ) {
         if (!in_array($productCode, ['onepage', 'landing_page'], true)) {
             throw new InvalidArgumentException('Unsupported Imagine Sites product.');
