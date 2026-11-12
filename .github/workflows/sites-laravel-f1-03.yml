@@ -1,7 +1,11 @@
 name: F1-03 Laravel isolado - sintético sem deploy
 on:
   push:
+    branches: [main]
   pull_request:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -30,7 +34,7 @@ jobs:
         run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
       - name: PHP syntax (application and tests)
         run: |
-          for f in apps/sites/artisan apps/sites/bootstrap/*.php apps/sites/routes/*.php apps/sites/public/index.php apps/sites/tests/*.php apps/sites/tests/Feature/*.php apps/sites/app/Providers/*.php; do php -l "$f" || exit 1; done
+          for f in apps/sites/artisan apps/sites/bootstrap/*.php apps/sites/routes/*.php apps/sites/public/index.php apps/sites/tests/*.php apps/sites/tests/Feature/*.php apps/sites/app/Providers/*.php apps/sites/app/Http/Middleware/*.php; do php -l "$f" || exit 1; done
       - name: Verify production routes stay absent by default
         working-directory: apps/sites
         run: |
@@ -44,6 +48,14 @@ jobs:
         env:
           SITES_SYNTHETIC_HTTP: '1'
         run: php artisan test --no-ansi
+      - name: Prove synthetic routes are denied by real non-CLI localhost HTTP SAPI
+        env:
+          APP_ENV: testing
+          SITES_F234_LOCAL_HTTP_LAB: '1'
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ci/f234_noncli_lab_http_smoke.py
+          python3 ci/f234_noncli_lab_http_smoke.py
       - name: Render fictional local preview only in testing mode
         working-directory: apps/sites
         env:

@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Synthetic Sites to Portal review-handoff v2 epoch bound envelope",
+  "description": "Candidate only. No operational Portal proof, public API, identity or publication.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "issuer",
+    "audience",
+    "issuedAt",
+    "expiresAt",
+    "nonce",
+    "authorizationRevision",
+    "candidate",
+    "mac"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "sites.synthetic.review-handoff.v2"
+    },
+    "issuer": {
+      "const": "imagine-sites"
+    },
+    "audience": {
+      "const": "imagine-portal"
+    },
+    "issuedAt": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "expiresAt": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "nonce": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,63}$"
+    },
+    "authorizationRevision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "candidate": {
+      "$ref": "./review-handoff-envelope.schema.json#/properties/candidate"
+    },
+    "mac": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  },
+  "x-imagine-mandatory": [
+    "Check canonical HMAC bytes including epoch",
+    "Query independently current Portal authorityRevision and status",
+    "Reject previous epoch even after reactivation",
+    "Require durable nonce and revocation fence; synthetic in-process tests cannot prove atomicity",
+    "Never infer client acceptance or publication from review handoff"
+  ]
+}

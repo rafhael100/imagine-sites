@@ -1,0 +1,7 @@
+# F1-69 — Exercício funcional de revisão de conteúdo no Laravel
+
+Integra a operação F1-68 à aplicação Laravel do **laboratório local** por uma rota GET de demonstração, não pública: `/_lab/sites/v1/content-revision?product=onepage&preset=classic&field=headline`. A rota só é registrada quando PHP roda em CLI, Laravel está em testing e `SITES_SYNTHETIC_HTTP=1`, e é executada apenas com `SITES_SYNTHETIC_REVIEW_UI=1` e acesso loopback. As três dimensões (`product`, `preset`, `field`) são obrigatórias e aceitam conjuntos fechados.
+
+O servidor constrói exclusivamente dados fictícios, simula uma revisão interna anterior e chama a classe de produção sintética `SyntheticContentRevisionPlan`. Retorna apenas metadados: hashes antes/depois, campos alterados, releaseRefs, revisão de rascunho, indicação de que a proposta antiga não corresponde ao novo snapshot e flags imutáveis `publishable=false`, `officialClientAcceptance=false` e `operationallyVerified=false`. Nenhuma alteração persiste, nenhuma aprovação oficial é registrada, nenhum HTML ou dado pessoal é devolvido, e não há integração real com Portal, CRM ou qualquer provedor.
+
+O teste Laravel executa 30 combinações (2 produtos × 3 temas × 5 campos), rejeita parâmetros ausentes, extras ou arrays, recusa POST e confirma bloqueio sem a flag do laboratório. O endpoint só demonstra o contrato e **não** pode ser considerado API de revisão, interface de cliente ou substituto de autenticação e revogação operacional. Os gates permanecem BLOCKED. PR dependente de F1-68 (#89), sem merge nem deploy.
