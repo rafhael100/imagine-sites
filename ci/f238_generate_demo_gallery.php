@@ -19,10 +19,12 @@ $repo=dirname(__DIR__);
 $vendor=$repo.'/apps/sites/vendor/autoload.php';
 $fixturePath=$repo.'/fixtures/sites/f1-06-onepage.synthetic.json';
 $richPath=$repo.'/fixtures/sites/f1-170-process-copy.synthetic.json';
+$rendererSourcePath=$repo.'/src/Production/StaticSiteRenderer.php';
 $private=$repo.'/apps/sites/storage/app/private';
 $dir=$private.'/f238-demo-previews';
 
 if (!is_file($vendor) || !is_file($fixturePath) || !is_file($richPath) ||
+    !is_file($rendererSourcePath) || is_link($rendererSourcePath) ||
     is_link($fixturePath) || is_link($richPath) || is_link($private) || is_link($dir) ||
     file_exists($dir)) {
     throw new RuntimeException('F1-238 private fixture/output boundary not clean.');
@@ -31,6 +33,7 @@ require_once $vendor;
 
 use Imagine\Sites\Production\SyntheticStructuredDraftAssembly;
 use Imagine\Sites\Production\SyntheticProductionWorkflow;
+use Imagine\Sites\Production\SyntheticDraftProvenanceV1;
 use Imagine\Sites\Production\InertPreviewAudit;
 use Imagine\Sites\Production\SyntheticPreviewQaReport;
 
@@ -47,7 +50,9 @@ if (!is_array($fixture) ||
 }
 // F1-243: enrich the SAME six visual variations with the already-validated
 // v4 synthetic content contract. No extra customer data or AI provider.
-$rich=json_decode((string)file_get_contents($richPath),true,12,JSON_THROW_ON_ERROR);
+$copySourceBytes=(string)file_get_contents($richPath);
+$rendererSourceBytes=(string)file_get_contents($rendererSourcePath);
+$rich=json_decode($copySourceBytes,true,12,JSON_THROW_ON_ERROR);
 if (!is_array($rich) || array_keys($rich)!==[
     'schemaVersion','headline','description','callToAction','benefits',
     'faq','highlights','processSteps'
@@ -91,6 +96,14 @@ foreach (['onepage','landing_page'] as $product) {
             null, true, $rich['headline'].' | '.$fixture['brand'],
             $rich['description']
         );
+        $provenance=SyntheticDraftProvenanceV1::fromDraft(
+            $draft,$copySourceBytes,$rendererSourceBytes
+        );
+        if (!$provenance->matchesDraft($draft,$copySourceBytes,$rendererSourceBytes) ||
+            $provenance->canPublish() || $provenance->canApproveForClient() ||
+            $provenance->canWriteCrm() || $provenance->canIndex()) {
+            throw new RuntimeException('F1-248 source/provenance is not an inert private draft.');
+        }
         $brief=$draft->brief;
         $artifact=$draft->artifact;
         $review=$draft->reviewSummary();
@@ -138,6 +151,9 @@ foreach (['onepage','landing_page'] as $product) {
             'navigation'=>$product==='onepage'?'section_anchors':'local_cta',
             'socialMetadata'=>true,
             'copySchema'=>'sites.ai-copy.v4',
+            'sourceProvenanceSha256'=>$provenance->recordDigest,
+            'privateBundleSha256'=>$provenance->record['privateBundleSha256'],
+            'workflowRevision'=>$provenance->record['workflowRevision'],
             'draftState'=>SyntheticProductionWorkflow::INTERNAL_REVIEW,
             'internalReviewRequired'=>true,
             'portalAuthorityRequired'=>true,
@@ -210,6 +226,9 @@ $manifest=json_encode([
     'productCodes'=>['onepage','landing_page'],
     'stylePresets'=>['classic','modern','warm'],
     'editorialFixture'=>'fixtures/sites/f1-170-process-copy.synthetic.json',
+    'sourceProvenanceSchema'=>'sites.synthetic.draft-provenance.v1',
+    'sourceCopySha256'=>hash('sha256',$copySourceBytes),
+    'rendererSourceSha256'=>hash('sha256',$rendererSourceBytes),
     'richSections'=>['highlights','process','faq'],
     'generationPath'=>'synthetic_structured_copy_to_internal_review',
     'draftState'=>SyntheticProductionWorkflow::INTERNAL_REVIEW,
@@ -254,3 +273,4 @@ echo "PASS F1-238: six distinct audited fictional HTML previews, no external ass
 echo "PASS F1-238: deterministic static index, manifest, SHA256SUMS and no publication power.\n";
 echo "PASS F1-243: all six product/preset variants include rich v4 services, steps, FAQ and social preview.\n";
 echo "PASS F1-245: copy-v4 -> immutable private draft -> QA -> review_required; never client approval.\n";
+echo "PASS F1-248: copy/renderer SHA-256 to private package and workflow provenance pinned.\n";

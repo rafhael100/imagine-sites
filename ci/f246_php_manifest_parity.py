@@ -53,6 +53,11 @@ def strict_manifest(source: bytes) -> dict:
         or data.get("portalAuthorityRequired") is not True
         or data.get("draftState") != "internal_review"
         or data.get("generationPath") != "synthetic_structured_copy_to_internal_review"
+        or data.get("sourceProvenanceSchema") != "sites.synthetic.draft-provenance.v1"
+        or not isinstance(data.get("sourceCopySha256"), str)
+        or not re.fullmatch(r"[a-f0-9]{64}",data["sourceCopySha256"])
+        or not isinstance(data.get("rendererSourceSha256"), str)
+        or not re.fullmatch(r"[a-f0-9]{64}",data["rendererSourceSha256"])
         or data.get("richSections") != ["highlights", "process", "faq"]
         or data.get("productCodes") != ["onepage", "landing_page"]
         or data.get("stylePresets") != ["classic", "modern", "warm"]
@@ -69,6 +74,12 @@ def strict_manifest(source: bytes) -> dict:
             info.get("product") != product
             or info.get("preset") != style
             or info.get("copySchema") != "sites.ai-copy.v4"
+            or not isinstance(info.get("sourceProvenanceSha256"), str)
+            or not re.fullmatch(r"[a-f0-9]{64}",info["sourceProvenanceSha256"])
+            or not isinstance(info.get("privateBundleSha256"), str)
+            or not re.fullmatch(r"[a-f0-9]{64}",info["privateBundleSha256"])
+            or type(info.get("workflowRevision")) is not int
+            or info["workflowRevision"] != 2
             or info.get("draftState") != "internal_review"
             or info.get("internalReviewRequired") is not True
             or info.get("portalAuthorityRequired") is not True
@@ -119,6 +130,9 @@ def self_test() -> None:
             "product": product,
             "preset": preset,
             "sha256": f"{i+1:064x}",
+            "sourceProvenanceSha256": f"{i+101:064x}",
+            "privateBundleSha256": f"{i+201:064x}",
+            "workflowRevision": 2,
             "bytes": 5000,
             "copySchema": "sites.ai-copy.v4",
             "draftState": "internal_review",
@@ -137,6 +151,9 @@ def self_test() -> None:
         "editorialFixture": "fixtures/sites/f1-170-process-copy.synthetic.json",
         "richSections": ["highlights", "process", "faq"],
         "generationPath": "synthetic_structured_copy_to_internal_review",
+        "sourceProvenanceSchema": "sites.synthetic.draft-provenance.v1",
+        "sourceCopySha256": "b"*64,
+        "rendererSourceSha256": "c"*64,
         "draftState": "internal_review",
         "internalReviewRequired": True,
         "portalAuthorityRequired": True,
@@ -167,6 +184,20 @@ def self_test() -> None:
     try:
         compare(raw, json.dumps(changed).encode())
         raise AssertionError("F1-246 divergent page bytes accepted")
+    except ValueError:
+        pass
+    altered = copy.deepcopy(fake)
+    altered["files"]["onepage-classic.html"]["sourceProvenanceSha256"] = "z"*64
+    try:
+        compare(raw,json.dumps(altered).encode())
+        raise AssertionError("F1-248 malformed source provenance accepted")
+    except ValueError:
+        pass
+    altered = copy.deepcopy(fake)
+    altered["files"]["onepage-classic.html"]["workflowRevision"] = 3
+    try:
+        compare(raw,json.dumps(altered).encode())
+        raise AssertionError("F1-248 stale workflow revision accepted")
     except ValueError:
         pass
     try:

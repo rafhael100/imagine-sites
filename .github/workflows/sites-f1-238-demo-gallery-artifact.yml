@@ -7,6 +7,9 @@ on:
       - 'fixtures/sites/f1-170-process-copy.synthetic.json'
       - 'ci/f243_verify_rich_demo.php'
       - 'ci/f245_verify_copy_review_gate.php'
+      - 'ci/f248_verify_source_provenance.php'
+      - 'src/Production/SyntheticDraftProvenanceV1.php'
+      - 'docs/SITES-F1-248-SOURCE-PROVENANCE.md'
       - 'ci/f246_php_manifest_parity.py'
       - 'docs/SITES-F1-246-CROSS-PHP-RELEASE-HASH-PARITY.md'
       - 'src/Production/SyntheticStructuredDraftAssembly.php'
@@ -58,6 +61,8 @@ jobs:
           php ci/f243_verify_rich_demo.php
           php -l ci/f245_verify_copy_review_gate.php
           php ci/f245_verify_copy_review_gate.php
+          php -l ci/f248_verify_source_provenance.php
+          php ci/f248_verify_source_provenance.php
           cd apps/sites/storage/app/private/f238-demo-previews
           test "$(find . -maxdepth 1 -type f | wc -l)" = 10
           sha256sum -c SHA256SUMS
