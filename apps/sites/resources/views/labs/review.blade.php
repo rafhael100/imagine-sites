@@ -121,9 +121,11 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
         <div><dt>SHA-256 sem CTA</dt><dd><code id="cta-digest-off">{{ $ctaDigestOff }}</code></dd></div>
         <div><dt>SHA-256 com CTA</dt><dd><code id="cta-digest-on">{{ $ctaDigestOn }}</code></dd></div>
         <div><dt>SHA-256 da comparação</dt><dd><code id="cta-evidence-digest">{{ $ctaEvidenceDigest }}</code></dd></div>
+        <div><dt>SHA-256 dos pacotes privados</dt><dd><code id="cta-package-evidence-digest">{{ $ctaPackageEvidenceDigest }}</code></dd></div>
         <div><dt>Autoridade da comparação</dt><dd id="cta-evidence-authority">Nenhuma; revisão pendente</dd></div>
         <div><dt>Estado desta prévia</dt><dd id="cta-review-state">Revisão interna pendente</dd></div>
       </dl>
+      <p class="locked">Os arquivos privados de ambas as versões foram verificados (HTML, dossiê, resumo e manifesto), sem liberar o acesso ao conteúdo ou autorizar a publicação.</p>
       <p class="locked">Esta evidência vincula apenas as duas versões privadas por SHA-256. Não comprova identidade, aceite, publicação nem autoriza captação de leads.</p>
       <p class="locked">Alterar esta opção cria outra versão. A equipe Imagine precisa revisar os novos bytes; aceite do cliente pertence ao Portal.</p>
     </section>
