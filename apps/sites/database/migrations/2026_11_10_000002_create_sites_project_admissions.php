@@ -14,12 +14,18 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        if (!app()->environment('testing') ||
-            getenv('SITES_F94_PROJECT_ADMISSION_LAB') !== '1' ||
-            DB::getDriverName() !== 'pgsql' ||
-            DB::getDatabaseName() !== 'sites_f94_lab') {
-            throw new RuntimeException('F1-94 database migration is disabled outside disposable test DB.');
-        }
+        // F1-232: verify the EFFECTIVE Laravel connection config before
+        // any DDL. Merely setting APP_ENV=testing or a synthetic flag must
+        // never permit migrations in a CRM/Portal/remote PostgreSQL.
+        \Imagine\Sites\Persistence\LabMigrationTargetFenceV1::assertAllowed(
+            'f94',app()->environment(),
+            getenv('GITHUB_ACTIONS') === 'true',
+            getenv('SITES_F94_PROJECT_ADMISSION_LAB') === '1',
+            DB::getDriverName(),DB::getDatabaseName(),
+            (string)DB::connection()->getConfig('host'),
+            DB::connection()->getConfig('port'),
+            (string)DB::connection()->getConfig('username')
+        );
 
         Schema::create('sites_project_admissions', static function (Blueprint $table): void {
             $table->string('tenant_ref', 128);
