@@ -21,3 +21,7 @@ O JSON `imagine-sites-f240-complete-diff-inventory` apresenta SHA de base/head, 
 O artefato de relatório fica disponível por **7 dias** no GitHub Actions, sem credenciais e sem modificar o repositório. Ele pode ser usado para distribuir a revisão pelos lotes definidos em `docs/SITES-F1-239-INTEGRATION-CANDIDATE-2026-11-11.md`.
 
 **Não é uma auditoria de conteúdo de segredos, revisão AppSec, controle de branch protection, teste de conformidade, autorização de merge ou de produção.** A CI do candidato #277 e as regras em `AGENTS.md` continuam independentes e obrigatórias. Nenhum acesso a VPS, Portal/CRM reais, Cloudflare, DNS, n8n, IA ou clientes ocorre nesta etapa.
+
+## F1-258 — refresh obrigatório do inventário no candidato atual (12/11/2026)
+
+A integração F1-258 reúne PRs #293–#299. A origem #299 estava 1046 commits à frente de `dev` e zero atrás. **Não reutilizar** a contagem de caminhos nem o SHA de inventários anteriores. Executar o workflow F1-240 no HEAD do candidato de integração desta data, conferir o SHA completo, todos os caminhos e os dez gates BLOCKED; isso não autoriza merge ou deploy.
