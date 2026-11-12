@@ -1,0 +1,50 @@
+name: Sites F1-284 real Chrome keyboard skip-link verification
+on:
+  pull_request:
+    paths:
+      - 'ci/f284_export_skip_keyboard.php'
+      - 'ci/f284_skip_keyboard_chromium.py'
+      - 'src/Production/StaticSiteRenderer.php'
+      - '.github/workflows/sites-f1-284-skip-chrome.yml'
+permissions:
+  contents: read
+jobs:
+  skip-to-main-chrome:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      APP_ENV: testing
+      GITHUB_ACTIONS: 'true'
+      SITES_F284_SKIP_CHROME: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring,dom,xml
+          tools: composer:v2
+          coverage: none
+      - name: Generate two real private PHP previews
+        run: |
+          set -euo pipefail
+          php -l ci/f284_export_skip_keyboard.php
+          python3 -m py_compile ci/f284_skip_keyboard_chromium.py
+          cd apps/sites
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts
+          cd ../..
+          php ci/f284_export_skip_keyboard.php
+          test -s "$RUNNER_TEMP/sites-f284-native-faq.json"
+      - name: Real keyboard Tab + Enter at 1365 390 320 widths
+        run: |
+          set -euo pipefail
+          browser=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
+          test -n "$browser"
+          python3 ci/f284_skip_keyboard_chromium.py "$browser"
+      - name: Remove every private fixture from runner
+        if: always()
+        run: rm -f "$RUNNER_TEMP/sites-f284-native-faq.json"
+      - name: Scope
+        if: always()
+        run: echo 'Fictional offline CDP on about:blank; no network navigation, client, screenshot upload or deploy.'

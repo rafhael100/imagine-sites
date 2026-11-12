@@ -1,0 +1,37 @@
+name: Sites F1-283 keyboard bypass reviewer-controlled transition
+on:
+  pull_request:
+    paths:
+      - 'src/Production/SyntheticSkipToMainRevisionPlan.php'
+      - 'tests/f283-skip-link-review-transition.php'
+      - '.github/workflows/sites-f1-283-skip-review.yml'
+permissions:
+  contents: read
+jobs:
+  skip-review-transition:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring,dom,xml
+          tools: none
+          coverage: none
+      - name: Check old approval is revoked on every link toggle
+        run: |
+          set -euo pipefail
+          php -l src/Production/SyntheticSkipToMainRevisionPlan.php
+          php -l tests/f283-skip-link-review-transition.php
+          php tests/f282-keyboard-skip-to-main.php
+          php tests/f283-skip-link-review-transition.php
+      - name: Scope
+        if: always()
+        run: echo 'Editor-owned synthetic review only, no client action, CRM, publication, database or deploy.'

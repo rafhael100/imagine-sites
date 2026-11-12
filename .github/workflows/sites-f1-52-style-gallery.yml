@@ -1,0 +1,59 @@
+name: Sites F1-52 Chrome smoke of six static style presets - private CI
+on:
+  pull_request:
+    paths:
+      - 'tests/f52-style-gallery.php'
+      - 'ci/f52-browser-gallery.py'
+      - '.github/workflows/sites-f1-52-style-gallery.yml'
+      - 'src/Production/SiteBrief.php'
+      - 'src/Production/StaticSiteRenderer.php'
+      - 'docs/SITES-F1-52-BROWSER-PRESETS.md'
+permissions:
+  contents: read
+jobs:
+  private-style-gallery:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 13
+    env:
+      APP_ENV: testing
+      SITES_F52_GALLERY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: none
+          extensions: mbstring
+          coverage: none
+      - name: Syntax and isolated fixture generation
+        run: |
+          set -euo pipefail
+          php -l tests/f52-style-gallery.php
+          php tests/f52-style-gallery.php
+      - name: Six local Chromium renders (no browser install, service, or upload)
+        run: |
+          set -euo pipefail
+          browser=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
+          if test -z "$browser"; then
+            echo "No existing Chromium in runner; no automatic downloads."
+            exit 1
+          fi
+          root="/tmp/sites-f52-gallery"
+          screenshots="$RUNNER_TEMP/sites-f52-png"
+          mkdir -p "$screenshots"
+          for product in onepage landing_page; do
+            for preset in classic modern warm; do
+              filename="$product-$preset"
+              "$browser" --headless=new --no-sandbox --disable-gpu                 --disable-background-networking --disable-extensions                 --disable-sync --no-first-run --no-default-browser-check                 --force-device-scale-factor=1 --window-size=1365,900                 --screenshot="$screenshots/$filename.png"                 "file://$root/$filename.html" >"$RUNNER_TEMP/sites-f52-chrome.log" 2>&1
+              test -s "$screenshots/$filename.png"
+            done
+          done
+          python3 ci/f52-browser-gallery.py "$root" "$screenshots"
+      - name: Remove gallery and screenshots, never upload artifacts
+        if: always()
+        run: |
+          rm -rf /tmp/sites-f52-gallery
+          rm -rf "$RUNNER_TEMP/sites-f52-png"
+          echo "Private fictional previews deleted; no deploy, Portal acceptance, CRM or VPS."

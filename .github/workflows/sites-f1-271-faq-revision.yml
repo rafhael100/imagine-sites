@@ -1,0 +1,37 @@
+name: Sites F1-271 FAQ reviewer-controlled layout revision
+on:
+  pull_request:
+    paths:
+      - 'src/Production/SyntheticFaqDisclosureRevisionPlan.php'
+      - 'tests/f271-faq-disclosure-revision.php'
+      - '.github/workflows/sites-f1-271-faq-revision.yml'
+permissions:
+  contents: read
+jobs:
+  faq-review-transition:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring,dom,xml
+          tools: none
+          coverage: none
+      - name: Full editor-owned FAQ mode revision and negative cases
+        run: |
+          set -euo pipefail
+          php -l src/Production/SyntheticFaqDisclosureRevisionPlan.php
+          php -l tests/f271-faq-disclosure-revision.php
+          php tests/f270-faq-native-disclosure.php
+          php tests/f271-faq-disclosure-revision.php
+      - name: Scope
+        if: always()
+        run: echo 'No client approval, live switching, Cloudflare, CRM, forms, tokens or deploy.'
