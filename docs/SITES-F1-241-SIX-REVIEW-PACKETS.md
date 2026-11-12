@@ -34,3 +34,7 @@ Regenerar seis pacotes usando o SHA exato do inventário F1-240 da nova branch d
 ## Atualização F1-267 — 12/11/2026
 
 Gerar novamente seis lotes de revisão a partir do inventário F1-240 do mesmo HEAD; atualizar revisões AppSec de comandos de deploy, Worker, privacidade, RLS/CRM e Docker. Inventários CI são evidência, não aprovação para merge, domínio, produção ou uso de fornecedores.
+
+## Revisão F1-269 — 12/11/2026
+
+Gerar seis pacotes independentes a partir do mesmo SHA do F1-240 atualizado. Adicionar revisão técnica de assinatura Base64URL, expiração, nonce efêmero, replay, Worker permanentemente bloqueado e restrições de CI. Não tratar hashes ou simulações como aceite real do cliente, identidade S2S ou aprovação dos dez gates.
