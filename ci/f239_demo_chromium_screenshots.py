@@ -115,14 +115,19 @@ def main(browser: str) -> None:
                 fail("Chromium DevTools port unavailable")
             target = None
             for _ in range(50):
-                with urlopen(f"http://127.0.0.1:{port}/json/list", timeout=3) as r:
-                    tabs = json.loads(r.read())
-                target = next(
-                    (t for t in tabs if isinstance(t, dict) and t.get("type") == "page"),
-                    None,
-                )
-                if target is not None:
-                    break
+                try:
+                    with urlopen(f"http://127.0.0.1:{port}/json/list", timeout=3) as r:
+                        tabs = json.loads(r.read())
+                    target = next(
+                        (t for t in tabs if isinstance(t, dict) and t.get("type") == "page"),
+                        None,
+                    )
+                    if target is not None:
+                        break
+                except (OSError, ValueError):
+                    pass
+                if chrome.poll() is not None:
+                    fail("Chromium stopped before CDP endpoint came up")
                 time.sleep(0.1)
             if target is None:
                 fail("no local Chromium page target")
