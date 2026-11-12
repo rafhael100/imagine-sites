@@ -20,6 +20,7 @@ import time
 from urllib.request import urlopen
 
 from f43_cdp import CDP, read_local_devtools_port
+from f276_chrome_bootstrap import with_single_cdp_bootstrap_retry
 from f44_contrast import ratio
 from f62_hero_contrast import inspect_hero
 
@@ -99,6 +100,7 @@ def main():
         profile=Path(tmp)/"profile"
         chrome=subprocess.Popen([
             BROWSER,"--headless=new","--no-sandbox","--disable-gpu",
+            "--disable-dev-shm-usage",
             "--disable-background-networking","--disable-extensions",
             "--disable-sync","--no-first-run","--no-default-browser-check",
             "--remote-debugging-port=0",f"--user-data-dir={profile}","about:blank"
@@ -215,4 +217,5 @@ def main():
                 chrome.wait(timeout=5)
     print("PASS F1-59/F1-62: 12 pages, 24 viewport checks, 324 gradient contrast samples; no network/deploy.")
 
-if __name__=="__main__":main()
+if __name__=="__main__":
+    with_single_cdp_bootstrap_retry(main)

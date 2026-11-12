@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'ci/f59_style_cdp.py'
+      - 'ci/f276_chrome_bootstrap.py'
+      - 'ci/f276_chrome_bootstrap_test.py'
       - 'ci/f62_hero_contrast.py'
       - 'docs/SITES-F1-62-GRADIENT-320-A11Y.md'
       - 'ci/f43_cdp.py'
@@ -30,7 +32,8 @@ jobs:
           coverage: none
       - name: Python syntax only, no third party browser driver
         run: |
-          python3 -m py_compile ci/f59_style_cdp.py ci/f43_cdp.py ci/f44_contrast.py ci/f62_hero_contrast.py
+          python3 -m py_compile ci/f59_style_cdp.py ci/f43_cdp.py ci/f44_contrast.py ci/f62_hero_contrast.py ci/f276_chrome_bootstrap.py ci/f276_chrome_bootstrap_test.py
+          python3 ci/f276_chrome_bootstrap_test.py
           python3 ci/f62_hero_contrast.py --self-test
       - name: Install locked Laravel test dependencies
         working-directory: apps/sites
