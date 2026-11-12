@@ -101,6 +101,7 @@ def main(browser: str) -> None:
         process = subprocess.Popen(
             [
                 browser, "--headless=new", "--no-sandbox", "--disable-gpu",
+                "--disable-dev-shm-usage",
                 "--disable-background-networking", "--disable-extensions",
                 "--disable-sync", "--no-first-run",
                 "--no-default-browser-check", "--remote-debugging-port=0",
