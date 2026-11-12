@@ -58,7 +58,8 @@ foreach(['onepage','landing_page'] as $product) {
                 !str_contains($plain->artifact->html,$link) &&
                 substr_count($html,$link)===1 &&
                 str_contains($html,">\n  ".$link."\n  <header>") &&
-                str_contains($html,'<main id="principal">'),
+                str_contains($html,'<main id="principal" tabindex="-1">') &&
+                str_contains($plain->artifact->html,'<main id="principal">'),
                 'opt-in single first-in-body anchor: '.$id);
             ok277($plain->artifact->digest!==$enabled->artifact->digest &&
                 hash_equals(hash('sha256',$html),$enabled->artifact->digest) &&
