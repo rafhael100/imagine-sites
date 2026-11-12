@@ -52,7 +52,7 @@ if (!mkdir($dir,0700)) {
 }
 
 function write238(string $dir,string $name,string $data): string {
-    if (!preg_match('/\A[a-z0-9][a-z0-9._-]{0,70}\z/D',$name) ||
+    if (!preg_match('/\A[A-Za-z0-9][A-Za-z0-9._-]{0,70}\z/D',$name) ||
         $data==='' || strlen($data)>150000 || is_link($dir.'/'.$name) ||
         file_exists($dir.'/'.$name) ||
         file_put_contents($dir.'/'.$name,$data,LOCK_EX)!==strlen($data)) {
