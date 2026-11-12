@@ -1,0 +1,48 @@
+name: Sites F1-176 six private Laravel section-order previews
+on:
+  pull_request:
+    paths:
+      - 'src/Production/SyntheticStructuredDraftAssembly.php'
+      - 'apps/sites/routes/web.php'
+      - 'apps/sites/resources/views/labs/review.blade.php'
+      - 'apps/sites/tests/Feature/SyntheticSectionOrderReviewTest.php'
+      - '.github/workflows/sites-f1-176-section-order-review.yml'
+permissions:
+  contents: read
+jobs:
+  review-layout:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring,dom,xml,curl,pdo,pdo_pgsql
+          tools: composer:v2
+          coverage: none
+      - name: PHP syntax and fixed-only order
+        run: |
+          set -euo pipefail
+          php -l src/Production/SyntheticStructuredDraftAssembly.php
+          php -l apps/sites/routes/web.php
+          php -l apps/sites/tests/Feature/SyntheticSectionOrderReviewTest.php
+      - name: Install locked testing dependencies
+        working-directory: apps/sites
+        run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
+      - name: Verify all HTML permutations and older reviewer untouched
+        working-directory: apps/sites
+        env:
+          APP_ENV: testing
+        run: |
+          set -euo pipefail
+          php artisan test --filter='(SyntheticSectionOrderReviewTest|SyntheticProcessReviewComparisonTest|SyntheticRichReviewComparisonTest|SyntheticEditorialPatchPreviewTest)' --no-ansi
+      - name: End of CI-only preview
+        if: always()
+        run: echo "No real customer, IAM, CRM, public HTTP, file upload or deploy."

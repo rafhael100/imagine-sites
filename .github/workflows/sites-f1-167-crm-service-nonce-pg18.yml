@@ -1,0 +1,71 @@
+name: Sites F1-167 globally durable synthetic CRM service request nonce
+on:
+  pull_request:
+    paths:
+      - 'labs/postgres/f1-167-crm-service-nonce-history.sql'
+      - 'src/Integration/LabCrmServiceNonceAssessment.php'
+      - 'src/Integration/LabPostgresCrmServiceNonceStore.php'
+      - 'tests/f167-crm-service-nonce-pg18.php'
+      - '.github/workflows/sites-f1-167-crm-service-nonce-pg18.yml'
+permissions:
+  contents: read
+jobs:
+  global-nonce-history:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: f140-fictional-admin-ci-only
+          POSTGRES_DB: sites_f140_atomic_lab
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sites_f140_atomic_lab"
+          --health-interval 5s --health-timeout 3s --health-retries 12
+    env:
+      APP_ENV: testing
+      SITES_F167_PG_LAB: '1'
+      DB_HOST: 127.0.0.1
+      DB_DATABASE: sites_f140_atomic_lab
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGDATABASE: sites_f140_atomic_lab
+      PGUSER: postgres
+      PGPASSWORD: f140-fictional-admin-ci-only
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo,pdo_pgsql
+          coverage: none
+          tools: none
+      - name: Install PostgreSQL CLI for ephemeral service
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Set up independent synthetic CRM service nonce ledger
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-167-crm-service-nonce-history.sql
+      - name: Run PDO and PostgreSQL18 atomic nonce tests
+        run: |
+          set -euo pipefail
+          php -l src/Integration/LabCrmServiceNonceAssessment.php
+          php -l src/Integration/LabPostgresCrmServiceNonceStore.php
+          php -l tests/f167-crm-service-nonce-pg18.php
+          php tests/f167-crm-service-nonce-pg18.php
+      - name: Declare sandbox-only scope
+        if: always()
+        run: echo "No service identity, HTTPS, true CRM, lead PII, external provider or deployment."

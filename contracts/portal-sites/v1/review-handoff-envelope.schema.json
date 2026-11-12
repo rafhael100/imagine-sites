@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Sites→Portal synthetic review handoff HMAC v1 (candidate only)",
+  "description": "Not a deployed endpoint, identity provider, authorization, client acceptance, or site publication. F1-45 prototype only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "issuer",
+    "audience",
+    "issuedAt",
+    "expiresAt",
+    "nonce",
+    "candidate",
+    "mac"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "sites.synthetic.review-handoff.v1"
+    },
+    "issuer": {
+      "const": "imagine-sites"
+    },
+    "audience": {
+      "const": "imagine-portal"
+    },
+    "issuedAt": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "expiresAt": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "nonce": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,63}$"
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "tenantRef",
+        "siteRef",
+        "workflowRef",
+        "workflowRevision",
+        "releaseRef",
+        "artifactDigest",
+        "portalAuthorityRequired",
+        "officialClientAcceptance",
+        "publishable"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "sites.synthetic.review-candidate.v1"
+        },
+        "tenantRef": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
+        "siteRef": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
+        "workflowRef": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
+        "workflowRevision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "releaseRef": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+        },
+        "artifactDigest": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "portalAuthorityRequired": {
+          "const": true
+        },
+        "officialClientAcceptance": {
+          "const": false
+        },
+        "publishable": {
+          "const": false
+        }
+      }
+    },
+    "mac": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  },
+  "x-imagine-guards": [
+    "Canonical field order enforced by F1-45 PHP verifier; JSON Schema alone does not enforce object property order.",
+    "HMAC max validity 120s; clock skew <=5s; signature key is test-only.",
+    "Current tenant/resource/revision authority must be independently checked and is DENY by default.",
+    "Replay nonce must be durable; test fixture only uses memory and no real provider.",
+    "Envelope never records client acceptance or asserts a publishable release."
+  ]
+}
