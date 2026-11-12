@@ -73,14 +73,20 @@ final readonly class SyntheticSecondaryCtaChangeEvidenceV1
             substr_count($with->artifact->html,'href="#contato"')!==2) {
             throw new DomainException('secondary_cta_pair_not_only_local_conversion');
         }
+        // F1-259: record only digests of correlation scope/references.
+        // SHA-256 is pseudonymization, NOT anonymization or identity proof.
+        // The evidence remains restricted to the private review flow.
+        $scope=json_encode([
+            $without->workflow->tenantRef,
+            $without->workflow->siteRef,
+        ],JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
         $record=[
-            'schemaVersion'=>'sites.synthetic.secondary-cta-change-evidence.v1',
-            'tenantRef'=>$without->workflow->tenantRef,
-            'siteRef'=>$without->workflow->siteRef,
+            'schemaVersion'=>'sites.synthetic.secondary-cta-change-evidence.v2',
+            'scopeCorrelationSha256'=>hash('sha256',$scope),
             'productCode'=>$a->productCode,
             'stylePreset'=>$a->stylePreset,
-            'beforeReleaseRef'=>$without->manifest->releaseRef,
-            'afterReleaseRef'=>$with->manifest->releaseRef,
+            'beforeReleaseRefSha256'=>hash('sha256',$without->manifest->releaseRef),
+            'afterReleaseRefSha256'=>hash('sha256',$with->manifest->releaseRef),
             'beforeHtmlSha256'=>$without->artifact->digest,
             'afterHtmlSha256'=>$with->artifact->digest,
             'changedControl'=>'secondaryCallToAction',

@@ -54,6 +54,31 @@ foreach (['onepage','landing_page'] as $product) {
             $e->record['copyUnchanged']===true &&
             $e->record['onlyLocalContactAnchor']===true,
             'exact CTA-only before/after identity: '.$id);
+        // F1-259: never serialize raw correlation references into UI evidence.
+        $rawRecord=json_encode($e->record,JSON_THROW_ON_ERROR);
+        $tenantRef=$off->workflow->tenantRef;
+        $siteRef=$off->workflow->siteRef;
+        $beforeRef=$off->manifest->releaseRef;
+        $afterRef=$on->manifest->releaseRef;
+        $scopeHash=hash('sha256',json_encode(
+            [$tenantRef,$siteRef],
+            JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES
+        ));
+        check256($e->record['schemaVersion']===
+            'sites.synthetic.secondary-cta-change-evidence.v2' &&
+            $e->record['scopeCorrelationSha256']===$scopeHash &&
+            $e->record['beforeReleaseRefSha256']===hash('sha256',$beforeRef) &&
+            $e->record['afterReleaseRefSha256']===hash('sha256',$afterRef),
+            'pseudonymized scope and release SHA are canonical: '.$id);
+        check256(!str_contains($rawRecord,$tenantRef) &&
+            !str_contains($rawRecord,$siteRef) &&
+            !str_contains($rawRecord,$beforeRef) &&
+            !str_contains($rawRecord,$afterRef) &&
+            !array_key_exists('tenantRef',$e->record) &&
+            !array_key_exists('siteRef',$e->record) &&
+            !array_key_exists('beforeReleaseRef',$e->record) &&
+            !array_key_exists('afterReleaseRef',$e->record),
+            'raw project and release correlation is never exposed: '.$id);
         check256(!$e->canPublish() &&
             !$e->canApproveForClient() && !$e->canWriteCrm() &&
             !$e->canReuseApproval() &&
