@@ -1,5 +1,21 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuação F1-259 a F1-263 — 12/11/2026
+
+Novo candidato de revisão, sem merge: `integration/sites-f1-263-dev-review-candidate-2026-11-12`, base `dev` SHA `71b8ffe51139d0e70ed32591b07f295fb7bf5fe3`.
+
+- F1-259 (#301): hashes pseudonimizados de contexto da evidência CTA — 6/6 CI PASS.
+- F1-260 (#302): CTA secundário com paleta da marca e contraste AA; legado byte-a-byte preservado — 22/22 CI PASS.
+- F1-261 (#303): seletor Laravel para quatro paletas, 96 visualizações e rejeição de URL incompleta — 24/24 CI PASS.
+- F1-262 (#304): preflight de contato sem retenção de PII, Unicode, consent intent e honeypot — 8/8 CI PASS.
+- F1-263 (#305): composição de privacidade, binding e replay, sem autorização de envio. Verificar CI completo no SHA final.
+- Diferença medida antes da documentação: 1.076 commits à frente de `dev`, zero atrás. Exige inventário F1-240 e seis pacotes F1-241 neste novo HEAD; não reutilizar SHA/contegem do #300.
+
+**Bloqueadores de integração/produção inalterados:** `dev/main` sem branch protection verificável (issue #281); dez gates `BLOCKED`; sem revisão independente AppSec/DBA/Portal/CRM, integração autenticada ou ambiente real homologado. Nenhum merge/deploy.
+
+---
+
+
 ## Continuação F1-247 a F1-251 — 12/11/2026
 
 **Candidato mais recente:** `integration/sites-f1-251-dev-review-candidate-2026-11-12`, base `dev` em `71b8ffe51139d0e70ed32591b07f295fb7bf5fe3`. A origem #291 estava **998 commits ahead/0 behind** de `dev`; esta branch permanece **DRAFT, sem merge**.
