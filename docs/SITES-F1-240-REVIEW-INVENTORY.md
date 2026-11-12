@@ -57,3 +57,7 @@ Novo candidato com endurecimento de gramática da seção FAQ. Recalcular no HEA
 ## Renovação F1-284 — 12/11/2026
 
 Recalcular diff Git completo no SHA desta branch de integração, comparando com `dev` `71b8ffe51139d0e70ed32591b07f295fb7bf5fe3`. Incluir F1-281 do CRM, renderizador e revisor do skip link, PHP tests e Chrome CDP F1-284. Os 721 arquivos/204 sensíveis pertencem ao candidato #330 e NÃO provam o HEAD novo. Dez gates ainda bloqueados.
+
+## Atualização F1-286 — 12/11/2026
+
+Reexecutar inventário Git completo neste candidato, base `dev` `71b8ffe51139d0e70ed32591b07f295fb7bf5fe3`. Incluir rota e views Laravel da revisão de skip link, suite F1-255 Chrome bootstrap e documentos. O SHA e contagem de F1-280/F1-284 não substituem este inventário.
