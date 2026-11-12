@@ -1,5 +1,18 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuação F1-276–F1-280 — 12/11/2026
+
+- F1-276 / #325: bootstrap Chromium F1-59, apenas retry restrito, **7/7 CI PASS**.
+- F1-277 / #326: janela de retry T0 durável 72h/432h e backoff local, **9/9 CI PASS**.
+- F1-278 / #327: status CRM 202/409/429, Retry-After estrito e negação de falso recibo, **9/9 CI PASS**.
+- F1-279 / #328: combinação de backoff e Retry-After sem reset de T0, **9/9 CI PASS**.
+- F1-280 / #329: chave de idempotência por submissão e contexto CRM fixo (teste em revisão).
+- Candidato `integration/sites-f1-280-dev-review-candidate-2026-11-12`, base `dev` `71b8ffe51139d0e70ed32591b07f295fb7bf5fe3`. Reexecutar CI completo/inventários neste HEAD.
+- Sem merge/deploy/CRM ativo; `dev/main` `protected:false` na API (issue #281); dez gates `BLOCKED`.
+
+---
+
+
 ## Continuação F1-275 — 12/11/2026
 
 - F1-275 / PR #323: gramática exata da seção FAQ (incluindo o contêiner e linhas, não apenas contagem de tags), com rehash malicioso recusado; workflow específico de PHP aprovado.
