@@ -70,6 +70,9 @@ foreach(['onepage','landing_page'] as $product) {
                 $on->reviewSummary()['officialClientAcceptance']===false &&
                 count(PrivateFiles::fromPendingDraft($on))===4,
                 'inert, QA-valid, private review package: '.$id);
+            check282(str_contains($html,'<main id="principal" tabindex="-1">') &&
+                str_contains($off->artifact->html,'<main id="principal">'),
+                'keyboard skip target is focusable only for opt-in: '.$id);
             check282(str_contains($html,'.skip-to-main:focus-visible') &&
                 str_contains($html,'transform: translateY(0);') &&
                 str_contains($html,'min-height: 44px;') &&
