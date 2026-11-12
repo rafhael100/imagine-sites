@@ -101,6 +101,7 @@ jobs:
           php tests/f279-crm-backoff-composition.php
           php tests/f280-crm-pinned-retry-context.php
           php tests/f281-crm-retry-binding-recheck.php
+          php tests/f282-keyboard-skip-to-main.php
           php tests/f157-static-faq-content.php
           php tests/f270-faq-native-disclosure.php
           php tests/f271-faq-disclosure-revision.php
