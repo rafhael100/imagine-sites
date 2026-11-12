@@ -1,5 +1,20 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuação F1-247 a F1-251 — 12/11/2026
+
+**Candidato mais recente:** `integration/sites-f1-251-dev-review-candidate-2026-11-12`, base `dev` em `71b8ffe51139d0e70ed32591b07f295fb7bf5fe3`. A origem #291 estava **998 commits ahead/0 behind** de `dev`; esta branch permanece **DRAFT, sem merge**.
+
+- [#287](https://github.com/rafhael100/imagine-sites/pull/287), F1-247: validação estrita dos campos de `SiteBrief`, com controle Unicode/bidi/URL e preservação de HTML inerte; **14/14 workflows PASS**.
+- [#288](https://github.com/rafhael100/imagine-sites/pull/288), F1-248: integridade de fontes copy+renderer e revisão por SHA, seis rascunhos; **7/7 PASS**.
+- [#289](https://github.com/rafhael100/imagine-sites/pull/289), F1-249: alvos de navegação e CTA com pelo menos 44 px em Chromium; **18/18 PASS**.
+- [#290](https://github.com/rafhael100/imagine-sites/pull/290), F1-250: `--no-scripts --no-plugins` no Composer dos contêineres, `package:discover` e `route:cache` só como UID 10001, builds Docker reais; **8/8 PASS**.
+- [#291](https://github.com/rafhael100/imagine-sites/pull/291), F1-251: testes de reflow a 200% em Chrome em 18 variações; **5/5 PASS**, depois de repetir um job com falha de inicialização CDP.
+- Documento principal e registro administrativo: `docs/SITES-F1-251-DEV-INTEGRATION-CANDIDATE-2026-11-12.md`. Uma gravação acidental temporária na `main` foi restaurada imediatamente por force-with-lease para o SHA anterior `e95c481176f48c28ade1db0a5bcd2777fe7dcb3e`; arquivo recriado em branch isolada, sem merge/deploy. A ausência de branch protection continua na [issue #281](https://github.com/rafhael100/imagine-sites/issues/281).
+
+**Pendências:** todos os dez gates operacionais `BLOCKED`; auditoria completa F1-240/241 deve rodar no novo head, revisão independente AppSec/DBA/Portal/CRM e proteção de `dev/main` precedem merge. Nenhum cliente, lead, produção Cloudflare ou VPS foi usado.
+
+---
+
 ## Continuidade do Imagine Sites — candidato funcional F1-246 (11/11/2026)
 
 **Novas entregas completas em PRs draft, sem merge/deploy:**
