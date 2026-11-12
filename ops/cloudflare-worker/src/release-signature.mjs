@@ -63,7 +63,7 @@ export async function inspectSyntheticReleaseSignature(
   const bytes=syntheticCanonicalReleaseBytes(payload);
   if(bytes===null ||
      payload.issuedAt>nowSeconds+30 ||
-     payload.expiresAt<nowSeconds ||
+     payload.expiresAt<=nowSeconds ||
      publicKey?.type!=='public' ||
      publicKey.algorithm?.name!=='Ed25519' ||
      !publicKey.usages?.includes('verify')) {
@@ -75,6 +75,12 @@ export async function inspectSyntheticReleaseSignature(
     const raw=atob(b64);
     signature=Uint8Array.from(raw,c=>c.charCodeAt(0));
     if(signature.length!==64) return deny();
+    // F1-268: base64url has unused padding bits for 64-byte signatures.
+    // Reject alternate textual encodings of identical signature bytes:
+    // audit trails must have a unique, canonical representation.
+    const canonical=btoa(raw).replaceAll('+','-').replaceAll('/','_')
+      .replace(/=+$/,'');
+    if(canonical!==envelope.signature) return deny();
     if(!await crypto.subtle.verify('Ed25519',publicKey,signature,bytes)) {
       return deny();
     }
