@@ -199,7 +199,8 @@ final class SyntheticCombinedLayoutReviewTest extends TestCase
         }
         $this->withServerVariables(['REMOTE_ADDR'=>'203.0.113.42'])
             ->get(self::PATH.$valid)->assertNotFound();
-        $this->post(self::PATH.$valid)->assertStatus(405);
+        $this->withServerVariables(['REMOTE_ADDR'=>'127.0.0.1'])
+            ->post(self::PATH.$valid)->assertStatus(405);
     }
 
     public function test_prior_reviewers_do_not_gain_combined_controls():void
