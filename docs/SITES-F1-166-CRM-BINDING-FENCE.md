@@ -1,0 +1,9 @@
+# F1-166 — Vínculo e revisão estável antes de preparar o wire técnico CRM
+
+A F1-165 consegue construir, somente em testes, um JSON de metadados técnicos e HMAC com chave pública fictícia aceitos sintaticamente pelo CRM F3-46. A F1-166 introduz SyntheticCrmTechnicalHandoffPreflight, que **não prepara sequer esse artefato sintético** quando uma fonte separada de vínculo retorna um contexto inativo, ausente, alterado, revogado ou inconsistência de revisão durante duas leituras.
+
+A implementação reaproveita SyntheticLeadBindingRevisionFence, recebe SyntheticLeadBindingAuthoritySource via injeção e permite compor um SyntheticCrmTechnicalHandoffV1 apenas se o diagnóstico for STABLE_MATCH_UNVERIFIED. A resposta resultante é LAB_WIRE_PREPARED_UNTRUSTED e não possui nenhuma permissão operacional. Todo erro permanece classificado com reasonCode allowlisted, sem MAC, sem envio, sem ACK, sem retry ou estado ENTREGUE. Um retorno aparentemente estável pode ser fabricado: duas leituras não substituem identidade de serviço, RLS, compare-and-swap atômico ou fonte autenticada do Portal.
+
+O laboratório exige simultaneamente PHP CLI, APP_ENV=testing, GITHUB_ACTIONS=true, SITES_F165_SYNTHETIC_AUTH=1 e SITES_F166_AUTHORITY_FENCE=1. Usa apenas metadados UUID fictícios e HMAC público de laboratório. Testes PHP 8.3/8.4 simulam vínculo encontrado/inexistente/inativo, destino alterado, revisão revogada, corrida entre leituras, exceções, operações/nonce/TTL inválidos, configuração desabilitada e consistência do objeto diagnóstico. A classe real CRM F3-46 da revisão fixa 0ee32ec é usada para conferir o wire sintético do caso nominal, sem lhe conceder autoridade.
+
+Falta implementar integração autenticada independente, registro durável anti-replay, consentimento e os dois endpoints realmente isolados. OP04 #36 e os dez gates de produção continuam bloqueados. Nenhum PR desta cadeia foi publicado, colocado na main ou implantado.
