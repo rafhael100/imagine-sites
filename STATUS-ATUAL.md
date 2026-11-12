@@ -1,5 +1,16 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuação F1-285–F1-286 — 12/11/2026
+
+- F1-285 / PR #336: revisor Laravel privado compara link de acessibilidade on/off em 24 prévias; workflow dedicado aprovado.
+- F1-286 / PR #337: Chromium CTA com bootstrap mais robusto e retry único apenas quando CDP não inicia e diretório de PNG está vazio; testes em validação.
+- PR #335 anterior NÃO estava totalmente verde: um erro F1-255 ocorreu antes da primeira captura Chrome.
+- Novo candidato `integration/sites-f1-286-dev-review-candidate-2026-11-12`, origem 1.243 commits ahead de `dev`. Revalidar F1-240/241 e CI total no próprio HEAD.
+- Nenhum merge/deploy. `dev/main` sem branch protection atestada (issue #281), dez gates `BLOCKED`, sem CRM real, clientes ou custo.
+
+---
+
+
 ## Continuação F1-281–F1-284 — 12/11/2026
 
 - F1-281 / #331: vínculo CRM ativo e mesma revisão verificados duas vezes depois do escopo/T0, sem autorização operacional — **9/9 workflows PASS**.
