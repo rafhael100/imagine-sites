@@ -66,6 +66,14 @@ final class SyntheticSecondaryCtaReviewTest extends TestCase
                         ] as $phrase) self::assertStringContainsString($phrase,$outer);
                         self::assertStringNotContainsString('<script',$outer);
                         self::assertStringNotContainsString('<form',$outer);
+                        self::assertSame(1,preg_match(
+                            '/id="cta-evidence-digest">([a-f0-9]{64})<\/code>/',
+                            $outer,$proof
+                        ));
+                        self::assertStringContainsString(
+                            'Nenhuma; revisão pendente',$outer
+                        );
+                        $evidenceHashes[$product][$preset][$mode][$device]=$proof[1];
 
                         foreach (['off','on'] as $option) {
                             self::assertStringContainsString(
@@ -113,6 +121,11 @@ final class SyntheticSecondaryCtaReviewTest extends TestCase
                     $sha[$mode]=$byDevice['desktop'][1];
                 }
                 self::assertNotSame($sha['on'],$sha['off']);
+                self::assertSame(
+                    $evidenceHashes[$product][$preset]['off']['desktop'],
+                    $evidenceHashes[$product][$preset]['on']['mobile'],
+                    'CTA-only evidence must bind the same immutable pair'
+                );
             }
         }
         self::assertSame(24,$views);
