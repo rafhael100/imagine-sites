@@ -1,4 +1,4 @@
-name: Sites F1-239 real desktop and mobile screenshots of fictional demos
+name: Sites F1-244 full-page responsive Chrome screenshots 1365/390/320 (fictional)
 on:
   pull_request:
     paths:
@@ -12,6 +12,7 @@ on:
       - 'src/Production/StaticSiteRenderer.php'
       - '.github/workflows/sites-f1-239-demo-screenshots.yml'
       - 'docs/SITES-F1-239-RESPONSIVE-DEMO-SCREENSHOTS.md'
+      - 'docs/SITES-F1-244-FULL-PAGE-CHROMIUM-QA.md'
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -58,13 +59,15 @@ jobs:
           fi
           python3 ci/f239_demo_chromium_screenshots.py "$browser"
           dir='apps/sites/storage/app/private/f239-demo-screenshots'
-          test "$(find "$dir" -maxdepth 1 -type f | wc -l)" = 13
+          test "$(find "$dir" -maxdepth 1 -type f | wc -l)" = 19
           grep -Fq '"publishable": false' "$dir/screenshot-manifest.json"
           grep -Fq '"containsClientData": false' "$dir/screenshot-manifest.json"
+          grep -Fq '"fullPage": true' "$dir/screenshot-manifest.json"
+          grep -Fq '"keyboardLinkActivated": true' "$dir/screenshot-manifest.json"
       - name: Upload ONLY fictional gallery screenshots for temporary review
         uses: actions/upload-artifact@v4
         with:
-          name: imagine-sites-demo-screenshots-fictional
+          name: imagine-sites-fullpage-responsive-fictional
           path: apps/sites/storage/app/private/f239-demo-screenshots/
           retention-days: 7
           if-no-files-found: error
