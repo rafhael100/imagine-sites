@@ -1,0 +1,54 @@
+name: Sites F1-280 real Chrome keyboard focus to main
+on:
+  pull_request:
+    paths:
+      - 'src/Production/StaticSiteRenderer.php'
+      - 'src/Production/InertPreviewAudit.php'
+      - 'ci/f280_export_skip_focus.php'
+      - 'ci/f280_skip_focus_chrome.py'
+      - 'tests/f277-keyboard-skip-link.php'
+      - 'apps/sites/tests/Feature/SyntheticSkipNavigationReviewTest.php'
+      - '.github/workflows/sites-f1-280-skip-chrome.yml'
+permissions:
+  contents: read
+jobs:
+  chrome-keyboard-focus:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      APP_ENV: testing
+      GITHUB_ACTIONS: 'true'
+      SITES_F280_SKIP_CHROME: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring,dom,xml
+          tools: composer:v2
+          coverage: none
+      - name: Lint source and create real PHP private review artifacts
+        run: |
+          set -euo pipefail
+          php -l ci/f280_export_skip_focus.php
+          python3 -m py_compile ci/f280_skip_focus_chrome.py
+          cd apps/sites
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts
+          cd ../..
+          php tests/f277-keyboard-skip-link.php
+          php ci/f280_export_skip_focus.php
+          test -s "$RUNNER_TEMP/sites-f280-skip-focus.json"
+      - name: Verify Tab and Enter focus on six real Chromium variants
+        run: |
+          set -euo pipefail
+          browser=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
+          test -n "$browser"
+          python3 ci/f280_skip_focus_chrome.py "$browser"
+      - name: Destroy private test HTML from runner
+        if: always()
+        run: rm -f "$RUNNER_TEMP/sites-f280-skip-focus.json"
+      - name: Scope
+        if: always()
+        run: echo 'Offline Chrome CDP only, no browser download, API, customer site, real acceptance, credentials, DNS or deploy.'
