@@ -33,3 +33,7 @@ A branch de revisão F1-263 reúne #301–#305 sobre a base fixa `dev` SHA `71b8
 ## Renovação F1-265 — 12/11/2026
 
 Nova branch de integração para F1-264/265: recomputar inventário Git completo a partir da base `dev` SHA `71b8ffe51139d0e70ed32591b07f295fb7bf5fe3`. A contagem F1-263 de 658 arquivos/184 sensíveis é histórica e não pode ser reutilizada. Não promover sem dez gates operacionais fechados e revisão independente de Cloudflare Worker e assinatura.
+
+## Atualização F1-267 — 12/11/2026
+
+Reexecutar o inventário completo no HEAD do candidato F1-267, depois da correção de inicialização Chrome e da ampliação dos controles de deploy. Não reutilizar quantidades ou SHA do PR #309. Base `dev` inalterada: `71b8ffe51139d0e70ed32591b07f295fb7bf5fe3`. Dez gates bloqueados.
