@@ -61,6 +61,7 @@ final readonly class SyntheticContentRevisionPlan
             $approvedBrief->sectionOrder !== $nextBrief->sectionOrder ||
             $approvedBrief->sectionNavigation !== $nextBrief->sectionNavigation ||
             $approvedBrief->secondaryCallToAction !== $nextBrief->secondaryCallToAction ||
+            $approvedBrief->faqDisclosure !== $nextBrief->faqDisclosure ||
             $approvedBrief->brandPalette != $nextBrief->brandPalette ||
             $approvedBrief->socialPreviewMetadata !== $nextBrief->socialPreviewMetadata ||
             $approvedBrief->seoTitle !== $nextBrief->seoTitle ||
