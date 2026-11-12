@@ -1,5 +1,16 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuação F1-268 e F1-269 — 12/11/2026
+
+- F1-268 / PR #313: assinatura Ed25519 Base64URL única e expiração estrita — **5/5 workflows PASS**.
+- F1-269 / PR #314: experimento de nonce de uso único e rejeição de replay dentro de um runtime local; não é ledger durável nem autoridade — CI Node dedicado PASS.
+- PR #312, candidato anterior F1-267: **100/100 workflows PASS**, 672 arquivos/189 sensíveis inventariados; pacotes humanos ainda pendentes.
+- Candidato novo F1-269: `integration/sites-f1-269-dev-review-candidate-2026-11-12`, exige F1-240/F1-241 novamente no próprio HEAD e todas as 100+ matrizes.
+- `dev/main` sem proteção verificável na issue #281; dez gates `BLOCKED`; nenhum merge, deploy, cliente real, DNS, Cloudflare ou servidor.
+
+---
+
+
 ## Continuação F1-266 e F1-267 — 12/11/2026
 
 - F1-266 / PR #310: Chrome QA real corrigido com bootstrap conservador e retry único quando a porta CDP não aparece; **6/6 workflows PASS** na própria PR.
