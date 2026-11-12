@@ -1,5 +1,15 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuação F1-274 — 12/11/2026
+
+- F1-270–F1-273: FAQ expansível nativa, revisão isolada, Laravel e prova de teclado Chrome; candidato #320 **105/105 CI PASS**, inventário F1-240 693 caminhos/195 sensíveis em seis lotes F1-241.
+- F1-274 / PR #321: `InertPreviewAudit` bloqueia HTML de FAQ adulterada mesmo com manifesto SHA-256 novo. Testes de pacote validam a rejeição (sem cliente real).
+- Candidato consolidado `integration/sites-f1-274-dev-review-candidate-2026-11-12`, exige execução do CI e inventários F1-240/241 próprios, não reutilizar contagem de #320.
+- `dev/main` intactas; issue #281 de branch protection pendente; dez gates `BLOCKED`. Nenhum merge, deploy, Cloudflare, CRM operacional, cliente real ou gasto.
+
+---
+
+
 ## Continuação F1-270–F1-273 — 12/11/2026
 
 - F1-270 / PR #316: FAQ expansível nativa, modo opcional do editor e QA DOM sem scripts — **26/26 workflows PASS**.
