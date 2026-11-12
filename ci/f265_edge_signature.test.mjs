@@ -136,3 +136,41 @@ test('even signed preview refuses real domains and live Worker remains inert',as
   assert.equal(live.status,503);
   assert.match(live.headers.get('Cache-Control'),/no-store/);
 });
+
+
+test('F1-268 refuses alternative base64url text encoding of same Ed25519 bytes',async()=>{
+  const alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+  const finalChar=envelope.signature.at(-1);
+  const value=alphabet.indexOf(finalChar);
+  assert.ok(value>=0);
+  assert.equal(value%16,0,'canonical base64url for 64-byte signature has four zero padding bits');
+  const variant={...envelope,signature:
+    envelope.signature.slice(0,-1)+alphabet[value+1]
+  };
+  assert.notEqual(variant.signature,envelope.signature);
+  assert.ok(Buffer.from(variant.signature,'base64url').equals(
+    Buffer.from(envelope.signature,'base64url')
+  ),'decoder accepts same bytes in a noncanonical textual form');
+  assert.equal((await inspectSyntheticReleaseSignature(
+    variant,keys.publicKey,now
+  )).signatureValid,false);
+  const page=await renderSignedSyntheticPreview(
+    new Request('https://preview.imagine.invalid/'),
+    {...asset},variant,keys.publicKey,now
+  );
+  assert.equal(page.status,503);
+});
+
+test('F1-268 expiry is exclusive, even at the exact second of expiration',async()=>{
+  const expiring={...payload,issuedAt:now-60,expiresAt:now};
+  const signed=await makeEnvelope(expiring);
+  assert.equal((await inspectSyntheticReleaseSignature(
+    signed,keys.publicKey,now-1
+  )).signatureValid,true);
+  assert.equal((await inspectSyntheticReleaseSignature(
+    signed,keys.publicKey,now
+  )).signatureValid,false);
+  assert.equal((await inspectSyntheticReleaseSignature(
+    signed,keys.publicKey,now+1
+  )).signatureValid,false);
+});
