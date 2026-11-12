@@ -138,6 +138,17 @@ jobs:
             exit 1
           fi
           test "$(psql -X -tAc "SELECT to_regclass('public.sites_project_admissions') IS NULL")" = t
+      - name: Deny F1-94 migration if CI provenance is missing
+        working-directory: apps/sites
+        run: |
+          set -euo pipefail
+          php -l ../../src/Persistence/LabMigrationTargetFenceV1.php
+          php ../../tests/f232-pg-migration-target-fence.php
+          if GITHUB_ACTIONS=false php artisan migrate --path=database/migrations/2026_11_10_000002_create_sites_project_admissions.php --force --no-interaction; then
+            echo 'Unsafe: F1-94 migration ran without CI provenance'
+            exit 1
+          fi
+          test "$(psql -X -tAc "SELECT to_regclass('public.sites_project_admissions') IS NULL")" = t
       - name: Apply real Laravel F1-94 admission migration
         working-directory: apps/sites
         run: |
