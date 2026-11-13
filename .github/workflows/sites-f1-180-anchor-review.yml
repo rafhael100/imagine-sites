@@ -1,0 +1,46 @@
+name: Sites F1-180 Laravel preview of local navigation on and off
+on:
+  pull_request:
+    paths:
+      - 'apps/sites/routes/web.php'
+      - 'apps/sites/resources/views/labs/review.blade.php'
+      - 'apps/sites/tests/Feature/SyntheticAnchorNavigationReviewTest.php'
+      - '.github/workflows/sites-f1-180-anchor-review.yml'
+permissions:
+  contents: read
+jobs:
+  private-anchor-review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring,dom,xml,curl,pdo,pdo_pgsql
+          tools: composer:v2
+          coverage: none
+      - name: Lint fixed-only Laravel reviewer route and tests
+        run: |
+          set -euo pipefail
+          php -l apps/sites/routes/web.php
+          php -l apps/sites/tests/Feature/SyntheticAnchorNavigationReviewTest.php
+      - name: Install locked in-process Laravel dependencies
+        working-directory: apps/sites
+        run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
+      - name: Test two navigation modes and older routes on real Laravel
+        working-directory: apps/sites
+        env:
+          APP_ENV: testing
+        run: |
+          set -euo pipefail
+          php artisan test --filter='(SyntheticAnchorNavigationReviewTest|SyntheticSectionOrderReviewTest|SyntheticProcessReviewComparisonTest|SyntheticRichReviewUiTest)' --no-ansi
+      - name: Scope
+        if: always()
+        run: echo "No public route, client editor, PII, CRM, Portal authentication or deploy."

@@ -1,0 +1,90 @@
+name: Sites F1-255 thirty-six offline CTA Chrome previews
+on:
+  pull_request:
+    paths:
+      - 'ci/f255_generate_cta_previews.php'
+      - 'ci/f255_secondary_cta_chromium.py'
+      - 'ci/f43_cdp.py'
+      - 'src/Production/StaticSiteRenderer.php'
+      - 'src/Production/SyntheticStructuredDraftAssembly.php'
+      - '.github/workflows/sites-f1-255-cta-chrome.yml'
+permissions:
+  contents: read
+jobs:
+  chrome-cta-gallery:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      APP_ENV: testing
+      GITHUB_ACTIONS: 'true'
+      SITES_F255_CTA_SCREENSHOT: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          extensions: mbstring,dom,xml
+          coverage: none
+      - name: Syntax and Composer fixture-only setup
+        run: |
+          set -euo pipefail
+          php -l ci/f255_generate_cta_previews.php
+          python3 -m py_compile ci/f255_secondary_cta_chromium.py ci/f43_cdp.py
+          cd apps/sites
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts
+          cd ../..
+          php ci/f255_generate_cta_previews.php
+          test "$(find apps/sites/storage/app/private/f255-cta-previews -type f | wc -l)" = 13
+      - name: Render 36 real Chrome screenshots and check both CTA modes
+        run: |
+          set -euo pipefail
+          browser=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
+          if test -z "$browser"; then
+            echo 'Only a preinstalled browser is allowed; no download'
+            exit 1
+          fi
+          # F1-286: retry exactly once only for the cold CDP port failure
+          # with NO screenshots written. QA failures after rendering do not
+          # qualify and must retain their original failure code.
+          dir='apps/sites/storage/app/private/f255-cta-screenshots'
+          startup_log="$RUNNER_TEMP/sites-f286-cta-startup.log"
+          set +e
+          python3 ci/f255_secondary_cta_chromium.py "$browser" >"$startup_log" 2>&1
+          first_status=$?
+          set -e
+          cat "$startup_log"
+          if test "$first_status" -ne 0; then
+            if grep -Fq 'RuntimeError: F1-255 browser debug port unavailable' "$startup_log" \
+              && test -d "$dir" && ! test -L "$dir" \
+              && test "$(find "$dir" -mindepth 1 -maxdepth 1 | wc -l)" -eq 0; then
+              echo 'One fresh-profile retry after a pre-render Chrome CDP port timeout'
+              rmdir "$dir"
+              sleep 2
+              python3 ci/f255_secondary_cta_chromium.py "$browser"
+            else
+              exit "$first_status"
+            fi
+          fi
+          rm -f "$startup_log"
+          test "$(find "$dir" -maxdepth 1 -type f | wc -l)" = 37
+          grep -Fq '"publishable": false' "$dir/screenshot-manifest.json"
+          grep -Fq '"keyboardLocalCtaVerified": true' "$dir/screenshot-manifest.json"
+          grep -Fq '"textReflow200PercentVerified": true' "$dir/screenshot-manifest.json"
+      - name: Upload fictional evidence with short retention only
+        uses: actions/upload-artifact@v4
+        with:
+          name: imagine-sites-cta-chrome-private-fictional
+          path: apps/sites/storage/app/private/f255-cta-screenshots/
+          retention-days: 3
+          if-no-files-found: error
+      - name: Clean the CI-only HTML and screenshots
+        if: always()
+        run: |
+          rm -rf apps/sites/storage/app/private/f255-cta-previews
+          rm -rf apps/sites/storage/app/private/f255-cta-screenshots
+      - name: Scope
+        if: always()
+        run: echo 'Fictional about:blank screenshots only; no public browser, customer, CRM, DNS, Cloudflare, VPS or deploy.'

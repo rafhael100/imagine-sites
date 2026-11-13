@@ -1,0 +1,60 @@
+name: Sites F1-299 raw v3 Laravel lab intake (no operational HTTP)
+on:
+  pull_request:
+    paths:
+      - 'apps/sites/routes/web.php'
+      - 'apps/sites/app/Http/Middleware/SyntheticLabRouteFence.php'
+      - 'apps/sites/tests/Feature/SyntheticV3RawIntakeHttpTest.php'
+      - 'apps/sites/tests/Feature/SyntheticLabCachedRouteFenceTest.php'
+      - '.github/workflows/sites-f1-299-v3-laravel-raw-intake.yml'
+      - 'docs/SITES-F1-299-LARAVEL-V3-RAW-INTAKE-LAB.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  v3-raw-http-test-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer:v2
+          extensions: mbstring,xml,dom,curl,pdo,pdo_pgsql
+          coverage: none
+      - name: Compile test-only route, cached fence and exact wire
+        run: |
+          set -euo pipefail
+          php -l apps/sites/routes/web.php
+          php -l apps/sites/app/Http/Middleware/SyntheticLabRouteFence.php
+          php -l apps/sites/tests/Feature/SyntheticV3RawIntakeHttpTest.php
+          php -l apps/sites/tests/Feature/SyntheticLabCachedRouteFenceTest.php
+          php tests/f293-v3-canonical-json-security.php
+      - name: Install locked Laravel packages without scripts
+        working-directory: apps/sites
+        run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
+      - name: Deny v3 lab route under regular Artisan boot
+        working-directory: apps/sites
+        run: |
+          set -euo pipefail
+          ! php artisan route:list --json | grep -q '_lab/sites/v3/create-project'
+      - name: Run only in-process fictional raw-v3 tests and cached route fence
+        working-directory: apps/sites
+        run: |
+          php artisan test --no-ansi --filter=SyntheticV3RawIntakeHttpTest
+          php artisan test --no-ansi --filter=SyntheticLabCachedRouteFenceTest
+      - name: Verify production remains blocked
+        run: |
+          grep -Eq '"status"\s*:\s*"BLOCKED"' config/operational-readiness.json
+          grep -Eq '"non_operational"\s*:\s*true' config/operational-readiness.json
+          test ! -f apps/sites/routes/api.php

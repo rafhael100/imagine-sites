@@ -1,0 +1,41 @@
+name: Sites CRM retry final original T0 fence (offline)
+on:
+  pull_request:
+    paths:
+      - 'src/Integration/SyntheticCrmPostBindingDeadlineFenceV1.php'
+      - 'tests/crm-post-binding-t0-fence.php'
+      - '.github/workflows/sites-crm-retry-postbinding-t0.yml'
+permissions:
+  contents: read
+jobs:
+  final-deadline-check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring,dom,xml
+          tools: none
+          coverage: none
+      - name: Ensure no retry after immutable 432h deadline
+        run: |
+          set -euo pipefail
+          php -l src/Integration/SyntheticCrmPostBindingDeadlineFenceV1.php
+          php -l tests/crm-post-binding-t0-fence.php
+          php tests/f277-lead-retry-deadline.php
+          php tests/f278-crm-response-policy.php
+          php tests/f279-crm-backoff-composition.php
+          php tests/f280-crm-pinned-retry-context.php
+          php tests/f281-crm-retry-binding-recheck.php
+          php tests/crm-post-binding-t0-fence.php
+      - name: Scope
+        if: always()
+        run: echo 'Offline synthetic timestamp assessment only. No PII, provider credentials, network, actual CRM retry or deploy.'

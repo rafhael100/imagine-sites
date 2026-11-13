@@ -1,0 +1,324 @@
+#!/usr/bin/env python3
+"""F1-329 adversarial synthetic private ZIP tests; all tempfile/offline."""
+from __future__ import annotations
+
+import hashlib
+import io
+import json
+import os
+from pathlib import Path
+import tempfile
+import zipfile
+
+import f329_private_synthetic_zip as archive
+
+
+def deny(action, label: str) -> None:
+    try:
+        action()
+    except (ValueError, OSError, zipfile.BadZipFile):
+        return
+    raise AssertionError(f"unsafe archive accepted: {label}")
+
+
+def synthetic_html(product: str) -> bytes:
+    body = "onepage" if product == "onepage" else "landing-page"
+    return f"""<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; form-action 'none'; object-src 'none'">
+<title>Empresa fictícia — laboratório privado</title>
+</head>
+<body data-site-product="{body}">
+<main id="principal"><h1>Prévia fictícia</h1>
+<a href="#contato">Contato de teste</a>
+<section id="contato"><h2>Contato fictício</h2></section>
+</main>
+</body></html>""".encode("utf-8")
+
+
+def bundle(product: str) -> tuple[dict[str, bytes], str, str]:
+    html = synthetic_html(product)
+    artifact = hashlib.sha256(html).hexdigest()
+    manifest = {
+        "schemaVersion": "sites.synthetic.bundle.v1",
+        "tenantRef": "tenant.synthetic",
+        "siteRef": "site.synthetic",
+        "releaseRef": "release.synthetic",
+        "artifactDigest": artifact,
+        "artifactSizeBytes": len(html),
+        "syntheticOnly": True,
+        "publishable": False,
+        "officialClientAcceptance": False,
+    }
+    raw = (json.dumps(manifest, ensure_ascii=False, indent=4) + "\n").encode()
+    files = {"index.html": html, "release-manifest.json": raw}
+    bundled = hashlib.sha256(html + b"\x00" + raw).hexdigest()
+    return files, artifact, bundled
+
+
+def owner_file(path: Path, data: bytes) -> None:
+    fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    try:
+        os.write(fd, data)
+    finally:
+        os.close(fd)
+
+
+def mutate_zip(files: dict[str, bytes], names: list[str],
+               comment: bytes = b"") -> bytes:
+    stream = io.BytesIO()
+    with zipfile.ZipFile(stream, mode="w", allowZip64=False) as writer:
+        writer.comment = comment
+        for name in names:
+            info = zipfile.ZipInfo(name, date_time=archive.STAMP)
+            info.create_system = 3
+            info.external_attr = 0o100600 << 16
+            info.compress_type = zipfile.ZIP_STORED
+            writer.writestr(info, files.get(name, b"bad"))
+    return stream.getvalue()
+
+
+def main() -> None:
+    count = 0
+    with tempfile.TemporaryDirectory(prefix="sites-f329-") as root:
+        base = Path(root)
+        for product in ("onepage", "landing_page"):
+            private = base / product
+            private.mkdir(mode=0o700)
+            files, artifact, bundle_digest = bundle(product)
+            for name, data in files.items():
+                owner_file(private / name, data)
+            # F1-337: a private parent does not excuse exposed 0644 input.
+            exposed = private / "index.html"
+            os.chmod(exposed, 0o644)
+            deny(lambda: archive.read_private_bundle(private),
+                 "world-readable synthetic source file")
+            os.chmod(exposed, 0o600)
+            count += 1
+            archive.check_files(files, product, artifact, bundle_digest)
+            scope = ("tenant.synthetic", "site.synthetic", "release.synthetic")
+            archive.require_pinned_scope(files, *scope)
+            count += 1
+            for foreign in (
+                ("tenant.other", scope[1], scope[2]),
+                (scope[0], "site.other", scope[2]),
+                (scope[0], scope[1], "release.other"),
+                ("", scope[1], scope[2]),
+            ):
+                deny(lambda wrong=foreign: archive.require_pinned_scope(
+                    files, *wrong,
+                ), "archive belongs to another project or no pinned scope")
+                count += 1
+
+            # Cross-tenant ZIP may have fully consistent re-computed hashes,
+            # yet cannot pass a scope pinned independently from the ZIP.
+            other = dict(files)
+            foreign_meta = json.loads(files["release-manifest.json"])
+            foreign_meta["tenantRef"] = "tenant.other"
+            foreign_manifest = (
+                json.dumps(foreign_meta, ensure_ascii=False, indent=4) + "\n"
+            ).encode("utf-8")
+            other["release-manifest.json"] = foreign_manifest
+            other_bundle = archive.sha(
+                files["index.html"] + b"\x00" + foreign_manifest
+            )
+            archive.check_files(other, product, artifact, other_bundle)
+            deny(lambda: archive.require_pinned_scope(other, *scope),
+                 "consistent cross-tenant ZIP rejected against project pin")
+            count += 1
+
+            # F1-336: a self-consistent hash must not turn a differently
+            # encoded but parseable JSON manifest into an approved backup.
+            manifest_obj = json.loads(files["release-manifest.json"])
+            for rewritten in (
+                json.dumps(manifest_obj, separators=(",", ":")).encode("utf-8"),
+                files["release-manifest.json"].replace(
+                    b'"tenantRef"', b'"\\u0074enantRef"', 1
+                ),
+                files["release-manifest.json"].rstrip(b"\n"),
+            ):
+                assert rewritten != files["release-manifest.json"]
+                altered = dict(files)
+                altered["release-manifest.json"] = rewritten
+                altered_digest = archive.sha(
+                    files["index.html"] + b"\x00" + rewritten
+                )
+                deny(lambda changed=altered, pin=altered_digest: archive.check_files(
+                    changed, product, artifact, pin
+                ), "noncanonical JSON accepted with recomputed hash")
+                deny(lambda changed=altered, pin=altered_digest: archive.verify_zip(
+                    archive.make_zip(changed), product, artifact, pin
+                ), "ZIP accepted ambiguous manifest JSON")
+                count += 1
+
+            raw = archive.make_zip(files)
+            assert archive.make_zip(files) == raw
+            assert archive.verify_zip(raw, product, artifact, bundle_digest) == files
+            count += 1
+
+            # F1-334: an archive cannot be created in an operator-selected
+            # shared/symlinked directory, even with a 0600 archive inode.
+            shared = base / f"shared-f334-{product}"
+            shared.mkdir(mode=0o755)
+            os.chmod(shared, 0o755)
+            shared_zip = shared / "private.zip"
+            deny(lambda: archive.write_exclusive(shared_zip, raw),
+                 "group-traversable archive destination")
+            assert not shared_zip.exists()
+            count += 1
+            owner_file(shared_zip, raw)
+            deny(lambda: archive.read_owner_regular(shared_zip),
+                 "group-traversable existing archive source")
+            count += 1
+            alias_dir = base / f"symlink-directory-{product}"
+            alias_dir.symlink_to(base, target_is_directory=True)
+            deny(lambda: archive.write_exclusive(
+                alias_dir / f"sites-f329-{product}.zip", raw,
+            ), "symlinked parent directory")
+            count += 1
+
+            # F1-335: a storage layer can ACK the correct length while
+            # writing altered bytes. Only independent post-write readback
+            # may report a successful archive.
+            corrupt_path = base / f"corrupt-f335-{product}.zip"
+            write_original = archive.os.write
+            try:
+                def write_wrong_bytes(fd: int, payload: bytes) -> int:
+                    return write_original(fd, b"X" + payload[1:])
+                archive.os.write = write_wrong_bytes
+                deny(lambda: archive.write_exclusive(corrupt_path, raw),
+                     "ZIP write silently corrupted while returning full size")
+            finally:
+                archive.os.write = write_original
+            assert not corrupt_path.exists()
+            count += 1
+
+            partial_path = base / f"short-f335-{product}.zip"
+            try:
+                archive.os.write = lambda fd, payload: 0
+                deny(lambda: archive.write_exclusive(partial_path, raw),
+                     "short ZIP write must fail without leaving a valid backup")
+            finally:
+                archive.os.write = write_original
+            assert not partial_path.exists()
+            count += 1
+
+            # Simulate an archive directory owned by another UNIX uid:
+            # even with 0700 bits it must not pass the owner boundary.
+            real_uid = archive.os.geteuid
+            wrong_owner_path = base / f"wrong-owner-f337-{product}.zip"
+            try:
+                archive.os.geteuid = lambda: real_uid() + 1
+                deny(lambda: archive.read_private_bundle(private),
+                     "synthetic source owned by a different effective uid")
+                deny(lambda: archive.write_exclusive(wrong_owner_path, raw),
+                     "ZIP output directory belongs to another uid")
+            finally:
+                archive.os.geteuid = real_uid
+            assert not wrong_owner_path.exists()
+            count += 2
+
+            destination = base / f"sites-f329-{product}.zip"
+            archive.write_exclusive(destination, raw)
+            os.chmod(destination, 0o644)
+            deny(lambda: archive.read_owner_regular(destination),
+                 "archive file is group/world-readable")
+            os.chmod(destination, 0o600)
+            count += 1
+            assert archive.read_owner_regular(destination) == raw
+            assert archive.verify_zip(
+                archive.read_owner_regular(destination), product,
+                artifact, bundle_digest
+            ) == files
+            count += 1
+            assert archive.read_private_bundle(private) == files
+            count += 1
+            deny(lambda: archive.write_exclusive(destination, raw),
+                 "existing private backup overwritten")
+            assert archive.read_owner_regular(destination) == raw
+            count += 1
+
+            deny(lambda: archive.verify_zip(
+                raw, product, "0" * 64, bundle_digest
+            ), "wrong digest pin")
+            count += 1
+            deny(lambda: archive.verify_zip(
+                raw, "landing_page" if product == "onepage" else "onepage",
+                artifact, bundle_digest,
+            ), "cross-product archive")
+            count += 1
+            deny(lambda: archive.verify_zip(
+                raw + b"junk", product, artifact, bundle_digest
+            ), "ZIP trailing garbage")
+            count += 1
+            deny(lambda: archive.verify_zip(
+                b"junk" + raw, product, artifact, bundle_digest
+            ), "ZIP prepended garbage")
+            count += 1
+            deny(lambda: archive.verify_zip(
+                mutate_zip(files, ["release-manifest.json", "index.html"]),
+                product, artifact, bundle_digest
+            ), "archive entry order swapped")
+            count += 1
+            deny(lambda: archive.verify_zip(
+                mutate_zip(files, ["index.html", "index.html"]),
+                product, artifact, bundle_digest
+            ), "duplicate ZIP filename")
+            count += 1
+            deny(lambda: archive.verify_zip(
+                mutate_zip(files, ["../evil", "release-manifest.json"]),
+                product, artifact, bundle_digest
+            ), "zip-slip traversal")
+            count += 1
+            deny(lambda: archive.verify_zip(
+                mutate_zip(files, archive.ZIP_NAMES, comment=b"hidden"),
+                product, artifact, bundle_digest
+            ), "ZIP comment metadata")
+            count += 1
+            tampered = dict(files)
+            tampered["index.html"] += b"<script></script>"
+            deny(lambda: archive.check_files(
+                tampered, product, artifact, bundle_digest
+            ), "tampered private HTML")
+            count += 1
+            altered_manifest = json.loads(files["release-manifest.json"])
+            altered_manifest["publishable"] = True
+            raw_manifest = json.dumps(altered_manifest).encode()
+            bad_files = dict(files, **{"release-manifest.json": raw_manifest})
+            new_bundle = hashlib.sha256(files["index.html"] +
+                                        b"\x00" + raw_manifest).hexdigest()
+            deny(lambda: archive.check_files(
+                bad_files, product, artifact, new_bundle
+            ), "recomputed manifest hash with publication flag")
+            count += 1
+
+            link = private / "unexpected"
+            link.symlink_to(private / "index.html")
+            deny(lambda: archive.read_private_bundle(private),
+                 "unexpected symlink inside private bundle")
+            link.unlink()
+            count += 1
+            second = private / "hardlink"
+            os.link(private / "index.html", second)
+            deny(lambda: archive.read_private_bundle(private),
+                 "hardlink source file")
+            second.unlink()
+            count += 1
+
+            alias = base / f"symlink-{product}.zip"
+            alias.symlink_to(destination)
+            deny(lambda: archive.read_owner_regular(alias),
+                 "symlinked ZIP alias")
+            alias.unlink()
+            count += 1
+
+            assert archive.read_owner_regular(destination) == raw
+            count += 1
+    print(f"{count} F1-329 offline deterministic private ZIP/negative checks passed")
+
+
+if __name__ == "__main__":
+    main()
