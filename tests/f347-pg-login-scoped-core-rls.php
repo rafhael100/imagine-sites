@@ -129,7 +129,8 @@ SELECT
   has_table_privilege(current_user, 'public.sites_drafts', 'UPDATE'),
   has_schema_privilege(current_user, 'public', 'CREATE')
 SQL)->fetch(PDO::FETCH_NUM);
-    f347Check($rights === [true,true,false,false,false,false],
+    f347Check(array_map(static fn($v):bool=>in_array($v,[true,'t','1',1],true), $rights) ===
+              [true,true,false,false,false,false],
         'mapped login has SELECT/INSERT but cannot UPDATE/DELETE or create in public');
 }
 f347Check(f347SqlDenied(static fn()=> $a->exec(
