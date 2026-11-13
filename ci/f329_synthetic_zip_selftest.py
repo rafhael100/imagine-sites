@@ -128,6 +128,27 @@ def main() -> None:
             assert archive.verify_zip(raw, product, artifact, bundle_digest) == files
             count += 1
 
+            # F1-334: an archive cannot be created in an operator-selected
+            # shared/symlinked directory, even with a 0600 archive inode.
+            shared = base / f"shared-f334-{product}"
+            shared.mkdir(mode=0o755)
+            os.chmod(shared, 0o755)
+            shared_zip = shared / "private.zip"
+            deny(lambda: archive.write_exclusive(shared_zip, raw),
+                 "group-traversable archive destination")
+            assert not shared_zip.exists()
+            count += 1
+            owner_file(shared_zip, raw)
+            deny(lambda: archive.read_owner_regular(shared_zip),
+                 "group-traversable existing archive source")
+            count += 1
+            alias_dir = base / f"symlink-directory-{product}"
+            alias_dir.symlink_to(base, target_is_directory=True)
+            deny(lambda: archive.write_exclusive(
+                alias_dir / f"sites-f329-{product}.zip", raw,
+            ), "symlinked parent directory")
+            count += 1
+
             destination = base / f"sites-f329-{product}.zip"
             archive.write_exclusive(destination, raw)
             assert archive.read_owner_regular(destination) == raw
