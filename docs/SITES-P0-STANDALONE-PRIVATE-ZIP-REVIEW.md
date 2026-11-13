@@ -15,3 +15,7 @@ A validação do PR é o workflow offline `.github/workflows/sites-p0-private-ar
 **Importante:** esta extração **não é** um backup real de clientes, não cifra arquivos, não autentica os pins de identidade ou digest, não recupera PostgreSQL/outbox, não restaura dados de empresas nem autoriza publicação. Os métodos de laboratório indicam expressamente escopo não autenticado e restauração não operacional. O usuário precisa de revisão AppSec independente; as proteções administrativas #281 e os dez critérios operacionais BLOCKED permanecem. Nenhum merge, deploy ou serviço real foi modificado.
 
 Este recorte permite uma revisão pequena de integridade e retenção em memória, sem aprovar simultaneamente os mais de mil commits acumulados no motor de Sites.
+
+## Sincronização F1-336/337
+
+O PR isolado acompanha também a verificação estrita da serialização canônica do manifesto JSON (rejeita JSON compacto, chave Unicode escapada e falta de newline, mesmo com hashes recomputados) e a validação do UID efetivo Unix e modo 0600 de arquivos ZIP/fonte sob pastas 0700. A suíte offline inclui casos adversariais correspondentes. O objetivo é manter este recorte de revisão pequeno **sem divergir do candidato integrado**. Ainda não oferece criptografia, assinaturas, autenticação de tenant ou backup de clientes reais.
