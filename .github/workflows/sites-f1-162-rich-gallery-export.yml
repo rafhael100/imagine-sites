@@ -1,0 +1,63 @@
+name: Sites F1-162 atomic offline gallery for rich Laravel review
+on:
+  pull_request:
+    paths:
+      - 'apps/sites/routes/console.php'
+      - 'apps/sites/tests/Feature/SyntheticRichReviewGalleryExportTest.php'
+      - '.github/workflows/sites-f1-162-rich-gallery-export.yml'
+permissions:
+  contents: read
+jobs:
+  rich-gallery:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring,xml,dom,curl,pdo,pdo_pgsql
+          tools: composer:v2
+          coverage: none
+      - name: Lint command and regression tests
+        run: |
+          set -euo pipefail
+          php -l apps/sites/routes/console.php
+          php -l apps/sites/tests/Feature/SyntheticRichReviewGalleryExportTest.php
+      - name: Install only locked in-process test dependencies
+        working-directory: apps/sites
+        run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
+      - name: Explicitly prove rich export is denied by default
+        working-directory: apps/sites
+        env:
+          APP_ENV: testing
+          SITES_SYNTHETIC_HTTP: '0'
+          SITES_SYNTHETIC_REVIEW_UI: '0'
+          SITES_SYNTHETIC_RICH_REVIEW: '0'
+          SITES_SYNTHETIC_RICH_EXPORT: '0'
+        run: |
+          set -euo pipefail
+          if php artisan sites:export-rich-gallery-fixture; then
+            echo "Rich gallery enabled without test-only switches" >&2
+            exit 1
+          fi
+          test ! -e storage/app/private/sites-f1-162-rich-gallery
+      - name: Test atomic rich gallery export and old gallery unchanged
+        working-directory: apps/sites
+        env:
+          APP_ENV: testing
+        run: |
+          set -euo pipefail
+          php artisan test --filter='(SyntheticRichReviewGalleryExportTest|SyntheticRichReviewUiTest|SyntheticStyleGalleryExportTest)' --no-ansi
+      - name: Remove any fictional artifact from ephemeral runner
+        if: always()
+        working-directory: apps/sites
+        run: |
+          rm -rf storage/app/private/sites-f1-162-rich-gallery
+          echo "No public site, customer data, screenshot upload, VPS, CRM or deploy."

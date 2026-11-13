@@ -18,7 +18,9 @@
             "Imagine\\Sites\\Domain\\": "../../src/Domain/",
             "Imagine\\Sites\\Production\\": "../../src/Production/",
             "Imagine\\Sites\\Integration\\": "../../src/Integration/",
-            "Imagine\\Sites\\Security\\": "../../src/Security/"
+            "Imagine\\Sites\\Security\\": "../../src/Security/",
+            "Imagine\\Sites\\Application\\": "../../src/Application/",
+            "Imagine\\Sites\\Persistence\\": "../../src/Persistence/"
         }
     },
     "autoload-dev": {

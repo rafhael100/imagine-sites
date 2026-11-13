@@ -1,0 +1,7 @@
+# F1-153 — Contrato mínimo de formulário Site × CRM com código real
+
+Esta etapa acrescenta ao Sites uma **inspeção pura e sintética** das regras mínimas de um formulário de contato: nome e pelo menos um contato plausível, e recusa quando e-mail/telefone foram enviados em formato inválido. O código não armazena, transmite nem registra os valores; o resultado contém apenas quatro booleanos agregados e todas as capacidades de coleta, gravação, envio CRM e ACK são **false**.
+
+Em vez de usar somente regras copiadas, a matriz `tests/f153-crm-sites-contact-minimum-parity.php` executa o código real do CRM (`LeadDraftFields`, `ImagineSiteFormMinimumInspector`, `ImagineSiteFormMinimumAssessment`) no commit imutável `0ee32ec1268047a52b5429622fb5f34716f818ae`, dentro do GitHub Actions PHP 8.3/8.4. A suíte compara ausência de nome/contato, e-mail ou telefone plausível, fornecimento de contato inválido mesmo com outro válido, limites de 1024 bytes, campos vazios, caracteres de controle e telefone longo, usando apenas exemplos **fictícios**.
+
+O formato telefônico é heurística provisória, não confirmação por SMS nem validação de identidade. **Passar nesta inspeção não concede consentimento, base legal LGPD, tratamento real de dados pessoais, IAM, anti-spam, idempotência ou entrega ao CRM.** Não existe endpoint, HTML form habilitado ou worker de transporte. Revisão AppSec/DBA e homologação seguem necessárias. OP04 #36 e 10/10 gates BLOCKED; PR draft, sem deploy, merge, VPS ou custo.

@@ -1,0 +1,75 @@
+name: Sites F1-241 six complete review packets from pinned integration diff
+on:
+  pull_request:
+    paths:
+      - 'ci/f240_integration_change_inventory.py'
+      - 'ci/f241_six_integration_review_packets.py'
+      - '.github/workflows/sites-f1-241-integration-review-packets.yml'
+      - 'docs/SITES-F1-241-SIX-REVIEW-PACKETS.md'
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  six-review-packets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Refresh read-only dev baseline
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin +refs/heads/dev:refs/remotes/origin/dev
+          test "$(git rev-parse refs/remotes/origin/dev)" = 71b8ffe51139d0e70ed32591b07f295fb7bf5fe3
+      - name: Test parser and review assignment categories
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ci/f240_integration_change_inventory.py ci/f241_six_integration_review_packets.py
+          python3 ci/f240_integration_change_inventory.py --self-test
+          python3 ci/f241_six_integration_review_packets.py --self-test
+      - name: Create six complete, traceable human review packages
+        run: |
+          set -euo pipefail
+          python3 ci/f240_integration_change_inventory.py \
+            --expected-base 71b8ffe51139d0e70ed32591b07f295fb7bf5fe3 \
+            --output "$RUNNER_TEMP/f240-source.json"
+          python3 ci/f241_six_integration_review_packets.py \
+            --input "$RUNNER_TEMP/f240-source.json" \
+            --outdir "$RUNNER_TEMP/sites-f241-review-packets"
+          python3 - <<'PY'
+          import json,os,hashlib
+          from pathlib import Path
+          d=Path(os.environ['RUNNER_TEMP'])/'sites-f241-review-packets'
+          m=json.loads((d/'review-packets.json').read_text())
+          assert m['mergeAuthorized'] is False
+          assert m['productionAuthorized'] is False
+          assert m['operationalGatesBlocked']==10
+          assert len(m['packets'])==6
+          assert m['fileCount']==sum(x['changedPaths'] for x in m['packets'])
+          assert m['independentReviewPaths']==sum(x['independentReviewPaths'] for x in m['packets'])
+          for item in m['packets']:
+              p=d/item['file']
+              assert p.is_file()
+              assert hashlib.sha256(p.read_bytes()).hexdigest()==item['sha256']
+          print('PASS F1-241 exact coverage and six SHA-linked reviewer documents')
+          PY
+      - name: Provide temporary reviewer packets, no code or deploy
+        uses: actions/upload-artifact@v4
+        with:
+          name: imagine-sites-six-code-review-packets
+          path: ${{ runner.temp }}/sites-f241-review-packets/
+          retention-days: 7
+          if-no-files-found: error
+      - name: Delete review files from runner
+        if: always()
+        run: |
+          rm -rf "$RUNNER_TEMP/sites-f241-review-packets"
+          rm -f "$RUNNER_TEMP/f240-source.json"
+      - name: Scope of review
+        if: always()
+        run: echo 'Six complete inventories only. Human approval, AppSec/DBA signoff, merge, Portal/CRM, VPS and Cloudflare remain external gates.'

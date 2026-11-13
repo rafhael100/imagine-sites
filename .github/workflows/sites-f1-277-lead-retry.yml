@@ -1,0 +1,38 @@
+name: Sites F1-277 fixed T0 lead retry scheduling (offline)
+on:
+  pull_request:
+    paths:
+      - 'src/Domain/SyntheticLeadRetryPlanV1.php'
+      - 'src/Domain/LeadDeadline.php'
+      - 'tests/f277-lead-retry-deadline.php'
+      - '.github/workflows/sites-f1-277-lead-retry.yml'
+permissions:
+  contents: read
+jobs:
+  retry-deadline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+          tools: none
+          coverage: none
+      - name: Validate original T0, fixed retry horizon and no operational authority
+        run: |
+          set -euo pipefail
+          php -l src/Domain/SyntheticLeadRetryPlanV1.php
+          php -l tests/f277-lead-retry-deadline.php
+          php tests/f277-lead-retry-deadline.php
+          php tests/f2-run.php
+      - name: Scope
+        if: always()
+        run: echo 'Pure in-memory time arithmetic; no PII, durable queue, CRM, network, client consent or deploy.'
