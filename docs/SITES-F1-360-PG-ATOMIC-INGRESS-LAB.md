@@ -21,3 +21,14 @@ A restrição de CHECK que simula falha de outbox existe **somente para testes**
 ## Limites e próximos gates
 
 Sem endpoint HTTP, migration operacional, publisher, dispatcher, reconciliador, banco de homologação permanente, backup/restore, Cloudflare, VPS, dados de cliente ou pagamentos. Integrar futuramente o comando autenticado da F1-356/359 a uma admissão atômica usando identidades S2S reais e fonte de revogação externa confiável requer avaliação específica. Os gates de readiness continuam false e os PRs #442/#443/novo F1-360 permanecem DRAFT/NO-GO. Não alterar main ou produzir efeitos em infraestrutura.
+
+
+## F1-361 — trabalhador de outbox com lease e confirmação (laboratório)
+
+Foi acrescentada uma segunda fixture SQL, executada apenas **depois** da F1-360, na mesma base descartável. Um login fictício separado (sites_f361_worker) recebe somente USAGE no schema e EXECUTE nas duas funções de worker. Ele não pode consultar ou alterar diretamente a tabela outbox, emitir novas admissões ou assumir roles de clientes.
+
+A função claim_next_outbox utiliza seleção FOR UPDATE SKIP LOCKED para retirar um único evento elegível por vez, gravando um token UUID de lease, validade de 1 a 60 segundos e contador de tentativas. Expiração permite novo claim com token distinto; eventos entregues ficam excluídos da seleção. A função ack_outbox só altera leased para delivered quando o token, a empresa, a operação e o prazo corrente correspondem.
+
+O teste f361-pg-outbox-worker.php comprova dois workers independentes, segundo worker pulando um evento bloqueado, ACK exato, recusa de ACK duplicado, token obsoleto após reaquisição, privilégio mínimo, rejeição de lease inválido e drenagem de cinco eventos sintéticos (seis tentativas totais por uma reentrega). A expiração é antecipada **apenas pela conexão administradora da fixture** para evitar sleeps no CI.
+
+**Limite determinante:** um ACK de banco **não comprova entrega externa** no Portal/CRM, nem possui comprovante assinado ou reconciliador. Este não é um dispatcher de produção. A prova de workers não cria endereços de entrega, rede, retries com backoff operacional, DLQ, monitoramento de custos, controles de LGPD ou SLA. A role e os tokens são inteiramente fictícios; não aplicar esse SQL sem desenho de identidade, observabilidade, restauração e revisão AppSec.
