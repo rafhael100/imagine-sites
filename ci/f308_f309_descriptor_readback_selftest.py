@@ -65,7 +65,19 @@ def main() -> None:
         base = Path(raw)
         directory = base / "private"
         directory.mkdir(mode=0o700)
-        html = b"totally-fictional-inert-html"
+        html = ("""<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; form-action 'none'; object-src 'none'">
+<title>Empresa fictícia — revisão local</title>
+</head>
+<body data-site-product="onepage">
+<main id="principal"><h1>Prévia demonstrativa</h1>
+<a href="#contato">Conhecer</a><section id="contato"><h2>Contato fictício</h2></section>
+</main></body></html>""").encode("utf-8")
         manifest = b'{"syntheticOnly":true}'
         index = directory / "index.html"
         meta = directory / "release-manifest.json"
@@ -156,6 +168,35 @@ def main() -> None:
         ), "unexpected file inventory")
         rogue.unlink()
         checks += 1
+        contract.verify(report, directory, "onepage", artifact, bundle)
+        checks += 1
+
+        # F1-310: hash-matched JSON with falsely asserted all-true QA
+        # cannot disguise unsafe inert HTML from the independent parser.
+        bad_html = html.replace(
+            b"<h1>Pr", b"<script>alert(1)</script><h1>Pr", 1
+        )
+        index.write_bytes(bad_html)
+        forged_report, forged_artifact, forged_bundle = fixture_report(
+            "onepage", bad_html, manifest
+        )
+        denied(lambda: contract.verify(
+            forged_report, directory, "onepage", forged_artifact, forged_bundle
+        ), "forged all-true QA with executable HTML")
+        checks += 1
+        bad_html = html.replace(
+            b'<meta name="robots" content="noindex, nofollow">',
+            b'<meta name="robots" content="index, follow">'
+        )
+        index.write_bytes(bad_html)
+        forged_report, forged_artifact, forged_bundle = fixture_report(
+            "onepage", bad_html, manifest
+        )
+        denied(lambda: contract.verify(
+            forged_report, directory, "onepage", forged_artifact, forged_bundle
+        ), "forged all-true QA with indexable HTML")
+        checks += 1
+        index.write_bytes(html)
         contract.verify(report, directory, "onepage", artifact, bundle)
         checks += 1
 
