@@ -15,6 +15,7 @@ on:
       - 'apps/sites/routes/console.php'
       - 'apps/sites/tests/Feature/SyntheticReleaseBundleCommandTest.php'
       - 'ci/f307_private_qa_json_contract.py'
+      - 'ci/f308_f309_descriptor_readback_selftest.py'
       - '.github/workflows/sites-f1-24-release-bundle.yml'
       - 'docs/SITES-F1-24-RELEASE-BUNDLE.md'
 
@@ -55,6 +56,7 @@ jobs:
           php tests/f300-private-bundle-process-lock.php
           php tests/f301-private-regular-file-read.php
           php tests/f27-offline-preview-audit.php
+          python3 ci/f308_f309_descriptor_readback_selftest.py
       - name: Install locked Laravel dependencies without scripts
         working-directory: apps/sites
         run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
