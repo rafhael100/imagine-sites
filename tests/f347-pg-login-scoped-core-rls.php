@@ -64,6 +64,11 @@ foreach([
     "REVOKE ALL ON public.sites_f347_login_map FROM PUBLIC",
     // Prevent pg_temp table shadowing through default PUBLIC TEMP permission.
     "REVOKE TEMPORARY ON DATABASE sites_f93_lab FROM PUBLIC",
+    // F1-353: deny new unbound logins implicit database access.
+    "REVOKE CONNECT ON DATABASE sites_f93_lab FROM PUBLIC",
+    "CREATE ROLE sites_f353_unbound LOGIN NOINHERIT NOSUPERUSER
+         NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS
+         PASSWORD 'f353-fictional-unbound-only'",
     "INSERT INTO public.sites_f347_login_map
          (login_name,tenant_ref,active,revision) VALUES
          ('sites_f347_a','tenant-f93-a',true,1),
@@ -99,6 +104,27 @@ SQL,
 
 $a=new PDO($dsn,'sites_f347_a','f347-fictional-org-a-only',$opts);
 $b=new PDO($dsn,'sites_f347_b','f347-fictional-org-b-only',$opts);
+// F1-353: prove a syntactically valid but unbound DB login cannot even
+// connect; all privileges are checked on the real disposable PG18 server.
+$allowed = $admin->query(<<<'SQL'
+SELECT
+ has_database_privilege('sites_f347_a','sites_f93_lab','CONNECT'),
+ has_database_privilege('sites_f347_b','sites_f93_lab','CONNECT'),
+ has_database_privilege('sites_f353_unbound','sites_f93_lab','CONNECT')
+SQL)->fetch(PDO::FETCH_NUM);
+f347Check(array_map(
+    static fn($v):bool=>in_array($v,[true,'t','1',1],true), $allowed
+) === [true,true,false], 'only registered lab logins have database CONNECT');
+$unboundDenied=false;
+try {
+    new PDO($dsn,'sites_f353_unbound','f353-fictional-unbound-only',$opts);
+} catch (PDOException $e) {
+    $unboundDenied=str_contains(strtolower($e->getMessage()),
+        'permission denied for database');
+}
+f347Check($unboundDenied,
+    'unbound login cannot connect even with a valid fictional password');
+
 f347Check((string)$a->query('SELECT session_user')->fetchColumn()==='sites_f347_a' &&
           (string)$b->query('SELECT session_user')->fetchColumn()==='sites_f347_b',
           'two physically independent restricted DB logins');
