@@ -19,3 +19,17 @@ Os checks de banco **não habilitam** os dez gates de `config/operational-readin
 ### Revisão recomendada
 
 O DBA deve conferir a função `SECURITY DEFINER`, `search_path`, role e privilégios, RLS FORCE/USING/WITH CHECK, efeitos de `session_user`, lock `FOR SHARE`, tratamento de revogação e limites de pool multiempresa. AppSec deve validar que dados HTTP/Portal jamais controlam a autoridade SQL e que não existem caminhos de bypass por credencial ou service role. Somente após esses pareceres caberá decidir uma implementação realmente operacional.
+
+### F1-350 / F1-351 — verificações adicionais de privilégio mínimo (13/11/2026)
+
+Na fixture descartável F1-347, dois logins SQL independentes agora exercitam os seguintes cenários negativos:
+
+- **F1-350:** SELECT/INSERT permitidos, UPDATE/DELETE e CREATE negados; `SET SESSION AUTHORIZATION` entre empresas negado.
+- **F1-351:** login de empresa não pode assumir a role `postgres`, desabilitar RLS, excluir a policy isoladora, remover a função `SECURITY DEFINER` nem conceder acesso ao mapping privado; modificar `search_path` da sessão não altera o vínculo de tenant da função com caminho seguro.
+- Tudo permanece dentro de `tests/f347-pg-login-scoped-core-rls.php`, invocado na matriz PostgreSQL 18 / PHP 8.3 e PHP 8.4. Sem endpoints reais, credenciais operacionais ou dados de clientes.
+
+**Evidência concluída:** no commit `1f507a77e95c2efb75cad2c0e53f7fc41e1a7b2f`, os jobs PostgreSQL 18 / PHP 8.3 e 8.4 e o guard anti-deploy concluíram com `success`: [run PG18 #43474548661](https://github.com/rafhael100/imagine-sites/actions/runs/43474548661), [guard #43474548582](https://github.com/rafhael100/imagine-sites/actions/runs/43474548582).
+
+**Nova alteração F1-351:** commit `a9b59b03f51fedd30ae96c2789d4603e64e263d6` ainda depende da própria execução de CI no HEAD atualizado. Não interpretar os resultados anteriores como confirmação de F1-351.
+
+**Riscos ainda abertos:** RLS por GUC no schema Laravel oficial continua falsificável por executor SQL arbitrário; roles individuais são somente um desenho de laboratório; o controle real Portal↔Sites, secrets, restauração/revogação cross-service, pooling, parecer DBA/AppSec e proteção das branches continuam pendentes. **NO-GO:** nenhuma migração destas políticas alternativas para produção sem projeto aprovado e homologação operacional.
