@@ -62,12 +62,12 @@ final readonly class SyntheticReleaseBundle
         ReleaseManifest $expected,
         string $expectedBundleDigest,
     ): bool {
-        if (!preg_match('/\\A[a-f0-9]{64}\\z/D', $expectedBundleDigest) ||
+        if (!preg_match('/\A[a-f0-9]{64}\z/D', $expectedBundleDigest) ||
             !self::verifyFiles($files, $expected)) {
             return false;
         }
         $actual = hash('sha256',
-            $files['index.html']."\\0".$files['release-manifest.json']);
+            $files['index.html']."\0".$files['release-manifest.json']);
         return hash_equals($expectedBundleDigest, $actual);
     }
 
