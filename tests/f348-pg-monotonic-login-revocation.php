@@ -166,5 +166,30 @@ f348Check((int)$admin->query(
     )->fetchColumn()===1,
     'revocation tests never mutate original fictional project records');
 
+// F1-354: negative proof of the restoration authority boundary.
+// UPDATE/DELETE triggers are NOT a durable revocation source against a
+// privileged replacement of the entire table (TRUNCATE + restore).
+// Do not commit any of this synthetic bypass: keep every original row.
+$admin->beginTransaction();
+try {
+    $admin->exec('TRUNCATE public.sites_f347_login_map');
+    $admin->exec(<<<'SQL'
+INSERT INTO public.sites_f347_login_map
+ (login_name,tenant_ref,active,revision)
+ VALUES ('sites_f347_b','tenant-f93-b',true,1)
+SQL);
+    $simulatedRestore=f348Scope($admin);
+    f348Check(count($simulatedRestore)===1 &&
+        $simulatedRestore[0]['login_name']==='sites_f347_b' &&
+        in_array($simulatedRestore[0]['active'],[true,'t','1'],true) &&
+        (int)$simulatedRestore[0]['revision']===1,
+        'negative proof: DB-owner table restore can rewind local revocation');
+} finally {
+    if($admin->inTransaction())$admin->rollBack();
+}
+f348Check(f348Scope($admin)===$after &&
+    (int)$b->query('SELECT COUNT(*) FROM sites_projects')->fetchColumn()===0,
+    'uncommitted restore simulation rolled back; revoked login remains denied');
+
 echo "$checks F1-348 one-way DB login revocation checks passed.\n";
 echo "NO-GO: laboratory trigger is not operational Portal IAM or pooled tenant access.\n";
