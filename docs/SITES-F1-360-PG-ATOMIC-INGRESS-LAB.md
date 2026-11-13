@@ -32,3 +32,16 @@ A função claim_next_outbox utiliza seleção FOR UPDATE SKIP LOCKED para retir
 O teste f361-pg-outbox-worker.php comprova dois workers independentes, segundo worker pulando um evento bloqueado, ACK exato, recusa de ACK duplicado, token obsoleto após reaquisição, privilégio mínimo, rejeição de lease inválido e drenagem de cinco eventos sintéticos (seis tentativas totais por uma reentrega). A expiração é antecipada **apenas pela conexão administradora da fixture** para evitar sleeps no CI.
 
 **Limite determinante:** um ACK de banco **não comprova entrega externa** no Portal/CRM, nem possui comprovante assinado ou reconciliador. Este não é um dispatcher de produção. A prova de workers não cria endereços de entrega, rede, retries com backoff operacional, DLQ, monitoramento de custos, controles de LGPD ou SLA. A role e os tokens são inteiramente fictícios; não aplicar esse SQL sem desenho de identidade, observabilidade, restauração e revisão AppSec.
+
+
+## F1-362 — paridade do comando assinado com a admissão transacional
+
+O argumento esperado de empresa foi adicionado à função SQL de admissão: a empresa vinda do comando assinado deve coincidir com a empresa vinculada ao session_user do PostgreSQL. Um pedido assinado válido para outra empresa não pode ser admitido pela conexão SQL atual. Essa verificação é adicional às assinaturas e evita o risco de misatribuição de projetos entre contas.
+
+Um teste CI separado usa código candidato real e pinado de dois repositórios, ambos apenas leitura:
+- Imagine Portal, encoder e assinador de CreateProject em bf1b2794de4d6000f120ffa2b1e6dd557f34c35e
+- Imagine Sites, verificadores de assinatura e revogação do PR #443 em 21732e9558b730e38a6845adb593d29f309ff6a9
+
+O fixture gera pedidos Onepage e Landing Page usando o encoder candidato Portal, valida o envelope HMAC e duas atestações de autoridade fictícias, e então grava a operação por um login SQL de laboratório da empresa B. Testa tentativas duplicadas com novos nonces, revogação assinada, manipulação de tenant e rejeição por PostgreSQL quando a assinatura autoriza A mas a conexão SQL pertence a B. O resultado esperado são dois novos registros e seus eventos outbox em uma única transação cada.
+
+**Ainda não é integração operacional:** Portal não envia HTTP, autoridade externa e pagamento são simulados, chaves são públicas e somente fictícias, e os dados não persistem fora do job efêmero. O teste é uma compatibilidade de três componentes reais de código, mas não comprova que serviços implantados confiam nas fontes certas. CI específica será registrada somente após execução comprovada.
