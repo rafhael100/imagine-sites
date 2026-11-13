@@ -7,6 +7,8 @@ on:
       - 'tests/f361-pg-outbox-worker.php'
       - 'tests/f362-pinned-portal-to-pg-outbox.php'
       - 'tests/f363-pg-durable-nonce.php'
+      - 'tests/f364-transactional-signed-ingress-adapter.php'
+      - 'src/Persistence/LabTransactionalSignedIngressV1.php'
       - 'tests/fixtures/f363-pg-durable-nonce.sql'
       - 'tests/fixtures/f361-pg-outbox-worker.sql'
       - '.github/workflows/sites-f360-pg-durable-admission.yml'
@@ -42,6 +44,7 @@ jobs:
       SITES_F361_OUTBOX_LAB: '1'
       SITES_F362_CROSS_STACK_LAB: '1'
       SITES_F363_NONCE_LAB: '1'
+      SITES_F364_BRIDGE_LAB: '1'
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: '5432'
@@ -77,6 +80,8 @@ jobs:
           php -l tests/f361-pg-outbox-worker.php
           php -l tests/f362-pinned-portal-to-pg-outbox.php
           php -l tests/f363-pg-durable-nonce.php
+          php -l src/Persistence/LabTransactionalSignedIngressV1.php
+          php -l tests/f364-transactional-signed-ingress-adapter.php
           php -r 'if (!extension_loaded("pdo_pgsql")) exit(1);'
       - name: Fail closed without explicit opt-in
         run: |
@@ -124,6 +129,10 @@ jobs:
         run: |
           set -euo pipefail
           SITES_F362_PORTAL_PATH="$GITHUB_WORKSPACE/portal-candidate" SITES_F362_SITES_PATH="$GITHUB_WORKSPACE/sites-signed-candidate" php tests/f363-pg-durable-nonce.php
+      - name: Reusable signed and transactional ingress adapter negative and happy paths
+        run: |
+          set -euo pipefail
+          SITES_F362_PORTAL_PATH="$GITHUB_WORKSPACE/portal-candidate" SITES_F362_SITES_PATH="$GITHUB_WORKSPACE/sites-signed-candidate" php tests/f364-transactional-signed-ingress-adapter.php
       - name: Scope limitation
         if: always()
         run: |
