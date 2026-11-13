@@ -258,6 +258,50 @@ final class SyntheticReleaseBundleCommandTest extends TestCase
         }
     }
 
+    public function test_private_verifier_refuses_symlink_hardlink_and_oversized_readback(): void
+    {
+        putenv('SITES_SYNTHETIC_BUNDLE=1');
+        putenv('SITES_SYNTHETIC_VERIFY=1');
+        self::assertSame(0,Artisan::call('sites:package-fixture',
+            ['product'=>'onepage']));
+        $dir=$this->path('onepage');
+        $index=$dir.'/index.html';
+        $manifest=$dir.'/release-manifest.json';
+        $html=(string)file_get_contents($index);
+        $json=(string)file_get_contents($manifest);
+        $args=[
+            'product'=>'onepage',
+            'artifactDigest'=>hash('sha256',$html),
+            'bundleDigest'=>hash('sha256',$html."\0".$json),
+        ];
+
+        $backup=storage_path('app/private/.f301-onepage-index-backup');
+        self::assertTrue(rename($index,$backup));
+        try {
+            self::assertTrue(symlink($backup,$index));
+            self::assertSame(1,Artisan::call('sites:verify-fixture-bundle',$args),
+                'A path swap to symlink must be denied before reading');
+            unlink($index);
+            self::assertTrue(link($backup,$index));
+            self::assertSame(1,Artisan::call('sites:verify-fixture-bundle',$args),
+                'A hardlinked payload must not be accepted as a private file');
+        } finally {
+            if (is_file($index) || is_link($index)) @unlink($index);
+            if (is_file($backup)) rename($backup,$index);
+        }
+        self::assertSame($html,file_get_contents($index));
+        self::assertSame(0,Artisan::call('sites:verify-fixture-bundle',$args));
+
+        file_put_contents($manifest,str_repeat('x',8193));
+        try {
+            self::assertSame(1,Artisan::call('sites:verify-fixture-bundle',$args),
+                'Oversized manifest rejected before full read');
+        } finally {
+            file_put_contents($manifest,$json);
+        }
+        self::assertSame(0,Artisan::call('sites:verify-fixture-bundle',$args));
+    }
+
     public function test_landing_is_supported_with_no_executable_forms(): void
     {
         putenv('SITES_SYNTHETIC_BUNDLE=1');
