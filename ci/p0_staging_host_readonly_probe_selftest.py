@@ -105,6 +105,9 @@ def main() -> None:
         assert result["versionCommandsExecuted"] is False
         assert result["externalCommandSideEffectsNotAttested"] is False
         assert result["filesModifiedByProbe"] is False
+        assert result["mode"] == "LOCAL_READ_ONLY_PREPARATION"
+        assert result["networkRequestsMade"] is False
+        assert result["dockerDaemonContacted"] is False
         assert result["goLiveAuthorized"] is False
         assert result["homologationComplete"] is False
         assert result["liveEndpointTested"] is False
@@ -117,6 +120,9 @@ def main() -> None:
         opted = probe.build_report(Path("."), None, probe_versions=True)
         assert opted["versionCommandsExecuted"] is True
         assert opted["externalCommandSideEffectsNotAttested"] is True
+        assert opted["mode"] == "LOCAL_VERSION_COMMAND_OBSERVATION"
+        assert opted["networkRequestsMade"] is None
+        assert opted["dockerDaemonContacted"] is None
         assert opted["goLiveAuthorized"] is False
         assert opted["homologationComplete"] is False
         checks += 1
