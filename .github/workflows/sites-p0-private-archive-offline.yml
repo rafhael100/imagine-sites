@@ -1,0 +1,49 @@
+name: Sites P0 isolated synthetic ZIP and recovery security (offline)
+on:
+  pull_request:
+    paths:
+      - 'ci/f307_private_qa_json_contract.py'
+      - 'ci/f308_f309_descriptor_readback_selftest.py'
+      - 'ci/f329_private_synthetic_zip.py'
+      - 'ci/f329_synthetic_zip_selftest.py'
+      - 'ci/f330_private_synthetic_restore.py'
+      - 'ci/f330_private_restore_selftest.py'
+      - 'ci/f331_atomic_private_rename.py'
+      - 'ci/f331_atomic_restore_selftest.py'
+      - 'ci/f338_atomic_zip_selftest.py'
+      - '.github/workflows/sites-p0-private-archive-offline.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated-backup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Syntax - Python standard library only
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            ci/f307_private_qa_json_contract.py \
+            ci/f308_f309_descriptor_readback_selftest.py \
+            ci/f329_private_synthetic_zip.py \
+            ci/f329_synthetic_zip_selftest.py \
+            ci/f330_private_synthetic_restore.py \
+            ci/f330_private_restore_selftest.py \
+            ci/f331_atomic_private_rename.py \
+            ci/f331_atomic_restore_selftest.py \
+            ci/f338_atomic_zip_selftest.py
+      - name: Bounded filesystem/JSON/ZIP adversarial tests
+        run: |
+          set -euo pipefail
+          python3 ci/f308_f309_descriptor_readback_selftest.py
+          python3 ci/f329_synthetic_zip_selftest.py
+          python3 ci/f330_private_restore_selftest.py
+          python3 ci/f331_atomic_restore_selftest.py
+          python3 ci/f338_atomic_zip_selftest.py
+      - name: Confirm no server or provider operation is attempted
+        if: always()
+        run: echo "Synthetic-only local files; no Portal, CRM, DNS, Cloudflare, VPS, credentials or deploy."
