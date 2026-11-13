@@ -69,3 +69,7 @@ Recalcular o diff Git local completo, sem truncamento, da nova branch `integrati
 ## Revalidação F1-299 — candidato de integração total (13/11/2026)
 
 Este candidato integra a cadeia de PRs #361–#366, incluindo a inspeção de emissor Portal v3, o pacote privado de Onepage/Landing Page com SHA exato, gravação em staging e readback, e a rota Laravel v3 de laboratório com negação por padrão. Os **1.362 commits ahead / zero behind** apurados pela API GitHub contra a base `dev` são apenas metadados; a listagem REST de arquivos é limitada a 300. Executar F1-240 no HEAD exato do novo PR de integração, produzir o inventário **completo** e revisão dos caminhos sensíveis, sem usar contagens de PRs anteriores. Dez gates permanecem bloqueados; nenhum merge/deploy.
+
+## Nova revisão F1-301 — concorrência e inode de pacote privado (13/11/2026)
+
+A cadeia #367–#369 incorpora controle cooperativo `flock` por produto e leitura limitada com verificação de inode aberto em pacotes privados. **Regerar todo o inventário no HEAD exato da nova integração**: não reutilizar os números de 797 caminhos e 224 sensíveis produzidos na integração #367. F1-240 deve confirmar baseline `dev`, nenhum symlink em caminhos de código e os dez gates `BLOCKED`. Auditoria e revisão independentes ainda são obrigatórias; sem merge ou deploy.
