@@ -111,10 +111,14 @@ jobs:
             archive="$RUNNER_TEMP/sites-f329-$product.zip"
             python3 ../../ci/f329_private_synthetic_zip.py create \
               --directory "$base" --archive "$archive" \
-              --product "$product" --artifact "$artifact" --bundle "$bundle"
+              --product "$product" --artifact "$artifact" --bundle "$bundle" \
+              --tenant-ref tenant-fixture --site-ref site-fixture \
+              --release-ref "release-bundle-$product"
             python3 ../../ci/f329_private_synthetic_zip.py inspect \
               --archive "$archive" --product "$product" \
-              --artifact "$artifact" --bundle "$bundle"
+              --artifact "$artifact" --bundle "$bundle" \
+              --tenant-ref tenant-fixture --site-ref site-fixture \
+              --release-ref "release-bundle-$product"
             # F1-330: read the same verified ZIP into a brand-new private
             # CI scratch directory; never import into a real site/tenant.
             restore_parent="$RUNNER_TEMP/sites-f330-private-$product"
@@ -142,7 +146,9 @@ jobs:
             fi
             if python3 ../../ci/f329_private_synthetic_zip.py create \
               --directory "$base" --archive "$archive" \
-              --product "$product" --artifact "$artifact" --bundle "$bundle"; then
+              --product "$product" --artifact "$artifact" --bundle "$bundle" \
+              --tenant-ref tenant-fixture --site-ref site-fixture \
+              --release-ref "release-bundle-$product"; then
               echo 'Unexpected overwrite of existing private ZIP'
               exit 1
             fi
