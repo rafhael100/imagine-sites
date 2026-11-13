@@ -18,6 +18,8 @@ on:
       - 'ci/f308_f309_descriptor_readback_selftest.py'
       - 'ci/f329_private_synthetic_zip.py'
       - 'ci/f329_synthetic_zip_selftest.py'
+      - 'ci/f330_private_synthetic_restore.py'
+      - 'ci/f330_private_restore_selftest.py'
       - '.github/workflows/sites-f1-24-release-bundle.yml'
       - 'docs/SITES-F1-24-RELEASE-BUNDLE.md'
 
@@ -61,6 +63,8 @@ jobs:
           python3 ci/f308_f309_descriptor_readback_selftest.py
           python3 -m py_compile ci/f329_private_synthetic_zip.py ci/f329_synthetic_zip_selftest.py
           python3 ci/f329_synthetic_zip_selftest.py
+          python3 -m py_compile ci/f330_private_synthetic_restore.py ci/f330_private_restore_selftest.py
+          python3 ci/f330_private_restore_selftest.py
       - name: Install locked Laravel dependencies without scripts
         working-directory: apps/sites
         run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
@@ -107,6 +111,27 @@ jobs:
             python3 ../../ci/f329_private_synthetic_zip.py inspect \
               --archive "$archive" --product "$product" \
               --artifact "$artifact" --bundle "$bundle"
+            # F1-330: read the same verified ZIP into a brand-new private
+            # CI scratch directory; never import into a real site/tenant.
+            restore_parent="$RUNNER_TEMP/sites-f330-private-$product"
+            mkdir -m 700 "$restore_parent"
+            APP_ENV=testing SITES_SYNTHETIC_RESTORE=1 \
+              python3 ../../ci/f330_private_synthetic_restore.py \
+              --archive "$archive" --parent "$restore_parent" \
+              --target-name "restored-f330-$product" --product "$product" \
+              --artifact "$artifact" --bundle "$bundle"
+            cmp "$base/index.html" \
+              "$restore_parent/restored-f330-$product/index.html"
+            cmp "$base/release-manifest.json" \
+              "$restore_parent/restored-f330-$product/release-manifest.json"
+            if APP_ENV=testing SITES_SYNTHETIC_RESTORE=1 \
+              python3 ../../ci/f330_private_synthetic_restore.py \
+              --archive "$archive" --parent "$restore_parent" \
+              --target-name "restored-f330-$product" --product "$product" \
+              --artifact "$artifact" --bundle "$bundle"; then
+              echo 'Unexpected overwrite of verified private restoration'
+              exit 1
+            fi
             if python3 ../../ci/f329_private_synthetic_zip.py create \
               --directory "$base" --archive "$archive" \
               --product "$product" --artifact "$artifact" --bundle "$bundle"; then
