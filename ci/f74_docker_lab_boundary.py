@@ -126,10 +126,25 @@ def inspect_rendered(value: object) -> None:
             "privileged", "security_opt_add", "sysctls", "init",
             "credential_spec", "device_cgroup_rules", "extends",
             "links", "network_mode", "isolation",
+            "deploy", "scale", "cpus", "cpu_shares", "cpu_quota",
+            "cpu_period", "cpuset", "blkio_config", "oom_kill_disable",
+            "oom_score_adj", "ulimits", "shm_size", "mem_swappiness",
+            "memswap_limit", "mem_reservation",
         )
         for key in forbidden:
             if key in service and service[key]:
                 raise ValueError(f"{name} has forbidden host/process override: {key}")
+        # F1-345: two bounded disposable services only. A changed memory
+        # limit, unlimited PID count, or replica/deploy override can turn a
+        # harmless CI lab into an unbounded host resource consumer.
+        allowed_memory={
+            "sites-lab-db": (536_870_912, "536870912", "512m", "512M"),
+            "sites-lab-tests": (805_306_368, "805306368", "768m", "768M"),
+        }
+        if (type(service.get("pids_limit")) is not int
+                or service["pids_limit"]!=128
+                or service.get("mem_limit") not in allowed_memory[name]):
+            raise ValueError("unexpected lab PID or memory resource budget")
         if service.get("security_opt") != ["no-new-privileges:true"]:
             raise ValueError("lab security options must match the exact approved profile")
         if service.get("environment", {}).get("APP_ENV") == "production":
@@ -236,6 +251,7 @@ def fixture() -> dict:
     }
     db = {
         **base, "image": "postgres:18",
+        "pids_limit": 128, "mem_limit": 536_870_912,
         "healthcheck": {
             "test": ["CMD-SHELL","pg_isready -U postgres -d sites_lab"],
             "interval": "5s", "timeout": "3s", "retries": 12,
@@ -256,6 +272,7 @@ def fixture() -> dict:
     }
     test = {
         **base, "cap_drop": ["ALL"],
+        "pids_limit": 128, "mem_limit": 805_306_368,
         "depends_on": {
             "sites-lab-db": {"condition": "service_healthy", "required": True}
         },
@@ -319,6 +336,15 @@ def self_test(ignore: str, dockerfile: str) -> None:
         lambda s: s["volumes"]["sites-lab-data"].update({"external": True}),
         lambda s: s["volumes"].update({"other": {"name": "unexpected"}}),
         lambda s: s["services"]["sites-lab-tests"].update({"privileged": True}),
+        lambda s: s["services"]["sites-lab-db"].update({"pids_limit": 0}),
+        lambda s: s["services"]["sites-lab-tests"].update({"pids_limit": -1}),
+        lambda s: s["services"]["sites-lab-db"].update({"mem_limit": "0"}),
+        lambda s: s["services"]["sites-lab-tests"].update({"mem_limit": "2g"}),
+        lambda s: s["services"]["sites-lab-tests"].update({"scale": 12}),
+        lambda s: s["services"]["sites-lab-db"].update({"deploy": {"replicas": 8}}),
+        lambda s: s["services"]["sites-lab-tests"].update({"oom_kill_disable": True}),
+        lambda s: s["services"]["sites-lab-db"].update({"ulimits": {"nofile": 1000000}}),
+        lambda s: s["services"]["sites-lab-tests"].update({"cpus": "64"}),
         lambda s: s["services"]["sites-lab-db"]["healthcheck"].update({"test": ["CMD-SHELL", "sh -c 'touch /tmp/unexpected'"]}),
         lambda s: s["services"]["sites-lab-db"]["healthcheck"].update({"disable": True}),
         lambda s: s["services"]["sites-lab-db"]["healthcheck"].update({"interval": "1ms"}),
