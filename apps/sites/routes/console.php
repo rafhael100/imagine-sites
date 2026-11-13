@@ -85,51 +85,72 @@ Artisan::command('sites:package-fixture {product=onepage}', function (): int {
         return Command::FAILURE;
     }
 
+    // F1-297: publish the synthetic package to the PRIVATE scratch path as
+    // one directory rename. A failed write must not expose half a package.
+    // No network, Cloudflare or customer path is involved.
     $private=storage_path('app/private');
     $directory=$private.'/sites-f1-24-'.$product;
-    if (is_link($private) || is_link($directory) ||
-        (file_exists($directory) && !is_dir($directory))) {
-        $this->error('Symlinked or unexpected private scratch path is forbidden.');
+    if (is_link($private) ||
+        (!is_dir($private) && !mkdir($private,0700,true) && !is_dir($private)) ||
+        is_link($private) ||
+        file_exists($directory) || is_link($directory)) {
+        $this->error('Private scratch path is unsafe or already exists.');
         return Command::FAILURE;
     }
-    if (!is_dir($directory) && !mkdir($directory,0700,true) && !is_dir($directory)) {
-        $this->error('Could not create private scratch directory.');
+    $staging=$private.'/.sites-f1-24-'.$product.'-'.bin2hex(random_bytes(8)).'.tmp';
+    if (file_exists($staging) || is_link($staging) ||
+        !mkdir($staging,0700)) {
+        $this->error('Could not create isolated private staging directory.');
         return Command::FAILURE;
     }
-    @chmod($directory,0700);
-    foreach ($bundle->files as $name=>$bytes) {
-        $target=$directory.'/'.$name;
-        if (is_link($target)) {
-            $this->error('Symbolic links are forbidden inside bundle output.');
-            return Command::FAILURE;
+
+    $promoted=false;
+    try {
+        foreach ($bundle->files as $name=>$bytes) {
+            $target=$staging.'/'.$name;
+            if (is_link($target) ||
+                file_put_contents($target,$bytes,LOCK_EX)!==strlen($bytes)) {
+                throw new \RuntimeException('synthetic_stage_write_failed');
+            }
+            @chmod($target,0600);
         }
-        if (file_put_contents($target,$bytes,LOCK_EX)!==strlen($bytes)) {
-            $this->error('Cannot write bundle bytes.');
-            return Command::FAILURE;
+
+        // Read back the actual staged bytes before any final directory exists.
+        $readback=[];
+        foreach (array_keys($bundle->files) as $name) {
+            $target=$staging.'/'.$name;
+            if (is_link($target) || !is_file($target)) {
+                throw new \RuntimeException('synthetic_stage_path_untrusted');
+            }
+            $bytes=file_get_contents($target);
+            if ($bytes===false) {
+                throw new \RuntimeException('synthetic_stage_read_failed');
+            }
+            $readback[$name]=$bytes;
         }
-        @chmod($target,0600);
-    }
-    // F1-296: verify bytes actually stored in private scratch, not only
-    // the in-memory bundle. This is not external publication observation.
-    $readback=[];
-    foreach (array_keys($bundle->files) as $name) {
-        $target=$directory.'/'.$name;
-        if (is_link($target) || !is_file($target)) {
-            $this->error('Private bundle readback is missing or unsafe.');
-            return Command::FAILURE;
+        if (!\Imagine\Sites\Production\SyntheticReleaseBundle::verifyExactBundle(
+            $readback,$release,$bundle->bundleDigest
+        )) {
+            throw new \RuntimeException('synthetic_stage_digest_mismatch');
         }
-        $bytes=file_get_contents($target);
-        if ($bytes===false) {
-            $this->error('Private bundle readback failed.');
-            return Command::FAILURE;
+
+        // No replacement of an existing private preview, even on reruns.
+        if (file_exists($directory) || is_link($directory) ||
+            !@rename($staging,$directory)) {
+            throw new \RuntimeException('synthetic_private_promotion_denied');
         }
-        $readback[$name]=$bytes;
-    }
-    if (!\Imagine\Sites\Production\SyntheticReleaseBundle::verifyExactBundle(
-        $readback,$release,$bundle->bundleDigest
-    )) {
-        $this->error('Private bundle readback digest mismatch.');
+        $promoted=true;
+    } catch (\Throwable) {
+        $this->error('Private synthetic bundle staging or integrity failed.');
         return Command::FAILURE;
+    } finally {
+        if (!$promoted && is_dir($staging) && !is_link($staging)) {
+            foreach (array_keys($bundle->files) as $name) {
+                $target=$staging.'/'.$name;
+                if (is_file($target) || is_link($target)) @unlink($target);
+            }
+            @rmdir($staging);
+        }
     }
     $this->line('PRIVATE SYNTHETIC TEST PACKAGE ONLY — NOT PUBLISHABLE.');
     $this->line('Package SHA-256: '.$bundle->bundleDigest);

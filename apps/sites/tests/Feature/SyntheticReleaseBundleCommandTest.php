@@ -72,6 +72,25 @@ final class SyntheticReleaseBundleCommandTest extends TestCase
         ));
     }
 
+    public function test_second_write_cannot_replace_previously_verified_bundle(): void
+    {
+        putenv('SITES_SYNTHETIC_BUNDLE=1');
+        self::assertSame(0,Artisan::call('sites:package-fixture',['product'=>'onepage']));
+        $directory=$this->path('onepage');
+        $before=[
+            hash_file('sha256',$directory.'/index.html'),
+            hash_file('sha256',$directory.'/release-manifest.json'),
+        ];
+        self::assertSame(1,Artisan::call('sites:package-fixture',['product'=>'onepage']));
+        self::assertSame($before,[
+            hash_file('sha256',$directory.'/index.html'),
+            hash_file('sha256',$directory.'/release-manifest.json'),
+        ], 'Preexisting validated package must never be overwritten');
+        $leftovers=glob(storage_path('app/private/.sites-f1-24-onepage-*.tmp'));
+        self::assertSame([],$leftovers===false ? [] : $leftovers,
+            'Temporary staging paths must not be left after successful promotion');
+    }
+
     public function test_landing_is_supported_with_no_executable_forms(): void
     {
         putenv('SITES_SYNTHETIC_BUNDLE=1');
