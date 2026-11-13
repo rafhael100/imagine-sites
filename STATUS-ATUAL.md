@@ -1,5 +1,14 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## F1-306–307 — QA estrutural em evidência privada, dupla verificação offline — 13/11/2026
+
+- **F1-306 / PR #377**, SHA `10886f46d21140afc5d00e452427e5bbb2aba933`: `--include-qa` com `--evidence-json` adiciona dez critérios estruturais PHP/Laravel à evidência dos bytes privados previamente verificados; retorna falha se o QA falhar ou se o modo JSON não for solicitado. O relatório permanece sem HTML, caminhos ou dados pessoais, `trustedPins=false`, `officialClientAcceptance=false`, `releaseAuthorized=false`, `humanReviewRequired=true`, `wcagCertified=false`. **17/17 workflows retornados success** no próprio SHA.
+- **F1-307 / PR #378**, SHA `2416524da92165ae5d92cc631f1e899653e4519f`: verificador Python independente para schema fechado, booleans, digests e bytes locais; pipeline F1-24 PHP 8.3/8.4 executa Artisan→JSON→Python para ambos os produtos, inclusive falso pin. **5/5 workflows retornados success** no SHA de origem.
+- **Integração atual:** incorporar F1-306/307 ao candidato anterior #376 (F1-302–305), permanecendo em branch de integração e PR *draft*. Inventário F1-240, seis pacotes F1-241 e toda a suíte no SHA integrado precisam ser reexecutados e revisados. Resultado positivo de PR isolado não prova integração homologada.
+- **NO-GO:** `dev`/`main` não promovidas; `config/operational-readiness.json` continua `BLOCKED` com dez gates `false`. Branch protection e revisão independente #281, integração/autenticação/infra e go-live OP01–OP05 (#33–#38) em aberto. Sem Portal/CRM real, Cloudflare, VPS, clientes, segredos, DNS, despesas ou deploy.
+
+---
+
 ## F1-305 — relatório JSON de integridade privada e nova integração — 13/11/2026
 
 - **F1-305 / PR #375**, SHA `6704dae9258c07d949beec0e2d63d1518face429`: opção CLI `sites:verify-fixture-bundle ... --evidence-json`, liberada apenas em testing + flags; emite digests/tamanhos para dois arquivos fictícios verificados, sem conteúdo nem caminhos. Inclui `trustedPins=false`, `officialClientAcceptance=false`, `releaseAuthorized=false`. **17/17 workflow runs encontrados no SHA concluídos com success**.
