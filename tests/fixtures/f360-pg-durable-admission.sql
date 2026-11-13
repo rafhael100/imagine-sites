@@ -66,7 +66,7 @@ INSERT INTO sites_f360.login_bindings(login_name,tenant_ref,active,authority_rev
         ('sites_f360_b','tenant-f360-b',true,1);
 
 CREATE FUNCTION sites_f360.admit_project(
-  p_operation_ref text, p_site_ref text, p_contract_ref text,
+  p_expected_tenant_ref text, p_operation_ref text, p_site_ref text, p_contract_ref text,
   p_product_code text, p_authority_revision integer, p_command_digest text
 ) RETURNS text
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
@@ -86,6 +86,12 @@ BEGIN
     FOR SHARE;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'F1-360: unbound or revoked DB login'
+      USING ERRCODE='42501';
+  END IF;
+  -- F1-362: signed tenant supplied by an authenticated service adapter
+  -- must match the independently authenticated DB login association.
+  IF p_expected_tenant_ref IS DISTINCT FROM v_tenant THEN
+    RAISE EXCEPTION 'F1-362: signed tenant not bound to DB login'
       USING ERRCODE='42501';
   END IF;
   IF p_authority_revision IS DISTINCT FROM v_revision THEN
@@ -132,11 +138,11 @@ BEGIN
   RETURN 'queued';
 END
 $f360$;
-ALTER FUNCTION sites_f360.admit_project(text,text,text,text,integer,text)
+ALTER FUNCTION sites_f360.admit_project(text,text,text,text,text,integer,text)
   OWNER TO sites_f360_owner;
 REVOKE ALL ON FUNCTION
-  sites_f360.admit_project(text,text,text,text,integer,text) FROM PUBLIC;
+  sites_f360.admit_project(text,text,text,text,text,integer,text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION
-  sites_f360.admit_project(text,text,text,text,integer,text)
+  sites_f360.admit_project(text,text,text,text,text,integer,text)
   TO sites_f360_a,sites_f360_b;
 COMMIT;
