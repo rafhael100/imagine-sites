@@ -19,3 +19,7 @@ Este recorte permite uma revisão pequena de integridade e retenção em memóri
 ## Sincronização F1-336/337
 
 O PR isolado acompanha também a verificação estrita da serialização canônica do manifesto JSON (rejeita JSON compacto, chave Unicode escapada e falta de newline, mesmo com hashes recomputados) e a validação do UID efetivo Unix e modo 0600 de arquivos ZIP/fonte sob pastas 0700. A suíte offline inclui casos adversariais correspondentes. O objetivo é manter este recorte de revisão pequeno **sem divergir do candidato integrado**. Ainda não oferece criptografia, assinaturas, autenticação de tenant ou backup de clientes reais.
+
+## F1-338 — ZIP fechado antes de receber o nome final
+
+O recorte independente também recebeu F1-338: o backup ZIP é escrito em staging privado com nome aleatório e modo 0600; a exportação reabre o staging, compara integralmente os bytes gravados e só então executa `renameat2(RENAME_NOREPLACE)` para criar o nome definitivo sem possibilidade de sobrescrever um destino concorrente. Testes novos em `ci/f338_atomic_zip_selftest.py` simulam falha de I/O, criação simultânea do nome de destino, leitura após promoção adulterada e nomes indevidos. A matriz offline do PR cobre F1-338 sem alterar produção. Não é armazenamento remoto nem backup de clientes.
