@@ -1,0 +1,48 @@
+name: Sites P0 staging VPS local prerequisites (NO-GO only)
+on:
+  pull_request:
+    paths:
+      - 'ci/p0_staging_host_readonly_probe.py'
+      - 'ci/p0_staging_host_readonly_probe_selftest.py'
+      - 'docs/SITES-P0-STAGING-HOST-PREFLIGHT.md'
+      - '.github/workflows/sites-p0-staging-host-preflight.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline-staging-preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Syntax and negative tests (no cloud, network or secrets)
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            ci/p0_staging_host_readonly_probe.py \
+            ci/p0_staging_host_readonly_probe_selftest.py
+          python3 ci/p0_staging_host_readonly_probe_selftest.py
+      - name: Render hosted-runner observation, never authorize a release
+        run: |
+          set -euo pipefail
+          python3 ci/p0_staging_host_readonly_probe.py \
+            --workspace . --repo . > "$RUNNER_TEMP/sites-preflight.json"
+          python3 - "$RUNNER_TEMP/sites-preflight.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          r=json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          assert r["schemaVersion"]=="sites.staging.host-readiness-observation.v1"
+          assert r["goLiveAuthorized"] is False
+          assert r["homologationComplete"] is False
+          assert r["liveEndpointTested"] is False
+          assert r["status"]=="BLOCKED_PENDING_OPERATOR_AND_SECURITY_REVIEW"
+          assert r["networkRequestsMade"] is False
+          assert r["credentialsInspected"] is False
+          assert len(r["manualGatesRemaining"])>=8
+          print("P0: only sanitized local prerequisite observations; NO-GO.")
+          PY
+      - name: Confirm no deployment or paid infrastructure change
+        if: always()
+        run: echo 'No Docker daemon, VPS login, provider API, credentials, production site, or deploy.'
