@@ -55,7 +55,7 @@ def read_historical(history:Path)->None:
 # claim a source-level producer merely by including markers in documentation.
 # This is deliberately NOT a PHP parser or execution/authorization proof.
 _PHP_IGNORED = re.compile(
-    r"""(?P<ignored>/\\*[\\s\\S]*?\\*/|//[^\\r\\n]*|\\#[^\\r\\n]*|'(?:\\\\.|[^'\\\\])*'|"(?:\\\\.|[^"\\\\])*")"""
+    r"""(?P<ignored>/\*[\s\S]*?\*/|//[^\r\n]*|\#[^\r\n]*|'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")"""
 )
 
 def active_php_source(source:str)->str:
@@ -73,12 +73,12 @@ def inspect_current(current:Path)->dict:
     signer_code = active_php_source(signer_source)
     issuer_code = active_php_source(issuer_source)
     signer_shape = bool(
-        re.search(r"\\bclass\\s+SyntheticSitesCommercialEpochSignedEnvelopeSigner\\b", signer_code)
-        and re.search(r"\\bcommercialEpoch\\b", signer_code)
-        and re.search(r"\\bhash_hmac\\s*\\(", signer_code)
+        re.search(r"\bclass\s+SyntheticSitesCommercialEpochSignedEnvelopeSigner\b", signer_code)
+        and re.search(r"\bcommercialEpoch\b", signer_code)
+        and re.search(r"\bhash_hmac\s*\(", signer_code)
     )
     issuer_shape = bool(
-        re.search(r"\\bfunction\\s+issueCommercialEpochSigned\\s*\\(", issuer_code)
+        re.search(r"\bfunction\s+issueCommercialEpochSigned\s*\(", issuer_code)
     )
     candidate_shape = found and present_issuer and signer_shape and issuer_shape
     # The official release review must independently establish provenance,
@@ -130,13 +130,13 @@ def self_test()->None:
                 "file presence is not source shape")
         (d/SIGNER).write_text(
             "<?php /* class SyntheticSitesCommercialEpochSignedEnvelopeSigner "
-            "commercialEpoch hash_hmac( */ \\$x = 'class "
+            "commercialEpoch hash_hmac( */ \$x = 'class "
             "SyntheticSitesCommercialEpochSignedEnvelopeSigner commercialEpoch hash_hmac(';",
             encoding="utf-8"
         )
         (d/ISSUER).write_text(
-            '<?php // function issueCommercialEpochSigned(\\n'
-            '\\$text = "function issueCommercialEpochSigned("; ',
+            '<?php // function issueCommercialEpochSigned(\n'
+            '\$text = "function issueCommercialEpochSigned("; ',
             encoding="utf-8"
         )
         r=inspect_current(root)
@@ -144,7 +144,7 @@ def self_test()->None:
                 "comments and quoted strings must not count as producer")
         (d/SIGNER).write_text(
             "<?php class SyntheticSitesCommercialEpochSignedEnvelopeSigner "
-            "{ public function sign() { \\$commercialEpoch = 1; "
+            "{ public function sign() { \$commercialEpoch = 1; "
             "return hash_hmac('sha256', 'test', 'test'); } }",
             encoding="utf-8"
         )
