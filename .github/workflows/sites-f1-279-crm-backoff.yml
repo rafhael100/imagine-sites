@@ -4,10 +4,12 @@ on:
     paths:
       - 'src/Integration/SyntheticCrmRetryWindowV1.php'
       - 'src/Integration/SyntheticCrmAttemptScopedRetryV1.php'
+      - 'src/Integration/SyntheticCrmCombinedRetryPreflightV1.php'
       - 'src/Integration/SyntheticCrmResponsePolicyV1.php'
       - 'src/Domain/SyntheticLeadRetryPlanV1.php'
       - 'tests/f279-crm-backoff-composition.php'
       - 'tests/f318-crm-attempt-sequence.php'
+      - 'tests/f319-crm-combined-preflight.php'
       - '.github/workflows/sites-f1-279-crm-backoff.yml'
 permissions:
   contents: read
@@ -40,6 +42,9 @@ jobs:
           php -l src/Integration/SyntheticCrmAttemptScopedRetryV1.php
           php -l tests/f318-crm-attempt-sequence.php
           php tests/f318-crm-attempt-sequence.php
+          php -l src/Integration/SyntheticCrmCombinedRetryPreflightV1.php
+          php -l tests/f319-crm-combined-preflight.php
+          php tests/f319-crm-combined-preflight.php
       - name: No live integration
         if: always()
         run: echo 'In-memory only; no lead payload, tenant auth, CRM requests, receipt, queue, production or deploy.'
