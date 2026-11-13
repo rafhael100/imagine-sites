@@ -13,7 +13,7 @@ if(PHP_SAPI!=='cli' || getenv('APP_ENV')!=='testing' ||
    getenv('SITES_F370_MTLS_LAB')!=='1' ||
    getenv('SITES_F364_BRIDGE_LAB')!=='1' ||
    getenv('DB_DATABASE')!=='sites_f360_lab') {
-    fwrite(STDERR,"F1-365: refusing non-CI loopback test.\n");
+    fwrite(STDERR,"F1-370: refusing non-CI mTLS test.\n");
     exit(1);
 }
 $portalDir=(string)getenv('SITES_F362_PORTAL_PATH');
