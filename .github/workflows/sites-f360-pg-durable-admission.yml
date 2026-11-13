@@ -6,6 +6,8 @@ on:
       - 'tests/fixtures/f360-pg-durable-admission.sql'
       - 'tests/f361-pg-outbox-worker.php'
       - 'tests/f362-pinned-portal-to-pg-outbox.php'
+      - 'tests/f363-pg-durable-nonce.php'
+      - 'tests/fixtures/f363-pg-durable-nonce.sql'
       - 'tests/fixtures/f361-pg-outbox-worker.sql'
       - '.github/workflows/sites-f360-pg-durable-admission.yml'
       - 'docs/SITES-F1-360-PG-ATOMIC-INGRESS-LAB.md'
@@ -39,6 +41,7 @@ jobs:
       SITES_F360_PG_LAB: '1'
       SITES_F361_OUTBOX_LAB: '1'
       SITES_F362_CROSS_STACK_LAB: '1'
+      SITES_F363_NONCE_LAB: '1'
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: '5432'
@@ -73,6 +76,7 @@ jobs:
           php -l tests/f360-pg-durable-admission-outbox.php
           php -l tests/f361-pg-outbox-worker.php
           php -l tests/f362-pinned-portal-to-pg-outbox.php
+          php -l tests/f363-pg-durable-nonce.php
           php -r 'if (!extension_loaded("pdo_pgsql")) exit(1);'
       - name: Fail closed without explicit opt-in
         run: |
@@ -109,6 +113,17 @@ jobs:
         run: |
           set -euo pipefail
           SITES_F362_PORTAL_PATH="$GITHUB_WORKSPACE/portal-candidate" SITES_F362_SITES_PATH="$GITHUB_WORKSPACE/sites-signed-candidate" php tests/f362-pinned-portal-to-pg-outbox.php
+      - name: Prove replay-nonce fixture is disabled without explicit lab flag
+        run: |
+          set -euo pipefail
+          if SITES_F363_NONCE_LAB=0 php tests/f363-pg-durable-nonce.php; then
+            echo 'Unsafe: durable nonce fixture ran without lab opt-in'
+            exit 1
+          fi
+      - name: Signed Portal command with SQL-backed replay fence in same transaction
+        run: |
+          set -euo pipefail
+          SITES_F362_PORTAL_PATH="$GITHUB_WORKSPACE/portal-candidate" SITES_F362_SITES_PATH="$GITHUB_WORKSPACE/sites-signed-candidate" php tests/f363-pg-durable-nonce.php
       - name: Scope limitation
         if: always()
         run: |
