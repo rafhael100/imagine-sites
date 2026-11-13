@@ -1,5 +1,15 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## F1-344–345 — namespace e limites de recursos do laboratório Docker — 13/11/2026
+
+- **F1-344 / PR #433**, SHA corrigido `8e9b15eac4f8d0afc9dc1f65a725a076781d90d6`: o verificador F1-74 confere projeto `imagine-sites-lab`, nome renderizado exato da única rede interna e do único volume PostgreSQL descartável. Rejeita rede externa/anexável, driver `macvlan`, volume de produção ou `driver_opts`, redes adicionais e alteração de nome de stack. A primeira bateria recusou o `ipam` padrão incluído pelo Docker Compose na normalização; a correção aceita **somente** IPAM vazio/driver default e recusa sub-redes/gateways personalizados. **4/4 workflows success**, inclusive F1-83 com configuração renderizada e PostgreSQL 18 de laboratório.
+- **F1-345 / PR #435**, SHA `da564b5b25928090f1e0c337d65c5b2ef12938f2`: confere PIDs=128 por contêiner, memória PG=512 MiB, Laravel=768 MiB no Compose renderizado; proíbe alterações de escala, overrides de `cpus`, limites ausentes/expandidos, `oom_kill_disable`, `ulimits` etc. **4/4 workflows success**, incluindo execução descartável de F1-83.
+- **F1-343 / PR #432** permanece na cadeia: healthcheck `pg_isready` fixo e dependência apenas de PG `service_healthy`. O candidato anterior **#434** teve 100/100 runs success na primeira página do SHA integrado, mas não substitui revisão independente.
+- **Apenas CI:** nenhuma evidência de que o host Leaseweb, seus recursos/containers ou PostgreSQL real estejam configurados; o probe VPS #428 está no fluxo separado, não executado no host. Gates readiness permanecem `BLOCKED`, dez falsos.
+- **Integração atual:** branch cumulativa F1-302–345 contra `dev`. Requer novamente F1-240 diff completo, F1-241 seis pacotes de revisão, todos os testes do HEAD integrado e revisão humana AppSec/DBA. Proteção de branches #281, OP01–OP05 (#33–#38) e publicação Cloudflare/CRM/Portal reais continuam pendentes; sem merge, deploy, domínio, credenciais, clientes, PII ou custos.
+
+---
+
 ## F1-341–342 — fronteiras de laboratório Docker e credenciais do PostgreSQL — 13/11/2026
 
 - **F1-341 / PR #429**, SHA `ff29959110e6b2b9e15964e0183b9a476e78b41f`: reforça `ci/f74_docker_lab_boundary.py` contra `pid/ipc/uts` de host, `user: 0:0`, `entrypoint/command` personalizados, `env_file`, `volumes_from`, `group_add`, `sysctls`, `seccomp=unconfined` e outras alterações que poderiam escapar da fronteira do teste mesmo sem publicar portas. **4/4 workflows success**, incluindo F1-83 Compose/PG descartável em GitHub Actions.
