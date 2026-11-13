@@ -121,12 +121,35 @@ Artisan::command('sites:package-fixture {product=onepage}', function (): int {
     $promoted=false;
     try {
         foreach ($bundle->files as $name=>$bytes) {
+            // F1-312: an exclusive create prevents replacement of an existing
+            // path, symlink or hardlink. Restrictive creation mode avoids the
+            // TOCTOU of chmod(path) after writing. Names are fixed constants.
             $target=$staging.'/'.$name;
-            if (is_link($target) ||
-                file_put_contents($target,$bytes,LOCK_EX)!==strlen($bytes)) {
-                throw new \RuntimeException('synthetic_stage_write_failed');
+            $originalUmask=umask(0077);
+            try {
+                $stream=@fopen($target,'xb');
+            } finally {
+                umask($originalUmask);
             }
-            @chmod($target,0600);
+            if (!is_resource($stream)) {
+                throw new \RuntimeException('synthetic_stage_exclusive_create_denied');
+            }
+            try {
+                $offset=0;
+                $total=strlen($bytes);
+                while ($offset<$total) {
+                    $length=@fwrite($stream,substr($bytes,$offset));
+                    if (!is_int($length) || $length<1) {
+                        throw new \RuntimeException('synthetic_stage_partial_write_denied');
+                    }
+                    $offset+=$length;
+                }
+                if (!@fflush($stream)) {
+                    throw new \RuntimeException('synthetic_stage_flush_failed');
+                }
+            } finally {
+                @fclose($stream);
+            }
         }
 
         // Read back the actual staged bytes before any final directory exists.
