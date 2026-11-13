@@ -4,6 +4,9 @@ on:
     paths:
       - 'src/Domain/SyntheticCanonicalRedirectReviewV1.php'
       - 'tests/f288-canonical-redirect-review.php'
+      - 'src/Domain/SyntheticCanonicalOriginPlanV1.php'
+      - 'src/Domain/SyntheticSeoCanonicalMapV1.php'
+      - 'tests/f325-canonical-cross-contract-parity.php'
       - '.github/workflows/sites-f1-288-redirect-review.yml'
   workflow_dispatch:
 permissions:
@@ -30,3 +33,5 @@ jobs:
           php -l src/Domain/SyntheticCanonicalRedirectReviewV1.php
           php -l tests/f288-canonical-redirect-review.php
           php tests/f288-canonical-redirect-review.php
+          php -l tests/f325-canonical-cross-contract-parity.php
+          php tests/f325-canonical-cross-contract-parity.php

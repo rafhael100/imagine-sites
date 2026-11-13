@@ -4,6 +4,9 @@ on:
     paths:
       - 'src/Domain/SyntheticSeoCanonicalMapV1.php'
       - 'tests/f289-seo-canonical-map.php'
+      - 'src/Domain/SyntheticCanonicalOriginPlanV1.php'
+      - 'src/Domain/SyntheticCanonicalRedirectReviewV1.php'
+      - 'tests/f325-canonical-cross-contract-parity.php'
       - '.github/workflows/sites-f1-289-seo-canonical.yml'
   workflow_dispatch:
 permissions:
@@ -30,3 +33,5 @@ jobs:
           php -l src/Domain/SyntheticSeoCanonicalMapV1.php
           php -l tests/f289-seo-canonical-map.php
           php tests/f289-seo-canonical-map.php
+          php -l tests/f325-canonical-cross-contract-parity.php
+          php tests/f325-canonical-cross-contract-parity.php
