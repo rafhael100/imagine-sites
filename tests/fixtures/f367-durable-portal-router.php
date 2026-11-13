@@ -109,6 +109,12 @@ try {
         f367Reply(503,['stored'=>false,'reason'=>'rolled_back']);
     }
     $pdo->commit();
+    // F1-368: simulated lost HTTP response AFTER a committed receipt.
+    // Only the disposable CI fixture may trigger this mode; no ACK is
+    // returned despite durable Portal storage.
+    if(($_SERVER['HTTP_X_F367_LAB_MODE']??'normal')==='lost_after_commit') {
+        f367Reply(503,['stored'=>false,'reason'=>'simulated_response_loss']);
+    }
 } catch(Throwable) {
     if(isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) {
         $pdo->rollBack();
