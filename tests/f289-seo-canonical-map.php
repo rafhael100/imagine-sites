@@ -21,7 +21,7 @@ function denied289(callable $action):bool {
 }
 $apex=Policy::propose('cliente.com.br','public_site');
 $paths=['/', '/servicos/', '/equipe/', '/produto_azul/', '/sobre-nos/'];
-$plan=Seo::draft($apex,$paths);
+$plan=Seo::draft($apex,$paths,$apex['canonicalOrigin']);
 check289($plan['canonicalUrls']===array_map(
     static fn(string $p):string=>'https://cliente.com.br'.$p,$paths
 ), 'apex-first without www in every canonical URL');
@@ -33,22 +33,39 @@ check289(str_contains($plan['sitemapXmlCandidate'],
 check289(!$plan['indexable'] && !$plan['mayServe'] &&
     !str_contains($plan['sitemapXmlCandidate'], '<lastmod>'),
     'no publication, no guessed crawl freshness or index permission');
-check289($plan===Seo::draft($apex,$paths), 'deterministic sitemap bytes');
+check289($plan===Seo::draft($apex,$paths,$apex['canonicalOrigin']), 'deterministic sitemap bytes');
 foreach ([
     Policy::propose('cliente.com.br','campaign_subdomain','lp'),
     Policy::propose('cliente.com.br','legacy_preserved',null,'https://www.cliente.com.br')
 ] as $site) {
-    $output=Seo::draft($site,['/','/contato/']);
+    $output=Seo::draft($site,['/','/contato/'],$site['canonicalOrigin']);
     check289($output['canonicalUrls'] === [
         $site['canonicalOrigin'].'/', $site['canonicalOrigin'].'/contato/'
     ] && !$output['mayServe'],
     'independent campaign or historical www kept without host migration');
 }
+// F1-323: a fully forged but internally consistent origin+www pair
+// must not escape the registered project context pinned outside the array.
+$forged=array_replace($apex,[
+    'canonicalOrigin'=>'https://invasor.com.br',
+    'alternateOrigins'=>['https://www.invasor.com.br'],
+]);
+check289(denied289(static fn()=>Seo::draft($forged,['/','/contato/'],
+    $apex['canonicalOrigin'])),
+    'forged canonical + matching www pair cannot move SEO to another project');
+check289(denied289(static fn()=>Seo::draft($apex,['/'],
+    'https://www.cliente.com.br')),
+    'www is not the pinned apex origin for this public site');
+check289(denied289(static fn()=>Seo::draft($apex,['/'],'https://outro.com.br')),
+    'caller cannot request a foreign project origin');
+check289(denied289(static fn()=>Seo::draft($apex,['/'],'')),
+    'missing operator configured origin fails closed');
+
 foreach ([
     Policy::propose('cliente.com.br','application','portal'),
     Policy::propose('cliente.com.br','application','api')
 ] as $site) {
-    check289(denied289(static fn()=>Seo::draft($site,['/'])),
+    check289(denied289(static fn()=>Seo::draft($site,['/'],$site['canonicalOrigin'])),
         'do not emit application URLs in public site sitemap');
 }
 foreach ([
@@ -64,7 +81,7 @@ foreach ([
     ['alternateOrigins'=>[]],
     ['alternateOrigins'=>['https://other.com.br']]
 ] as $tamper) {
-    check289(denied289(static fn()=>Seo::draft(array_replace($apex,$tamper),['/'])),
+    check289(denied289(static fn()=>Seo::draft(array_replace($apex,$tamper),['/'],$apex['canonicalOrigin'])),
         'refuse altered origin approval or cross-domain configuration');
 }
 foreach ([
@@ -76,11 +93,11 @@ foreach ([
     ['/', '/ação/'], ['/', '/a b/'], ['/', 'https://evil.com/'],
     ['/', '/a@evil/'], ['/', '/a:443/']
 ] as $bad) {
-    check289(denied289(static fn()=>Seo::draft($apex,$bad)),
+    check289(denied289(static fn()=>Seo::draft($apex,$bad,$apex['canonicalOrigin'])),
         'deny unsafe sitemap path set: '.bin2hex(json_encode($bad)));
 }
-check289(denied289(static fn()=>Seo::draft($apex,array_fill(0,101,'/'))),
+check289(denied289(static fn()=>Seo::draft($apex,array_fill(0,101,'/'),$apex['canonicalOrigin'])),
     'sitemap page count bounded');
-check289(denied289(static fn()=>Seo::draft($apex,['/','/'.str_repeat('a',512).'/'])),
+check289(denied289(static fn()=>Seo::draft($apex,['/','/'.str_repeat('a',512).'/'],$apex['canonicalOrigin'])),
     'sitemap per-path size bounded');
 echo "$count F1-289 canonical SEO offline mapping assertions passed; no live sitemap.\n";

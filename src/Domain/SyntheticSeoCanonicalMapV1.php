@@ -13,9 +13,15 @@ final class SyntheticSeoCanonicalMapV1
     /**
      * @param array<string,mixed> $proposal non-operational F1-287 data
      * @param list<string> $paths reviewed local page paths, not HTTP input
+     * @param string $operatorConfiguredOrigin independently pinned by a
+     *        future trusted project configuration, NEVER request Host/AI copy
      * @return array{canonicalUrls:list<string>,sitemapXmlCandidate:string,indexable:bool,mayServe:bool}
      */
-    public static function draft(array $proposal, array $paths): array
+    public static function draft(
+        array $proposal,
+        array $paths,
+        string $operatorConfiguredOrigin,
+    ): array
     {
         if (($proposal['mayPublish'] ?? null) !== false ||
             ($proposal['mayRedirect'] ?? null) !== false ||
@@ -39,6 +45,16 @@ final class SyntheticSeoCanonicalMapV1
         if (!is_string($origin) || !is_array($alternates) ||
             !preg_match('/\Ahttps:\/\/([a-z0-9.-]+)\z/D', $origin, $matches)) {
             throw new \InvalidArgumentException('Invalid canonical origin');
+        }
+        // F1-323: proposals are mutable arrays. A caller that changes
+        // canonicalOrigin *and* alternateOrigins can otherwise create a
+        // well-formed sitemap for an unrelated customer's domain. Require
+        // an independently pinned operator project origin to match EXACTLY.
+        // This does not authenticate that configuration or prove ownership.
+        if ($operatorConfiguredOrigin !== $origin) {
+            throw new \InvalidArgumentException(
+                'SEO proposal conflicts with pinned operator canonical origin'
+            );
         }
         $host = $matches[1];
         if (strlen($host) > 253 || substr_count($host, '.') < 1 ||
