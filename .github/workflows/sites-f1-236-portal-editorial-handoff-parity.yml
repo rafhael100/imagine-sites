@@ -1,0 +1,62 @@
+name: Sites F1-236 Portal F48 editorial demo handoff parity (no transport)
+on:
+  pull_request:
+    paths:
+      - 'src/Integration/PortalEditorialHandoffPreviewV1.php'
+      - 'tests/f235-portal-editorial-handoff-consumer.php'
+      - 'tests/f236-portal-f48-producer-consumer-parity.php'
+      - '.github/workflows/sites-f1-236-portal-editorial-handoff-parity.yml'
+      - 'docs/SITES-F1-235-PORTAL-EDITORIAL-HANDOFF-CONSUMER.md'
+      - 'docs/SITES-F1-236-PORTAL-F48-PRODUCER-CONSUMER-PARITY.md'
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  portal-f48-producer-sites-consumer:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    env:
+      APP_ENV: testing
+      SITES_F236_PORTAL_PARITY: '1'
+      SITES_F236_PORTAL_ROOT: ${{ github.workspace }}/portal-f48
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout pinned public Portal editorial F48 producer
+        uses: actions/checkout@v4
+        with:
+          repository: rafhael100/imagine-portal
+          ref: d492115d6dc2cef35744817cf9e697a33131239f
+          path: portal-f48
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          extensions: mbstring
+          coverage: none
+      - name: Verify immutable external source and syntax
+        run: |
+          set -euo pipefail
+          test "$(git -C portal-f48 rev-parse HEAD)" = d492115d6dc2cef35744817cf9e697a33131239f
+          test -f portal-f48/apps/portal/app/Domain/SiteIntake/SiteEngineHandoffPreviewEnvelope.php
+          php -l portal-f48/apps/portal/app/Domain/SiteIntake/SiteEngineHandoffPreviewEnvelope.php
+          php -l src/Integration/PortalEditorialHandoffPreviewV1.php
+          php -l tests/f235-portal-editorial-handoff-consumer.php
+          php -l tests/f236-portal-f48-producer-consumer-parity.php
+      - name: Run real two-repository producer-consumer interoperability
+        run: |
+          set -euo pipefail
+          php tests/f235-portal-editorial-handoff-consumer.php
+          php tests/f236-portal-f48-producer-consumer-parity.php
+      - name: Explicitly deny operational interpretation
+        if: always()
+        run: |
+          echo 'Editorial DEMO only: no Portal identity, official customer consent, cross-service delivery, CRM, SEO Engine, Cloudflare or production deployment.'

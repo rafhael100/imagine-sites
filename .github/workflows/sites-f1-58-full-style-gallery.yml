@@ -1,0 +1,100 @@
+name: Sites F1-58 full 12-style private review gallery - no deploy
+on:
+  pull_request:
+    paths:
+      - 'apps/sites/routes/console.php'
+      - 'apps/sites/routes/web.php'
+      - 'apps/sites/resources/views/labs/review.blade.php'
+      - 'apps/sites/tests/Feature/SyntheticStyleGalleryExportTest.php'
+      - 'ci/f58_style_gallery_smoke.py'
+      - '.github/workflows/sites-f1-58-full-style-gallery.yml'
+      - 'docs/SITES-F1-58-FULL-STYLE-GALLERY.md'
+permissions:
+  contents: read
+jobs:
+  full-style-gallery:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer:v2
+          extensions: mbstring,dom,xml,curl,pdo,pdo_pgsql
+          coverage: none
+      - name: Syntax and fixed dependencies
+        run: |
+          php -l apps/sites/routes/console.php
+          php -l apps/sites/tests/Feature/SyntheticStyleGalleryExportTest.php
+          python3 -m py_compile ci/f58_style_gallery_smoke.py
+      - name: Install locked Laravel test dependencies without scripts
+        working-directory: apps/sites
+        run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
+      - name: Deny F1-58 exporter by default
+        working-directory: apps/sites
+        env:
+          APP_ENV: testing
+          SITES_SYNTHETIC_HTTP: '0'
+          SITES_SYNTHETIC_REVIEW_UI: '0'
+          SITES_SYNTHETIC_STYLE_EXPORT: '0'
+        run: |
+          set -euo pipefail
+          if php artisan sites:export-style-gallery-fixture; then
+            echo 'F1-58 exporter unexpectedly enabled'
+            exit 1
+          fi
+      - name: Export exact private 12-page fictional review gallery
+        working-directory: apps/sites
+        env:
+          APP_ENV: testing
+          APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+          SESSION_DRIVER: array
+          CACHE_STORE: array
+          SITES_SYNTHETIC_HTTP: '1'
+          SITES_SYNTHETIC_REVIEW_UI: '1'
+          SITES_SYNTHETIC_STYLE_EXPORT: '1'
+        run: php artisan sites:export-style-gallery-fixture
+      - name: Render twelve static local HTML previews with preinstalled Chromium
+        if: matrix.php == '8.4'
+        run: |
+          set -euo pipefail
+          browser=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
+          if test -z "$browser"; then
+            echo 'Preinstalled Chromium absent; no package/provider installation authorized'
+            exit 1
+          fi
+          root="$PWD/apps/sites/storage/app/private/sites-f1-58-style-gallery"
+          pngs="$RUNNER_TEMP/sites-f58-shots"
+          mkdir -p "$pngs"
+          for product in onepage landing_page; do
+            for device in desktop mobile; do
+              for theme in classic modern warm; do
+                if test "$device" = desktop; then size='1365,900'; else size='390,844'; fi
+                name="$product-$device-$theme"
+                "$browser" --headless=new --no-sandbox --disable-gpu                   --disable-background-networking --disable-extensions --disable-sync                   --no-first-run --no-default-browser-check --hide-scrollbars                   --force-device-scale-factor=1 --window-size="$size"                   --screenshot="$pngs/$name.png"                   "file://$root/$name.html" >"$RUNNER_TEMP/sites-f58-chrome.log" 2>&1
+                test -s "$pngs/$name.png"
+              done
+            done
+          done
+          python3 ci/f58_style_gallery_smoke.py "$root" "$pngs"
+      - name: Remove private artifacts before feature tests
+        if: always()
+        working-directory: apps/sites
+        run: |
+          rm -rf storage/app/private/sites-f1-58-style-gallery
+          rm -rf "$RUNNER_TEMP/sites-f58-shots"
+      - name: Test idempotent denial, manifest and offline links
+        working-directory: apps/sites
+        env:
+          APP_ENV: testing
+        run: php artisan test --filter=SyntheticStyleGalleryExportTest --no-ansi
+      - name: Confirm strictly offline scope
+        if: always()
+        run: echo 'Twelve synthetic HTML pages; no screenshot upload, public HTTP, CRM, customer, CDN, deploy or paid provider.'

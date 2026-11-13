@@ -1,0 +1,60 @@
+# F1-73: opt-in, internal-only test sandbox. NEVER production/homologation evidence.
+name: imagine-sites-lab
+
+services:
+  sites-lab-db:
+    image: postgres:18
+    profiles: ["lab"]
+    restart: "no"
+    environment:
+      POSTGRES_DB: sites_lab
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${SITES_LAB_DB_ADMIN_PASSWORD:?Set a separate ephemeral superuser password}
+      SITES_LAB_DB_PASSWORD: ${SITES_LAB_DB_PASSWORD:?Set the restricted application password}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sites_lab"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    networks: [sites-lab-isolated]
+    volumes:
+      - sites-lab-data:/var/lib/postgresql
+      # A single read-only, local, tracked init fixture; never secrets or host data.
+      - ./postgres-init/01-create-lab-role.sh:/docker-entrypoint-initdb.d/01-create-lab-role.sh:ro
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 128
+    mem_limit: 512m
+
+  sites-lab-tests:
+    build:
+      context: ../..
+      dockerfile: ops/staging/Dockerfile
+    profiles: ["lab"]
+    restart: "no"
+    depends_on:
+      sites-lab-db:
+        condition: service_healthy
+    environment:
+      APP_ENV: testing
+      APP_DEBUG: "false"
+      # Preserve the runner's CI identity inside an isolated lab; local
+      # Docker Compose defaults to false and cannot enable the CI-only export.
+      GITHUB_ACTIONS: ${GITHUB_ACTIONS:-false}
+      DB_CONNECTION: pgsql
+      DB_HOST: sites-lab-db
+      DB_PORT: "5432"
+      DB_DATABASE: sites_lab
+      DB_USERNAME: siteslab
+      DB_PASSWORD: ${SITES_LAB_DB_PASSWORD:?Set an ephemeral password outside GitHub/chat}
+    networks: [sites-lab-isolated]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    pids_limit: 128
+    mem_limit: 768m
+
+networks:
+  sites-lab-isolated:
+    internal: true
+
+volumes:
+  sites-lab-data:
