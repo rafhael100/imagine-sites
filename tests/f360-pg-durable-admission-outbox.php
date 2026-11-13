@@ -54,12 +54,21 @@ function f360Denied(callable $action,string $sqlstate):bool
     return false;
 }
 function f360Admit(PDO $db,string $operation,string $site,string $contract,
-    string $product,int $revision,string $digest):string
+    string $product,int $revision,string $digest,?string $expectedTenant=null):string
 {
+    // Only this synthetic test convenience derives a tenant from the exact
+    // fictional SQL login. The real adapter must pass its *signed* tenant.
+    $login=(string)$db->query('SELECT session_user')->fetchColumn();
+    $expectedTenant ??= match($login) {
+        'sites_f360_a'=>'tenant-f360-a',
+        'sites_f360_b'=>'tenant-f360-b',
+        default=>throw new RuntimeException('Unexpected fictional PG login.')
+    };
     $stmt=$db->prepare(
-        'SELECT sites_f360.admit_project(?,?,?,?,?,?)'
+        'SELECT sites_f360.admit_project(?,?,?,?,?,?,?)'
     );
-    $stmt->execute([$operation,$site,$contract,$product,$revision,$digest]);
+    $stmt->execute([$expectedTenant,$operation,$site,$contract,$product,
+        $revision,$digest]);
     return (string)$stmt->fetchColumn();
 }
 function f360Count(PDO $admin,string $table):int
@@ -129,6 +138,10 @@ f360Check(f360Denied(static fn()=>f360Admit(
     $a,'op-shared','site-a','contract-a','landing_page',1,$shaA
 ),'23505'), 'same digest cannot hide product change');
 
+f360Check(f360Denied(static fn()=>f360Admit(
+    $b,'signed-tenant-mismatch','site-b','contract-b','landing_page',1,
+    $shaB,'tenant-f360-a'
+),'42501'), 'signed tenant A cannot be admitted through tenant B SQL login');
 f360Check(f360Admit($b,'op-shared','site-b','contract-b','landing_page',1,$shaB)
     ==='queued', 'same operation ID in a separate DB tenant has independent scope');
 f360Check(f360Count($admin,'admissions')===2 &&
