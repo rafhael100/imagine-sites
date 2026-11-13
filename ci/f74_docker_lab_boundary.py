@@ -101,6 +101,32 @@ def inspect_rendered(value: object) -> None:
     db, test = services["sites-lab-db"], services["sites-lab-tests"]
     if db.get("image") != "postgres:18":
         raise ValueError("unexpected PostgreSQL major version")
+    # F1-343: Compose healthchecks execute code INSIDE containers. The
+    # allowed PostgreSQL readiness command is exact and side-effect-free.
+    # A changed probe could execute arbitrary shell or conceal DB failure.
+    health=db.get("healthcheck")
+    if (not isinstance(health,dict)
+            or set(health)!={"test","interval","timeout","retries"}
+            or health["test"]!=["CMD-SHELL","pg_isready -U postgres -d sites_lab"]
+            or health["interval"] not in ("5s", 5_000_000_000)
+            or health["timeout"] not in ("3s", 3_000_000_000)
+            or type(health["retries"]) is not int or health["retries"]!=12):
+        raise ValueError("unexpected PostgreSQL healthcheck command or timing")
+    if test.get("healthcheck"):
+        raise ValueError("test container must not execute a healthcheck")
+    if db.get("depends_on"):
+        raise ValueError("DB container must not depend on another service")
+    dependency=test.get("depends_on")
+    if (not isinstance(dependency,dict)
+            or set(dependency)!={"sites-lab-db"}
+            or not isinstance(dependency["sites-lab-db"],dict)):
+        raise ValueError("test may depend only on private lab PostgreSQL")
+    dep=dependency["sites-lab-db"]
+    if (dep.get("condition")!="service_healthy"
+            or dep.get("required",True) is not True
+            or dep.get("restart",False) is not False
+            or set(dep)-{"condition","required","restart"}):
+        raise ValueError("unexpected PostgreSQL dependency condition")
     if test.get("cap_drop") != ["ALL"]:
         raise ValueError("test process must drop all capabilities")
     if test.get("build", {}).get("dockerfile") != "ops/staging/Dockerfile":
@@ -174,6 +200,10 @@ def fixture() -> dict:
     }
     db = {
         **base, "image": "postgres:18",
+        "healthcheck": {
+            "test": ["CMD-SHELL","pg_isready -U postgres -d sites_lab"],
+            "interval": "5s", "timeout": "3s", "retries": 12,
+        },
         "environment": {
             "POSTGRES_USER": "postgres", "POSTGRES_DB": "sites_lab",
             "POSTGRES_PASSWORD": "SYNTHETIC-ADMIN-ONLY",
@@ -190,6 +220,9 @@ def fixture() -> dict:
     }
     test = {
         **base, "cap_drop": ["ALL"],
+        "depends_on": {
+            "sites-lab-db": {"condition": "service_healthy", "required": True}
+        },
         "build": {"dockerfile": "ops/staging/Dockerfile"},
         "environment": {
             "DB_PASSWORD": "SYNTHETIC-APP-ONLY",
@@ -232,6 +265,14 @@ def self_test(ignore: str, dockerfile: str) -> None:
         lambda s: s["services"]["sites-lab-db"].update({"ports": ["5432:5432"]}),
         lambda s: s["networks"][NETWORK].update({"internal": False}),
         lambda s: s["services"]["sites-lab-tests"].update({"privileged": True}),
+        lambda s: s["services"]["sites-lab-db"]["healthcheck"].update({"test": ["CMD-SHELL", "sh -c 'touch /tmp/unexpected'"]}),
+        lambda s: s["services"]["sites-lab-db"]["healthcheck"].update({"disable": True}),
+        lambda s: s["services"]["sites-lab-db"]["healthcheck"].update({"interval": "1ms"}),
+        lambda s: s["services"]["sites-lab-tests"].update({"healthcheck": {"test": ["CMD", "sh", "-c", "id"]}}),
+        lambda s: s["services"]["sites-lab-tests"]["depends_on"]["sites-lab-db"].update({"condition": "service_started"}),
+        lambda s: s["services"]["sites-lab-tests"]["depends_on"]["sites-lab-db"].update({"required": False}),
+        lambda s: s["services"]["sites-lab-tests"]["depends_on"].update({"host-db": {"condition": "service_healthy"}}),
+        lambda s: s["services"]["sites-lab-db"].update({"depends_on": {"sites-lab-tests": {"condition": "service_started"}}),
         lambda s: s["services"]["sites-lab-db"].update({"profiles": ["prod"]}),
         lambda s: s["services"]["sites-lab-tests"].update({"pid": "host"}),
         lambda s: s["services"]["sites-lab-tests"].update({"ipc": "host"}),
