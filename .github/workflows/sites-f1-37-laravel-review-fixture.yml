@@ -4,6 +4,10 @@ on:
     paths:
       - 'apps/sites/routes/console.php'
       - 'apps/sites/tests/Feature/SyntheticReviewFixtureCommandTest.php'
+      - 'apps/sites/tests/Feature/SyntheticAuthenticatedOrderFixtureCommandTest.php'
+      - 'src/Integration/SyntheticSitesOrderIngress.php'
+      - 'src/Security/SyntheticAuthorityAttestation.php'
+      - 'src/Security/SyntheticSignedAuthorityAdmission.php'
       - 'fixtures/sites/f1-37-copy.synthetic.json'
       - '.github/workflows/sites-f1-37-laravel-review-fixture.yml'
       - 'docs/SITES-F1-37-LARAVEL-REVIEW-FIXTURE.md'
@@ -31,6 +35,7 @@ jobs:
         run: |
           php -l apps/sites/routes/console.php
           php -l apps/sites/tests/Feature/SyntheticReviewFixtureCommandTest.php
+          php -l apps/sites/tests/Feature/SyntheticAuthenticatedOrderFixtureCommandTest.php
       - name: Install lockfile dependencies without scripts
         working-directory: apps/sites
         run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
@@ -55,11 +60,53 @@ jobs:
           php artisan sites:review-fixture landing_page
           python3 -c 'import json,pathlib;root=pathlib.Path("storage/app/private");paths=[root/("sites-f1-37-"+p) for p in ("onepage","landing_page")];assert all(json.loads((p/"portal-review-candidate.json").read_text())["publishable"] is False and json.loads((p/"portal-review-candidate.json").read_text())["officialClientAcceptance"] is False for p in paths)'
           rm -rf storage/app/private/sites-f1-37-onepage storage/app/private/sites-f1-37-landing_page
+      - name: Reject fictional signed order without both lab gates
+        working-directory: apps/sites
+        env:
+          APP_ENV: testing
+        run: |
+          set -euo pipefail
+          if php artisan sites:authenticated-order-fixture onepage; then
+            echo 'Unsafe: synthetic order accepted without opt-in'
+            exit 1
+          fi
+          if GITHUB_ACTIONS=false SITES_AUTHENTICATED_ORDER_LAB=1 php artisan sites:authenticated-order-fixture onepage; then
+            echo 'Unsafe: synthetic order admitted outside CI'
+            exit 1
+          fi
+      - name: Exercise fictional signed Portal order to inert private review
+        working-directory: apps/sites
+        env:
+          APP_ENV: testing
+          SITES_AUTHENTICATED_ORDER_LAB: '1'
+        run: |
+          set -euo pipefail
+          php artisan sites:authenticated-order-fixture onepage
+          php artisan sites:authenticated-order-fixture landing_page
+          python3 - <<'PY'
+          import json, pathlib, hashlib
+          base=pathlib.Path('storage/app/private')
+          for product in ('onepage','landing_page'):
+              folder=base/('sites-f358-'+product)
+              html=(folder/'index.html').read_bytes()
+              review=json.loads((folder/'portal-review-candidate.json').read_text())
+              manifest=json.loads((folder/'release-manifest.json').read_text())
+              assert review['publishable'] is False
+              assert review['officialClientAcceptance'] is False
+              assert manifest['artifactDigest'] == review['artifactDigest']
+              assert hashlib.sha256(html).hexdigest() == review['artifactDigest']
+          PY
+          rm -rf storage/app/private/sites-f358-onepage storage/app/private/sites-f358-landing_page
       - name: Run Laravel feature tests and negative cases
         working-directory: apps/sites
         env:
           APP_ENV: testing
         run: php artisan test --filter=SyntheticReviewFixtureCommandTest --no-ansi
+      - name: Exercise Laravel signed-order fixture feature tests
+        working-directory: apps/sites
+        env:
+          APP_ENV: testing
+        run: php artisan test --filter=SyntheticAuthenticatedOrderFixtureCommandTest --no-ansi
       - name: Explicitly no provider usage
         if: always()
         run: echo "Fictional CLI-only. No client data, AI model, Portal HTTP, Cloudflare, VPS, or deployment."
