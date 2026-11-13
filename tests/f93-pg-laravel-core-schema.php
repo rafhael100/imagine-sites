@@ -178,9 +178,47 @@ f93Assert(f93Count($app,'tenant-f93-b','sites_projects')===1 &&
     f93Count($app,'tenant-f93-a','sites_projects')===1,
     'two tenant contexts each see their own separate project only');
 
+// F1-346: demonstrate that FORCE RLS + an application-set custom GUC
+// does NOT authenticate the tenant. The same authenticated PG app login
+// can arbitrarily set the GUC to a different organization if it can send
+// SQL. This is a negative SECURITY proof, not a supported production flow.
+$app->beginTransaction();
+try {
+    $dbIdentity=(string)$app->query('SELECT session_user')->fetchColumn();
+    $app->exec("SET LOCAL imagine_sites.tenant_ref='tenant-f93-b'");
+    $crossTenant=$app->query(
+        "SELECT tenant_ref,site_ref FROM sites_projects WHERE site_ref='site-f93-b'"
+    )->fetch(PDO::FETCH_ASSOC);
+    f93Assert(
+        $dbIdentity==='sites_f93_app' &&
+        is_array($crossTenant) &&
+        $crossTenant['tenant_ref']==='tenant-f93-b' &&
+        $crossTenant['site_ref']==='site-f93-b',
+        'SECURITY NEGATIVE: same restricted DB login can forge tenant B GUC and SELECT its row'
+    );
+    $app->exec(
+        "INSERT INTO sites_projects(tenant_ref,site_ref,product_code)
+         VALUES ('tenant-f93-b','site-f346-unverified','onepage')"
+    );
+    f93Assert(
+        (int)$app->query(
+            "SELECT count(*) FROM sites_projects
+             WHERE tenant_ref='tenant-f93-b' AND site_ref='site-f346-unverified'"
+        )->fetchColumn()===1,
+        'SECURITY NEGATIVE: untrusted SQL with forged GUC can pass INSERT RLS WITH CHECK'
+    );
+} finally {
+    if ($app->inTransaction()) $app->rollBack();
+}
+f93Assert(
+    f93Count($app,'tenant-f93-b','sites_projects')===1 &&
+    f93Count($app,'tenant-f93-a','sites_projects')===1,
+    'forged tenant SQL stayed inside rolled-back fictional transaction; no extra rows'
+);
+
 f93Assert((int)$app->query('SELECT count(*) FROM sites_projects')->fetchColumn()===0 &&
     (int)$app->query('SELECT count(*) FROM sites_drafts')->fetchColumn()===0,
     'transaction-local tenant setting does not leak to subsequent requests');
 
 echo "\n$checks F1-93 Laravel-backed PostgreSQL18 tenant-storage checks passed.\n";
-echo "This is NOT Portal IAM; the application must prohibit arbitrary SQL or tenant context setting.\n";
+echo "This is NOT Portal IAM: F1-346 proves an app-supplied tenant GUC can be forged by the same DB login; a trusted independent Portal identity and restricted SQL boundary are REQUIRED.\n";

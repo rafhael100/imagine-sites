@@ -32,3 +32,9 @@ O workflow `sites-f1-93-pg-schema.yml` executa PHP 8.3 e 8.4 com imagem PostgreS
 ## O que permanece
 
 Ainda são necessários: vínculo oficial e revogação do Portal, aprovação humana auditável, outbox e eventos, retenção LGPD, storage segregado de artifacts, bancos operacionais com backup/restore real, controle de consultas, segurança independente, VPS e domínio de homologação. Nenhuma publicação, migração em ambiente do cliente, alteração de main/dev, dado pessoal, credencial operacional ou gasto é autorizado. Os dez gates permanecem BLOCKED. Este é o **primeiro alicerce real de migration** com teste PG18, ainda restrito a laboratório.
+
+## F1-346 — teste adversarial com GUC falsificável (não autorização de tenant)
+
+O teste real PostgreSQL 18 `tests/f93-pg-laravel-core-schema.php` passou a demonstrar **explicitamente** que o mesmo usuário SQL restrito `sites_f93_app`, após definir por conta própria `SET LOCAL imagine_sites.tenant_ref='tenant-f93-b'`, consegue ler a linha de B e inserir outra linha de B que passa no RLS `WITH CHECK`. O INSERT de demonstração é sempre revertido por `ROLLBACK` em transação descartável e o teste confirma que nenhum registro extra permaneceu. O teste não usa um segundo usuário/tenant real, apenas duas empresas fictícias.
+
+Esta prova negativa **não é uma correção**: é uma barreira documental/testável contra promover equivocadamente o RLS baseado em `current_setting` como autenticação SaaS. Não liberar o banco de produção até existir vínculo externo confiável com identidade/revogação Portal, SQL executado apenas por serviços autorizados, política de menor privilégio, auditoria de pool/transações e revisão independente de DBA/AppSec. O gate de banco/identidade permanece `BLOCKED` sem possibilidade de o teste alterar essa decisão.
