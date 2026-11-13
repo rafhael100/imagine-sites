@@ -38,6 +38,25 @@
   background: var(--sites-shell-bg);
 }
 body { background: var(--sites-shell-bg); color: var(--sites-shell-ink); font-family: var(--imagine-font-ui); }
+/* Keyboard-first staff navigation; this link never enters customer HTML. */
+.skip-shell {
+  position:fixed;top:8px;left:8px;z-index:100;
+  display:inline-flex;align-items:center;
+  min-height:var(--imagine-touch-target);
+  max-width:calc(100vw - 16px);
+  padding:10px var(--imagine-space-4);
+  background:var(--imagine-orange-soft);
+  color:var(--imagine-ink);
+  border:2px solid var(--imagine-orange);
+  border-radius:var(--imagine-radius-navigation);
+  font-weight:700;line-height:1.35;overflow-wrap:anywhere;
+  transform:translateY(-160%);
+}
+.skip-shell:focus,.skip-shell:focus-visible {
+  transform:none;
+  outline:3px solid var(--imagine-focus);
+  outline-offset:2px;
+}
 a:focus-visible, button:focus-visible, summary:focus-visible, iframe:focus-visible {
   outline: 3px solid var(--imagine-focus);
   outline-offset: 4px;
