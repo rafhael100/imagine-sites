@@ -91,6 +91,13 @@ def main() -> None:
             files, artifact, bundle_digest = bundle(product)
             for name, data in files.items():
                 owner_file(private / name, data)
+            # F1-337: a private parent does not excuse exposed 0644 input.
+            exposed = private / "index.html"
+            os.chmod(exposed, 0o644)
+            deny(lambda: archive.read_private_bundle(private),
+                 "world-readable synthetic source file")
+            os.chmod(exposed, 0o600)
+            count += 1
             archive.check_files(files, product, artifact, bundle_digest)
             scope = ("tenant.synthetic", "site.synthetic", "release.synthetic")
             archive.require_pinned_scope(files, *scope)
@@ -199,8 +206,28 @@ def main() -> None:
             assert not partial_path.exists()
             count += 1
 
+            # Simulate an archive directory owned by another UNIX uid:
+            # even with 0700 bits it must not pass the owner boundary.
+            real_uid = archive.os.geteuid
+            wrong_owner_path = base / f"wrong-owner-f337-{product}.zip"
+            try:
+                archive.os.geteuid = lambda: real_uid() + 1
+                deny(lambda: archive.read_private_bundle(private),
+                     "synthetic source owned by a different effective uid")
+                deny(lambda: archive.write_exclusive(wrong_owner_path, raw),
+                     "ZIP output directory belongs to another uid")
+            finally:
+                archive.os.geteuid = real_uid
+            assert not wrong_owner_path.exists()
+            count += 2
+
             destination = base / f"sites-f329-{product}.zip"
             archive.write_exclusive(destination, raw)
+            os.chmod(destination, 0o644)
+            deny(lambda: archive.read_owner_regular(destination),
+                 "archive file is group/world-readable")
+            os.chmod(destination, 0o600)
+            count += 1
             assert archive.read_owner_regular(destination) == raw
             assert archive.verify_zip(
                 archive.read_owner_regular(destination), product,

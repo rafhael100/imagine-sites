@@ -53,3 +53,7 @@ Uma gravação aceita pelo sistema operacional não garante que os bytes persist
 ## F1-336 — serialização canônica obrigatória do manifesto
 
 A inspeção de ZIP exige agora que o manifesto de release seja exatamente o JSON emitido pelo gerador sintético (ordem dos nove campos, quatro espaços de indentação, strings Unicode sem escape desnecessário, newline final). Formatos alternativos que representem o mesmo objeto são recusados **mesmo quando o hash do pacote for recalculado para combinar com eles**. Isso reduz ambiguidades entre parsers (PHP/Python) e impede aceitar metadados diferentes daqueles que o builder produziria. Os testes cobrem JSON compacto, chave com escape `\\u0074` e falta do newline final. Esta regra protege o contrato de laboratório e não autentica a origem do manifesto/Portal.
+
+## F1-337 — verificar UID e permissões dos arquivos privados
+
+O backup local exige agora que a pasta de origem do bundle e a pasta do ZIP sejam de propriedade do **UID efetivo do processo** e não concedam acesso a grupo/outros (0700). Também exige arquivos-fonte e o ZIP de propriedade do mesmo UID, sem permissões para grupo/outros (0600). O restore verifica UID da pasta pai, staging e arquivos criados. Testes negativos cobrem arquivo 0644, ZIP 0644 e simulação de outro UID. Esta política é de defesa em profundidade para laboratório Linux, **não isola tenants que compartilham o mesmo usuário Unix** e não substitui IAM do Portal, RLS do PostgreSQL ou criptografia de backup.

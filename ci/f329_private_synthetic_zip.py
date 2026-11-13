@@ -123,8 +123,18 @@ def reject_constant(text: str) -> None:
 def read_private_bundle(directory: Path) -> dict[str, bytes]:
     fd = open_private_directory(directory)
     try:
-        if os.fstat(fd).st_mode & 0o077:
-            raise ValueError("private source directory not owner-only")
+        directory_info = os.fstat(fd)
+        if (directory_info.st_mode & 0o077
+                or directory_info.st_uid != os.geteuid()):
+            raise ValueError("private source directory owner or mode invalid")
+        # Source files must be private regular inodes owned by this process,
+        # not merely readable through an owner-only parent.
+        for name in ZIP_NAMES:
+            info = os.stat(name, dir_fd=fd, follow_symlinks=False)
+            if (not stat.S_ISREG(info.st_mode)
+                    or info.st_uid != os.geteuid()
+                    or info.st_mode & 0o077):
+                raise ValueError("private source file owner or mode invalid")
         if os.listdir(fd) != ZIP_NAMES and sorted(os.listdir(fd)) != sorted(ZIP_NAMES):
             raise ValueError("unexpected private source contents")
         files = {name: read_regular_private(fd, name, limit)
@@ -190,13 +200,16 @@ def read_owner_regular(path: Path) -> bytes:
     try:
         # F1-334: 0600 on the ZIP itself is not sufficient to treat a
         # group/world-traversable archive directory as a private backup area.
-        if os.fstat(directory_fd).st_mode & 0o077:
-            raise ValueError("private ZIP directory exposes group/other access")
+        directory_info = os.fstat(directory_fd)
+        if (directory_info.st_mode & 0o077
+                or directory_info.st_uid != os.geteuid()):
+            raise ValueError("private ZIP directory owner or mode invalid")
         name = path.name
         if not re.fullmatch(r"[a-z0-9][a-z0-9._-]{0,100}\.zip", name):
             raise ValueError("unexpected private archive filename")
         before = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
         if (not stat.S_ISREG(before.st_mode) or before.st_nlink != 1
+                or before.st_uid != os.geteuid()
                 or before.st_mode & 0o077
                 or not 0 < before.st_size <= ZIP_MAX):
             raise ValueError("untrusted archive inode or permissions")
@@ -235,8 +248,10 @@ def write_exclusive(path: Path, data: bytes) -> None:
     directory_fd = open_private_directory(path.parent)
     created_identity = None
     try:
-        if os.fstat(directory_fd).st_mode & 0o077:
-            raise ValueError("private ZIP output directory must be owner-only")
+        directory_info = os.fstat(directory_fd)
+        if (directory_info.st_mode & 0o077
+                or directory_info.st_uid != os.geteuid()):
+            raise ValueError("private ZIP output directory owner or mode invalid")
         fd = os.open(path.name, os.O_WRONLY | os.O_CREAT | os.O_EXCL |
                      os.O_NOFOLLOW | os.O_CLOEXEC, mode=0o600,
                      dir_fd=directory_fd)
@@ -253,7 +268,9 @@ def write_exclusive(path: Path, data: bytes) -> None:
             opened = os.fstat(fd)
             named = os.stat(path.name, dir_fd=directory_fd, follow_symlinks=False)
             if (not stat.S_ISREG(opened.st_mode)
-                    or opened.st_nlink != 1 or opened.st_mode & 0o077
+                    or opened.st_nlink != 1
+                    or opened.st_uid != os.geteuid()
+                    or opened.st_mode & 0o077
                     or file_identity(opened) != file_identity(named)):
                 raise ValueError("private ZIP output inode replaced")
         finally:
