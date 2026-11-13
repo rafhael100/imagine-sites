@@ -186,12 +186,12 @@ try {
 f364Check($crossDenied && !$app->inTransaction(),
     'valid foreign tenant signature rejected by DB login and rolled back');
 
-$invalid=$foreign;
-$invalid['tenantRef']='tenant-evil';
+$invalidWire=f364Sign($foreign,'nonce-f364-tampered');
+$invalidWire['payload']['tenantRef']='tenant-evil';
 f364Check(f364Denied(static fn()=>f364Enqueue(
-    $adapter,f364Sign($invalid,'nonce-f364-tampered'),
-    $foreignPortal,$foreignExternal,'site-f364-tampered'
-)), 'tampered Portal tenant fails before SQL insertion');
+    $adapter,$invalidWire,$foreignPortal,$foreignExternal,
+    'site-f364-tampered'
+)), 'tampered Portal tenant fails signature verification before SQL insertion');
 
 $validPayload=(new SitesCreateProjectEncoder(
     new F364ContractStub('onepage')
