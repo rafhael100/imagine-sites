@@ -94,7 +94,8 @@ assert319(Combined::inspect($original,$retry,$otherWindow,$attempt,$source)->rea
 // F1-320: even equal next-due timestamps are not interchangeable if
 // an outbox worker accidentally pairs diagnostics from two T0 ledgers.
 $foreignT0=new LeadDeadline($t0->modify('+60 seconds'));
-$foreignWindow=Window::inspect($foreignT0,$backoff,$response,$last,$now);
+$foreignBackoff=Backoff::assess($foreignT0,$now,2,$last,true);
+$foreignWindow=Window::inspect($foreignT0,$foreignBackoff,$response,$last,$now);
 assert319($foreignWindow->timeElapsed &&
     $foreignWindow->nextConsiderationAt?->getTimestamp()===
         $window->nextConsiderationAt?->getTimestamp() &&
