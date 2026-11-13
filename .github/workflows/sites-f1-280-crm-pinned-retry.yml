@@ -1,0 +1,39 @@
+name: Sites F1-280 cross-tenant pinned CRM retry context
+on:
+  pull_request:
+    paths:
+      - 'src/Integration/SyntheticCrmPinnedRetryContextV1.php'
+      - 'tests/f280-crm-pinned-retry-context.php'
+      - '.github/workflows/sites-f1-280-crm-pinned-retry.yml'
+permissions:
+  contents: read
+jobs:
+  pinned-retry-context:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+          tools: none
+          coverage: none
+      - name: Validate cross-tenant, submission and pinned destination rules
+        run: |
+          set -euo pipefail
+          php -l src/Integration/SyntheticCrmPinnedRetryContextV1.php
+          php -l tests/f280-crm-pinned-retry-context.php
+          php tests/f277-lead-retry-deadline.php
+          php tests/f278-crm-response-policy.php
+          php tests/f279-crm-backoff-composition.php
+          php tests/f280-crm-pinned-retry-context.php
+      - name: Boundary
+        if: always()
+        run: echo 'Synthetic UUID claims and offline scheduling only. No real tenant identity, CRM, persistence, traffic, PII or deployment.'

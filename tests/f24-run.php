@@ -42,6 +42,33 @@ checkF24(SyntheticReleaseBundle::verifyFiles($bundle->files,$manifest),
     'exact artifact digest, identity, meta and offline flag are verified');
 checkF24(strlen($bundle->bundleDigest)===64,
     'bundle has deterministic SHA-256 digest');
+checkF24(SyntheticReleaseBundle::verifyExactBundle(
+    $bundle->files,$manifest,$bundle->bundleDigest
+), 'external pinned complete-bundle digest verifies exactly');
+checkF24(!SyntheticReleaseBundle::verifyExactBundle(
+    $bundle->files,$manifest,str_repeat('0',64)
+), 'wrong independent bundle pin is rejected');
+foreach (['', 'not-a-digest', strtoupper($bundle->bundleDigest),
+    substr($bundle->bundleDigest,0,63)] as $invalidPin) {
+    checkF24(!SyntheticReleaseBundle::verifyExactBundle(
+        $bundle->files,$manifest,$invalidPin
+    ), 'invalid external digest representation is refused');
+}
+$extraFile=$bundle->files;
+$extraFile['extra.html']='not a release file';
+checkF24(!SyntheticReleaseBundle::verifyExactBundle(
+    $extraFile,$manifest,$bundle->bundleDigest
+), 'unlisted file cannot hide inside a valid digest pin');
+$reversed=array_reverse($bundle->files,true);
+checkF24(!SyntheticReleaseBundle::verifyExactBundle(
+    $reversed,$manifest,$bundle->bundleDigest
+), 'file ordering is part of exact private package grammar');
+$mutatedManifest=$bundle->files;
+$mutatedManifest['release-manifest.json'].="\n";
+checkF24(!SyntheticReleaseBundle::verifyExactBundle(
+    $mutatedManifest,$manifest,$bundle->bundleDigest
+), 'even whitespace appended to manifest invalidates package');
+
 checkF24($bundle->bundleDigest===(new SyntheticReleaseBundle($manifest,$artifact))->bundleDigest,
     'bundle reproducible regardless of wall-clock time');
 $meta=json_decode($bundle->files['release-manifest.json'],true,16,JSON_THROW_ON_ERROR);
@@ -93,16 +120,24 @@ checkF24(deniedF24(fn()=>new SyntheticReleaseBundle($wrongDigest,$artifact)),
 $escapedBrief=new SiteBrief(
     'landing_page','<svg onload=alert(1)>','" onfocus="alert(1)',
     '<script>alert(1)</script>','Clique',
-    ['javascript:alert(1)'] // plain text, not a link
+    ['literal-inert-text'] // no URI scheme or execution
 );
 $escapedArtifact=$renderer->render($escapedBrief);
 checkF24(!str_contains($escapedArtifact->html,'<svg onload=') &&
     !str_contains($escapedArtifact->html,'<script>alert(1)</script>'),
     'untrusted text is HTML-escaped in renderer');
+checkF24(deniedF24(fn()=>new SiteBrief('landing_page','Fictícia',
+    'Título','Descrição','Clique',['javascript:alert(1)'])),
+    'unsafe javascript URL is refused before rendering');
+$modifiedHtml=str_replace('literal-inert-text','javascript:alert(1)',
+    $escapedArtifact->html);
+checkF24($modifiedHtml!==$escapedArtifact->html,
+    'adversarial package mutation changes exact HTML bytes');
+$modifiedArtifact=new ReleaseArtifact($modifiedHtml);
 checkF24(deniedF24(fn()=>new SyntheticReleaseBundle(
-    new ReleaseManifest('tenant-fake-01','site-fake-01','release-esc',$escapedArtifact->digest),
-    $escapedArtifact
-)), 'bundle with raw javascript: substring denied under strict preview policy');
+    new ReleaseManifest('tenant-fake-01','site-fake-01','release-esc',$modifiedArtifact->digest),
+    $modifiedArtifact
+)), 'even recomputed digest cannot hide javascript: inside package');
 
 $landing=$renderer->render(new SiteBrief('landing_page','Testes','Anúncio exemplo',
     'Página fictícia de conversão sem forms','Contato',['Exemplo']));
