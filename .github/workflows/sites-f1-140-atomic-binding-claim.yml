@@ -1,0 +1,72 @@
+name: Sites F1-140 PostgreSQL18 atomic synthetic binding claim
+on:
+  pull_request:
+    paths:
+      - 'labs/postgres/f1-140-atomic-binding-claim.sql'
+      - 'tests/f140-pg-atomic-binding-claim.php'
+      - 'docs/SITES-F1-140-PG-ATOMIC-CLAIM-LIMITS.md'
+      - '.github/workflows/sites-f1-140-atomic-binding-claim.yml'
+permissions:
+  contents: read
+jobs:
+  atomic-claim-ci-lab:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: f140-fictional-admin-ci-only
+          POSTGRES_DB: sites_f140_atomic_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sites_f140_atomic_lab"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      APP_ENV: testing
+      GITHUB_ACTIONS: 'true'
+      SITES_F140_PG_LAB: '1'
+      DB_HOST: 127.0.0.1
+      DB_DATABASE: sites_f140_atomic_lab
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGDATABASE: sites_f140_atomic_lab
+      PGUSER: postgres
+      PGPASSWORD: f140-fictional-admin-ci-only
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo,pdo_pgsql
+          tools: none
+          coverage: none
+      - name: Install disposable PostgreSQL client
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y postgresql-client
+          fi
+      - name: Install restricted F1-140 synthetic metadata-only fixture
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f labs/postgres/f1-140-atomic-binding-claim.sql
+      - name: Exercise two app sessions, row lock and revoked revision
+        run: |
+          set -euo pipefail
+          php -l tests/f140-pg-atomic-binding-claim.php
+          php tests/f140-pg-atomic-binding-claim.php
+      - name: No production promotion
+        if: always()
+        run: echo "CI disposable PG18 only. No real customer, Portal IAM, CRM ACK, VPS, deploy or publishing."

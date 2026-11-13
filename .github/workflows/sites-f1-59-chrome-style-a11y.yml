@@ -1,0 +1,66 @@
+name: Sites F1-59 live Chrome inner-page layout and text contrast - offline
+on:
+  pull_request:
+    paths:
+      - 'ci/f59_style_cdp.py'
+      - 'ci/f276_chrome_bootstrap.py'
+      - 'ci/f276_chrome_bootstrap_test.py'
+      - 'ci/f62_hero_contrast.py'
+      - 'docs/SITES-F1-62-GRADIENT-320-A11Y.md'
+      - 'ci/f43_cdp.py'
+      - 'ci/f44_contrast.py'
+      - 'apps/sites/routes/console.php'
+      - 'apps/sites/routes/web.php'
+      - 'src/Production/StaticSiteRenderer.php'
+      - '.github/workflows/sites-f1-59-chrome-style-a11y.yml'
+      - 'docs/SITES-F1-59-CHROME-STYLE-A11Y.md'
+permissions:
+  contents: read
+jobs:
+  chrome-theme-a11y-lab:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          extensions: mbstring,dom,xml,curl,pdo,pdo_pgsql
+          coverage: none
+      - name: Python syntax only, no third party browser driver
+        run: |
+          python3 -m py_compile ci/f59_style_cdp.py ci/f43_cdp.py ci/f44_contrast.py ci/f62_hero_contrast.py ci/f276_chrome_bootstrap.py ci/f276_chrome_bootstrap_test.py
+          python3 ci/f276_chrome_bootstrap_test.py
+          python3 ci/f62_hero_contrast.py --self-test
+      - name: Install locked Laravel test dependencies
+        working-directory: apps/sites
+        run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
+      - name: Generate twelve private fictional pages
+        working-directory: apps/sites
+        env:
+          APP_ENV: testing
+          APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+          CACHE_STORE: array
+          SESSION_DRIVER: array
+          SITES_SYNTHETIC_HTTP: '1'
+          SITES_SYNTHETIC_REVIEW_UI: '1'
+          SITES_SYNTHETIC_STYLE_EXPORT: '1'
+        run: php artisan sites:export-style-gallery-fixture
+      - name: Actual Chromium layout, hero gradient and 320px narrow viewport audit
+        run: |
+          set -euo pipefail
+          browser=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
+          if test -z "$browser"; then
+            echo "Preinstalled Chromium unavailable; no download or billing"
+            exit 1
+          fi
+          python3 ci/f59_style_cdp.py             apps/sites/storage/app/private/sites-f1-58-style-gallery "$browser"
+      - name: Remove fictional pages and browser traces
+        if: always()
+        working-directory: apps/sites
+        run: |
+          rm -rf storage/app/private/sites-f1-58-style-gallery
+          echo 'No screenshot upload or permanent private gallery'

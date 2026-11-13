@@ -5,9 +5,13 @@ on:
     paths:
       - 'src/Domain/ReleaseManifest.php'
       - 'src/Production/SyntheticReleaseBundle.php'
+      - 'src/Production/SyntheticPrivateBundleLockV1.php'
+      - 'src/Production/SyntheticPrivateRegularFileReadV1.php'
       - 'src/Production/InertPreviewAudit.php'
       - 'tests/f27-offline-preview-audit.php'
       - 'tests/f24-run.php'
+      - 'tests/f300-private-bundle-process-lock.php'
+      - 'tests/f301-private-regular-file-read.php'
       - 'apps/sites/routes/console.php'
       - 'apps/sites/tests/Feature/SyntheticReleaseBundleCommandTest.php'
       - '.github/workflows/sites-f1-24-release-bundle.yml'
@@ -37,12 +41,18 @@ jobs:
       - name: Verify PHP syntax
         run: |
           php -l src/Production/SyntheticReleaseBundle.php
+          php -l src/Production/SyntheticPrivateBundleLockV1.php
+          php -l tests/f300-private-bundle-process-lock.php
+          php -l src/Production/SyntheticPrivateRegularFileReadV1.php
+          php -l tests/f301-private-regular-file-read.php
           php -l src/Domain/ReleaseManifest.php
           php -l tests/f24-run.php
           php -l apps/sites/routes/console.php
       - name: Run inert package security and digest tests
         run: |
           php tests/f24-run.php
+          php tests/f300-private-bundle-process-lock.php
+          php tests/f301-private-regular-file-read.php
           php tests/f27-offline-preview-audit.php
       - name: Install locked Laravel dependencies without scripts
         working-directory: apps/sites
@@ -69,7 +79,14 @@ jobs:
           python3 -c 'import json,pathlib;root=pathlib.Path("storage/app/private"); files=[root/"sites-f1-24-onepage"/"release-manifest.json",root/"sites-f1-24-landing_page"/"release-manifest.json"]; assert all(json.loads(p.read_text())["publishable"] is False for p in files)'
           test -s storage/app/private/sites-f1-24-onepage/index.html
           test -s storage/app/private/sites-f1-24-landing_page/index.html
+          for product in onepage landing_page; do
+            base="storage/app/private/sites-f1-24-$product"
+            artifact="$(sha256sum "$base/index.html" | cut -d' ' -f1)"
+            bundle="$(python3 -c 'import hashlib,pathlib,sys; p=pathlib.Path(sys.argv[1]); print(hashlib.sha256((p/"index.html").read_bytes()+b"\0"+(p/"release-manifest.json").read_bytes()).hexdigest())' "$base")"
+            SITES_SYNTHETIC_VERIFY=1 php artisan sites:verify-fixture-bundle "$product" "$artifact" "$bundle"
+          done
           rm -rf storage/app/private/sites-f1-24-onepage storage/app/private/sites-f1-24-landing_page
+          rm -f storage/app/private/.sites-f1-24-onepage.lock storage/app/private/.sites-f1-24-landing_page.lock
       - name: Explicit lab-only statement
         if: always()
         run: echo "No Workers, Cloudflare, Pages, DNS, customer files, public web or deployed artifacts."
