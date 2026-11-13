@@ -20,7 +20,7 @@ use Imagine\Sites\Integration\SyntheticCrmAttemptScopedRetryV1 as Scoped;
 
 $t0=new DateTimeImmutable('2026-11-13T03:00:00+00:00');
 $deadline=new LeadDeadline($t0);
-$plus=static fn(DateTimeImmutable $d,int $secs)=>$d->modify('+'.$secs.' seconds');
+$plus=static fn(DateTimeImmutable $d,int $secs)=>\n    $d->modify(($secs<0?'':'+').$secs.' seconds');
 $last=$plus($t0,300);
 $now=$plus($t0,1800);
 $plan=Backoff::assess($deadline,$now,2,$last,true);
