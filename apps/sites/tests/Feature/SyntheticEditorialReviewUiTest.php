@@ -34,8 +34,10 @@ final class SyntheticEditorialReviewUiTest extends TestCase
                 self::assertStringContainsString('não substituem a aprovação humana',$html);
                 self::assertStringContainsString('Aceite oficial pendente no Portal',$html);
                 self::assertStringContainsString('Aprovação, publicação e entrega desabilitadas',$html);
-                self::assertSame(7,substr_count($html,'class="qa-list"')===1 ?
-                    substr_count(explode('</ul>',explode('<ul class="qa-list">',$html)[1])[0],'<li>') : -1);
+                self::assertSame(1,preg_match('/<ul class="qa-list"[^>]*>(.*?)<\\/ul>/s',
+                    $html,$qaRows));
+                self::assertSame(10,substr_count($qaRows[1],'<li>'),
+                    'The staff reviewer must expose all ten F1-39 QA checks');
                 self::assertSame(1,preg_match(
                     '/id="artifact-digest">([a-f0-9]{64})<\/code>/',$html
                 ));
