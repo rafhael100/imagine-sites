@@ -14,10 +14,12 @@ import json
 import os
 from pathlib import Path
 import re
+import secrets
 import stat
 import sys
 import zipfile
 
+from f331_atomic_private_rename import check_platform, rename_zip_no_replace
 from f307_private_qa_json_contract import (
     FIXED_FILES, file_identity, inspect_inert_html, open_private_directory,
     read_regular_private,
@@ -242,17 +244,30 @@ def read_owner_regular(path: Path) -> bytes:
 
 
 def write_exclusive(path: Path, data: bytes) -> None:
+    """F1-338: fully verify staged ZIP, THEN atomically name it, no overwrite.
+
+    No partial archive is ever created under the final .zip name. Failures
+    clean up only an inode this writer created. This protects the private
+    lab artifact; not a durable cross-machine/tenant backup transaction.
+    """
     if (not re.fullmatch(r"[a-z0-9][a-z0-9._-]{0,100}\.zip", path.name)
             or not 0 < len(data) <= ZIP_MAX):
         raise ValueError("unsafe archive output")
+    check_platform()  # never fall back to an overwriting rename
     directory_fd = open_private_directory(path.parent)
+    stage_name = ".sites-f338-archive-" + secrets.token_hex(8) + ".tmp"
     created_identity = None
+    promoted = False
     try:
         directory_info = os.fstat(directory_fd)
         if (directory_info.st_mode & 0o077
                 or directory_info.st_uid != os.geteuid()):
             raise ValueError("private ZIP output directory owner or mode invalid")
-        fd = os.open(path.name, os.O_WRONLY | os.O_CREAT | os.O_EXCL |
+        # Reject pre-existing final path even if a symlink; kernel rename
+        # enforces the same check atomically if another writer races us.
+        if path.name in os.listdir(directory_fd):
+            raise ValueError("ZIP destination already exists")
+        fd = os.open(stage_name, os.O_WRONLY | os.O_CREAT | os.O_EXCL |
                      os.O_NOFOLLOW | os.O_CLOEXEC, mode=0o600,
                      dir_fd=directory_fd)
         created = os.fstat(fd)
@@ -262,39 +277,63 @@ def write_exclusive(path: Path, data: bytes) -> None:
             while offset < len(data):
                 n = os.write(fd, data[offset:])
                 if n <= 0:
-                    raise OSError("partial private ZIP write")
+                    raise OSError("partial private staged ZIP write")
                 offset += n
             os.fsync(fd)
             opened = os.fstat(fd)
-            named = os.stat(path.name, dir_fd=directory_fd, follow_symlinks=False)
+            named = os.stat(stage_name, dir_fd=directory_fd,
+                            follow_symlinks=False)
             if (not stat.S_ISREG(opened.st_mode)
                     or opened.st_nlink != 1
                     or opened.st_uid != os.geteuid()
                     or opened.st_mode & 0o077
                     or file_identity(opened) != file_identity(named)):
-                raise ValueError("private ZIP output inode replaced")
+                raise ValueError("private staging ZIP inode replaced")
         finally:
             os.close(fd)
-        # F1-335: a successful fsync/write is NOT proof that the expected
-        # private bytes survived. Reopen via another pinned directory FD,
-        # compare complete exact bytes, then fsync parent before returning.
-        if read_owner_regular(path) != data:
-            raise ValueError("private ZIP post-write exact readback mismatch")
+        # Reopen the *staging* inode to compare every persisted byte before
+        # the final filename becomes visible.  Bounding the second read also
+        # rejects a concurrently growing artifact.
+        read_fd = os.open(stage_name, os.O_RDONLY | os.O_NOFOLLOW |
+                          os.O_NONBLOCK | os.O_CLOEXEC, dir_fd=directory_fd)
+        try:
+            stage_before = os.fstat(read_fd)
+            if (stage_before.st_dev, stage_before.st_ino) != created_identity:
+                raise ValueError("ZIP staging inode switched before readback")
+            out = bytearray()
+            while len(out) <= len(data):
+                chunk = os.read(read_fd, min(65536, len(data) + 1 - len(out)))
+                if not chunk:
+                    break
+                out.extend(chunk)
+            stage_after = os.fstat(read_fd)
+            stage_named = os.stat(stage_name, dir_fd=directory_fd,
+                                  follow_symlinks=False)
+            if (bytes(out) != data or len(out) != len(data)
+                    or file_identity(stage_before) != file_identity(stage_after)
+                    or file_identity(stage_before) != file_identity(stage_named)):
+                raise ValueError("private ZIP staged exact readback mismatch")
+        finally:
+            os.close(read_fd)
+
+        rename_zip_no_replace(directory_fd, stage_name, path.name)
+        promoted = True
         os.fsync(directory_fd)
+        # Final-name proof after atomic promotion; never report a backup
+        # created solely because rename returned successfully.
+        if read_owner_regular(path) != data:
+            raise ValueError("private ZIP final exact readback mismatch")
     except BaseException:
-        # Never delete a replacement inode if another local process swapped
-        # the path while the private archive write was failing.
+        # A failed ZIP never gets to overwrite someone else's target.
+        # Do not unlink a replaced path or a hardlinked inode on failure.
         if created_identity is not None:
+            name = path.name if promoted else stage_name
             try:
-                named = os.stat(path.name, dir_fd=directory_fd,
+                named = os.stat(name, dir_fd=directory_fd,
                                 follow_symlinks=False)
-                # File *size* changes naturally while writing. Compare
-                # only immutable device+inode identity during cleanup,
-                # and refuse links/special files; a replacement must never
-                # be deleted merely because it has the same byte length.
                 if (stat.S_ISREG(named.st_mode) and named.st_nlink == 1
                         and (named.st_dev, named.st_ino) == created_identity):
-                    os.unlink(path.name, dir_fd=directory_fd)
+                    os.unlink(name, dir_fd=directory_fd)
             except OSError:
                 pass
         raise
