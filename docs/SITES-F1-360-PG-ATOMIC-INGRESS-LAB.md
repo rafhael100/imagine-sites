@@ -54,3 +54,12 @@ Um ledger SQL adicional, restrito à base descartável, guarda uma chave global 
 O teste F1-363 utiliza as classes assinadas candidatas e públicas do PR #443/Portal para criar uma admissão **dentro da mesma transação PostgreSQL** da reserva do nonce e gravação do outbox. Uma falha do outbox reverte também o nonce, permitindo repetir a operação após rollback; uma tentativa idêntica após commit é negada. Uma nova assinatura com nonce novo e mesma chave idempotente retorna duplicate_ignored e não cria outro evento.
 
 O ledger **não** deve ser considerado IAM operacional. Os tempos do teste são baseados no relógio do CI, chaves são fictícias, nenhuma chave KMS/vault ou TLS foi usada, e a fonte de revogação permanece no mesmo domínio de restauração. O TTL não concede reaproveitamento de nonce depois do vencimento: a chave permanece única até existir uma política de limpeza segura e auditada, ainda pendente. A role de aplicação sem autoridade oficial não deve receber essa função em produção.
+
+
+## F1-364 — adaptador PHP transacional reutilizável, CI-only
+
+O protótipo LabTransactionalSignedIngressV1 em src/Persistence extrai das fixtures o fluxo de aplicação: lê e verifica três provas criptográficas fictícias (pedido assinado, autorização Portal e fonte externa simulada), reserva o nonce SQL no PostgreSQL com vínculo de tenant e grava admissão+outbox **na mesma transação**. Em caso de qualquer exceção, executa rollback e não admite meia operação. O status retornado é apenas queued ou duplicate_ignored, sempre publishable=false.
+
+O adaptador recusa execução fora do CLI de CI com ambiente e banco específicos, além de verificar a identidade efetiva da conexão SQL. Recusa transações já abertas e chaves/autoridades inválidas. O teste F1-364 usa as classes candidatas pinadas do Portal e do PR #443, verificando Onepage/Landing, retry com nonce novo, replay de nonce, conflito entre empresa da assinatura e do login SQL, assinatura adulterada, ausência do flag de laboratório, transação aninhada e erro proposital de outbox com rollback do nonce.
+
+**Limite de implementação:** o adaptador usa credenciais fictícias e é inacessível fora do CI. Ele não é API Laravel em produção nem confirma checkout, titularidade, consentimento, IAM externo, backup/restore, dispatcher S2S ou publicação. A validação completa do componente no CI deve ser registrada antes de classificá-lo como aprovado.
