@@ -1,0 +1,9 @@
+# F1-139 — Revalidação sintética de vínculo e revisão (não é IAM)
+
+A F1-138 introduziu a fonte independente de autoridade, mas não a conectou a um Portal autenticado. A F1-139 acrescenta uma **prova de consistência**, somente em memória, que consulta a mesma fonte injetada duas vezes e compara snapshots de organização, vínculo, site, formulário, destino CRM, estado ativo e revisão. Este teste não envia leads nem chama serviços externos.
+
+O contrato `SyntheticLeadBindingRevisionFence` verifica primeiro que o vínculo está ativo, revisado (revision > 0) e associado aos metadados originais. Na segunda leitura, ausência, revogação, erro, mudança de escopo ou mudança da revisão (incremento ou redução) devolvem diagnósticos bloqueantes. Uma sequência A→B→A com revisão monotônica diferente também gera `REVISION_CHANGED`, mesmo quando os metadados finais são idênticos. Um resultado `STABLE_MATCH_UNVERIFIED` **não** concede aceite, ACK, envio ao CRM ou reenvio automático.
+
+Limites de segurança: se o emissor fornecer revisões falsas, reutilizar números, ou se ocorrer uma mudança após a segunda leitura, duas consultas não oferecem garantia de autorização; persistência transacional/CAS e revisão monotônica verificável exigem implementação e revisão independente. O código não autentica a fonte, tenant, operador, cliente, sessão, token, HMAC, consentimento nem confirmação do CRM. Os dados são UUIDs fictícios, sem PII; teste CLI PHP 8.3/8.4.
+
+**Antes da homologação e produção:** fonte Portal/CRM autenticada e atual, revisão durável e monotônica por vínculo, atestação criptográfica entre serviços ou identidade mutuamente autenticada, validação de escopo/tenant com IAM independente do cliente e do GUC, revalidação atômica junto à reserva de idempotência, prova de ACK real, regras LGPD, revisão SEG/DBA/AppSec e ensaio adversarial. OP04 (#36) segue P0, 10/10 gates BLOCKED. Sem merge dev/main, deploy, VPS, DNS, Cloudflare ou custo.

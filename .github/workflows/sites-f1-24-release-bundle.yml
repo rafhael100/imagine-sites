@@ -5,11 +5,21 @@ on:
     paths:
       - 'src/Domain/ReleaseManifest.php'
       - 'src/Production/SyntheticReleaseBundle.php'
+      - 'src/Production/SyntheticPrivateBundleLockV1.php'
+      - 'src/Production/SyntheticPrivateRegularFileReadV1.php'
       - 'src/Production/InertPreviewAudit.php'
       - 'tests/f27-offline-preview-audit.php'
       - 'tests/f24-run.php'
+      - 'tests/f300-private-bundle-process-lock.php'
+      - 'tests/f301-private-regular-file-read.php'
       - 'apps/sites/routes/console.php'
       - 'apps/sites/tests/Feature/SyntheticReleaseBundleCommandTest.php'
+      - 'ci/f307_private_qa_json_contract.py'
+      - 'ci/f308_f309_descriptor_readback_selftest.py'
+      - 'ci/f329_private_synthetic_zip.py'
+      - 'ci/f329_synthetic_zip_selftest.py'
+      - 'ci/f330_private_synthetic_restore.py'
+      - 'ci/f330_private_restore_selftest.py'
       - '.github/workflows/sites-f1-24-release-bundle.yml'
       - 'docs/SITES-F1-24-RELEASE-BUNDLE.md'
 
@@ -37,13 +47,24 @@ jobs:
       - name: Verify PHP syntax
         run: |
           php -l src/Production/SyntheticReleaseBundle.php
+          php -l src/Production/SyntheticPrivateBundleLockV1.php
+          php -l tests/f300-private-bundle-process-lock.php
+          php -l src/Production/SyntheticPrivateRegularFileReadV1.php
+          php -l tests/f301-private-regular-file-read.php
           php -l src/Domain/ReleaseManifest.php
           php -l tests/f24-run.php
           php -l apps/sites/routes/console.php
       - name: Run inert package security and digest tests
         run: |
           php tests/f24-run.php
+          php tests/f300-private-bundle-process-lock.php
+          php tests/f301-private-regular-file-read.php
           php tests/f27-offline-preview-audit.php
+          python3 ci/f308_f309_descriptor_readback_selftest.py
+          python3 -m py_compile ci/f329_private_synthetic_zip.py ci/f329_synthetic_zip_selftest.py
+          python3 ci/f329_synthetic_zip_selftest.py
+          python3 -m py_compile ci/f330_private_synthetic_restore.py ci/f330_private_restore_selftest.py
+          python3 ci/f330_private_restore_selftest.py
       - name: Install locked Laravel dependencies without scripts
         working-directory: apps/sites
         run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
@@ -69,7 +90,64 @@ jobs:
           python3 -c 'import json,pathlib;root=pathlib.Path("storage/app/private"); files=[root/"sites-f1-24-onepage"/"release-manifest.json",root/"sites-f1-24-landing_page"/"release-manifest.json"]; assert all(json.loads(p.read_text())["publishable"] is False for p in files)'
           test -s storage/app/private/sites-f1-24-onepage/index.html
           test -s storage/app/private/sites-f1-24-landing_page/index.html
+          for product in onepage landing_page; do
+            base="storage/app/private/sites-f1-24-$product"
+            artifact="$(sha256sum "$base/index.html" | cut -d' ' -f1)"
+            bundle="$(python3 -c 'import hashlib,pathlib,sys; p=pathlib.Path(sys.argv[1]); print(hashlib.sha256((p/"index.html").read_bytes()+b"\0"+(p/"release-manifest.json").read_bytes()).hexdigest())' "$base")"
+            SITES_SYNTHETIC_VERIFY=1 php artisan sites:verify-fixture-bundle "$product" "$artifact" "$bundle"
+            # F1-306/307: actual Artisan -> JSON -> independent Python
+            # verification against the same immutable private bytes.
+            SITES_SYNTHETIC_VERIFY=1 php artisan sites:verify-fixture-bundle "$product" "$artifact" "$bundle" --evidence-json --include-qa > "$RUNNER_TEMP/f307-$product.json"
+            python3 ../../ci/f307_private_qa_json_contract.py \
+              --report "$RUNNER_TEMP/f307-$product.json" \
+              --directory "$base" --product "$product" \
+              --artifact "$artifact" --bundle "$bundle"
+            # F1-329: deterministic portable backup of these *synthetic*
+            # private bytes, with no extraction, restore or upload.
+            archive="$RUNNER_TEMP/sites-f329-$product.zip"
+            python3 ../../ci/f329_private_synthetic_zip.py create \
+              --directory "$base" --archive "$archive" \
+              --product "$product" --artifact "$artifact" --bundle "$bundle"
+            python3 ../../ci/f329_private_synthetic_zip.py inspect \
+              --archive "$archive" --product "$product" \
+              --artifact "$artifact" --bundle "$bundle"
+            # F1-330: read the same verified ZIP into a brand-new private
+            # CI scratch directory; never import into a real site/tenant.
+            restore_parent="$RUNNER_TEMP/sites-f330-private-$product"
+            mkdir -m 700 "$restore_parent"
+            APP_ENV=testing SITES_SYNTHETIC_RESTORE=1 \
+              python3 ../../ci/f330_private_synthetic_restore.py \
+              --archive "$archive" --parent "$restore_parent" \
+              --target-name "restored-f330-$product" --product "$product" \
+              --artifact "$artifact" --bundle "$bundle"
+            cmp "$base/index.html" \
+              "$restore_parent/restored-f330-$product/index.html"
+            cmp "$base/release-manifest.json" \
+              "$restore_parent/restored-f330-$product/release-manifest.json"
+            if APP_ENV=testing SITES_SYNTHETIC_RESTORE=1 \
+              python3 ../../ci/f330_private_synthetic_restore.py \
+              --archive "$archive" --parent "$restore_parent" \
+              --target-name "restored-f330-$product" --product "$product" \
+              --artifact "$artifact" --bundle "$bundle"; then
+              echo 'Unexpected overwrite of verified private restoration'
+              exit 1
+            fi
+            if python3 ../../ci/f329_private_synthetic_zip.py create \
+              --directory "$base" --archive "$archive" \
+              --product "$product" --artifact "$artifact" --bundle "$bundle"; then
+              echo 'Unexpected overwrite of existing private ZIP'
+              exit 1
+            fi
+            rm -f "$archive"
+            # A mismatched caller pin can never produce successful QA JSON.
+            if SITES_SYNTHETIC_VERIFY=1 php artisan sites:verify-fixture-bundle "$product" "$(printf '%064d' 0)" "$bundle" --evidence-json --include-qa > "$RUNNER_TEMP/f307-denied-$product.txt" 2>&1; then
+              echo 'Unsafe success for wrong independent synthetic digest'
+              exit 1
+            fi
+            ! grep -q '"structuralQa"' "$RUNNER_TEMP/f307-denied-$product.txt"
+          done
           rm -rf storage/app/private/sites-f1-24-onepage storage/app/private/sites-f1-24-landing_page
+          rm -f storage/app/private/.sites-f1-24-onepage.lock storage/app/private/.sites-f1-24-landing_page.lock
       - name: Explicit lab-only statement
         if: always()
         run: echo "No Workers, Cloudflare, Pages, DNS, customer files, public web or deployed artifacts."

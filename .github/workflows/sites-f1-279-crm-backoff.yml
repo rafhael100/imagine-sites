@@ -1,0 +1,50 @@
+name: Sites F1-279 conservative CRM backoff and T0 combination
+on:
+  pull_request:
+    paths:
+      - 'src/Integration/SyntheticCrmRetryWindowV1.php'
+      - 'src/Integration/SyntheticCrmAttemptScopedRetryV1.php'
+      - 'src/Integration/SyntheticCrmCombinedRetryPreflightV1.php'
+      - 'src/Integration/SyntheticCrmResponsePolicyV1.php'
+      - 'src/Domain/SyntheticLeadRetryPlanV1.php'
+      - 'tests/f279-crm-backoff-composition.php'
+      - 'tests/f318-crm-attempt-sequence.php'
+      - 'tests/f319-crm-combined-preflight.php'
+      - '.github/workflows/sites-f1-279-crm-backoff.yml'
+permissions:
+  contents: read
+jobs:
+  time-only-admission:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+          tools: none
+          coverage: none
+      - name: Verify 72h/432h, 202 denial and immutable provider Retry-After origin
+        run: |
+          set -euo pipefail
+          php -l src/Integration/SyntheticCrmRetryWindowV1.php
+          php -l tests/f279-crm-backoff-composition.php
+          php tests/f277-lead-retry-deadline.php
+          php tests/f278-crm-response-policy.php
+          php tests/f279-crm-backoff-composition.php
+          php -l src/Integration/SyntheticCrmAttemptScopedRetryV1.php
+          php -l tests/f318-crm-attempt-sequence.php
+          php tests/f318-crm-attempt-sequence.php
+          php -l src/Integration/SyntheticCrmCombinedRetryPreflightV1.php
+          php -l tests/f319-crm-combined-preflight.php
+          php tests/f319-crm-combined-preflight.php
+      - name: No live integration
+        if: always()
+        run: echo 'In-memory only; no lead payload, tenant auth, CRM requests, receipt, queue, production or deploy.'
