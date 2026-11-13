@@ -45,3 +45,12 @@ Um teste CI separado usa código candidato real e pinado de dois repositórios, 
 O fixture gera pedidos Onepage e Landing Page usando o encoder candidato Portal, valida o envelope HMAC e duas atestações de autoridade fictícias, e então grava a operação por um login SQL de laboratório da empresa B. Testa tentativas duplicadas com novos nonces, revogação assinada, manipulação de tenant e rejeição por PostgreSQL quando a assinatura autoriza A mas a conexão SQL pertence a B. O resultado esperado são dois novos registros e seus eventos outbox em uma única transação cada.
 
 **Ainda não é integração operacional:** Portal não envia HTTP, autoridade externa e pagamento são simulados, chaves são públicas e somente fictícias, e os dados não persistem fora do job efêmero. O teste é uma compatibilidade de três componentes reais de código, mas não comprova que serviços implantados confiam nas fontes certas. CI específica será registrada somente após execução comprovada.
+
+
+## F1-363 — ledger de nonce persistente e atômico
+
+Um ledger SQL adicional, restrito à base descartável, guarda uma chave global (issuer, nonce), empresa de origem e prazo de validade. A função remember_nonce valida a role SQL autenticada, vínculo de tenant, emissor autorizado e TTL máximo de 120 segundos. A unicidade do par issuer/nonce bloqueia replay mesmo entre conexões e processos PHP diferentes.
+
+O teste F1-363 utiliza as classes assinadas candidatas e públicas do PR #443/Portal para criar uma admissão **dentro da mesma transação PostgreSQL** da reserva do nonce e gravação do outbox. Uma falha do outbox reverte também o nonce, permitindo repetir a operação após rollback; uma tentativa idêntica após commit é negada. Uma nova assinatura com nonce novo e mesma chave idempotente retorna duplicate_ignored e não cria outro evento.
+
+O ledger **não** deve ser considerado IAM operacional. Os tempos do teste são baseados no relógio do CI, chaves são fictícias, nenhuma chave KMS/vault ou TLS foi usada, e a fonte de revogação permanece no mesmo domínio de restauração. O TTL não concede reaproveitamento de nonce depois do vencimento: a chave permanece única até existir uma política de limpeza segura e auditada, ainda pendente. A role de aplicação sem autoridade oficial não deve receber essa função em produção.
