@@ -6,10 +6,12 @@ on:
       - 'src/Domain/ReleaseManifest.php'
       - 'src/Production/SyntheticReleaseBundle.php'
       - 'src/Production/SyntheticPrivateBundleLockV1.php'
+      - 'src/Production/SyntheticPrivateRegularFileReadV1.php'
       - 'src/Production/InertPreviewAudit.php'
       - 'tests/f27-offline-preview-audit.php'
       - 'tests/f24-run.php'
       - 'tests/f300-private-bundle-process-lock.php'
+      - 'tests/f301-private-regular-file-read.php'
       - 'apps/sites/routes/console.php'
       - 'apps/sites/tests/Feature/SyntheticReleaseBundleCommandTest.php'
       - '.github/workflows/sites-f1-24-release-bundle.yml'
@@ -41,6 +43,8 @@ jobs:
           php -l src/Production/SyntheticReleaseBundle.php
           php -l src/Production/SyntheticPrivateBundleLockV1.php
           php -l tests/f300-private-bundle-process-lock.php
+          php -l src/Production/SyntheticPrivateRegularFileReadV1.php
+          php -l tests/f301-private-regular-file-read.php
           php -l src/Domain/ReleaseManifest.php
           php -l tests/f24-run.php
           php -l apps/sites/routes/console.php
@@ -48,6 +52,7 @@ jobs:
         run: |
           php tests/f24-run.php
           php tests/f300-private-bundle-process-lock.php
+          php tests/f301-private-regular-file-read.php
           php tests/f27-offline-preview-audit.php
       - name: Install locked Laravel dependencies without scripts
         working-directory: apps/sites
