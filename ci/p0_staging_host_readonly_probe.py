@@ -51,11 +51,15 @@ def read_os_release() -> dict[str, str | None]:
     return {"id": None, "version": None}
 
 
-def local_cli_versions() -> dict[str, dict[str, Any]]:
+def local_cli_versions(probe_versions: bool = False) -> dict[str, dict[str, Any]]:
     result: dict[str, dict[str, Any]] = {}
     for label, argv in COMMANDS.items():
         if shutil.which(argv[0]) is None:
             result[label] = {"installed": False, "version": None}
+            continue
+        if not probe_versions:
+            # Safe DEFAULT: PATH presence only, no untrusted binary executed.
+            result[label] = {"installed": True, "version": None}
             continue
         try:
             process = subprocess.run(
@@ -144,7 +148,8 @@ def repo_readiness(repo: Path | None) -> dict[str, Any]:
     return result
 
 
-def build_report(workspace: Path, repo: Path | None) -> dict[str, Any]:
+def build_report(workspace: Path, repo: Path | None,
+                 probe_versions: bool = False) -> dict[str, Any]:
     release = read_os_release()
     return {
         "schemaVersion": "sites.staging.host-readiness-observation.v1",
@@ -157,7 +162,9 @@ def build_report(workspace: Path, repo: Path | None) -> dict[str, Any]:
         "credentialsInspected": False,
         "customerDataInspected": False,
         "networkRequestsMade": False,
-        "filesModified": False,
+        "filesModifiedByProbe": False,
+        "versionCommandsExecuted": probe_versions,
+        "externalCommandSideEffectsNotAttested": probe_versions,
         "status": "BLOCKED_PENDING_OPERATOR_AND_SECURITY_REVIEW",
         "host": {
             "os": release,
@@ -169,7 +176,7 @@ def build_report(workspace: Path, repo: Path | None) -> dict[str, Any]:
             "cpuCount": os.cpu_count(),
             "memory": memory_mib(),
             "workspace": workspace_state(workspace),
-            "cli": local_cli_versions(),
+            "cli": local_cli_versions(probe_versions=probe_versions),
         },
         "repository": repo_readiness(repo),
         "manualGatesRemaining": [
@@ -191,8 +198,13 @@ def main() -> int:
     )
     parser.add_argument("--workspace", type=Path, default=Path("."))
     parser.add_argument("--repo", type=Path)
+    parser.add_argument(
+        "--probe-versions", action="store_true",
+        help="EXPLICIT opt-in to execute local version commands; default is safe PATH-only checks",
+    )
     args = parser.parse_args()
-    result = build_report(args.workspace, args.repo)
+    result = build_report(args.workspace, args.repo,
+                          probe_versions=args.probe_versions)
     print(json.dumps(result, sort_keys=True, separators=(",", ":")))
     # The diagnostic completes successfully to allow collecting a report,
     # but its JSON status is ALWAYS BLOCKED: not a release gate.
