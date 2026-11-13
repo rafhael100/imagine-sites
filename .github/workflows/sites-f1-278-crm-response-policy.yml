@@ -1,0 +1,37 @@
+name: Sites F1-278 CRM HTTP response policy negative cases
+on:
+  pull_request:
+    paths:
+      - 'src/Integration/SyntheticCrmResponsePolicyV1.php'
+      - 'tests/f278-crm-response-policy.php'
+      - '.github/workflows/sites-f1-278-crm-response-policy.yml'
+permissions:
+  contents: read
+jobs:
+  crm-response-policy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+          tools: none
+          coverage: none
+      - name: No-PII CRM status and Retry-After classification
+        run: |
+          set -euo pipefail
+          php -l src/Integration/SyntheticCrmResponsePolicyV1.php
+          php -l tests/f278-crm-response-policy.php
+          php tests/f277-lead-retry-deadline.php
+          php tests/f278-crm-response-policy.php
+      - name: Scope
+        if: always()
+        run: echo 'Pure synthetic status policy, no HTTP request, lead data, real CRM, signed provider receipt, client acceptance or deploy.'

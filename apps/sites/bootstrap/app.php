@@ -12,7 +12,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // F1-233: a route cache built in a synthetic CLI test can retain
+        // _lab handlers even when routes/web.php would not register them.
+        // Re-check the boundary on EVERY request, not only at boot.
+        $middleware->append(\App\Http\Middleware\SyntheticLabRouteFence::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
