@@ -13,6 +13,7 @@ import os
 import re
 import stat
 from pathlib import Path
+from html.parser import HTMLParser
 
 ROOT_KEYS = [
     "schemaVersion", "syntheticOnly", "readOnly", "trustedPins",
@@ -119,6 +120,132 @@ def read_bounded_report(path: Path) -> bytes:
         os.close(directory_fd)
 
 
+
+class InertHtmlProbe(HTMLParser):
+    """Independent conservative checks for the fixed fictional HTML dialect.
+
+    This is deliberately smaller than PHP's F1-39 QA: it does not certify
+    WCAG or authorize a release. It detects forged all-true QA JSON paired
+    with syntactically valid but unsafe local HTML and recomputed hashes.
+    """
+
+    ALLOWED = frozenset((
+        "html", "head", "meta", "title", "style", "body", "header",
+        "div", "span", "nav", "a", "main", "section", "h1", "h2",
+        "h3", "p", "ul", "ol", "li", "footer", "details", "summary",
+    ))
+
+    def __init__(self, product: str) -> None:
+        super().__init__(convert_charrefs=True)
+        self.product = "onepage" if product == "onepage" else "landing-page"
+        self.counts: dict[str, int] = {}
+        self.ids: set[str] = set()
+        self.targets: list[str] = []
+        self.robot_count = 0
+        self.viewport_count = 0
+        self.csp_count = 0
+        self.has_lang = False
+        self.has_product = False
+        self.doctype_count = 0
+        self.in_title = False
+        self.title_content: list[str] = []
+
+    def handle_decl(self, decl: str) -> None:
+        if decl.lower() != "doctype html":
+            raise ValueError("unexpected HTML declaration")
+        self.doctype_count += 1
+
+    def handle_comment(self, data: str) -> None:
+        raise ValueError("noncanonical HTML comment outside stylesheet")
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag not in self.ALLOWED:
+            raise ValueError("active or unknown HTML element")
+        if len({name for name, _ in attrs}) != len(attrs):
+            raise ValueError("duplicate HTML attributes")
+        attributes = dict(attrs)
+        for name, value in attrs:
+            if (name.startswith("on") or
+                name in ("src", "srcset", "style", "action", "formaction",
+                         "target", "ping", "download") or
+                    value is None):
+                raise ValueError("executable, external or boolean attribute")
+        self.counts[tag] = self.counts.get(tag, 0) + 1
+        if tag == "html":
+            self.has_lang = attributes.get("lang") == "pt-BR"
+        if tag == "body":
+            self.has_product = attributes.get("data-site-product") == self.product
+        if "id" in attributes:
+            identity = attributes["id"]
+            if not identity or identity in self.ids:
+                raise ValueError("duplicate or blank HTML ID")
+            self.ids.add(identity)
+        if tag == "a":
+            href = attributes.get("href", "")
+            if not re.fullmatch(r"#[a-z][a-z0-9-]*", href):
+                raise ValueError("nonlocal or invalid HTML link")
+            self.targets.append(href[1:])
+        if tag == "main" and attributes.get("id") != "principal":
+            raise ValueError("unexpected main region")
+        if tag == "title":
+            self.in_title = True
+        if tag == "meta":
+            if attributes.get("name") == "robots":
+                if attributes.get("content") != "noindex, nofollow":
+                    raise ValueError("review HTML must not be indexed")
+                self.robot_count += 1
+            if attributes.get("name") == "viewport":
+                if attributes.get("content") != "width=device-width, initial-scale=1":
+                    raise ValueError("missing responsive viewport")
+                self.viewport_count += 1
+            if attributes.get("http-equiv") == "Content-Security-Policy":
+                csp = attributes.get("content", "")
+                if ("default-src 'none'" not in csp or
+                        "form-action 'none'" not in csp or
+                        "object-src 'none'" not in csp):
+                    raise ValueError("inert CSP missing mandatory restrictions")
+                self.csp_count += 1
+
+    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        self.handle_starttag(tag, attrs)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag not in self.ALLOWED:
+            raise ValueError("unknown closing HTML element")
+        if tag == "title":
+            self.in_title = False
+
+    def handle_data(self, data: str) -> None:
+        if self.in_title:
+            self.title_content.append(data)
+
+
+def inspect_inert_html(html: bytes, product: str) -> None:
+    """Fail closed on obvious independent semantic regressions, no network."""
+    if not (0 < len(html) <= 150000):
+        raise ValueError("unsupported HTML byte size")
+    text = html.decode("utf-8", errors="strict")
+    if (not text.startswith("<!doctype html>\n<html lang=\"pt-BR\">") or
+            not text.endswith("</html>") or "\x00" in text or
+            re.search(r"(?:https?://|javascript:|@import\b|url\s*\()", text, re.I)):
+        raise ValueError("unsafe synthetic HTML document shell")
+    probe = InertHtmlProbe(product)
+    probe.feed(text)
+    probe.close()
+    if (probe.doctype_count != 1 or not probe.has_lang or
+            not probe.has_product or probe.counts.get("html") != 1 or
+            probe.counts.get("body") != 1 or
+            probe.counts.get("main") != 1 or
+            probe.counts.get("h1") != 1 or
+            probe.counts.get("title") != 1 or
+            not "".join(probe.title_content).strip() or
+            probe.robot_count != 1 or probe.viewport_count != 1 or
+            probe.csp_count != 1 or
+            not probe.targets or
+            any(item not in probe.ids for item in probe.targets)):
+        raise ValueError("independent inert HTML safety contract not met")
+
+
 def verify(raw: bytes, private_dir: Path, product: str,
            expected_artifact: str, expected_bundle: str) -> None:
     if product not in ("onepage", "landing_page"):
@@ -184,6 +311,7 @@ def verify(raw: bytes, private_dir: Path, product: str,
             raise ValueError("private directory replaced during readback")
     finally:
         os.close(dir_fd)
+    inspect_inert_html(chunks[0], product)
     if hashlib.sha256(chunks[0]).hexdigest() != expected_artifact:
         raise ValueError("actual HTML digest mismatch")
     if hashlib.sha256(chunks[0] + bytes([0]) + chunks[1]).hexdigest() != expected_bundle:
