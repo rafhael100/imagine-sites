@@ -110,6 +110,7 @@ jobs:
           php tests/f290-imagine-shell-contract.php
           php tests/f292-v3-openapi-wire-policy.php
           php tests/f293-v3-canonical-json-security.php
+          php tests/f300-private-bundle-process-lock.php
           python3 ci/f292_portal_v3_openapi_contract.py
           php tests/f157-static-faq-content.php
           php tests/f270-faq-native-disclosure.php
