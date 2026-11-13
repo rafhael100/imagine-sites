@@ -1,5 +1,13 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuação F1-298–299 — verificador privado e entrada v3 bruta Laravel — 13/11/2026
+
+- **F1-298 / PR #365**, SHA `f72d1d434b43f9bc9b68cadb303c1a07df7eb68a`: CLI read-only `sites:verify-fixture-bundle` compara HTML/manifesto em disco com dois hashes informados pelo chamador, validando escopo e inventário exato. **19/19 workflows success** no SHA desta PR. Verificador de laboratório, sem fonte autenticada do pin e sem publicação.
+- **F1-299 / PR #366**, derivado de #365: Laravel in-process somente testing/CLI consome envelope HMAC v3 de bytes JSON originais, negando duplicatas, escapes, MAC inválida, epochs, replay, downgrade e cross-tenant. Middleware `SyntheticLabRouteFence` agora cobre v1 e v3 mesmo com cache. Ampliadas verificações negativas F1-234 (PHP cli-server real) e F1-237 (Nginx/PHP-FPM interno isolado). Revalidar CI final após as últimas mudanças; nenhuma rota operacional/externa foi ativada.
+- `dev` e `main` seguem sem merge. Issues #33 (Portal autenticação real), #34 (PostgreSQL e revogação), #35 (publicação), #36 (CRM), #37 (Agentes), #38 (homologação) e #281 (proteções/revisão) aguardam evidências externas. Dez flags `false` em `config/operational-readiness.json`. Não declarar go-live a partir de CI sintético.
+
+---
+
 ## Continuação F1-295–297 — segurança Portal v3 e pacotes privados — 12/11/2026
 
 - **F1-295 / PR #362**, commit `98f9fe51bc05ece3b922ee554e39f0175901fabd`: diagnóstico fail-closed distingue stubs e indicadores sintáticos do emissor Portal v3. Testes do commit: **5/5 workflows success**; a inspeção do código não demonstra autorização, transporte ou identidade S2S.
