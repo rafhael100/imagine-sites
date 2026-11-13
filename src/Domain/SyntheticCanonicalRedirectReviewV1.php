@@ -7,7 +7,8 @@ namespace Imagine\Sites\Domain;
 /**
  * F1-288: purely offline WHAT-IF redirect review.
  * Never reads untrusted HTTP headers, sends a 30x response, calls a provider,
- * proves domain ownership or authorizes a production redirect.
+ * proves domain ownership or authorizes a production redirect. The separately
+ * configured source and destination must be pinned outside request input.
  */
 final class SyntheticCanonicalRedirectReviewV1
 {
@@ -19,6 +20,7 @@ final class SyntheticCanonicalRedirectReviewV1
         array $originProposal,
         string $configuredSourceOrigin,
         string $requestTarget,
+        string $pinnedDestinationOrigin,
         string $method = 'GET',
     ): array {
         if (!in_array($method, ['GET', 'HEAD'], true)) {
@@ -57,6 +59,13 @@ final class SyntheticCanonicalRedirectReviewV1
             return $deny('DENIED_UNTRUSTED_POLICY_SHAPE');
         }
 
+        // F1-324: a mutable origin proposal is not a trustworthy choice
+        // of destination. Require a project-side, independently pinned
+        // expected HTTPS origin. It must NEVER come from the Host header,
+        // query parameters, AI output or this same untrusted proposal.
+        if ($pinnedDestinationOrigin !== $origin) {
+            return $deny('DENIED_DESTINATION_NOT_PINNED');
+        }
         if ($configuredSourceOrigin === $origin) {
             return $deny('ALREADY_CANONICAL_NO_REDIRECT');
         }
