@@ -160,6 +160,83 @@ Artisan::command('sites:package-fixture {product=onepage}', function (): int {
 
 
 /**
+ * F1-298: an independent READ-ONLY private bundle readback with two pins
+ * supplied by the caller. Synthetic QA only: these pins do not establish
+ * a trusted signer, an official Portal acceptance or release authority.
+ */
+Artisan::command(
+    'sites:verify-fixture-bundle {product} {artifactDigest} {bundleDigest}',
+    function (): int {
+        if (PHP_SAPI !== 'cli' || !app()->environment('testing') ||
+            getenv('SITES_SYNTHETIC_BUNDLE') !== '1' ||
+            getenv('SITES_SYNTHETIC_VERIFY') !== '1') {
+            $this->error('Private synthetic bundle verification disabled.');
+            return Command::FAILURE;
+        }
+        $product=(string)$this->argument('product');
+        $artifactDigest=(string)$this->argument('artifactDigest');
+        $bundleDigest=(string)$this->argument('bundleDigest');
+        if (!in_array($product,['onepage','landing_page'],true) ||
+            !preg_match('/\A[a-f0-9]{64}\z/D',$artifactDigest) ||
+            !preg_match('/\A[a-f0-9]{64}\z/D',$bundleDigest)) {
+            $this->error('Invalid synthetic release identity or expected hashes.');
+            return Command::FAILURE;
+        }
+
+        $private=storage_path('app/private');
+        $directory=$private.'/sites-f1-24-'.$product;
+        if (is_link($private) || is_link($directory) ||
+            !is_dir($private) || !is_dir($directory)) {
+            $this->error('Private synthetic package not found or unsafe.');
+            return Command::FAILURE;
+        }
+        $entries=@scandir($directory);
+        if (!is_array($entries)) {
+            $this->error('Private synthetic package unreadable.');
+            return Command::FAILURE;
+        }
+        $entries=array_values(array_diff($entries,['.','..']));
+        sort($entries,SORT_STRING);
+        if ($entries!==['index.html','release-manifest.json']) {
+            $this->error('Private package has unexpected contents.');
+            return Command::FAILURE;
+        }
+        $files=[];
+        foreach (['index.html'=>150000,'release-manifest.json'=>8192] as $name=>$maxBytes) {
+            $file=$directory.'/'.$name;
+            if (is_link($file) || !is_file($file)) {
+                $this->error('Private bundle includes an unsafe file.');
+                return Command::FAILURE;
+            }
+            $size=filesize($file);
+            if ($size===false || $size<1 || $size>$maxBytes) {
+                $this->error('Private bundle file size not allowed.');
+                return Command::FAILURE;
+            }
+            $bytes=file_get_contents($file);
+            if (!is_string($bytes) || strlen($bytes)!==$size) {
+                $this->error('Private bundle readback failed.');
+                return Command::FAILURE;
+            }
+            $files[$name]=$bytes;
+        }
+
+        $release=new \Imagine\Sites\Domain\ReleaseManifest(
+            'tenant-fixture','site-fixture','release-bundle-'.$product,$artifactDigest
+        );
+        if (!\Imagine\Sites\Production\SyntheticReleaseBundle::verifyExactBundle(
+            $files,$release,$bundleDigest
+        )) {
+            $this->error('Private synthetic release digest mismatch.');
+            return Command::FAILURE;
+        }
+        $this->line('PASS: PRIVATE SYNTHETIC BUNDLE ONLY — NO RELEASE AUTHORITY.');
+        return Command::SUCCESS;
+    }
+)->purpose('Read and verify one pinned synthetic private package without writing or publishing');
+
+
+/**
  * F1-37: assemble a wholly fictional review handoff in private CI scratch.
  * No AI provider, database, network, real Portal approval, or publishing.
  */
