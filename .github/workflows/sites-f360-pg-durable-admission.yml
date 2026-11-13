@@ -13,6 +13,7 @@ on:
       - 'tests/f367-init-portal-receipt-db.php'
       - 'tests/f367-dual-postgres-portal-receipt.php'
       - 'tests/f368-lost-response-restart-recovery.php'
+      - 'tests/f369-pg18-receipt-backup-restore.php'
       - 'tests/fixtures/f367-portal-receipt-db.sql'
       - 'tests/fixtures/f367-durable-portal-router.php'
       - 'tests/fixtures/f366-portal-receipt-router.php'
@@ -60,6 +61,19 @@ jobs:
           --health-interval 5s
           --health-timeout 3s
           --health-retries 12
+      portal_restore:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: f369-fictional-restore-db-only
+          POSTGRES_DB: portal_f369_restore_lab
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_f369_restore_lab"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
     env:
       APP_ENV: testing
       GITHUB_ACTIONS: 'true'
@@ -72,6 +86,7 @@ jobs:
       SITES_F366_PORTAL_RECEIPT_LAB: '1'
       SITES_F367_PORTAL_DB_LAB: '1'
       SITES_F368_RECOVERY_LAB: '1'
+      SITES_F369_RESTORE_LAB: '1'
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: '5432'
@@ -117,6 +132,7 @@ jobs:
           php -l tests/f367-init-portal-receipt-db.php
           php -l tests/f367-dual-postgres-portal-receipt.php
           php -l tests/f368-lost-response-restart-recovery.php
+          php -l tests/f369-pg18-receipt-backup-restore.php
           php -l tests/fixtures/f367-durable-portal-router.php
           php -r 'if (!extension_loaded("curl")) exit(1);'
           php -r 'if (!extension_loaded("pdo_pgsql")) exit(1);'
@@ -255,6 +271,59 @@ jobs:
           server_pid=''
           start_receiver
           php tests/f368-lost-response-restart-recovery.php recover-after-restart
+      - name: F1-369 restore PG18 receipt on third isolated container after lost response
+        run: |
+          set -euo pipefail
+          if SITES_F369_RESTORE_LAB=0 php tests/f369-pg18-receipt-backup-restore.php cause-loss; then
+            echo 'Unsafe: restore fixture ran without CI-only opt-in'
+            exit 1
+          fi
+          server_pid=''
+          trap 'if [ -n "$server_pid" ]; then kill "$server_pid" 2>/dev/null || true; fi; rm -f "$RUNNER_TEMP/f369-portal.dump"' EXIT
+          start_receiver() {
+            php -S 127.0.0.1:18968 -t tests/fixtures tests/fixtures/f367-durable-portal-router.php > "$RUNNER_TEMP/f369-receiver.log" 2>&1 &
+            server_pid=$!
+            for i in $(seq 1 30); do
+              if curl --noproxy '*' -fsS --output /dev/null http://127.0.0.1:18968/health; then
+                return 0
+              fi
+              sleep 0.3
+            done
+            return 1
+          }
+          start_receiver
+          php tests/f369-pg18-receipt-backup-restore.php cause-loss
+          kill "$server_pid"
+          wait "$server_pid" 2>/dev/null || true
+          server_pid=''
+          # pg_dump + pg_restore are both PostgreSQL 18 clients from the
+          # same pinned image family as three disposable job services.
+          docker run --rm --network host -v "$RUNNER_TEMP:/backup" \
+            -e PGPASSWORD=f367-fictional-portal-db-only \
+            postgres:18 pg_dump -h 127.0.0.1 -p 5433 -U postgres \
+            --no-owner --no-acl -Fc -d portal_f367_lab -f /backup/f369-portal.dump
+          test -s "$RUNNER_TEMP/f369-portal.dump"
+          docker run --rm --network host -v "$RUNNER_TEMP:/backup:ro" \
+            -e PGPASSWORD=f369-fictional-restore-db-only \
+            postgres:18 pg_restore -h 127.0.0.1 -p 5434 -U postgres \
+            --exit-on-error --single-transaction --no-owner --no-acl \
+            -d portal_f369_restore_lab /backup/f369-portal.dump
+          php tests/f369-pg18-receipt-backup-restore.php verify-restored
+          # Stop the original disposable Portal PG service. Recovery must
+          # now use the third DB; never fall back to the original.
+          original_service="${{ job.services.portal_postgres.id }}"
+          test -n "$original_service"
+          docker stop "$original_service" >/dev/null
+          SITES_F369_RESTORED_RECEIVER_LAB=1 php -S 127.0.0.1:18968 -t tests/fixtures tests/fixtures/f367-durable-portal-router.php > "$RUNNER_TEMP/f369-restore-receiver.log" 2>&1 &
+          server_pid=$!
+          for i in $(seq 1 30); do
+            if curl --noproxy '*' -fsS --output /dev/null http://127.0.0.1:18968/health; then
+              break
+            fi
+            sleep 0.3
+          done
+          php tests/f369-pg18-receipt-backup-restore.php recover-restored
+          rm -f "$RUNNER_TEMP/f369-portal.dump"
       - name: Scope limitation
         if: always()
         run: |
