@@ -29,6 +29,8 @@ if [ "$ready" -ne 1 ]; then
 fi
 check GET /up 200
 check POST /_lab/sites/v1/create-project 404
+check POST /_lab/sites/v3/create-project 404
+check GET /_lab/sites/v3/unknown-future 404
 check GET /_lab/sites/v1/review 404
 check GET '/_lab/sites/v1/seo-copy-review?product=onepage&seo=custom&social=on' 404
 check GET /_lab/sites/v1/unknown-future 404

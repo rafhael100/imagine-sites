@@ -23,8 +23,13 @@ final class SyntheticLabRouteFence
     public function handle(Request $request, Closure $next): Response
     {
         $path=ltrim($request->path(),'/');
-        if ($path!=='_lab/sites/v1' &&
-            !str_starts_with($path,'_lab/sites/v1/')) {
+        // Both v1 and the F1-299 raw-v3 lab need request-time checks.
+        // A cached route from a CLI test must never become public HTTP.
+        $v1=$path==='_lab/sites/v1' ||
+            str_starts_with($path,'_lab/sites/v1/');
+        $v3=$path==='_lab/sites/v3' ||
+            str_starts_with($path,'_lab/sites/v3/');
+        if (!$v1 && !$v3) {
             return $next($request);
         }
 

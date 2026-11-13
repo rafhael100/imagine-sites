@@ -25,11 +25,11 @@ RUN groupadd --gid 10001 sitesfpm \
 # then run exactly that cache under a different PHP SAPI (fpm-fcgi).
 WORKDIR /workspace/apps/sites
 ENV APP_ENV=testing APP_DEBUG=false SITES_SYNTHETIC_HTTP=1 \
-    SITES_SYNTHETIC_REVIEW_UI=1 SITES_SYNTHETIC_RICH_REVIEW=1 \
+    SITES_SYNTHETIC_V3_INTAKE=1 SITES_SYNTHETIC_REVIEW_UI=1 SITES_SYNTHETIC_RICH_REVIEW=1 \
     SITES_F222_SEO_COPY_REVIEW=1
 USER 10001:10001
 RUN php artisan package:discover --ansi \
     && php artisan route:cache \
-    && php artisan route:list --json | php -r '$routes=json_decode(stream_get_contents(STDIN),true,512,JSON_THROW_ON_ERROR); foreach($routes as $route){if(($route["uri"]??null)==="_lab/sites/v1/create-project")exit(0);} exit(1);'
+    && php artisan route:list --json | php -r '$routes=json_decode(stream_get_contents(STDIN),true,512,JSON_THROW_ON_ERROR); $found=[]; foreach($routes as $route){$uri=$route["uri"]??null; if(in_array($uri,["_lab/sites/v1/create-project","_lab/sites/v3/create-project"],true))$found[$uri]=true;} exit(count($found)===2?0:1);'
 # Base image listens only inside the Compose internal network on port 9000.
 CMD ["php-fpm","-F"]

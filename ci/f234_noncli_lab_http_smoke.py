@@ -65,6 +65,7 @@ def main() -> None:
         "APP_ENV": "testing",
         "APP_DEBUG": "false",
         "SITES_SYNTHETIC_HTTP": "1",
+        "SITES_SYNTHETIC_V3_INTAKE": "1",
         "SITES_SYNTHETIC_REVIEW_UI": "1",
         "SITES_SYNTHETIC_RICH_REVIEW": "1",
         "SITES_F222_SEO_COPY_REVIEW": "1",
@@ -87,8 +88,9 @@ def main() -> None:
                 raise RuntimeError("Cannot inspect the synthetic cached routes")
             routes = json.loads(listing.stdout)
             paths = {str(item.get("uri", "")).lstrip("/") for item in routes}
-            if "_lab/sites/v1/create-project" not in paths:
-                raise RuntimeError("Expected lab route absent from compiled cache")
+            if ("_lab/sites/v1/create-project" not in paths or
+                    "_lab/sites/v3/create-project" not in paths):
+                raise RuntimeError("Expected v1/v3 lab routes absent from compiled cache")
             print("PASS F1-234: laboratory routes actually present in a compiled CI-only cache")
         elif "closure" in build.stdout.lower() and not has_cache:
             # An uncacheable closure is a safe fail of the cache creation.
@@ -121,6 +123,8 @@ def main() -> None:
         for path, method, expected in [
             ("/up", "GET", 200),
             ("/_lab/sites/v1/create-project", "POST", 404),
+            ("/_lab/sites/v3/create-project", "POST", 404),
+            ("/_lab/sites/v3/arbitrary-new-route", "GET", 404),
             ("/_lab/sites/v1/review", "GET", 404),
             ("/_lab/sites/v1/seo-copy-review?product=onepage&seo=custom&social=on", "GET", 404),
             ("/_lab/sites/v1/other-route", "GET", 404),
