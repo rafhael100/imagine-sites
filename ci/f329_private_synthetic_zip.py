@@ -199,12 +199,12 @@ def write_exclusive(path: Path, data: bytes) -> None:
             or not 0 < len(data) <= ZIP_MAX):
         raise ValueError("unsafe archive output")
     directory_fd = open_private_directory(path.parent)
-    created = False
+    created_identity = None
     try:
         fd = os.open(path.name, os.O_WRONLY | os.O_CREAT | os.O_EXCL |
                      os.O_NOFOLLOW | os.O_CLOEXEC, mode=0o600,
                      dir_fd=directory_fd)
-        created = True
+        created_identity = file_identity(os.fstat(fd))
         try:
             offset = 0
             while offset < len(data):
@@ -222,9 +222,14 @@ def write_exclusive(path: Path, data: bytes) -> None:
         finally:
             os.close(fd)
     except BaseException:
-        if created:
+        # Never delete a replacement inode if another local process swapped
+        # the path while the private archive write was failing.
+        if created_identity is not None:
             try:
-                os.unlink(path.name, dir_fd=directory_fd)
+                named = os.stat(path.name, dir_fd=directory_fd,
+                                follow_symlinks=False)
+                if file_identity(named) == created_identity:
+                    os.unlink(path.name, dir_fd=directory_fd)
             except OSError:
                 pass
         raise
