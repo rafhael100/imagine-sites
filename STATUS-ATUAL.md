@@ -1,5 +1,14 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuação F1-300–301 — lock concorrente e readback fixado por inode — 13/11/2026
+
+- **F1-300 / PR #368**, SHA `99af0e38da977899f095efcde29da611ed2e8d55`: bloqueio `flock` compartilhado entre escritor e verificador de Onepage/Landing, separado por produto, não bloqueante, sem sobrescrita; **21/21 workflows success** no SHA próprio.
+- **F1-301 / PR #369**: validação de descritor regular (inode/dev/nlink/tamanho antes/depois), tamanho limitado, negação de symlink/hardlink e limpeza de stat cache. As duas operações privadas passaram a utilizar o leitor. Reexecutar CI no SHA mais recente do PR antes da revisão.
+- **Novo candidato de integração** a `dev`: demanda inventário completo F1-240 e seis pacotes F1-241, reexecutando regressão no SHA exato; aprovações independentes ainda não existem. `dev/main` sem merge/deploy e sem branch protection configurada.
+- `config/operational-readiness.json` permanece `BLOCKED` com dez gates `false`. Issues #33–#38, #281, #276 e #263 não dispensadas pelos testes. AppSec/DBA e homologação Portal/CRM/Cloudflare continuam obrigatórias.
+
+---
+
 ## Continuação F1-298–299 — verificador privado e entrada v3 bruta Laravel — 13/11/2026
 
 - **F1-298 / PR #365**, SHA `f72d1d434b43f9bc9b68cadb303c1a07df7eb68a`: CLI read-only `sites:verify-fixture-bundle` compara HTML/manifesto em disco com dois hashes informados pelo chamador, validando escopo e inventário exato. **19/19 workflows success** no SHA desta PR. Verificador de laboratório, sem fonte autenticada do pin e sem publicação.
