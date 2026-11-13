@@ -66,6 +66,18 @@ assert290(str_contains($css,'a:focus-visible') &&
     str_contains($css,'@media(max-width:610px)') &&
     str_contains($css,'prefers-reduced-motion'),
     'keyboard focus, responsive mobile and reduced motion');
+assert290(str_contains($css,'min-height:44px; max-width:100%;') &&
+    str_contains($css,'.tabs a:focus-visible') &&
+    str_contains($css,'outline:3px solid var(--imagine-focus)') &&
+    str_contains($css,'.tabs a { flex:1 1 125px; min-width:0; }') &&
+    str_contains($css,'.preview-head { align-items:stretch; }') &&
+    str_contains($css,'.workspace { overflow-x:hidden; }'),
+    'staff-only navigation meets minimum touch target, keyboard focus and mobile wrapping');
+assert290(str_contains($view,'aria-label="Alternar produto"') &&
+    str_contains($view,'aria-label="Alternar tema"') &&
+    str_contains($view,'aria-label="Alternar dispositivo"'),
+    'existing lab product, theme and device menus remain accessible');
+
 function luminance290(string $hex):float {
     $rgb=[];
     for($i=1;$i<=5;$i+=2) {
