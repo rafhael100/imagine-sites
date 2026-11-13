@@ -78,14 +78,24 @@ def inspect_rendered(value: object) -> None:
             raise ValueError("services must be opt-in and not restart")
         if service.get("networks") is None or set(service["networks"]) != {NETWORK}:
             raise ValueError("service network must be isolated")
-        for key in ("ports", "expose", "devices", "cap_add", "network_mode",
-                    "extra_hosts", "secrets", "configs"):
+        # F1-341: also reject host namespace, Docker-socket, privilege,
+        # credential injection and process override escapes. Compose allows
+        # these keys without an explicit port, so a ports-only guard misses
+        # them. No effect on operational hosts; lab config is read only.
+        forbidden = (
+            "ports", "expose", "devices", "cap_add", "network_mode",
+            "extra_hosts", "secrets", "configs", "pid", "ipc", "uts",
+            "cgroup", "cgroup_parent", "userns_mode", "volumes_from",
+            "env_file", "entrypoint", "command", "user", "group_add",
+            "privileged", "security_opt_add", "sysctls", "init",
+            "credential_spec", "device_cgroup_rules", "extends",
+            "links", "network_mode", "isolation",
+        )
+        for key in forbidden:
             if key in service and service[key]:
-                raise ValueError(f"{name} has forbidden field: {key}")
-        if service.get("privileged") is True:
-            raise ValueError("privileged container not allowed")
-        if "no-new-privileges:true" not in service.get("security_opt", []):
-            raise ValueError("no-new-privileges must be active")
+                raise ValueError(f"{name} has forbidden host/process override: {key}")
+        if service.get("security_opt") != ["no-new-privileges:true"]:
+            raise ValueError("lab security options must match the exact approved profile")
         if service.get("environment", {}).get("APP_ENV") == "production":
             raise ValueError("production env is forbidden")
     db, test = services["sites-lab-db"], services["sites-lab-tests"]
@@ -198,6 +208,16 @@ def self_test(ignore: str, dockerfile: str) -> None:
         lambda s: s["networks"][NETWORK].update({"internal": False}),
         lambda s: s["services"]["sites-lab-tests"].update({"privileged": True}),
         lambda s: s["services"]["sites-lab-db"].update({"profiles": ["prod"]}),
+        lambda s: s["services"]["sites-lab-tests"].update({"pid": "host"}),
+        lambda s: s["services"]["sites-lab-tests"].update({"ipc": "host"}),
+        lambda s: s["services"]["sites-lab-tests"].update({"user": "0:0"}),
+        lambda s: s["services"]["sites-lab-tests"].update({"entrypoint": ["/bin/sh"]}),
+        lambda s: s["services"]["sites-lab-tests"].update({"command": ["sh", "-c", "id"]}),
+        lambda s: s["services"]["sites-lab-tests"].update({"env_file": ["/tmp/not-approved.env"]}),
+        lambda s: s["services"]["sites-lab-tests"].update({"volumes_from": ["untrusted"]}),
+        lambda s: s["services"]["sites-lab-tests"].update({"group_add": ["docker"]}),
+        lambda s: s["services"]["sites-lab-tests"].update({"sysctls": {"kernel.shmmax": 123}}),
+        lambda s: s["services"]["sites-lab-tests"].update({"security_opt": ["no-new-privileges:true", "seccomp=unconfined"]}),
         lambda s: s["services"]["sites-lab-tests"].update({"cap_drop": []}),
         lambda s: s["services"]["sites-lab-tests"].update({"volumes": [{"type": "bind"}]}),
         lambda s: s["services"]["sites-lab-db"].update({"image": "postgres:latest"}),
