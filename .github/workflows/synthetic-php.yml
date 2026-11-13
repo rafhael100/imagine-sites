@@ -39,6 +39,7 @@ jobs:
           php tests/f26-rotation.php
           php tests/f355-independent-revocation-gate.php
           php tests/f356-signed-authority-admission.php
+          php tests/f357-synthetic-order-to-review.php
           php tests/f27-offline-preview-audit.php
           php tests/f28-production-flow.php
           php tests/f29-structured-copy.php
