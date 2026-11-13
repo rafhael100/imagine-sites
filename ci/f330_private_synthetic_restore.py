@@ -21,33 +21,13 @@ from f307_private_qa_json_contract import (
 from f331_atomic_private_rename import check_platform, rename_no_replace
 from f329_private_synthetic_zip import (
     check_files, check_pins, read_owner_regular, read_private_bundle,
-    sha, verify_zip,
+    require_pinned_scope, sha, verify_zip,
 )
 
 LAB_FLAG = "SITES_SYNTHETIC_RESTORE"
 EXPECTED_FILES = [name for name, _ in FIXED_FILES]
 
 
-def require_pinned_scope(
-    files: dict[str, bytes], tenant_ref: str, site_ref: str,
-    release_ref: str,
-) -> None:
-    """F1-332: independently supplied project/release identity, fail closed.
-
-    These CLI strings are NOT authenticated grants. Never derive their values
-    from the ZIP or HTTP request on behalf of a real customer.
-    """
-    expected = (tenant_ref, site_ref, release_ref)
-    if any(not isinstance(value, str) or not re.fullmatch(
-        r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", value,
-    ) for value in expected):
-        raise ValueError("missing or invalid pinned tenant/site/release identity")
-    # verify_zip already validates the manifest structure and local digest.
-    # Load only after that, then require the independent exact tuple.
-    manifest = json.loads(files["release-manifest.json"].decode("utf-8"))
-    actual = tuple(manifest[key] for key in ("tenantRef", "siteRef", "releaseRef"))
-    if actual != expected:
-        raise ValueError("private ZIP belongs to a different synthetic scope")
 
 
 def ensure_lab() -> None:

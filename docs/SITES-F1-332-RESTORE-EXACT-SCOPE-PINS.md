@@ -24,3 +24,7 @@ O laboratório local fora de GitHub Actions ainda exige `SITES_ALLOW_LOCAL_SYNTH
 A matriz CI F1-24 PHP 8.3/8.4 exercita os dois produtos Laravel com a tripla fixa do fixture. Testes F1-330 negam tenant, site ou release diferentes, pin ausente e um ZIP de **outra empresa, com hashes recalculados e íntegros**. O teste F1-331 continua verificando restauração atômica e concorrência.
 
 **Não confundir validação de escopo com identidade ou autorização.** A tripla digitada na CLI é uma alegação sintética; o Portal ainda precisa fornecer um registro autenticado/autorizado e o banco precisa impor isolamento RLS, revogação e retenção. A implementação não autentica tokens, não importa backups de clientes nem autoriza publicações. O status `BLOCKED` e os dez gates operacionais permanecem inalterados.
+
+## F1-333 — paridade do escopo em todas as operações
+
+O validador de `tenantRef/siteRef/releaseRef` agora mora no módulo de ZIP F1-329 e é reutilizado pelo restore F1-330. Os comandos ZIP `create` e `inspect` exigem a mesma tripla externa que `restore`, evitando que uma exportação de outra empresa seja inadvertidamente considerada íntegra para o projeto selecionado. O escopo continua uma alegação não autenticada em ambiente sintético e não autoriza uso com clientes.

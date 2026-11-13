@@ -37,3 +37,7 @@ A saída é JSON de evidência sintética sem identidade do cliente, com hashes 
 - O restore de pacote, transação de banco e exportação real do cliente **não** são contemplados.
 - Não incluir dados pessoais, credenciais, URLs reais ou conteúdo de clientes nesses arquivos.
 - config/operational-readiness.json continua com status BLOCKED, 10/10 gates false; #281 e OP01–OP05 permanecem bloqueadores para go-live.
+
+## F1-333 — escopo obrigatório também na exportação e inspeção
+
+Desde F1-333, os comandos `create` e `inspect` exigem **também** `--tenant-ref`, `--site-ref` e `--release-ref`, fixados independentemente da entrada ZIP/manifesto. Os três valores são comparados antes de gravar ZIP ou declarar inspeção válida; um arquivo de outra empresa, mesmo com hashes recalculados, falha. A mesma função de validação é compartilhada com a restauração F1-332 para impedir políticas divergentes entre exportação e importação. Acrescente em ambos os exemplos acima as opções `--tenant-ref tenant-fixture --site-ref site-fixture --release-ref release-bundle-onepage` para Onepage ou o release equivalente a Landing Page. Esses argumentos ainda são declarações de laboratório, não autenticação do Portal.

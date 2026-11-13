@@ -77,6 +77,28 @@ def check_files(files: dict[str, bytes], product: str,
             raise ValueError("unrecognized synthetic manifest identity")
 
 
+def require_pinned_scope(
+    files: dict[str, bytes], tenant_ref: str, site_ref: str,
+    release_ref: str,
+) -> None:
+    """F1-332: independently supplied project/release identity, fail closed.
+
+    These CLI strings are NOT authenticated grants. Never derive their values
+    from the ZIP or HTTP request on behalf of a real customer.
+    """
+    expected = (tenant_ref, site_ref, release_ref)
+    if any(not isinstance(value, str) or not re.fullmatch(
+        r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", value,
+    ) for value in expected):
+        raise ValueError("missing or invalid pinned tenant/site/release identity")
+    # verify_zip already validates the manifest structure and local digest.
+    # Load only after that, then require the independent exact tuple.
+    manifest = json.loads(files["release-manifest.json"].decode("utf-8"))
+    actual = tuple(manifest[key] for key in ("tenantRef", "siteRef", "releaseRef"))
+    if actual != expected:
+        raise ValueError("private ZIP belongs to a different synthetic scope")
+
+
 def reject_duplicates(pairs: list[tuple[str, object]]) -> dict:
     out: dict[str, object] = {}
     for key, value in pairs:
@@ -245,6 +267,9 @@ def main() -> None:
     parser.add_argument("--product", required=True, choices=("onepage", "landing_page"))
     parser.add_argument("--artifact", required=True)
     parser.add_argument("--bundle", required=True)
+    parser.add_argument("--tenant-ref", required=True)
+    parser.add_argument("--site-ref", required=True)
+    parser.add_argument("--release-ref", required=True)
     args = parser.parse_args()
     try:
         check_pins(args.artifact, args.bundle)
@@ -253,12 +278,16 @@ def main() -> None:
                 raise ValueError("create requires fixed synthetic source directory")
             files = read_private_bundle(args.directory)
             check_files(files, args.product, args.artifact, args.bundle)
+            require_pinned_scope(files, args.tenant_ref, args.site_ref,
+                                 args.release_ref)
             raw = make_zip(files)
             verify_zip(raw, args.product, args.artifact, args.bundle)
             write_exclusive(args.archive, raw)
         else:
             raw = read_owner_regular(args.archive)
-            verify_zip(raw, args.product, args.artifact, args.bundle)
+            inspected = verify_zip(raw, args.product, args.artifact, args.bundle)
+            require_pinned_scope(inspected, args.tenant_ref, args.site_ref,
+                                 args.release_ref)
         print(json.dumps({
             "schemaVersion": "sites.synthetic.private-zip-evidence.v1",
             "mode": args.mode,
@@ -267,6 +296,8 @@ def main() -> None:
             "archiveBytes": len(raw),
             "artifactDigest": args.artifact,
             "bundleDigest": args.bundle,
+            "scopeMatched": True,
+            "scopeAuthenticated": False,
             "syntheticOnly": True,
             "restored": False,
             "publishable": False,
