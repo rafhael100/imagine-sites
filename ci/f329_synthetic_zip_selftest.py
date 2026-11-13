@@ -92,6 +92,35 @@ def main() -> None:
             for name, data in files.items():
                 owner_file(private / name, data)
             archive.check_files(files, product, artifact, bundle_digest)
+            scope = ("tenant.synthetic", "site.synthetic", "release.synthetic")
+            archive.require_pinned_scope(files, *scope)
+            count += 1
+            for foreign in (
+                ("tenant.other", scope[1], scope[2]),
+                (scope[0], "site.other", scope[2]),
+                (scope[0], scope[1], "release.other"),
+                ("", scope[1], scope[2]),
+            ):
+                deny(lambda wrong=foreign: archive.require_pinned_scope(
+                    files, *wrong,
+                ), "archive belongs to another project or no pinned scope")
+                count += 1
+
+            # Cross-tenant ZIP may have fully consistent re-computed hashes,
+            # yet cannot pass a scope pinned independently from the ZIP.
+            other = dict(files)
+            foreign_meta = json.loads(files["release-manifest.json"])
+            foreign_meta["tenantRef"] = "tenant.other"
+            foreign_manifest = (
+                json.dumps(foreign_meta, ensure_ascii=False, indent=4) + "\n"
+            ).encode("utf-8")
+            other["release-manifest.json"] = foreign_manifest
+            other_bundle = archive.sha(
+                files["index.html"] + b"\x00" + foreign_manifest
+            )
+            archive.check_files(other, product, artifact, other_bundle)
+            deny(lambda: archive.require_pinned_scope(other, *scope),
+                 "consistent cross-tenant ZIP rejected against project pin")
             count += 1
 
             raw = archive.make_zip(files)
