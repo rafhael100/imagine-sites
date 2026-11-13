@@ -30,6 +30,7 @@ final class SyntheticPrivateRegularFileReadV1
     {
         if ($maxBytes<1 || $maxBytes>150000 || is_link($path)) return null;
 
+        clearstatcache(true,$path);
         $before=@lstat($path);
         if (!is_array($before) || (($before['mode'] & 0170000)!==0100000) ||
             ($before['nlink']??0)!==1 ||
@@ -51,6 +52,7 @@ final class SyntheticPrivateRegularFileReadV1
                 return null;
             }
             $afterOpen=@fstat($handle);
+            clearstatcache(true,$path);
             $afterName=@lstat($path);
             if (!is_array($afterOpen) || !is_array($afterName) ||
                 is_link($path) ||
