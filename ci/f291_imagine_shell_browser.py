@@ -118,6 +118,9 @@ def main(browser: str) -> None:
                     frame=c.call("Page.navigate",{"url":"about:blank"})["frameId"]
                     c.call("Page.setDocumentContent",{
                         "frameId":frame,"html":pages[label]})
+                    # Headless CDP pages may start backgrounded: keyboard
+                    # focus checks are valid only for the active page.
+                    c.call("Page.bringToFront")
                     state=None
                     for _ in range(100):
                         state=c.evaluate("""(() => {
@@ -128,10 +131,11 @@ def main(browser: str) -> None:
                           const target=document.querySelector('main#sites-review-main');
                           const skipInitiallyHidden=!!skip &&
                             getComputedStyle(skip).transform!=='none';
-                          if(skip) skip.focus();
-                          const skipFocusable=!!skip &&
-                            document.activeElement===skip &&
-                            getComputedStyle(skip).transform==='none';
+                          if(skip) skip.focus({preventScroll:true});
+                          const skipActuallyFocused=!!skip && document.activeElement===skip;
+                          const skipTransformFocused=skip?getComputedStyle(skip).transform:null;
+                          const skipFocusable=skipActuallyFocused &&
+                            skipTransformFocused==='none';
                           const skipHeight=skip?skip.getBoundingClientRect().height:0;
                           if(skip) skip.blur();
                           return {
@@ -145,6 +149,7 @@ def main(browser: str) -> None:
                             skipPointsToMain:!!skip && skip.hash==='#sites-review-main' &&
                               target===document.querySelector('main') && target.tabIndex===-1,
                             skipInitiallyHidden,skipFocusable,skipHeight,
+                            skipActuallyFocused,skipTransformFocused,
                             token:getComputedStyle(document.documentElement).getPropertyValue('--imagine-orange').trim(),
                             header:getComputedStyle(document.querySelector('header')).backgroundColor,
                             body:getComputedStyle(document.body).backgroundColor,
