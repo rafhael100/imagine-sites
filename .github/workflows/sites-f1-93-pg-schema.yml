@@ -6,6 +6,7 @@ on:
       - 'apps/sites/composer.json'
       - 'apps/sites/composer.lock'
       - 'tests/f93-pg-laravel-core-schema.php'
+      - 'tests/f347-pg-login-scoped-core-rls.php'
       - '.github/workflows/sites-f1-93-pg-schema.yml'
       - 'docs/SITES-F1-93-PG-LARAVEL-SCHEMA.md'
 permissions:
@@ -36,6 +37,7 @@ jobs:
       APP_ENV: testing
       APP_DEBUG: 'false'
       SITES_F93_SCHEMA_LAB: '1'
+      SITES_F347_DB_LOGIN_LAB: '1'
       SITES_F93_APP_PASSWORD: f93-synthetic-application-disposable-only
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
@@ -118,6 +120,11 @@ jobs:
           set -euo pipefail
           php -l tests/f93-pg-laravel-core-schema.php
           php tests/f93-pg-laravel-core-schema.php
+      - name: Verify login-bound RLS alternative with two independent DB users
+        run: |
+          set -euo pipefail
+          php -l tests/f347-pg-login-scoped-core-rls.php
+          php tests/f347-pg-login-scoped-core-rls.php
       - name: Explicitly prohibit destructive schema rollback
         working-directory: apps/sites
         run: |
