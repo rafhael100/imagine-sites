@@ -1,5 +1,15 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## F1-336–337 — manifesto canônico e propriedade Unix dos backups sintéticos — 13/11/2026
+
+- **F1-336 / PR #419**, SHA `6ddcd62f7c87fe4409721abf33df6e795a16a951`: ZIP privado aceita apenas bytes de manifesto JSON canônico do builder (`JSON_PRETTY_PRINT`, ordem fixa e newline). Rejeita versões JSON compactadas, campo Unicode escapado e remoção do newline mesmo com hashes HTML/bundle recalculados. **4/4 workflows retornados success**, incluindo F1-24 com arquivos Laravel fictícios.
+- **F1-337 / PR #420**, SHA `0b84f1cb271e4728b7c1f3e7f3df13ab76762720`: leitura/escrita de ZIP e recuperação verificam UID efetivo do diretório e dos arquivos, além de permissões 0700/0600. Testes adversariais simulam arquivos 0644 e outro UID. **4/4 workflows retornados success**; sem alegar isolamento de tenants que compartilham a mesma conta Unix.
+- **Revisão dividida:** o PR isolado de backup #418 (contra `dev`, cerca de dez arquivos) foi sincronizado com ambas as correções, para evitar divergência do candidato grande. PR isolado da política apex/SEO #417 e PR isolado de proteção do GitHub #411 permanecem independentes, sem merge e sem regras administrativas aplicadas.
+- **Candidato integrado atual:** base `dev`, cadeia anterior F1-302–335 e F1-336/337; reexecutar CI, F1-240 (inventário diff) e F1-241 (seis pacotes de revisão) no novo SHA. `dev/main` permanecem intocadas. `config/operational-readiness.json` segue `BLOCKED` com 10/10 gates `false`.
+- **Sem autorização operacional:** dados fictícios, sem cliente, sem backup do PostgreSQL, Portal/IAM autenticado, retenção/PII, Cloudflare, VPS, DNS, API real ou custos. Issue #281 de proteção de branches/revisor independente e OP01–OP05 #33–#38 seguem como bloqueios. Não fazer merge/deploy antes da homologação.
+
+---
+
 ## F1-332–335 — integridade e escopo dos backups privados — 13/11/2026
 
 - **F1-332 / PR #412**, SHA `9131d9f03d8d2fbd52c37f3595cbf84669200992`: restauração sintética exige pins independentes de tenant/site/release, além do hash do HTML e pacote; nega backup de outra empresa com manifesto e hashes próprios válidos **antes de criar staging**. Evidência `scopeMatched=true`, `scopeAuthenticated=false`. **5/5 fluxos retornados success**.
