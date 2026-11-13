@@ -180,7 +180,7 @@ Artisan::command('sites:package-fixture {product=onepage}', function (): int {
  * a trusted signer, an official Portal acceptance or release authority.
  */
 Artisan::command(
-    'sites:verify-fixture-bundle {product} {artifactDigest} {bundleDigest} {--evidence-json}',
+    'sites:verify-fixture-bundle {product} {artifactDigest} {bundleDigest} {--evidence-json} {--include-qa}',
     function (): int {
         if (PHP_SAPI !== 'cli' || !app()->environment('testing') ||
             getenv('SITES_SYNTHETIC_BUNDLE') !== '1' ||
@@ -195,6 +195,12 @@ Artisan::command(
             !preg_match('/\A[a-f0-9]{64}\z/D',$artifactDigest) ||
             !preg_match('/\A[a-f0-9]{64}\z/D',$bundleDigest)) {
             $this->error('Invalid synthetic release identity or expected hashes.');
+            return Command::FAILURE;
+        }
+
+        // A request for QA must never silently degrade into a plain success.
+        if ((bool)$this->option('include-qa') && !(bool)$this->option('evidence-json')) {
+            $this->error('Structural QA requires --evidence-json.');
             return Command::FAILURE;
         }
 
@@ -274,6 +280,28 @@ Artisan::command(
                     ],
                 ],
             ];
+            if ((bool)$this->option('include-qa')) {
+                // F1-306: use only the already pinned, local inert HTML.
+                // This is structural QA, never WCAG certification or approval.
+                try {
+                    $qa=\Imagine\Sites\Production\SyntheticPreviewQaReport::inspect(
+                        new \Imagine\Sites\Production\ReleaseArtifact($files['index.html'])
+                    );
+                } catch (\Throwable) {
+                    $this->error('Private structural QA could not inspect exact HTML bytes.');
+                    return Command::FAILURE;
+                }
+                if (!$qa->passedStructuralChecks) {
+                    $this->error('Private structural QA failed. No successful evidence emitted.');
+                    return Command::FAILURE;
+                }
+                $report['structuralQa']=[
+                    'passed'=>$qa->passedStructuralChecks,
+                    'checks'=>$qa->checks,
+                    'humanReviewRequired'=>true,
+                    'wcagCertified'=>false,
+                ];
+            }
             $this->line(json_encode($report,
                 JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
         } else {
