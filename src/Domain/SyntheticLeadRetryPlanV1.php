@@ -27,6 +27,7 @@ final readonly class SyntheticLeadRetryPlanV1
         // The latest failed attempt's immutable observation anchor (UTC).
         // Used to reject an earlier provider reply reused for a later retry.
         public DateTimeImmutable $lastAttemptAt,
+        public int $failedAttempts,
     ) {}
 
     public static function assess(
@@ -47,16 +48,16 @@ final readonly class SyntheticLeadRetryPlanV1
 
         // Never infer a successful submission from a caller's timestamps.
         if ($last < $durableDeadline->t0 || $last > $current) {
-            return new self('UNVERIFIED_ATTEMPT_HISTORY',$window,null,false,$last);
+            return new self('UNVERIFIED_ATTEMPT_HISTORY',$window,null,false,$last,$failedAttempts);
         }
         if ($window === 'before_t0') {
-            return new self('BEFORE_DURABLE_T0',$window,null,false,$last);
+            return new self('BEFORE_DURABLE_T0',$window,null,false,$last,$failedAttempts);
         }
         if ($window === 'expired') {
-            return new self('EXPIRED_UNRECOVERABLE',$window,null,false,$last);
+            return new self('EXPIRED_UNRECOVERABLE',$window,null,false,$last,$failedAttempts);
         }
         if (!$transientError) {
-            return new self('TERMINAL_FAILURE',$window,null,false,$last);
+            return new self('TERMINAL_FAILURE',$window,null,false,$last,$failedAttempts);
         }
 
         // Stable no-jitter lower bound, independent of the "now" supplied
@@ -68,13 +69,13 @@ final readonly class SyntheticLeadRetryPlanV1
         if ($candidate === false ||
             $candidate >= $durableDeadline->deliveryDeadline) {
             return new self('NEXT_RETRY_OUTSIDE_ORIGINAL_DEADLINE',
-                $window,null,false,$last);
+                $window,null,false,$last,$failedAttempts);
         }
 
         $due = $current >= $candidate;
         return new self(
             $due ? 'TIME_CANDIDATE_UNVERIFIED' : 'BACKOFF_NOT_ELAPSED',
-            $window,$candidate,$due,$last
+            $window,$candidate,$due,$last,$failedAttempts
         );
     }
 
