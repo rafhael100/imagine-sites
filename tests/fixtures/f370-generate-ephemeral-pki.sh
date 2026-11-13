@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # F1-370: fresh, ephemeral PKI for CI-only mTLS. NEVER commit generated keys.
 set -euo pipefail
-[ "\${GITHUB_ACTIONS:-}" = true ] || { echo 'CI only' >&2; exit 1; }
-[ "\${APP_ENV:-}" = testing ] || { echo 'testing only' >&2; exit 1; }
-[ "\${SITES_F370_MTLS_LAB:-}" = 1 ] || { echo 'lab opt-in required' >&2; exit 1; }
-out="\${1:-}"
+[ "${GITHUB_ACTIONS:-}" = true ] || { echo 'CI only' >&2; exit 1; }
+[ "${APP_ENV:-}" = testing ] || { echo 'testing only' >&2; exit 1; }
+[ "${SITES_F370_MTLS_LAB:-}" = 1 ] || { echo 'lab opt-in required' >&2; exit 1; }
+out="${1:-}"
 [ -n "$out" ] || exit 1
 [ ! -e "$out" ] || { echo 'Refusing existing certificate path' >&2; exit 1; }
 umask 077
