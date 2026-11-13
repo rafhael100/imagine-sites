@@ -51,6 +51,25 @@ foreach ([
         !$legacy['mayRedirect'] && !$legacy['mayPublish'],
         'historical canonical preserved without migration: '.$origin);
 }
+// F1-322: do not reclassify platform/campaign hosts as a public apex.
+foreach (['www','portal','crm','api','dev','performance','universidade',
+    'agents','campanha','lp'] as $reserved) {
+    check287(denied287(static fn()=>Policy::propose(
+        $reserved.'.imaginecomunicacao.com.br','public_site')),
+        'reserved host requires its explicit service class: '.$reserved);
+}
+foreach (['com.br','net.br','org.br','gov.br','edu.br','mil.br',
+    'co.uk','org.uk','ac.uk','gov.uk','net.uk'] as $suffix) {
+    check287(denied287(static fn()=>Policy::propose($suffix,'public_site')),
+        'public suffix cannot be a customer-owned base domain: '.$suffix);
+}
+foreach (['cliente.co.uk','cliente.com.br','cliente.org.br'] as $registeredCandidate) {
+    $candidate=Policy::propose($registeredCandidate,'public_site');
+    check287($candidate['canonicalOrigin']==='https://'.$registeredCandidate &&
+        $candidate['alternateOrigins']===['https://www.'.$registeredCandidate] &&
+        !$candidate['mayPublish'] && !$candidate['mayRedirect'],
+        'valid-looking registered zone remains a non-authoritative proposal');
+}
 $invalidDomains=[
     '', 'www.imagine.com.br', 'portal.imagine.com.br', 'UPPER.com.br',
     'imagine.com.br.', '.imagine.com.br', 'imagine..com.br',

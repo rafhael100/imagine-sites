@@ -86,10 +86,31 @@ final class SyntheticCanonicalOriginPlanV1
     {
         self::assertHost($domain);
         $labels = explode('.', $domain);
-        if (count($labels) < 2 ||
-            in_array($labels[0], ['www', 'portal', 'crm', 'api', 'lp', 'campanha', 'dev'], true)
-            && count($labels) > 2) {
-            throw new \InvalidArgumentException('Expected registered base domain, not a subdomain');
+        if (count($labels) < 2) {
+            throw new \InvalidArgumentException('Expected registered base domain');
+        }
+
+        // F1-322: these host classes are reserved in the *separate*
+        // application/campaign proposal paths. An operator must never
+        // accidentally classify e.g. agents.imagine... as a public apex.
+        // This is a deliberately conservative offline rule, NOT proof of
+        // domain registration, delegated zone ownership or a full PSL.
+        $reserved = [
+            'www','portal','crm','api','dev','performance','universidade',
+            'agents','campanha','lp',
+        ];
+        if (count($labels) > 2 && in_array($labels[0], $reserved, true)) {
+            throw new \InvalidArgumentException('Reserved service or campaign subdomain');
+        }
+
+        // A short fixed list of obvious public suffixes must never become
+        // an imagined customer-owned zone. The list is NOT exhaustive:
+        // actual registration/ownership must be checked independently.
+        if (in_array($domain, [
+            'com.br','net.br','org.br','gov.br','edu.br','mil.br',
+            'co.uk','org.uk','ac.uk','gov.uk','net.uk',
+        ], true)) {
+            throw new \InvalidArgumentException('Public suffix is not a registered zone');
         }
         if (!preg_match('/\A[a-z]{2,63}\z/D', $labels[count($labels)-1])) {
             throw new \InvalidArgumentException('Unsafe top-level label');
