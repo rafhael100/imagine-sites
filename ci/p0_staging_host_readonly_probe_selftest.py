@@ -77,7 +77,15 @@ def main() -> None:
              stdout=b"tool version 27.4.1 token=sensitive-version-banner",
              stderr=b"secret=do-not-print", returncode=0,
          )) as call:
-        versions = probe.local_cli_versions()
+        # Default must NOT execute even a local "version" command.
+        safe = probe.local_cli_versions()
+        assert all(row == {"installed": True, "version": None}
+                   for row in safe.values())
+        assert call.call_count == 0
+        checks += 1
+
+        # Optional execution is allowed ONLY when explicitly requested.
+        versions = probe.local_cli_versions(probe_versions=True)
         assert all(row["version"] == "27.4.1"
                    for row in versions.values())
         assert call.call_count == len(probe.COMMANDS)
@@ -94,6 +102,9 @@ def main() -> None:
              "id": "ubuntu", "version": "24.04",
          }):
         result = probe.build_report(Path("."), None)
+        assert result["versionCommandsExecuted"] is False
+        assert result["externalCommandSideEffectsNotAttested"] is False
+        assert result["filesModifiedByProbe"] is False
         assert result["goLiveAuthorized"] is False
         assert result["homologationComplete"] is False
         assert result["liveEndpointTested"] is False
@@ -101,6 +112,13 @@ def main() -> None:
         serialized = json.dumps(result)
         for secret_word in ("secret=do-not-print", "sensitive-version-banner"):
             assert secret_word not in serialized
+        checks += 1
+
+        opted = probe.build_report(Path("."), None, probe_versions=True)
+        assert opted["versionCommandsExecuted"] is True
+        assert opted["externalCommandSideEffectsNotAttested"] is True
+        assert opted["goLiveAuthorized"] is False
+        assert opted["homologationComplete"] is False
         checks += 1
 
     print(f"{checks} P0 local staging read-only/sanitization checks passed; NO-GO")
