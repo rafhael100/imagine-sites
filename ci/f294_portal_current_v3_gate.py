@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
 import subprocess
 import tempfile
@@ -50,6 +51,16 @@ def read_historical(history:Path)->None:
     require("issueCommercialEpochSigned(" in source,
             "historical issuer does not expose the v3 synthetic method")
 
+# Diagnostic only: strip PHP comments and quoted literals so fixtures cannot
+# claim a source-level producer merely by including markers in documentation.
+# This is deliberately NOT a PHP parser or execution/authorization proof.
+_PHP_IGNORED = re.compile(
+    r"""(?P<ignored>/\\*[\\s\\S]*?\\*/|//[^\\r\\n]*|\\#[^\\r\\n]*|'(?:\\\\.|[^'\\\\])*'|"(?:\\\\.|[^"\\\\])*")"""
+)
+
+def active_php_source(source:str)->str:
+    return _PHP_IGNORED.sub(lambda m: " " * len(m.group()), source)
+
 def inspect_current(current:Path)->dict:
     expected=current/REL/SIGNER
     issuer=current/REL/ISSUER
@@ -59,12 +70,16 @@ def inspect_current(current:Path)->dict:
     # producer. This is only a source-code diagnostic, never an authorization.
     signer_source = expected.read_text(encoding="utf-8") if found else ""
     issuer_source = issuer.read_text(encoding="utf-8") if present_issuer else ""
-    signer_shape = (
-        "class SyntheticSitesCommercialEpochSignedEnvelopeSigner" in signer_source
-        and "commercialEpoch" in signer_source
-        and "hash_hmac(" in signer_source
+    signer_code = active_php_source(signer_source)
+    issuer_code = active_php_source(issuer_source)
+    signer_shape = bool(
+        re.search(r"\\bclass\\s+SyntheticSitesCommercialEpochSignedEnvelopeSigner\\b", signer_code)
+        and re.search(r"\\bcommercialEpoch\\b", signer_code)
+        and re.search(r"\\bhash_hmac\\s*\\(", signer_code)
     )
-    issuer_shape = "issueCommercialEpochSigned(" in issuer_source
+    issuer_shape = bool(
+        re.search(r"\\bfunction\\s+issueCommercialEpochSigned\\s*\\(", issuer_code)
+    )
     candidate_shape = found and present_issuer and signer_shape and issuer_shape
     # The official release review must independently establish provenance,
     # authority and trusted transport even when source files exist.
@@ -114,11 +129,29 @@ def self_test()->None:
         require(r["currentProducerCandidateShapePresent"] is False,
                 "file presence is not source shape")
         (d/SIGNER).write_text(
-            "class SyntheticSitesCommercialEpochSignedEnvelopeSigner "
-            "{ /* commercialEpoch */ hash_hmac( /* synthetic */ ); }",
+            "<?php /* class SyntheticSitesCommercialEpochSignedEnvelopeSigner "
+            "commercialEpoch hash_hmac( */ \\$x = 'class "
+            "SyntheticSitesCommercialEpochSignedEnvelopeSigner commercialEpoch hash_hmac(';",
             encoding="utf-8"
         )
-        (d/ISSUER).write_text("issueCommercialEpochSigned(", encoding="utf-8")
+        (d/ISSUER).write_text(
+            '<?php // function issueCommercialEpochSigned(\\n'
+            '\\$text = "function issueCommercialEpochSigned("; ',
+            encoding="utf-8"
+        )
+        r=inspect_current(root)
+        require(r["currentProducerCandidateShapePresent"] is False,
+                "comments and quoted strings must not count as producer")
+        (d/SIGNER).write_text(
+            "<?php class SyntheticSitesCommercialEpochSignedEnvelopeSigner "
+            "{ public function sign() { \\$commercialEpoch = 1; "
+            "return hash_hmac('sha256', 'test', 'test'); } }",
+            encoding="utf-8"
+        )
+        (d/ISSUER).write_text(
+            "<?php class LabIssuer { public function issueCommercialEpochSigned() {} }",
+            encoding="utf-8"
+        )
         r=inspect_current(root)
         require(r["currentProducerCandidateShapePresent"] is True and
                 r["capabilityDiagnostic"]=="BLOCKED_UNREVIEWED_CURRENT_V3_IMPLEMENTATION",
