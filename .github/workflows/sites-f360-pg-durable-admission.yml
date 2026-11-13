@@ -4,6 +4,8 @@ on:
     paths:
       - 'tests/f360-pg-durable-admission-outbox.php'
       - 'tests/fixtures/f360-pg-durable-admission.sql'
+      - 'tests/f361-pg-outbox-worker.php'
+      - 'tests/fixtures/f361-pg-outbox-worker.sql'
       - '.github/workflows/sites-f360-pg-durable-admission.yml'
       - 'docs/SITES-F1-360-PG-ATOMIC-INGRESS-LAB.md'
 permissions:
@@ -34,6 +36,7 @@ jobs:
       APP_ENV: testing
       GITHUB_ACTIONS: 'true'
       SITES_F360_PG_LAB: '1'
+      SITES_F361_OUTBOX_LAB: '1'
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: '5432'
@@ -54,6 +57,7 @@ jobs:
         run: |
           set -euo pipefail
           php -l tests/f360-pg-durable-admission-outbox.php
+          php -l tests/f361-pg-outbox-worker.php
           php -r 'if (!extension_loaded("pdo_pgsql")) exit(1);'
       - name: Fail closed without explicit opt-in
         run: |
@@ -70,6 +74,17 @@ jobs:
         run: |
           set -euo pipefail
           php tests/f360-pg-durable-admission-outbox.php
+      - name: Verify worker simulation cannot run without lab provenance
+        run: |
+          set -euo pipefail
+          if SITES_F361_OUTBOX_LAB=0 php tests/f361-pg-outbox-worker.php; then
+            echo 'Unsafe: dispatcher fixture ran without its opt-in'
+            exit 1
+          fi
+      - name: PG18 outbox worker leasing, retry and exact-token ACK
+        run: |
+          set -euo pipefail
+          php tests/f361-pg-outbox-worker.php
       - name: Scope limitation
         if: always()
         run: |
