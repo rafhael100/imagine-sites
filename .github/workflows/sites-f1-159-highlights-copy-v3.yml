@@ -1,0 +1,49 @@
+name: Sites F1-159 static highlight cards + structured copy v3
+on:
+  pull_request:
+    paths:
+      - 'src/Production/SiteBrief.php'
+      - 'src/Production/StaticSiteRenderer.php'
+      - 'src/Production/StructuredCopyCandidate.php'
+      - 'src/Production/SyntheticStructuredDraftAssembly.php'
+      - 'src/Production/SyntheticStyleRevisionPlan.php'
+      - 'src/Production/SyntheticContentRevisionPlan.php'
+      - 'tests/f159-services-highlights-ai-copy-v3.php'
+      - '.github/workflows/sites-f1-159-highlights-copy-v3.yml'
+permissions:
+  contents: read
+jobs:
+  highlights-v3:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring,dom
+          coverage: none
+          tools: none
+      - name: PHP syntax and old version compatibility
+        run: |
+          set -euo pipefail
+          php -l src/Production/SiteBrief.php
+          php -l src/Production/StaticSiteRenderer.php
+          php -l src/Production/StructuredCopyCandidate.php
+          php -l src/Production/SyntheticStructuredDraftAssembly.php
+          php -l tests/f159-services-highlights-ai-copy-v3.php
+          php tests/f29-structured-copy.php
+          php tests/f71-structured-draft.php
+          php tests/f157-static-faq-content.php
+          php tests/f158-structured-copy-v2-faq-draft.php
+      - name: Test highlights from structured v3 to inert private review
+        run: |
+          set -euo pipefail
+          php tests/f159-services-highlights-ai-copy-v3.php
+          echo "No live AI, no forms or public routes, no client data or deploy."

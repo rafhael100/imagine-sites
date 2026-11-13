@@ -1,0 +1,51 @@
+name: Sites F1-179 responsive Onepage anchor navigation in Chromium
+on:
+  pull_request:
+    paths:
+      - 'tests/f179-anchor-chrome-fixtures.php'
+      - 'ci/f179_anchor_cdp.py'
+      - '.github/workflows/sites-f1-179-anchor-chrome.yml'
+permissions:
+  contents: read
+jobs:
+  anchor-navigation-chrome:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    env:
+      APP_ENV: testing
+      SITES_F179_CHROME_LAB: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring,dom
+          tools: none
+          coverage: none
+      - name: Lint fixed synthetic CLI and real Chromium CDP checks
+        run: |
+          set -euo pipefail
+          php -l tests/f179-anchor-chrome-fixtures.php
+          python3 -m py_compile ci/f179_anchor_cdp.py ci/f43_cdp.py ci/f44_contrast.py
+      - name: Generate 18 private opt-in Onepages
+        run: |
+          set -euo pipefail
+          php tests/f179-anchor-chrome-fixtures.php
+          test -f /tmp/sites-f179-order-gallery/gallery-manifest.json
+      - name: Validate 54 native Chromium viewport inspections
+        run: |
+          set -euo pipefail
+          browser=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
+          if test -z "$browser"; then
+            echo "Preinstalled Chromium unavailable. No provider or new spend." >&2
+            exit 1
+          fi
+          "$browser" --version
+          python3 ci/f179_anchor_cdp.py /tmp/sites-f179-order-gallery "$browser"
+      - name: Destroy local fictional output
+        if: always()
+        run: |
+          rm -rf /tmp/sites-f179-order-gallery ci/__pycache__
+          echo "No public site, customer, CRM, HTTP server or screenshots."
