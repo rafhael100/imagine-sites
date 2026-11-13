@@ -10,6 +10,7 @@ Os testes HMAC v3 F1-292/F1-293 exercitavam a classe PHP pura, mas não demonstr
 - A rota só aceita `Content-Type: application/json` e o corpo raw de no máximo 4096 bytes; repassa os bytes intactos a `SyntheticCommercialEpochSignedCommand::verifyCanonicalJson`, com segredo de fixture **público** e epochs de teste explicitamente fixados (3 e 7).
 - `ReplayStore` e `PortalProjectAuthorityGateway` negam por padrão. Nenhuma inserção, persistência, rede externa, IAM, criação de projeto, entrega CRM ou publicação. Mesmo após injeções ficcionais em testes, o status HTTP 202 significa exclusivamente **contrato verificado e não executado** (`publishable=false`, `officialClientAcceptance=false`).
 - O middleware global `SyntheticLabRouteFence` protege agora tanto `_lab/sites/v1/*` quanto `_lab/sites/v3/*` mesmo quando o cache de rotas sobrevive a uma mudança de ambiente.
+- A prova adicional F1-234 coloca ambas as rotas em um cache Laravel feito no runner GitHub e exige HTTP 404 em um processo PHP `cli-server` real (não CLI). A matriz F1-237 faz o mesmo em Nginx + PHP-FPM dentro de uma rede Docker interna, inclusive com a flag ficcional v3 habilitada. Nenhuma dessas verificações estabelece prontidão da VPS/Cloudflare.
 - Testes Laravel negativos: reserialização/duplicidade/escapes de JSON, MAC adulterada, replay, downgrade v1/v2, mudança de tenant, epochs obsoletos, cabeçalho e IP indevidos, perda da flag ou mudança para produção. Workflow PHP 8.3/8.4 e suíte Laravel completa revalidam.
 
 ## O que falta para a API verdadeira
