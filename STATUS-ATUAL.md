@@ -1,5 +1,14 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## F1-305 — relatório JSON de integridade privada e nova integração — 13/11/2026
+
+- **F1-305 / PR #375**, SHA `6704dae9258c07d949beec0e2d63d1518face429`: opção CLI `sites:verify-fixture-bundle ... --evidence-json`, liberada apenas em testing + flags; emite digests/tamanhos para dois arquivos fictícios verificados, sem conteúdo nem caminhos. Inclui `trustedPins=false`, `officialClientAcceptance=false`, `releaseAuthorized=false`. **17/17 workflow runs encontrados no SHA concluídos com success**.
+- **Candidato anterior #374**, SHA `bac06dc931ddcd85e95944a310515c6e9fd2cf10`: **100/100 runs retornados pela primeira página do conector concluídos success**, sem afirmar cobertura de outras páginas. Novos candidatos exigem revalidar F1-240, F1-241 e CI no próprio HEAD.
+- **Novo candidato integrado:** inclui F1-302–305 sem merge para `dev/main`, sem deploy ou autorização de publicação. Precisa de revisão independente AppSec/DBA/Portal e proteção administrativa de branches #281.
+- **NO-GO mantém:** dez gates `false` em `config/operational-readiness.json`; OP01–OP05 #33–#38 em aberto, sem cliente/PII, segredos, Cloudflare, VPS ou cobrança.
+
+---
+
 ## F1-302–304 — endurecimento do pacote privado e candidato integrado — 13/11/2026
 
 - **F1-302 / PR #371**, SHA `caec5eb156fd4ecb339c8353bfa5e00ab837f1ec`: proteção contra caminhos NUL, testes de arquivos não regulares e dados binários nos limites do leitor privado; **5/5 workflows success** nesse SHA.
