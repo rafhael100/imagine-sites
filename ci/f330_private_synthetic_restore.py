@@ -59,6 +59,7 @@ def restore(archive_path: Path, parent: Path, target_name: str,
     try:
         stat_parent = os.fstat(parent_fd)
         if (not stat.S_ISDIR(stat_parent.st_mode)
+                or stat_parent.st_uid != os.geteuid()
                 or stat_parent.st_mode & 0o077):
             raise ValueError("destination parent must be owner-private")
         if target_name in os.listdir(parent_fd):
@@ -75,6 +76,7 @@ def restore(archive_path: Path, parent: Path, target_name: str,
         try:
             child_before = os.fstat(child_fd)
             if (child_before.st_mode & 0o077
+                    or child_before.st_uid != os.geteuid()
                     or file_identity(child_before) != file_identity(
                         os.stat(stage_name, dir_fd=parent_fd,
                                 follow_symlinks=False))):
@@ -97,6 +99,7 @@ def restore(archive_path: Path, parent: Path, target_name: str,
                     written = os.fstat(fd)
                     named = os.stat(name, dir_fd=child_fd, follow_symlinks=False)
                     if (not stat.S_ISREG(written.st_mode)
+                            or written.st_uid != os.geteuid()
                             or written.st_mode & 0o077
                             or written.st_nlink != 1
                             or file_identity(written) != file_identity(named)):
