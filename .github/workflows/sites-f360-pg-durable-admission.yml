@@ -14,6 +14,9 @@ on:
       - 'tests/f367-dual-postgres-portal-receipt.php'
       - 'tests/f368-lost-response-restart-recovery.php'
       - 'tests/f369-pg18-receipt-backup-restore.php'
+      - 'tests/f370-mtls-portal-signed-client.php'
+      - 'tests/fixtures/f370-nginx-mtls.conf'
+      - 'tests/fixtures/f370-generate-ephemeral-pki.sh'
       - 'tests/fixtures/f367-portal-receipt-db.sql'
       - 'tests/fixtures/f367-durable-portal-router.php'
       - 'tests/fixtures/f366-portal-receipt-router.php'
@@ -87,6 +90,7 @@ jobs:
       SITES_F367_PORTAL_DB_LAB: '1'
       SITES_F368_RECOVERY_LAB: '1'
       SITES_F369_RESTORE_LAB: '1'
+      SITES_F370_MTLS_LAB: '1'
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: '5432'
@@ -133,6 +137,8 @@ jobs:
           php -l tests/f367-dual-postgres-portal-receipt.php
           php -l tests/f368-lost-response-restart-recovery.php
           php -l tests/f369-pg18-receipt-backup-restore.php
+          php -l tests/f370-mtls-portal-signed-client.php
+          bash -n tests/fixtures/f370-generate-ephemeral-pki.sh
           php -l tests/fixtures/f367-durable-portal-router.php
           php -r 'if (!extension_loaded("curl")) exit(1);'
           php -r 'if (!extension_loaded("pdo_pgsql")) exit(1);'
@@ -324,6 +330,66 @@ jobs:
           done
           php tests/f369-pg18-receipt-backup-restore.php recover-restored
           rm -f "$RUNNER_TEMP/f369-portal.dump"
+      - name: F1-370 ephemeral mTLS authenticates pinned Portal signed commands before Sites PG18 admission
+        run: |
+          set -euo pipefail
+          export SITES_F362_PORTAL_PATH="$GITHUB_WORKSPACE/portal-candidate"
+          export SITES_F362_SITES_PATH="$GITHUB_WORKSPACE/sites-signed-candidate"
+          certs="$RUNNER_TEMP/f370-ephemeral-pki"
+          server_pid=''
+          nginx_id=''
+          cleanup() {
+            if [ -n "$nginx_id" ]; then docker rm -f "$nginx_id" >/dev/null 2>&1 || true; fi
+            if [ -n "$server_pid" ]; then kill "$server_pid" 2>/dev/null || true; fi
+            rm -rf "$certs"
+          }
+          trap cleanup EXIT
+          if SITES_F370_MTLS_LAB=0 bash tests/fixtures/f370-generate-ephemeral-pki.sh "$certs"; then
+            echo 'Unsafe: generated mTLS credentials without explicit CI flag'
+            exit 1
+          fi
+          bash tests/fixtures/f370-generate-ephemeral-pki.sh "$certs"
+          export SITES_F370_MTLS_CERT_DIR="$certs"
+          php -S 127.0.0.1:18965 -t tests/fixtures tests/fixtures/f365-loopback-router.php > "$RUNNER_TEMP/f370-sites-backend.log" 2>&1 &
+          server_pid=$!
+          nginx_id="$(docker run -d --rm --network host \
+            -v "$certs:/etc/nginx/certs:ro" \
+            -v "$GITHUB_WORKSPACE/tests/fixtures/f370-nginx-mtls.conf:/etc/nginx/nginx.conf:ro" \
+            nginx:stable-alpine)"
+          ready=0
+          for i in $(seq 1 40); do
+            if curl --noproxy '*' -fsS --resolve 'sites-f370.test:18970:127.0.0.1' \
+              --cacert "$certs/ca.crt" --cert "$certs/client.crt" --key "$certs/client.key" \
+              https://sites-f370.test:18970/health >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 0.3
+          done
+          test "$ready" = 1
+          # Valid CA alone cannot authenticate a client.
+          no_cert="$(curl --noproxy '*' -sS --resolve 'sites-f370.test:18970:127.0.0.1' \
+            --cacert "$certs/ca.crt" -o /dev/null -w '%{http_code}' \
+            https://sites-f370.test:18970/health 2>/dev/null || true)"
+          test "$no_cert" != 200
+          impostor="$(curl --noproxy '*' -sS --resolve 'sites-f370.test:18970:127.0.0.1' \
+            --cacert "$certs/ca.crt" --cert "$certs/untrusted.crt" --key "$certs/untrusted.key" \
+            -o /dev/null -w '%{http_code}' https://sites-f370.test:18970/health 2>/dev/null || true)"
+          test "$impostor" != 200
+          # Valid client identity cannot bypass hostname routing.
+          host_code="$(curl --noproxy '*' -sS --resolve 'sites-f370.test:18970:127.0.0.1' \
+            --cacert "$certs/ca.crt" --cert "$certs/client.crt" --key "$certs/client.key" \
+            -H 'Host: malicious.example' -o /dev/null -w '%{http_code}' \
+            https://sites-f370.test:18970/health)"
+          test "$host_code" = 421
+          if curl --noproxy '*' -fsS --resolve 'wrong-f370.test:18970:127.0.0.1' \
+            --cacert "$certs/ca.crt" --cert "$certs/client.crt" --key "$certs/client.key" \
+            https://wrong-f370.test:18970/health >/dev/null 2>&1; then
+            echo 'Unsafe: wrong TLS server hostname was trusted'
+            exit 1
+          fi
+          php tests/f370-mtls-portal-signed-client.php
+          echo 'F1-370: mutual TLS identity and signed Portal HTTP -> PG18 proof passed (CI-only).'
       - name: Scope limitation
         if: always()
         run: |
