@@ -1,0 +1,5 @@
+# F1-67 — Guarda de CI adicional contra publicação não autorizada
+
+Adiciona ao job F1-21 existente varredura estática conservadora sobre os arquivos GitHub Actions (`.yml` e `.yaml`). Nega comandos diretos de deploy em Cloudflare Pages, Wrangler, Firebase, Netlify/Vercel, ações de publicação, mudanças de secrets/release e permissões de escrita de páginas/ID token. Executa exemplos negativos positivos como teste de regressão, em Python padrão, sem novas dependências.
+
+É defesa em profundidade: expressões regulares **não detectam comandos indiretos, todos os aliases, scripts externos ou mudanças futuras** e não substituem revisão humana, isolamento de credenciais ou políticas GitHub. Nenhum gate passa para READY. Não habilita deploy nem consome recursos externos. A integração depende da validação por CI e revisão da cadeia de PRs.

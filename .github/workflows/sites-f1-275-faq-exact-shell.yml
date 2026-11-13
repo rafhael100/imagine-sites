@@ -1,0 +1,40 @@
+name: Sites F1-275 exact native FAQ HTML grammar
+on:
+  pull_request:
+    paths:
+      - 'src/Production/InertPreviewAudit.php'
+      - 'tests/f275-faq-exact-shell.php'
+      - '.github/workflows/sites-f1-275-faq-exact-shell.yml'
+permissions:
+  contents: read
+jobs:
+  faq-shell-integrity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring,dom,xml
+          tools: none
+          coverage: none
+      - name: Reject harmless-looking HTML wrappers in canonical FAQ
+        run: |
+          set -euo pipefail
+          php -l src/Production/InertPreviewAudit.php
+          php -l tests/f275-faq-exact-shell.php
+          php tests/f27-offline-preview-audit.php
+          php tests/f157-static-faq-content.php
+          php tests/f270-faq-native-disclosure.php
+          php tests/f274-faq-bundle-fence.php
+          php tests/f275-faq-exact-shell.php
+      - name: Scope
+        if: always()
+        run: echo 'Pure PHP static noindex preview QA; no release, provider, client, secrets, contact data or deploy.'

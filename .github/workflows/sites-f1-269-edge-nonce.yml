@@ -1,0 +1,51 @@
+name: Sites F1-269 single-use synthetic signed edge nonce
+on:
+  pull_request:
+    paths:
+      - 'ops/cloudflare-worker/src/nonce-ledger.mjs'
+      - 'ops/cloudflare-worker/src/index.mjs'
+      - 'ci/f269_edge_nonce_replay.test.mjs'
+      - '.github/workflows/sites-f1-269-edge-nonce.yml'
+permissions:
+  contents: read
+jobs:
+  ephemeral-nonce-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      APP_ENV: testing
+      GITHUB_ACTIONS: 'true'
+      SITES_F264_EDGE_PREVIEW: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring,dom,xml
+          tools: composer:v2
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build real PHP review fixture and inspect JavaScript syntax
+        run: |
+          set -euo pipefail
+          node --check ops/cloudflare-worker/src/nonce-ledger.mjs
+          node --check ops/cloudflare-worker/src/index.mjs
+          node --check ci/f269_edge_nonce_replay.test.mjs
+          cd apps/sites
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts
+          cd ../..
+          php ci/f264_export_edge_preview.php
+      - name: Test nonce replay denial and prior signed fixture gates
+        run: |
+          set -euo pipefail
+          node --test ci/f264_worker_preview.test.mjs ci/f265_edge_signature.test.mjs ci/f269_edge_nonce_replay.test.mjs
+      - name: Erase private review fixture
+        if: always()
+        run: rm -f "$RUNNER_TEMP/sites-f264-preview-fixture.json"
+      - name: Scope
+        if: always()
+        run: echo 'Memory-only fixture, no production replay ledger, Cloudflare Workers deployment, client data or IAM.'

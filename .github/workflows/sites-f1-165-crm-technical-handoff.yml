@@ -1,0 +1,50 @@
+name: Sites F1-165 exact CRM technical handoff wire parity with F3-46
+on:
+  pull_request:
+    paths:
+      - 'src/Integration/SyntheticCrmTechnicalHandoffV1.php'
+      - 'tests/f165-crm-technical-handoff-wire-parity.php'
+      - '.github/workflows/sites-f1-165-crm-technical-handoff.yml'
+permissions:
+  contents: read
+jobs:
+  crm-technical-wire-parity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    env:
+      APP_ENV: testing
+      SITES_F165_SYNTHETIC_AUTH: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout fixed CRM F3-49 technical source
+        uses: actions/checkout@v4
+        with:
+          repository: rafhael100/imagine-crm
+          ref: 0ee32ec1268047a52b5429622fb5f34716f818ae
+          path: crm-current
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: none
+      - name: Verify exact CRM source SHA and lint synthetic-only PHP
+        run: |
+          set -euo pipefail
+          test "$(git -C crm-current rev-parse HEAD)" = 0ee32ec1268047a52b5429622fb5f34716f818ae
+          test -f crm-current/app/Core/Leads/PortalServiceHandoffInspector.php
+          test -f crm-current/app/Core/Leads/PortalTechnicalEnvelopeDecoder.php
+          php -l src/Integration/SyntheticCrmTechnicalHandoffV1.php
+          php -l tests/f165-crm-technical-handoff-wire-parity.php
+      - name: Exercise genuine CRM F3-46 with Sites generated metadata/MAC
+        run: |
+          set -euo pipefail
+          php tests/f165-crm-technical-handoff-wire-parity.php
+          php tests/f150-crm-current-technical-ingress-parity.php
+          echo "Only public CI key; no real lead, nonce ledger, IAM, HTTPS or CRM write."
