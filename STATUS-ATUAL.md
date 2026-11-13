@@ -1,5 +1,14 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## F1-343 — verificação de healthcheck e dependência Compose — 13/11/2026
+
+- **F1-343 / PR #432**, SHA de correção `3a45994033665eff73568a84b03c454c045fd768`: o validador F1-74 exige healthcheck PostgreSQL com comando exato `pg_isready -U postgres -d sites_lab`, intervalo/timeout/retries fixos e dependência `service_healthy` exclusivamente no banco interno do laboratório. Nega comandos de saúde arbitrários, healthcheck desativado, `service_started` e dependências extras. Primeira execução identificou erro sintático no fixture de mutação negativa; corrigido e **4/4 workflows retornados `success`**, incluindo F1-83 com Compose/PG18 descartável.
+- **F1-344 em revisão separada:** proteção adicional de projeto/rede/volume Compose foi proposta em PR #433, mas a verificação inicial rejeitou uma diferença de serialização gerada pelo Compose. Não importar a mudança F1-344 até o CI certificar a forma renderizada correta, sem atenuar o bloqueio de rede/volume externos.
+- **Candidato integrado:** os anteriores F1-302–342 passam a incorporar F1-343. Reexecutar F1-240 inventário diff, F1-241 seis pacotes e CI integral no novo SHA de integração. `dev/main` não alteradas.
+- **NÃO operacional:** somente fixture Docker no GitHub, nenhum acesso VPS Leaseweb. `config/operational-readiness.json` segue `BLOCKED` e dez gates `false`. Review independente e branches #281, OP01–OP05 #33–#38 permanecem pendentes, sem merge, deploy, segredos, cliente, DNS, Cloudflare ou custos.
+
+---
+
 ## F1-341–342 — fronteiras de laboratório Docker e credenciais do PostgreSQL — 13/11/2026
 
 - **F1-341 / PR #429**, SHA `ff29959110e6b2b9e15964e0183b9a476e78b41f`: reforça `ci/f74_docker_lab_boundary.py` contra `pid/ipc/uts` de host, `user: 0:0`, `entrypoint/command` personalizados, `env_file`, `volumes_from`, `group_add`, `sysctls`, `seccomp=unconfined` e outras alterações que poderiam escapar da fronteira do teste mesmo sem publicar portas. **4/4 workflows success**, incluindo F1-83 Compose/PG descartável em GitHub Actions.
