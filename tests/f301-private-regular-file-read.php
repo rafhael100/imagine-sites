@@ -52,14 +52,42 @@ try {
     file_put_contents($file,str_repeat('a',8193));
     check301(Reader::read($file,8192)===null,
         'oversized fixed manifest denied before materializing');
+    // F1-302: broaden non-regular and binary boundary regression coverage.
+    check301(Reader::read($dir,150000)===null,
+        'directory denied without attempting to stream it');
+    check301(Reader::read($file.chr(0)."extra",150000)===null,
+        'embedded NUL path denied safely');
+
+    $binary=pack('C*',0,255,128,0).'end';
+    file_put_contents($file,$binary);
+    check301(Reader::read($file,strlen($binary))===$binary,
+        'binary fixture returned byte-for-byte at exact upper bound');
+    check301(Reader::read($file,strlen($binary)-1)===null,
+        'binary fixture rejected one byte below upper bound');
+    check301(Reader::read($file,150000)===$binary,
+        'binary content is not modified by readback');
+    if (function_exists('posix_mkfifo')) {
+        $fifo=$dir.'/pipe';
+        check301(posix_mkfifo($fifo,0600),'FIFO fixture created');
+        check301(Reader::read($fifo,150000)===null,
+            'FIFO rejected by lstat before any potentially blocking open');
+        unlink($fifo);
+    }
+    rename($file,$dir.'/moved.html');
+    check301(Reader::read($file,150000)===null,
+        'old path denied after atomic rename');
+    check301(Reader::read($dir.'/moved.html',150000)===$binary,
+        'new regular path accepted after atomic rename');
+    rename($dir.'/moved.html',$file);
+
     file_put_contents($file,$text);
     check301(Reader::read($file,150000)===$text,
         'valid fixture remains readable after adversarial checks');
 } finally {
-    foreach (['index.html','symlink.html','hardlink.html'] as $name) {
+    foreach (['index.html','symlink.html','hardlink.html','moved.html','pipe'] as $name) {
         $path=$dir.'/'.$name;
         if (is_file($path) || is_link($path)) @unlink($path);
     }
     @rmdir($dir);
 }
-echo "$checks F1-301 bounded private inode readback checks passed (synthetic only).\n";
+echo "$checks F1-301/F1-302 bounded private inode readback checks passed (synthetic only).\n";

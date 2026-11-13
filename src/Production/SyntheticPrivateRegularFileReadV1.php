@@ -28,7 +28,7 @@ final class SyntheticPrivateRegularFileReadV1
 
     public static function read(string $path,int $maxBytes):?string
     {
-        if ($maxBytes<1 || $maxBytes>150000 || is_link($path)) return null;
+        if ($maxBytes<1 || $maxBytes>150000 || str_contains($path, chr(0)) || is_link($path)) return null;
 
         clearstatcache(true,$path);
         $before=@lstat($path);
