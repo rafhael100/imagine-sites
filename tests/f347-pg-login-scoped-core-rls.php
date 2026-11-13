@@ -1,0 +1,196 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * F1-347: demonstrate a strictly limited DB-login-scope RLS alternative
+ * in an isolated, disposable PostgreSQL 18 service. Never a production
+ * migration, IAM grant, customer authorization, or live tenancy scheme.
+ * Must run AFTER F1-93 has applied its REAL Laravel core migration and
+ * F1-346 has demonstrated the original GUC spoof weakness.
+ */
+if (PHP_SAPI !== 'cli' || getenv('APP_ENV') !== 'testing' ||
+    getenv('GITHUB_ACTIONS') !== 'true' ||
+    getenv('SITES_F93_SCHEMA_LAB') !== '1' ||
+    getenv('SITES_F347_DB_LOGIN_LAB') !== '1' ||
+    getenv('DB_DATABASE') !== 'sites_f93_lab' ||
+    getenv('DB_HOST') !== '127.0.0.1' ||
+    getenv('DB_PORT') !== '5432' ||
+    getenv('DB_USERNAME') !== 'postgres' ||
+    (string)getenv('DB_PASSWORD') !== 'f93-synthetic-admin-disposable-only') {
+    fwrite(STDERR,"F1-347 disposable PostgreSQL18 CI-only fixture denied.\n");
+    exit(1);
+}
+
+$dsn='pgsql:host=127.0.0.1;port=5432;dbname=sites_f93_lab;connect_timeout=5';
+$opts=[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,
+       PDO::ATTR_EMULATE_PREPARES=>false,
+       PDO::ATTR_TIMEOUT=>6];
+$admin=new PDO($dsn,'postgres','f93-synthetic-admin-disposable-only',$opts);
+$checks=0;
+function f347Check(bool $ok,string $label):void {
+    global $checks;
+    if(!$ok)throw new RuntimeException('F1-347 lab scope: '.$label);
+    $checks++;
+}
+function f347SqlDenied(callable $fn,string $expected='42501'):bool {
+    try {$fn();} catch(PDOException $e) {
+        return $e->getCode()===$expected;
+    }
+    return false;
+}
+function f347Count(PDO $db,string $table):int {
+    if(!in_array($table,['sites_projects','sites_drafts'],true)) {
+        throw new RuntimeException('Unapproved lab table');
+    }
+    return (int)$db->query("SELECT COUNT(*) FROM ".$table)->fetchColumn();
+}
+
+// Private mapping is writable ONLY by the disposable migration owner.
+// session_user remains the actual authenticated login across SECURITY
+// DEFINER calls, unlike current_user (which becomes the function owner).
+foreach([
+    "CREATE ROLE sites_f347_a LOGIN NOINHERIT NOSUPERUSER
+         NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS
+         PASSWORD 'f347-fictional-org-a-only'",
+    "CREATE ROLE sites_f347_b LOGIN NOINHERIT NOSUPERUSER
+         NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS
+         PASSWORD 'f347-fictional-org-b-only'",
+    "CREATE TABLE public.sites_f347_login_map (
+         login_name text PRIMARY KEY,
+         tenant_ref text NOT NULL,
+         active boolean NOT NULL,
+         revision integer NOT NULL CHECK (revision >= 1))",
+    "REVOKE ALL ON public.sites_f347_login_map FROM PUBLIC",
+    "INSERT INTO public.sites_f347_login_map
+         (login_name,tenant_ref,active,revision) VALUES
+         ('sites_f347_a','tenant-f93-a',true,1),
+         ('sites_f347_b','tenant-f93-b',true,1)",
+    <<<'SQL'
+CREATE FUNCTION public.sites_f347_scope_tenant()
+RETURNS text LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path=pg_catalog AS $f347$
+  SELECT tenant_ref
+  FROM public.sites_f347_login_map
+  WHERE login_name=session_user
+    AND active IS TRUE
+$f347$
+SQL,
+    "REVOKE ALL ON FUNCTION public.sites_f347_scope_tenant() FROM PUBLIC",
+    "GRANT EXECUTE ON FUNCTION public.sites_f347_scope_tenant()
+         TO sites_f347_a,sites_f347_b",
+    "GRANT CONNECT ON DATABASE sites_f93_lab TO sites_f347_a,sites_f347_b",
+    "GRANT USAGE ON SCHEMA public TO sites_f347_a,sites_f347_b",
+    "GRANT SELECT,INSERT ON TABLE public.sites_projects,public.sites_drafts
+         TO sites_f347_a,sites_f347_b",
+    "DROP POLICY sites_projects_tenant_policy ON public.sites_projects",
+    "DROP POLICY sites_drafts_tenant_policy ON public.sites_drafts",
+    "CREATE POLICY sites_projects_login_policy ON public.sites_projects
+         FOR ALL USING (tenant_ref=public.sites_f347_scope_tenant())
+         WITH CHECK (tenant_ref=public.sites_f347_scope_tenant())",
+    "CREATE POLICY sites_drafts_login_policy ON public.sites_drafts
+         FOR ALL USING (tenant_ref=public.sites_f347_scope_tenant())
+         WITH CHECK (tenant_ref=public.sites_f347_scope_tenant())",
+] as $statement){
+    $admin->exec($statement);
+}
+
+$a=new PDO($dsn,'sites_f347_a','f347-fictional-org-a-only',$opts);
+$b=new PDO($dsn,'sites_f347_b','f347-fictional-org-b-only',$opts);
+f347Check((string)$a->query('SELECT session_user')->fetchColumn()==='sites_f347_a' &&
+          (string)$b->query('SELECT session_user')->fetchColumn()==='sites_f347_b',
+          'two physically independent restricted DB logins');
+f347Check(f347Count($a,'sites_projects')===1 &&
+          f347Count($b,'sites_projects')===1 &&
+          f347Count($a,'sites_drafts')===1 &&
+          f347Count($b,'sites_drafts')===0,
+          'each DB login sees only its mapped synthetic tenant rows');
+
+f347Check(f347SqlDenied(static fn()=> $a->query(
+    'SELECT * FROM public.sites_f347_login_map'
+)), 'app login cannot read the private authority mapping');
+f347Check(f347SqlDenied(static fn()=> $b->exec(
+    "UPDATE public.sites_f347_login_map SET active=false"
+)), 'app login cannot alter its own tenant binding');
+f347Check(f347SqlDenied(static fn()=> $a->exec(
+    'SET ROLE sites_f347_b'
+)), 'login A cannot acquire login B role');
+
+// Untrusted GUC values can still be changed by apps, but they are no
+// longer the authority consulted by these temporary lab policies.
+$a->beginTransaction();
+try {
+    $a->exec("SET LOCAL imagine_sites.tenant_ref='tenant-f93-b'");
+    f347Check(
+        f347Count($a,'sites_projects')===1 &&
+        (string)$a->query(
+            'SELECT site_ref FROM sites_projects'
+        )->fetchColumn()==='site-f93-a',
+        'forged B GUC does not expose B project to login A'
+    );
+    f347Check(
+        f347Count($a,'sites_drafts')===1,
+        'forged GUC cannot expose B draft ledger'
+    );
+    f347Check(
+        f347SqlDenied(static fn()=> $a->exec(
+            "INSERT INTO sites_projects(tenant_ref,site_ref,product_code)
+             VALUES ('tenant-f93-b','site-f347-cross','onepage')"
+        )),
+        'RLS WITH CHECK rejects foreign tenant INSERT despite forged GUC'
+    );
+} finally {
+    if($a->inTransaction())$a->rollBack();
+}
+$b->beginTransaction();
+try {
+    $b->exec("SET LOCAL imagine_sites.tenant_ref='tenant-f93-a'");
+    f347Check(
+        f347Count($b,'sites_projects')===1 &&
+        (string)$b->query(
+            'SELECT site_ref FROM sites_projects'
+        )->fetchColumn()==='site-f93-b',
+        'forged A GUC does not expose A project to login B'
+    );
+    $b->exec(
+        "INSERT INTO sites_projects(tenant_ref,site_ref,product_code)
+         VALUES ('tenant-f93-b','site-f347-local','landing_page')"
+    );
+    f347Check(
+        f347Count($b,'sites_projects')===2,
+        'login B can still write only its own lab tenant despite forged GUC'
+    );
+} finally {
+    if($b->inTransaction())$b->rollBack();
+}
+
+// An existing connection must stop seeing tenant data after revocation,
+// without trusting a transaction-local setting supplied by the caller.
+f347Check($admin->exec(
+    "UPDATE public.sites_f347_login_map
+     SET active=false,revision=2 WHERE login_name='sites_f347_a'"
+)===1,'private authority can revoke tenant A');
+f347Check(
+    f347Count($a,'sites_projects')===0 &&
+    f347Count($a,'sites_drafts')===0 &&
+    f347Count($b,'sites_projects')===1,
+    'same A session denied after revocation while tenant B remains visible'
+);
+$a->beginTransaction();
+try {
+    $a->exec("SET LOCAL imagine_sites.tenant_ref='tenant-f93-a'");
+    f347Check(
+        f347Count($a,'sites_projects')===0,
+        'forged original A GUC cannot bypass revoked login mapping'
+    );
+} finally {
+    if($a->inTransaction())$a->rollBack();
+}
+f347Check(
+    (int)$admin->query('SELECT COUNT(*) FROM sites_projects')->fetchColumn()===2 &&
+    (int)$admin->query('SELECT COUNT(*) FROM sites_drafts')->fetchColumn()===1,
+    'all transient attempts rolled back; original fictional rows preserved'
+);
+
+echo "$checks F1-347 mapped-login RLS/forgery/revocation checks passed.\n";
+echo "NO-GO: role-per-tenant is not Portal IAM or production pooled SaaS architecture.\n";
