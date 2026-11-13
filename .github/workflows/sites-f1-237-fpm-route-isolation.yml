@@ -1,0 +1,62 @@
+name: Sites F1-237 cached routes denied under isolated Nginx and PHP-FPM
+on:
+  pull_request:
+    paths:
+      - 'ops/fpm-probe/**'
+      - '.github/workflows/sites-f1-237-fpm-route-isolation.yml'
+      - 'apps/sites/bootstrap/app.php'
+      - 'apps/sites/app/Http/Middleware/SyntheticLabRouteFence.php'
+      - 'apps/sites/routes/**'
+      - 'docs/SITES-F1-237-FPM-HTTP-CACHE-BOUNDARY.md'
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  cached-routes-fpm:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify profile has NO host ports or privileged network
+        run: |
+          set -euo pipefail
+          docker compose -f ops/fpm-probe/compose.yml --profile ci config --format json > /tmp/f237-compose.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/f237-compose.json',encoding='utf-8') as f:
+              d=json.load(f)
+          assert len(d['services'])==3
+          assert len(d['networks'])==1
+          assert all(n.get('internal') is True for n in d['networks'].values())
+          for name,c in d['services'].items():
+              assert not c.get('ports') and not c.get('network_mode')
+              assert not c.get('privileged')
+              assert 'ALL' in c.get('cap_drop',[])
+              assert 'no-new-privileges:true' in c.get('security_opt',[])
+              assert c.get('restart') in (None,'no')
+          print('PASS F1-237: isolated Compose network, no published ports or privileges')
+          PY
+      - name: Build pinned synthetic-route PHP-FPM image (never push)
+        run: |
+          set -euo pipefail
+          docker compose -f ops/fpm-probe/compose.yml --profile ci build sites-fpm
+          docker image inspect imagine-sites-fpm-probe-sites-fpm --format '{{.Config.User}}' | grep -Fx '10001:10001'
+      - name: Run Nginx and PHP-FPM on a Docker-only internal network
+        run: |
+          set -euo pipefail
+          docker compose -f ops/fpm-probe/compose.yml --profile ci run --rm probe-client
+          web="$(docker compose -f ops/fpm-probe/compose.yml --profile ci ps -q sites-web)"
+          test -n "$web"
+          test -z "$(docker port "$web")"
+      - name: Tear down test services, anonymous volumes and networks
+        if: always()
+        run: |
+          docker compose -f ops/fpm-probe/compose.yml --profile ci down --volumes --remove-orphans || true
+          rm -f /tmp/f237-compose.json
+      - name: Scope of evidence
+        if: always()
+        run: echo 'F1-237 tests real Nginx/FPM on an internal Docker network; not Leaseweb, Cloudflare, production IAM, backups or client traffic.'

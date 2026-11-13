@@ -1,0 +1,52 @@
+name: Sites F1-265 Ed25519 edge release envelope (offline)
+on:
+  pull_request:
+    paths:
+      - 'ops/cloudflare-worker/src/release-signature.mjs'
+      - 'ops/cloudflare-worker/src/index.mjs'
+      - 'ci/f265_edge_signature.test.mjs'
+      - 'ci/f264_export_edge_preview.php'
+      - '.github/workflows/sites-f1-265-edge-signature.yml'
+permissions:
+  contents: read
+jobs:
+  signed-private-preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      APP_ENV: testing
+      GITHUB_ACTIONS: 'true'
+      SITES_F264_EDGE_PREVIEW: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring,dom,xml
+          tools: composer:v2
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Generate one canonical fictional private site with PHP
+        run: |
+          set -euo pipefail
+          node --check ops/cloudflare-worker/src/release-signature.mjs
+          node --check ops/cloudflare-worker/src/index.mjs
+          node --check ci/f265_edge_signature.test.mjs
+          cd apps/sites
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts
+          cd ../..
+          php ci/f264_export_edge_preview.php
+      - name: Prove signature, expiration, denial and byte-perfect review
+        run: |
+          set -euo pipefail
+          node --test ci/f264_worker_preview.test.mjs ci/f265_edge_signature.test.mjs
+      - name: Remove private preview fixture
+        if: always()
+        run: rm -f "$RUNNER_TEMP/sites-f264-preview-fixture.json"
+      - name: Explicit scope
+        if: always()
+        run: echo 'Ephemeral test key only. No Cloudflare, production signature authority, DNS, Portal approval, clients, provider API or deploy.'

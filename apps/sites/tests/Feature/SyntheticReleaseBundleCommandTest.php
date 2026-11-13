@@ -29,7 +29,11 @@ final class SyntheticReleaseBundleCommandTest extends TestCase
                 @rmdir($dir);
             }
         }
+        foreach (['onepage','landing_page'] as $product) {
+            @unlink(storage_path('app/private/.sites-f1-24-'.$product.'.lock'));
+        }
         putenv('SITES_SYNTHETIC_BUNDLE');
+        putenv('SITES_SYNTHETIC_VERIFY');
         parent::tearDown();
     }
 
@@ -55,6 +59,247 @@ final class SyntheticReleaseBundleCommandTest extends TestCase
         self::assertFalse($meta['officialClientAcceptance']);
         self::assertStringContainsString('noindex, nofollow',$html);
         self::assertStringContainsString('PRIVATE SYNTHETIC TEST PACKAGE ONLY',Artisan::output());
+        $release=new \Imagine\Sites\Domain\ReleaseManifest(
+            'tenant-fixture','site-fixture','release-bundle-onepage',$meta['artifactDigest']
+        );
+        $files=[
+            'index.html'=>$html,
+            'release-manifest.json'=>(string)file_get_contents($dir.'/release-manifest.json'),
+        ];
+        $pinnedDigest=hash('sha256',$files['index.html']."\0".$files['release-manifest.json']);
+        self::assertTrue(\Imagine\Sites\Production\SyntheticReleaseBundle::verifyExactBundle(
+            $files,$release,$pinnedDigest
+        ));
+        $files['release-manifest.json'].="\n";
+        self::assertFalse(\Imagine\Sites\Production\SyntheticReleaseBundle::verifyExactBundle(
+            $files,$release,$pinnedDigest
+        ));
+    }
+
+    public function test_second_write_cannot_replace_previously_verified_bundle(): void
+    {
+        putenv('SITES_SYNTHETIC_BUNDLE=1');
+        self::assertSame(0,Artisan::call('sites:package-fixture',['product'=>'onepage']));
+        $directory=$this->path('onepage');
+        $before=[
+            hash_file('sha256',$directory.'/index.html'),
+            hash_file('sha256',$directory.'/release-manifest.json'),
+        ];
+        self::assertSame(1,Artisan::call('sites:package-fixture',['product'=>'onepage']));
+        self::assertSame($before,[
+            hash_file('sha256',$directory.'/index.html'),
+            hash_file('sha256',$directory.'/release-manifest.json'),
+        ], 'Preexisting validated package must never be overwritten');
+        $leftovers=glob(storage_path('app/private/.sites-f1-24-onepage-*.tmp'));
+        self::assertSame([],$leftovers===false ? [] : $leftovers,
+            'Temporary staging paths must not be left after successful promotion');
+    }
+
+    public function test_read_only_verifier_requires_both_flags_and_two_exact_pins(): void
+    {
+        putenv('SITES_SYNTHETIC_BUNDLE=1');
+        self::assertSame(0,Artisan::call('sites:package-fixture',['product'=>'onepage']));
+        $dir=$this->path('onepage');
+        $original=[
+            'index.html'=>(string)file_get_contents($dir.'/index.html'),
+            'release-manifest.json'=>(string)file_get_contents($dir.'/release-manifest.json'),
+        ];
+        $artifactDigest=hash('sha256',$original['index.html']);
+        $bundleDigest=hash('sha256',$original['index.html']."\0".
+            $original['release-manifest.json']);
+        $args=[
+            'product'=>'onepage',
+            'artifactDigest'=>$artifactDigest,
+            'bundleDigest'=>$bundleDigest,
+        ];
+
+        putenv('SITES_SYNTHETIC_VERIFY');
+        self::assertSame(1,Artisan::call('sites:verify-fixture-bundle',$args),
+            'Readback is never enabled merely by permitting package creation');
+        putenv('SITES_SYNTHETIC_VERIFY=1');
+        self::assertSame(0,Artisan::call('sites:verify-fixture-bundle',$args),
+            'Pinned original package must pass read-only verification');
+        self::assertSame(1,Artisan::call('sites:verify-fixture-bundle',
+            array_replace($args,['artifactDigest'=>str_repeat('0',64)])),
+            'Wrong independently pinned HTML digest must fail');
+        self::assertSame(1,Artisan::call('sites:verify-fixture-bundle',
+            array_replace($args,['bundleDigest'=>str_repeat('0',64)])),
+            'Wrong independently pinned full bundle digest must fail');
+        self::assertSame(1,Artisan::call('sites:verify-fixture-bundle',
+            array_replace($args,['product'=>'landing_page'])),
+            'Another product cannot claim the same pinned package');
+        self::assertSame(1,Artisan::call('sites:verify-fixture-bundle',
+            array_replace($args,['product'=>'../onepage'])),
+            'Path-like product arguments are never used as filenames');
+        self::assertSame(1,Artisan::call('sites:verify-fixture-bundle',
+            array_replace($args,['bundleDigest'=>strtoupper($bundleDigest)])),
+            'Noncanonical pin representations fail closed');
+
+        self::assertSame($original['index.html'],
+            file_get_contents($dir.'/index.html'));
+        self::assertSame($original['release-manifest.json'],
+            file_get_contents($dir.'/release-manifest.json'),
+            'Verification itself must never rewrite the bundle');
+    }
+
+    public function test_read_only_verifier_detects_mutated_or_extra_private_files(): void
+    {
+        putenv('SITES_SYNTHETIC_BUNDLE=1');
+        putenv('SITES_SYNTHETIC_VERIFY=1');
+        self::assertSame(0,Artisan::call('sites:package-fixture',['product'=>'landing_page']));
+        $dir=$this->path('landing_page');
+        $html=(string)file_get_contents($dir.'/index.html');
+        $manifest=(string)file_get_contents($dir.'/release-manifest.json');
+        $args=[
+            'product'=>'landing_page',
+            'artifactDigest'=>hash('sha256',$html),
+            'bundleDigest'=>hash('sha256',$html."\0".$manifest),
+        ];
+        self::assertSame(0,Artisan::call('sites:verify-fixture-bundle',$args));
+        $extra=$dir.'/extra.html';
+        try {
+            file_put_contents($extra,'untrusted');
+            self::assertSame(1,Artisan::call('sites:verify-fixture-bundle',$args),
+                'Additional disk files invalidate exact package inventory');
+        } finally {
+            @unlink($extra);
+        }
+        file_put_contents($dir.'/release-manifest.json',$manifest."\n");
+        self::assertSame(1,Artisan::call('sites:verify-fixture-bundle',$args),
+            'A modified manifest cannot match the prior pinned digest');
+    }
+
+    public function test_private_writer_fails_fast_when_another_process_holds_product_lock(): void
+    {
+        putenv('SITES_SYNTHETIC_BUNDLE=1');
+        $private=storage_path('app/private');
+        if (!is_dir($private)) mkdir($private,0700,true);
+        $lock=\Imagine\Sites\Production\SyntheticPrivateBundleLockV1::acquire(
+            $private,'onepage',true
+        );
+        self::assertNotNull($lock);
+        try {
+            self::assertSame(1,Artisan::call('sites:package-fixture',
+                ['product'=>'onepage']));
+            self::assertDirectoryDoesNotExist($this->path('onepage'));
+            $leftovers=glob($private.'/.sites-f1-24-onepage-*.tmp');
+            self::assertSame([],$leftovers===false?[]:$leftovers);
+            // Independent products have separate fixed-name locks.
+            self::assertSame(0,Artisan::call('sites:package-fixture',
+                ['product'=>'landing_page']));
+        } finally {
+            $lock->release();
+        }
+        self::assertSame(0,Artisan::call('sites:package-fixture',
+            ['product'=>'onepage']));
+    }
+
+    public function test_read_only_reader_fails_closed_while_writer_lock_is_held(): void
+    {
+        putenv('SITES_SYNTHETIC_BUNDLE=1');
+        putenv('SITES_SYNTHETIC_VERIFY=1');
+        self::assertSame(0,Artisan::call('sites:package-fixture',
+            ['product'=>'onepage']));
+        $dir=$this->path('onepage');
+        $html=(string)file_get_contents($dir.'/index.html');
+        $json=(string)file_get_contents($dir.'/release-manifest.json');
+        $args=[
+            'product'=>'onepage',
+            'artifactDigest'=>hash('sha256',$html),
+            'bundleDigest'=>hash('sha256',$html."\0".$json),
+        ];
+        $lock=\Imagine\Sites\Production\SyntheticPrivateBundleLockV1::acquire(
+            storage_path('app/private'),'onepage',false
+        );
+        self::assertNotNull($lock);
+        try {
+            self::assertSame(1,Artisan::call('sites:verify-fixture-bundle',$args),
+                'A concurrent read must refuse rather than inspect staging');
+        } finally {
+            $lock->release();
+        }
+        self::assertSame(0,Artisan::call('sites:verify-fixture-bundle',$args));
+        self::assertSame($html,file_get_contents($dir.'/index.html'));
+        self::assertSame($json,file_get_contents($dir.'/release-manifest.json'));
+    }
+
+    public function test_read_only_reader_never_creates_a_missing_product_lock(): void
+    {
+        putenv('SITES_SYNTHETIC_BUNDLE=1');
+        putenv('SITES_SYNTHETIC_VERIFY=1');
+        $path=storage_path('app/private/.sites-f1-24-onepage.lock');
+        self::assertFileDoesNotExist($path);
+        self::assertSame(1,Artisan::call('sites:verify-fixture-bundle',[
+            'product'=>'onepage',
+            'artifactDigest'=>str_repeat('a',64),
+            'bundleDigest'=>str_repeat('b',64),
+        ]));
+        self::assertFileDoesNotExist($path);
+        self::assertDirectoryDoesNotExist($this->path('onepage'));
+    }
+
+    public function test_writer_rejects_symlink_lock_without_creating_bundle(): void
+    {
+        putenv('SITES_SYNTHETIC_BUNDLE=1');
+        $private=storage_path('app/private');
+        if (!is_dir($private)) mkdir($private,0700,true);
+        $target=$private.'/.f300-symlink-canary';
+        $path=$private.'/.sites-f1-24-onepage.lock';
+        file_put_contents($target,'untouched');
+        try {
+            self::assertTrue(symlink($target,$path));
+            self::assertSame(1,Artisan::call('sites:package-fixture',
+                ['product'=>'onepage']));
+            self::assertSame('untouched',file_get_contents($target));
+            self::assertDirectoryDoesNotExist($this->path('onepage'));
+        } finally {
+            @unlink($path);
+            @unlink($target);
+        }
+    }
+
+    public function test_private_verifier_refuses_symlink_hardlink_and_oversized_readback(): void
+    {
+        putenv('SITES_SYNTHETIC_BUNDLE=1');
+        putenv('SITES_SYNTHETIC_VERIFY=1');
+        self::assertSame(0,Artisan::call('sites:package-fixture',
+            ['product'=>'onepage']));
+        $dir=$this->path('onepage');
+        $index=$dir.'/index.html';
+        $manifest=$dir.'/release-manifest.json';
+        $html=(string)file_get_contents($index);
+        $json=(string)file_get_contents($manifest);
+        $args=[
+            'product'=>'onepage',
+            'artifactDigest'=>hash('sha256',$html),
+            'bundleDigest'=>hash('sha256',$html."\0".$json),
+        ];
+
+        $backup=storage_path('app/private/.f301-onepage-index-backup');
+        self::assertTrue(rename($index,$backup));
+        try {
+            self::assertTrue(symlink($backup,$index));
+            self::assertSame(1,Artisan::call('sites:verify-fixture-bundle',$args),
+                'A path swap to symlink must be denied before reading');
+            unlink($index);
+            self::assertTrue(link($backup,$index));
+            self::assertSame(1,Artisan::call('sites:verify-fixture-bundle',$args),
+                'A hardlinked payload must not be accepted as a private file');
+        } finally {
+            if (is_file($index) || is_link($index)) @unlink($index);
+            if (is_file($backup)) rename($backup,$index);
+        }
+        self::assertSame($html,file_get_contents($index));
+        self::assertSame(0,Artisan::call('sites:verify-fixture-bundle',$args));
+
+        file_put_contents($manifest,str_repeat('x',8193));
+        try {
+            self::assertSame(1,Artisan::call('sites:verify-fixture-bundle',$args),
+                'Oversized manifest rejected before full read');
+        } finally {
+            file_put_contents($manifest,$json);
+        }
+        self::assertSame(0,Artisan::call('sites:verify-fixture-bundle',$args));
     }
 
     public function test_landing_is_supported_with_no_executable_forms(): void

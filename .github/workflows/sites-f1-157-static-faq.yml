@@ -1,0 +1,51 @@
+name: Sites F1-157 inert FAQ content block and review integrity
+on:
+  pull_request:
+    paths:
+      - 'src/Production/SiteBrief.php'
+      - 'src/Production/StaticSiteRenderer.php'
+      - 'src/Production/InertPreviewAudit.php'
+      - 'src/Production/SyntheticContentRevisionPlan.php'
+      - 'src/Production/SyntheticStyleRevisionPlan.php'
+      - 'tests/f157-static-faq-content.php'
+      - '.github/workflows/sites-f1-157-static-faq.yml'
+permissions:
+  contents: read
+jobs:
+  static-faq:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring,dom
+          coverage: none
+          tools: none
+      - name: Check PHP syntax
+        run: |
+          set -euo pipefail
+          php -l src/Production/SiteBrief.php
+          php -l src/Production/StaticSiteRenderer.php
+          php -l src/Production/InertPreviewAudit.php
+          php -l src/Production/SyntheticContentRevisionPlan.php
+          php -l src/Production/SyntheticStyleRevisionPlan.php
+          php -l tests/f157-static-faq-content.php
+      - name: Test FAQ rendering, inert safety and review invalidation
+        run: |
+          set -euo pipefail
+          php tests/f157-static-faq-content.php
+          php tests/f51-style-presets.php
+          php tests/f39-qa-report.php
+          php tests/f68-content-revision.php
+          php tests/f54-style-revision.php
+      - name: No publication
+        if: always()
+        run: echo "No public forms, CRM, real customer PII, AI calls or deploy."

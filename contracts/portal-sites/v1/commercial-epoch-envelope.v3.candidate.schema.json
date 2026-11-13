@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Imagine Portal to Sites CreateProject envelope v3 candidate — commercial and key epochs",
+  "description": "CANDIDATE ONLY. JSON Schema validates shape, not canonical field order, 120s TTL, HMAC authenticity, mTLS identity, replay, authorization or current epoch. No operational endpoint.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "issuer",
+    "audience",
+    "issuedAt",
+    "expiresAt",
+    "nonce",
+    "payload",
+    "keyEpoch",
+    "commercialEpoch",
+    "mac"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "3"
+    },
+    "issuer": {
+      "const": "imagine-portal"
+    },
+    "audience": {
+      "const": "imagine-sites"
+    },
+    "issuedAt": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "expiresAt": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "nonce": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{8,64}$"
+    },
+    "payload": {
+      "$ref": "./create-project.schema.json"
+    },
+    "keyEpoch": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "commercialEpoch": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "mac": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  },
+  "x-imagine-semantic-gates": [
+    "strict key order/serialization and exact envelope field set",
+    "verify HMAC-SHA256 and service issuer/audience using independently managed trusted key",
+    "issuedAt/expiresAt maximum 120 seconds, refuse expired/premature",
+    "read current signing key epoch independently and require signed keyEpoch equality",
+    "read current commercial epoch independently for exactly authenticated tenant/order/contract",
+    "consume nonce atomically/durably only after signature and current authorization checks",
+    "revalidate authorization and signing key before database commit",
+    "no implicit fallback to v1 or v2"
+  ],
+  "x-imagine-operational": false
+}

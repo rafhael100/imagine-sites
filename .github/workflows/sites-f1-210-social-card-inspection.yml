@@ -1,0 +1,54 @@
+name: Sites F1-210 canonical social preview card without external requests
+on:
+  pull_request:
+    paths:
+      - 'src/Production/SyntheticSocialCardInspectionV1.php'
+      - 'apps/sites/routes/web.php'
+      - 'apps/sites/resources/views/labs/review.blade.php'
+      - 'tests/f210-social-card-inspection.php'
+      - 'apps/sites/tests/Feature/SyntheticSocialCardInspectionTest.php'
+      - '.github/workflows/sites-f1-210-social-card-inspection.yml'
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  social-card-parity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring,dom,xml,curl,pdo,pdo_pgsql
+          tools: composer:v2
+          coverage: none
+      - name: PHP lint and independent metadata inspection
+        run: |
+          set -euo pipefail
+          php -l src/Production/SyntheticSocialCardInspectionV1.php
+          php -l apps/sites/routes/web.php
+          php -l tests/f210-social-card-inspection.php
+          php -l apps/sites/tests/Feature/SyntheticSocialCardInspectionTest.php
+          php tests/f210-social-card-inspection.php
+      - name: Locked Laravel testing dependencies
+        working-directory: apps/sites
+        run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
+      - name: Verify actual text card, old social view and old reviewer
+        working-directory: apps/sites
+        env:
+          APP_ENV: testing
+        run: |
+          set -euo pipefail
+          php artisan test --filter='(SyntheticSocialCardInspectionTest|SyntheticSocialPreviewReviewTest|SyntheticRichReviewUiTest)' --no-ansi
+      - name: Boundary
+        if: always()
+        run: echo "Offline synthetic text-only social card, no images, external URLs, credentials, clients, CRM or deployment."
