@@ -1,5 +1,14 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## F1-338 — ZIP privado promovido de staging verificado em operação atômica — 13/11/2026
+
+- **F1-338 / PR #422**, SHA `b344dc5eef99bc5be6e8612b7f15642a12c7116c`: substitui a criação antecipada do nome definitivo do ZIP por staging privado aleatório de modo 0600, fsync, readback integral de todos os bytes e promoção atômica `renameat2(RENAME_NOREPLACE)` no Linux. Não existe fallback a `rename` que sobrescreva destino. Revalida o nome final após a promoção e fsync da pasta. Limpa somente inode criado por este processo em falha, sem tocar destino concorrente. Testes adversariais cobrem interrupção de gravação, observação durante a escrita, concorrente que ganha a criação do nome e corrupção simulada pós-rename. **5/5 verificações CI retornadas `success` no SHA individual**.
+- **Revisão simplificada:** o PR de backup ZIP offline isolado **#418** (base `dev`) recebeu a mesma F1-338, o novo teste de falhas e a matriz CI para análise mais curta. O PR independente de domínio/SEO **#417** e o plano de proteção de branches **#411** seguem disponíveis e separados do histórico de centenas de arquivos.
+- **Candidato de integração:** a partir desta etapa inclui F1-302–338 acumulados; exigir o inventário F1-240 e seis pacotes F1-241, testes de ZIP PHP 8.3/8.4 e Laravel no SHA exato antes de revisão. `dev/main` não sofreram merge.
+- **Não operacional:** ZIP continua contendo apenas `index.html` e `release-manifest.json` fictícios; `scopeAuthenticated=false`, `operationalRestore=false`, `publishable=false`, sem backup/restore do PG/RLS, PII, Portal autenticado, CRM real, Cloudflare, VPS, DNS ou custos. `config/operational-readiness.json` mantém `BLOCKED` com dez gates `false`. Issue #281 (proteção real + revisor externo) e OP01–OP05 (#33–#38) permanecem abertas.
+
+---
+
 ## F1-336–337 — manifesto canônico e propriedade Unix dos backups sintéticos — 13/11/2026
 
 - **F1-336 / PR #419**, SHA `6ddcd62f7c87fe4409721abf33df6e795a16a951`: ZIP privado aceita apenas bytes de manifesto JSON canônico do builder (`JSON_PRETTY_PRINT`, ordem fixa e newline). Rejeita versões JSON compactadas, campo Unicode escapado e remoção do newline mesmo com hashes HTML/bundle recalculados. **4/4 workflows retornados success**, incluindo F1-24 com arquivos Laravel fictícios.
