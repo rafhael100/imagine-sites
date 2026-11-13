@@ -65,3 +65,7 @@ Reexecutar inventário Git completo neste candidato, base `dev` `71b8ffe51139d0e
 ## Renovação do inventário A11Y + CRM pós-vínculo — 12/11/2026
 
 Recalcular o diff Git local completo, sem truncamento, da nova branch `integration/sites-a11y-postbinding-t0-2026-11-12` contra `dev` SHA `71b8ffe51139d0e70ed32591b07f295fb7bf5fe3`. Incluir HTML tabindex focável, CI Chrome, Laravel, novo fence de T0+432h, testes CRM e workflows. Não reutilizar o inventário de #338 ou #324.
+
+## Revalidação F1-299 — candidato de integração total (13/11/2026)
+
+Este candidato integra a cadeia de PRs #361–#366, incluindo a inspeção de emissor Portal v3, o pacote privado de Onepage/Landing Page com SHA exato, gravação em staging e readback, e a rota Laravel v3 de laboratório com negação por padrão. Os **1.362 commits ahead / zero behind** apurados pela API GitHub contra a base `dev` são apenas metadados; a listagem REST de arquivos é limitada a 300. Executar F1-240 no HEAD exato do novo PR de integração, produzir o inventário **completo** e revisão dos caminhos sensíveis, sem usar contagens de PRs anteriores. Dez gates permanecem bloqueados; nenhum merge/deploy.
