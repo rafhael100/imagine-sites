@@ -135,6 +135,10 @@ def main(browser: str) -> None:
                             header:getComputedStyle(document.querySelector('header')).backgroundColor,
                             body:getComputedStyle(document.body).backgroundColor,
                             activeTab:tab?getComputedStyle(tab).backgroundColor:null,
+                            navigationRadius:tab?getComputedStyle(tab).borderTopLeftRadius:null,
+                            cardRadius:getComputedStyle(document.querySelector('.sidebar .card')).borderTopLeftRadius,
+                            mainMaxWidth:getComputedStyle(document.querySelector('main')).maxWidth,
+                            sidebarWidth:Math.round(document.querySelector('.sidebar').getBoundingClientRect().width),
                             frameIsolated:iframe?.getAttribute('sandbox')==='',
                             clientIsolated:!iframe?.getAttribute('srcdoc')?.includes('--imagine-orange'),
                             robots:document.querySelector('meta[name="robots"]')?.content,
@@ -164,6 +168,10 @@ def main(browser: str) -> None:
                         or state["header"]!="rgb(255, 255, 255)"
                         or state["body"]!="rgb(247, 247, 248)"
                         or state["activeTab"]!="rgb(255, 241, 224)"
+                        or state["navigationRadius"]!="10px"
+                        or state["cardRadius"]!="14px"
+                        or state["mainMaxWidth"]!="1380px"
+                        or (label=="desktop" and abs(state["sidebarWidth"]-240)>2)
                         or not state["frameIsolated"]
                         or not state["clientIsolated"]
                         or state["robots"]!="noindex, nofollow"
