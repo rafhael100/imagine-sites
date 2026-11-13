@@ -14,6 +14,7 @@ on:
       - 'tests/f301-private-regular-file-read.php'
       - 'apps/sites/routes/console.php'
       - 'apps/sites/tests/Feature/SyntheticReleaseBundleCommandTest.php'
+      - 'ci/f307_private_qa_json_contract.py'
       - '.github/workflows/sites-f1-24-release-bundle.yml'
       - 'docs/SITES-F1-24-RELEASE-BUNDLE.md'
 
@@ -84,6 +85,19 @@ jobs:
             artifact="$(sha256sum "$base/index.html" | cut -d' ' -f1)"
             bundle="$(python3 -c 'import hashlib,pathlib,sys; p=pathlib.Path(sys.argv[1]); print(hashlib.sha256((p/"index.html").read_bytes()+b"\0"+(p/"release-manifest.json").read_bytes()).hexdigest())' "$base")"
             SITES_SYNTHETIC_VERIFY=1 php artisan sites:verify-fixture-bundle "$product" "$artifact" "$bundle"
+            # F1-306/307: actual Artisan -> JSON -> independent Python
+            # verification against the same immutable private bytes.
+            SITES_SYNTHETIC_VERIFY=1 php artisan sites:verify-fixture-bundle "$product" "$artifact" "$bundle" --evidence-json --include-qa > "$RUNNER_TEMP/f307-$product.json"
+            python3 ../../ci/f307_private_qa_json_contract.py \
+              --report "$RUNNER_TEMP/f307-$product.json" \
+              --directory "$base" --product "$product" \
+              --artifact "$artifact" --bundle "$bundle"
+            # A mismatched caller pin can never produce successful QA JSON.
+            if SITES_SYNTHETIC_VERIFY=1 php artisan sites:verify-fixture-bundle "$product" "$(printf '%064d' 0)" "$bundle" --evidence-json --include-qa > "$RUNNER_TEMP/f307-denied-$product.txt" 2>&1; then
+              echo 'Unsafe success for wrong independent synthetic digest'
+              exit 1
+            fi
+            ! grep -q '"structuralQa"' "$RUNNER_TEMP/f307-denied-$product.txt"
           done
           rm -rf storage/app/private/sites-f1-24-onepage storage/app/private/sites-f1-24-landing_page
           rm -f storage/app/private/.sites-f1-24-onepage.lock storage/app/private/.sites-f1-24-landing_page.lock
