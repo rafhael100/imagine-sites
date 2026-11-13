@@ -5,6 +5,7 @@ on:
       - 'tests/f360-pg-durable-admission-outbox.php'
       - 'tests/fixtures/f360-pg-durable-admission.sql'
       - 'tests/f361-pg-outbox-worker.php'
+      - 'tests/f362-pinned-portal-to-pg-outbox.php'
       - 'tests/fixtures/f361-pg-outbox-worker.sql'
       - '.github/workflows/sites-f360-pg-durable-admission.yml'
       - 'docs/SITES-F1-360-PG-ATOMIC-INGRESS-LAB.md'
@@ -37,6 +38,7 @@ jobs:
       GITHUB_ACTIONS: 'true'
       SITES_F360_PG_LAB: '1'
       SITES_F361_OUTBOX_LAB: '1'
+      SITES_F362_CROSS_STACK_LAB: '1'
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: '5432'
@@ -46,6 +48,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: rafhael100/imagine-sites
+          ref: 21732e9558b730e38a6845adb593d29f309ff6a9
+          path: sites-signed-candidate
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: rafhael100/imagine-portal
+          ref: bf1b2794de4d6000f120ffa2b1e6dd557f34c35e
+          path: portal-candidate
           persist-credentials: false
       - uses: shivammathur/setup-php@v2
         with:
@@ -58,6 +72,7 @@ jobs:
           set -euo pipefail
           php -l tests/f360-pg-durable-admission-outbox.php
           php -l tests/f361-pg-outbox-worker.php
+          php -l tests/f362-pinned-portal-to-pg-outbox.php
           php -r 'if (!extension_loaded("pdo_pgsql")) exit(1);'
       - name: Fail closed without explicit opt-in
         run: |
@@ -85,6 +100,15 @@ jobs:
         run: |
           set -euo pipefail
           php tests/f361-pg-outbox-worker.php
+      - name: Verify exact read-only pinned Portal and Sites candidate sources
+        run: |
+          set -euo pipefail
+          test "$(git -C sites-signed-candidate rev-parse HEAD)" = 21732e9558b730e38a6845adb593d29f309ff6a9
+          test "$(git -C portal-candidate rev-parse HEAD)" = bf1b2794de4d6000f120ffa2b1e6dd557f34c35e
+      - name: Real pinned Portal signed order into PostgreSQL18 atomic outbox
+        run: |
+          set -euo pipefail
+          SITES_F362_PORTAL_PATH="$GITHUB_WORKSPACE/portal-candidate" SITES_F362_SITES_PATH="$GITHUB_WORKSPACE/sites-signed-candidate" php tests/f362-pinned-portal-to-pg-outbox.php
       - name: Scope limitation
         if: always()
         run: |
