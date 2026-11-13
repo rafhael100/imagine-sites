@@ -15,6 +15,19 @@
   --imagine-radius-card: 9px;
   --imagine-sidebar-width: 240px;
   --imagine-font-ui: Arial, Helvetica, sans-serif;
+  /* Shared Imagine Experience System — source: Portal design-system/tokens.css */
+  --imagine-radius-panel: 14px;
+  --imagine-radius-navigation: 10px;
+  --imagine-shadow-panel: 0 6px 24px rgba(23, 27, 25, .035);
+  --imagine-content-max: 1380px;
+  --imagine-touch-target: 44px;
+  --imagine-space-1: 4px;
+  --imagine-space-2: 8px;
+  --imagine-space-3: 12px;
+  --imagine-space-4: 16px;
+  --imagine-space-6: 24px;
+  --imagine-space-8: 32px;
+  --imagine-space-12: 48px;
   --sites-shell-bg: var(--imagine-surface);
   --sites-shell-ink: var(--imagine-ink);
   --sites-shell-accent: var(--imagine-orange);
@@ -46,14 +59,21 @@ header .brand small { color: var(--imagine-muted);letter-spacing:.04em; }
   background:var(--imagine-white);
   color:var(--imagine-ink);
   border:1px solid var(--imagine-border);
-  border-radius:var(--imagine-radius-card);
-  box-shadow:0 4px 18px rgba(23,27,25,.035);
+  border-radius:var(--imagine-radius-panel);
+  box-shadow:var(--imagine-shadow-panel);
 }
 .card { padding:21px; }
-.tabs { max-width:100%; min-width:0; row-gap:10px; }
+main { max-width:var(--imagine-content-max); }
+.tabs { max-width:100%; min-width:0; row-gap:var(--imagine-space-3); }
+@media (min-width:941px) {
+  .layout {
+    grid-template-columns:minmax(240px,var(--imagine-sidebar-width)) minmax(0,1fr);
+    gap:var(--imagine-space-6);
+  }
+}
 .tabs a {
   border-color:var(--imagine-border);
-  border-radius:var(--imagine-radius-control);
+  border-radius:var(--imagine-radius-navigation);
   display:inline-flex; align-items:center; justify-content:center;
   min-height:44px; max-width:100%;
   line-height:1.35; overflow-wrap:anywhere; text-align:center;
