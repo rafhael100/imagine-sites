@@ -72,7 +72,7 @@ jobs:
           for product in onepage landing_page; do
             base="storage/app/private/sites-f1-24-$product"
             artifact="$(sha256sum "$base/index.html" | cut -d' ' -f1)"
-            bundle="$(python3 -c 'import hashlib,pathlib,sys; p=pathlib.Path(sys.argv[1]); print(hashlib.sha256((p/"index.html").read_bytes()+b"\\0"+(p/"release-manifest.json").read_bytes()).hexdigest())' "$base")"
+            bundle="$(python3 -c 'import hashlib,pathlib,sys; p=pathlib.Path(sys.argv[1]); print(hashlib.sha256((p/"index.html").read_bytes()+b"\0"+(p/"release-manifest.json").read_bytes()).hexdigest())' "$base")"
             SITES_SYNTHETIC_VERIFY=1 php artisan sites:verify-fixture-bundle "$product" "$artifact" "$bundle"
           done
           rm -rf storage/app/private/sites-f1-24-onepage storage/app/private/sites-f1-24-landing_page
