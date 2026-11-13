@@ -180,7 +180,7 @@ Artisan::command('sites:package-fixture {product=onepage}', function (): int {
  * a trusted signer, an official Portal acceptance or release authority.
  */
 Artisan::command(
-    'sites:verify-fixture-bundle {product} {artifactDigest} {bundleDigest}',
+    'sites:verify-fixture-bundle {product} {artifactDigest} {bundleDigest} {--evidence-json}',
     function (): int {
         if (PHP_SAPI !== 'cli' || !app()->environment('testing') ||
             getenv('SITES_SYNTHETIC_BUNDLE') !== '1' ||
@@ -247,7 +247,38 @@ Artisan::command(
             $this->error('Private synthetic release digest mismatch.');
             return Command::FAILURE;
         }
-        $this->line('PASS: PRIVATE SYNTHETIC BUNDLE ONLY — NO RELEASE AUTHORITY.');
+        if ((bool)$this->option('evidence-json')) {
+            // F1-305: safe, deterministic LOCAL QA metadata only.
+            // The caller's digests are NOT authenticated Portal release pins.
+            $report=[
+                'schemaVersion'=>'sites.synthetic.private-bundle-evidence.v1',
+                'syntheticOnly'=>true,
+                'readOnly'=>true,
+                'trustedPins'=>false,
+                'officialClientAcceptance'=>false,
+                'releaseAuthorized'=>false,
+                'verifiedLocalBytes'=>true,
+                'product'=>$product,
+                'artifactDigest'=>$artifactDigest,
+                'bundleDigest'=>$bundleDigest,
+                'files'=>[
+                    [
+                        'name'=>'index.html',
+                        'bytes'=>strlen($files['index.html']),
+                        'sha256'=>hash('sha256',$files['index.html']),
+                    ],
+                    [
+                        'name'=>'release-manifest.json',
+                        'bytes'=>strlen($files['release-manifest.json']),
+                        'sha256'=>hash('sha256',$files['release-manifest.json']),
+                    ],
+                ],
+            ];
+            $this->line(json_encode($report,
+                JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
+        } else {
+            $this->line('PASS: PRIVATE SYNTHETIC BUNDLE ONLY — NO RELEASE AUTHORITY.');
+        }
         return Command::SUCCESS;
         } finally {
             $productLock->release();

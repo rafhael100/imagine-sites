@@ -169,6 +169,45 @@ final class SyntheticReleaseBundleCommandTest extends TestCase
             'A modified manifest cannot match the prior pinned digest');
     }
 
+    public function test_read_only_evidence_json_is_exact_and_never_authorizes_publication(): void
+    {
+        putenv('SITES_SYNTHETIC_BUNDLE=1');
+        putenv('SITES_SYNTHETIC_VERIFY=1');
+        foreach (['onepage','landing_page'] as $product) {
+            self::assertSame(0,Artisan::call('sites:package-fixture',
+                ['product'=>$product]));
+            $dir=$this->path($product);
+            $html=(string)file_get_contents($dir.'/index.html');
+            $manifest=(string)file_get_contents($dir.'/release-manifest.json');
+            $arguments=[
+                'product'=>$product,
+                'artifactDigest'=>hash('sha256',$html),
+                'bundleDigest'=>hash('sha256',$html.chr(0).$manifest),
+                '--evidence-json'=>true,
+            ];
+            self::assertSame(0,Artisan::call('sites:verify-fixture-bundle',$arguments));
+            $report=json_decode(trim(Artisan::output()),true,16,JSON_THROW_ON_ERROR);
+            self::assertSame('sites.synthetic.private-bundle-evidence.v1',
+                $report['schemaVersion']);
+            self::assertTrue($report['syntheticOnly']);
+            self::assertTrue($report['readOnly']);
+            self::assertTrue($report['verifiedLocalBytes']);
+            self::assertFalse($report['trustedPins']);
+            self::assertFalse($report['officialClientAcceptance']);
+            self::assertFalse($report['releaseAuthorized']);
+            self::assertSame($product,$report['product']);
+            self::assertSame(hash('sha256',$html),$report['artifactDigest']);
+            self::assertSame($arguments['bundleDigest'],$report['bundleDigest']);
+            self::assertSame([
+                ['name'=>'index.html','bytes'=>strlen($html),'sha256'=>hash('sha256',$html)],
+                ['name'=>'release-manifest.json','bytes'=>strlen($manifest),
+                 'sha256'=>hash('sha256',$manifest)],
+            ],$report['files']);
+            self::assertSame($html,file_get_contents($dir.'/index.html'));
+            self::assertSame($manifest,file_get_contents($dir.'/release-manifest.json'));
+        }
+    }
+
     public function test_private_writer_fails_fast_when_another_process_holds_product_lock(): void
     {
         putenv('SITES_SYNTHETIC_BUNDLE=1');
