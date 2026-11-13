@@ -116,6 +116,29 @@ f347Check(f347SqlDenied(static fn()=> $a->exec(
     'SET ROLE sites_f347_b'
 )), 'login A cannot acquire login B role');
 
+// F1-350: explicitly verify least privilege and SQL identity boundaries
+// before exercising the forged-GUC scenarios. These assertions run only
+// against the same disposable CI PostgreSQL roles and schema.
+foreach ([$a, $b] as $db) {
+    $rights=$db->query(<<<'SQL'
+SELECT
+  has_table_privilege(current_user, 'public.sites_projects', 'SELECT'),
+  has_table_privilege(current_user, 'public.sites_projects', 'INSERT'),
+  has_table_privilege(current_user, 'public.sites_projects', 'UPDATE'),
+  has_table_privilege(current_user, 'public.sites_projects', 'DELETE'),
+  has_table_privilege(current_user, 'public.sites_drafts', 'UPDATE'),
+  has_schema_privilege(current_user, 'public', 'CREATE')
+SQL)->fetch(PDO::FETCH_NUM);
+    f347Check($rights === [true,true,false,false,false,false],
+        'mapped login has SELECT/INSERT but cannot UPDATE/DELETE or create in public');
+}
+f347Check(f347SqlDenied(static fn()=> $a->exec(
+    'SET SESSION AUTHORIZATION sites_f347_b'
+)), 'login A cannot impersonate login B via SET SESSION AUTHORIZATION');
+f347Check(f347SqlDenied(static fn()=> $b->exec(
+    'CREATE TABLE public.sites_f350_unauthorized (id integer)'
+)), 'mapped login cannot create unapproved schema objects');
+
 // Untrusted GUC values can still be changed by apps, but they are no
 // longer the authority consulted by these temporary lab policies.
 $a->beginTransaction();
