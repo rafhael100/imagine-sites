@@ -55,10 +55,10 @@ try {
     // F1-302: broaden non-regular and binary boundary regression coverage.
     check301(Reader::read($dir,150000)===null,
         'directory denied without attempting to stream it');
-    check301(Reader::read($file."\\0extra",150000)===null,
+    check301(Reader::read($file.chr(0)."extra",150000)===null,
         'embedded NUL path denied safely');
 
-    $binary="\\x00\\xff\\x80\\x00end";
+    $binary=pack('C*',0,255,128,0).'end';
     file_put_contents($file,$binary);
     check301(Reader::read($file,strlen($binary))===$binary,
         'binary fixture returned byte-for-byte at exact upper bound');
@@ -90,4 +90,4 @@ try {
     }
     @rmdir($dir);
 }
-echo "$checks F1-301 bounded private inode readback checks passed (synthetic only).\n";
+echo "$checks F1-301/F1-302 bounded private inode readback checks passed (synthetic only).\n";
