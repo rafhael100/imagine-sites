@@ -9,6 +9,12 @@ on:
       - 'tests/f363-pg-durable-nonce.php'
       - 'tests/f364-transactional-signed-ingress-adapter.php'
       - 'tests/f365-loopback-http-client.php'
+      - 'tests/f366-pg-outbox-to-portal-http.php'
+      - 'tests/f367-init-portal-receipt-db.php'
+      - 'tests/f367-dual-postgres-portal-receipt.php'
+      - 'tests/fixtures/f367-portal-receipt-db.sql'
+      - 'tests/fixtures/f367-durable-portal-router.php'
+      - 'tests/fixtures/f366-portal-receipt-router.php'
       - 'tests/fixtures/f365-loopback-router.php'
       - 'tests/fixtures/f365-loopback-worker.php'
       - 'src/Persistence/LabTransactionalSignedIngressV1.php'
@@ -40,6 +46,19 @@ jobs:
           --health-interval 5s
           --health-timeout 3s
           --health-retries 12
+      portal_postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: f367-fictional-portal-db-only
+          POSTGRES_DB: portal_f367_lab
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_f367_lab"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
     env:
       APP_ENV: testing
       GITHUB_ACTIONS: 'true'
@@ -49,6 +68,8 @@ jobs:
       SITES_F363_NONCE_LAB: '1'
       SITES_F364_BRIDGE_LAB: '1'
       SITES_F365_HTTP_LAB: '1'
+      SITES_F366_PORTAL_RECEIPT_LAB: '1'
+      SITES_F367_PORTAL_DB_LAB: '1'
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: '5432'
@@ -89,6 +110,11 @@ jobs:
           php -l tests/f365-loopback-http-client.php
           php -l tests/fixtures/f365-loopback-router.php
           php -l tests/fixtures/f365-loopback-worker.php
+          php -l tests/fixtures/f366-portal-receipt-router.php
+          php -l tests/f366-pg-outbox-to-portal-http.php
+          php -l tests/f367-init-portal-receipt-db.php
+          php -l tests/f367-dual-postgres-portal-receipt.php
+          php -l tests/fixtures/f367-durable-portal-router.php
           php -r 'if (!extension_loaded("curl")) exit(1);'
           php -r 'if (!extension_loaded("pdo_pgsql")) exit(1);'
       - name: Fail closed without explicit opt-in
@@ -162,6 +188,43 @@ jobs:
           done
           test "$ready" = 1
           php tests/f365-loopback-http-client.php
+      - name: F1-366 outbox HTTP to synthetic Portal signed receipt, then PG18 ACK
+        run: |
+          set -euo pipefail
+          php -S 127.0.0.1:18966 -t tests/fixtures tests/fixtures/f366-portal-receipt-router.php > "$RUNNER_TEMP/f366-portal.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 30); do
+            if curl --noproxy '*' -fsS --output /dev/null http://127.0.0.1:18966/health; then
+              ready=1
+              break
+            fi
+            sleep 0.3
+          done
+          test "$ready" = 1
+          php tests/f366-pg-outbox-to-portal-http.php
+      - name: F1-367 second disposable PostgreSQL for durable Portal receipts
+        run: |
+          set -euo pipefail
+          if SITES_F367_PORTAL_DB_LAB=0 php tests/f367-init-portal-receipt-db.php; then
+            echo 'Unsafe: Portal fixture initialized without lab flag'
+            exit 1
+          fi
+          php tests/f367-init-portal-receipt-db.php
+          php -S 127.0.0.1:18968 -t tests/fixtures tests/fixtures/f367-durable-portal-router.php > "$RUNNER_TEMP/f367-portal-db.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 30); do
+            if curl --noproxy '*' -fsS --output /dev/null http://127.0.0.1:18968/health; then
+              ready=1
+              break
+            fi
+            sleep 0.3
+          done
+          test "$ready" = 1
+          php tests/f367-dual-postgres-portal-receipt.php
       - name: Scope limitation
         if: always()
         run: |
