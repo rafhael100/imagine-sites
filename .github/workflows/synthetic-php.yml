@@ -37,6 +37,7 @@ jobs:
           php tests/f17-run.php
           php tests/f20-run.php
           php tests/f26-rotation.php
+          php tests/f355-independent-revocation-gate.php
           php tests/f27-offline-preview-audit.php
           php tests/f28-production-flow.php
           php tests/f29-structured-copy.php
