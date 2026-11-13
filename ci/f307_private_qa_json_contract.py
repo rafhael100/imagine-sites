@@ -41,31 +41,77 @@ def deny_constant(value: str) -> None:
     raise ValueError("nonstandard JSON denied")
 
 
-def read_regular_private(path: Path, max_bytes: int) -> bytes:
-    original = os.lstat(path)
-    if not stat.S_ISREG(original.st_mode) or original.st_nlink != 1:
-        raise ValueError("private evidence file is not single-linked regular")
-    if not (0 < original.st_size <= max_bytes):
-        raise ValueError("private evidence file exceeds fixed size bound")
-    with path.open("rb") as handle:
-        opened = os.fstat(handle.fileno())
-        if (opened.st_dev, opened.st_ino, opened.st_size) != (
-            original.st_dev, original.st_ino, original.st_size
-        ):
-            raise ValueError("private inode changed before read")
-        data = handle.read(max_bytes + 1)
-        now = os.fstat(handle.fileno())
-        named = os.lstat(path)
-        if any(
-            (x.st_dev, x.st_ino, x.st_size, x.st_nlink) != (
-                original.st_dev, original.st_ino, original.st_size, 1
-            )
-            for x in (now, named)
-        ):
-            raise ValueError("private inode changed during evidence check")
-    if len(data) != original.st_size:
-        raise ValueError("private evidence read incomplete")
-    return data
+def file_identity(info: os.stat_result) -> tuple[int, int, int, int, int]:
+    """Identity and safety fields used for before/after descriptor checks."""
+    return (info.st_dev, info.st_ino, info.st_nlink,
+            info.st_size, stat.S_IFMT(info.st_mode))
+
+
+def require_regular(info: os.stat_result, max_bytes: int) -> None:
+    if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or
+            not (0 < info.st_size <= max_bytes)):
+        raise ValueError("not a single-linked, bounded regular file")
+
+
+def open_private_directory(directory: Path) -> int:
+    """Pin the directory inode; reject a final-component symlink."""
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
+    fd = os.open(directory, flags)
+    opened = os.fstat(fd)
+    named = os.stat(directory, follow_symlinks=False)
+    if (not stat.S_ISDIR(opened.st_mode) or
+            file_identity(opened) != file_identity(named)):
+        os.close(fd)
+        raise ValueError("private directory changed while opening")
+    return fd
+
+
+def read_regular_private(directory_fd: int, filename: str, max_bytes: int) -> bytes:
+    """F1-308: no symlink traversal or potentially blocking FIFO open.
+
+    Access the named inode *relative to a pinned directory descriptor* and
+    compare its metadata against the opened file before and after reading.
+    """
+    if filename not in ("index.html", "release-manifest.json") and (
+        filename != "evidence.json"
+    ):
+        raise ValueError("untrusted evidence filename")
+    before = os.stat(filename, dir_fd=directory_fd, follow_symlinks=False)
+    require_regular(before, max_bytes)
+    flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC
+    fd = os.open(filename, flags, dir_fd=directory_fd)
+    try:
+        opened = os.fstat(fd)
+        require_regular(opened, max_bytes)
+        if file_identity(opened) != file_identity(before):
+            raise ValueError("file swapped between stat and open")
+        chunks = []
+        consumed = 0
+        while consumed <= max_bytes:
+            block = os.read(fd, max_bytes + 1 - consumed)
+            if not block:
+                break
+            chunks.append(block)
+            consumed += len(block)
+        data = b"".join(chunks)
+        after = os.fstat(fd)
+        named = os.stat(filename, dir_fd=directory_fd, follow_symlinks=False)
+        require_regular(after, max_bytes)
+        require_regular(named, max_bytes)
+        if (file_identity(after) != file_identity(before) or
+                file_identity(named) != file_identity(before) or
+                len(data) != before.st_size):
+            raise ValueError("file inode, size or content length changed")
+        return data
+    finally:
+        os.close(fd)
+
+
+def read_bounded_report(path: Path) -> bytes:
+    """F1-309: do not read unbounded or linked evidence before JSON parsing."""
+    with os.fdopen(open_private_directory(path.parent), "rb") as directory:
+        # Descriptor used as an integer dir_fd, not as a readable stream.
+        return read_regular_private(directory.fileno(), "evidence.json", 4096)
 
 
 def verify(raw: bytes, private_dir: Path, product: str,
@@ -107,31 +153,36 @@ def verify(raw: bytes, private_dir: Path, product: str,
         value is not True for value in checks.values()
     ):
         raise ValueError("all ten structural checks must pass exactly")
-    if private_dir.is_symlink() or not private_dir.is_dir():
-        raise ValueError("missing or unsafe private fixture directory")
-    if sorted(p.name for p in private_dir.iterdir()) != sorted(
-        name for name, _ in FIXED_FILES
-    ):
-        raise ValueError("unexpected private files")
-    expected_files = doc["files"]
-    if not isinstance(expected_files, list) or len(expected_files) != 2:
-        raise ValueError("wrong evidence file count")
-    chunks = []
-    for index, (name, limit) in enumerate(FIXED_FILES):
-        item = expected_files[index]
-        if not isinstance(item, dict) or list(item) != ["name", "bytes", "sha256"]:
-            raise ValueError("unexpected file evidence structure")
-        data = read_regular_private(private_dir / name, limit)
-        digest = hashlib.sha256(data).hexdigest()
-        if (item["name"] != name or type(item["bytes"]) is not int or
-            item["bytes"] != len(data) or item["sha256"] != digest):
-            raise ValueError("local file bytes disagree with reported evidence")
-        chunks.append(data)
+    dir_fd = open_private_directory(private_dir)
+    try:
+        if sorted(os.listdir(dir_fd)) != sorted(name for name, _ in FIXED_FILES):
+            raise ValueError("unexpected private files")
+
+        expected_files = doc["files"]
+        if not isinstance(expected_files, list) or len(expected_files) != 2:
+            raise ValueError("wrong evidence file count")
+        chunks = []
+        for index, (name, limit) in enumerate(FIXED_FILES):
+            item = expected_files[index]
+            if not isinstance(item, dict) or list(item) != ["name", "bytes", "sha256"]:
+                raise ValueError("unexpected file evidence structure")
+            data = read_regular_private(dir_fd, name, limit)
+            digest = hashlib.sha256(data).hexdigest()
+            if (item["name"] != name or type(item["bytes"]) is not int or
+                item["bytes"] != len(data) or item["sha256"] != digest):
+                raise ValueError("local file bytes disagree with reported evidence")
+            chunks.append(data)
+        opened = os.fstat(dir_fd)
+        named = os.stat(private_dir, follow_symlinks=False)
+        if (not stat.S_ISDIR(named.st_mode) or
+                file_identity(opened) != file_identity(named)):
+            raise ValueError("private directory replaced during readback")
+    finally:
+        os.close(dir_fd)
     if hashlib.sha256(chunks[0]).hexdigest() != expected_artifact:
         raise ValueError("actual HTML digest mismatch")
     if hashlib.sha256(chunks[0] + bytes([0]) + chunks[1]).hexdigest() != expected_bundle:
         raise ValueError("actual bundle digest mismatch")
-
 
 def main() -> None:
     parser = argparse.ArgumentParser()
@@ -141,7 +192,7 @@ def main() -> None:
     parser.add_argument("--artifact", required=True)
     parser.add_argument("--bundle", required=True)
     args = parser.parse_args()
-    verify(args.report.read_bytes(), args.directory, args.product,
+    verify(read_bounded_report(args.report), args.directory, args.product,
            args.artifact, args.bundle)
     print("PASS F1-307: independently verified private synthetic QA evidence, NO-GO")
 
