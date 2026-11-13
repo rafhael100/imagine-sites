@@ -242,6 +242,53 @@ def evaluate_active_rules(branch: str, rules: list[Any]) -> dict[str, Any]:
     }
 
 
+def evaluate_repository_ruleset_details(details: Any) -> dict[str, Any]:
+    """F1-328: a ruleset without visible bypass data must fail closed.
+
+    GitHub hides bypass_actors unless the caller can WRITE the ruleset.
+    Never interpret a missing property as an empty bypass list.
+    """
+    expected = make_plan()
+    safe = isinstance(details, dict)
+    scope = (
+        safe
+        and details.get("name") == RULESET_NAME
+        and details.get("target") == "branch"
+        and details.get("enforcement") == "active"
+        and details.get("conditions") == expected["conditions"]
+    )
+    bypass_visible_and_empty = (
+        safe and "bypass_actors" in details
+        and details.get("bypass_actors") == []
+    )
+    checks = (
+        evaluate_active_rules("dev", details["rules"])["hasEnforcedBaseline"]
+        if safe and isinstance(details.get("rules"), list) else False
+    )
+    return {
+        "namedRulesetFound": bool(safe and details.get("name") == RULESET_NAME),
+        "rulesetScopeMatched": bool(scope),
+        "noBypassActorsVisible": bool(bypass_visible_and_empty),
+        "parametersMatched": bool(checks),
+        "validated": bool(scope and bypass_visible_and_empty and checks),
+        "independentReviewerAvailabilityNotVerified": True,
+    }
+
+
+def inspect_repository_ruleset() -> dict[str, Any]:
+    available = github_api(f"repos/{REPOSITORY}/rulesets?per_page=100")
+    if not isinstance(available, list):
+        raise RuntimeError("Repository ruleset inventory unavailable")
+    names = [
+        item for item in available if isinstance(item, dict)
+        and item.get("name") == RULESET_NAME
+    ]
+    if len(names) != 1 or type(names[0].get("id")) is not int:
+        return evaluate_repository_ruleset_details(None)
+    details = github_api(f"repos/{REPOSITORY}/rulesets/{names[0]['id']}")
+    return evaluate_repository_ruleset_details(details)
+
+
 def inspect_active_branch_rules(branch: str) -> dict[str, Any]:
     rules = github_api(f"repos/{REPOSITORY}/rules/branches/{branch}?per_page=100")
     if not isinstance(rules, list):
@@ -251,19 +298,23 @@ def inspect_active_branch_rules(branch: str) -> dict[str, Any]:
 
 def audit() -> int:
     reports = [inspect_active_branch_rules(b) for b in ("dev", "main")]
+    ruleset = inspect_repository_ruleset()
     for result in reports:
         print(json.dumps(result, sort_keys=True))
-    if not all(p["hasEnforcedBaseline"] for p in reports):
+    print(json.dumps(ruleset, sort_keys=True))
+    if (not all(p["hasEnforcedBaseline"] for p in reports)
+            or not ruleset["validated"]):
         print(
-            "BLOCKED: at least one branch lacks effective approval/check "
-            "parameters or anti-delete/force-push rules",
+            "BLOCKED: missing effective active branch protection or "
+            "repository ruleset scope, parameter or no-bypass evidence",
             file=sys.stderr,
         )
         return 2
     print(
-        "F1-327: GitHub reports the expected active rules and parameters "
-        "on both branches. Admin must STILL check bypass rights, reviewer "
-        "access, CODEOWNERS and rejected direct pushes; not a release permit."
+        "F1-328: GitHub reports approved rule parameters, both branches "
+        "protected, no bypass actors in readable repository ruleset. "
+        "Admin MUST still confirm reviewer availability, inherited "
+        "organization rules, CODEOWNERS and rejected direct pushes."
     )
     return 0
 
@@ -298,6 +349,33 @@ def audit_self_test() -> None:
         if evaluate_active_rules("dev", bad)["hasEnforcedBaseline"]:
             raise AssertionError(f"unsafe active rule mutation {index} accepted")
     print("F1-327: 2 valid branch baselines and 8 negative audits passed offline")
+
+    details = {**make_plan(), "id": 42}
+    if not evaluate_repository_ruleset_details(details)["validated"]:
+        raise AssertionError("canonical no-bypass ruleset rejected")
+    degraded = [
+        lambda d: d.pop("bypass_actors"),
+        lambda d: d["bypass_actors"].append(
+            {"actor_type": "User", "actor_id": 1, "bypass_mode": "always"}
+        ),
+        lambda d: d.update(enforcement="disabled"),
+        lambda d: d["conditions"]["ref_name"]["include"].remove(
+            "refs/heads/main"
+        ),
+        lambda d: d["rules"][2]["parameters"].update(
+            required_approving_review_count=0
+        ),
+        lambda d: d["rules"][3]["parameters"]["required_status_checks"].pop(),
+    ]
+    for index, mutate in enumerate(degraded):
+        bad = copy.deepcopy(details)
+        mutate(bad)
+        if evaluate_repository_ruleset_details(bad)["validated"]:
+            raise AssertionError(
+                f"unsafe repository ruleset detail {index} accepted"
+            )
+    print("F1-328: visible zero-bypass proof and 6 negative cases passed offline")
+
 
 
 def apply_plan(*, confirm_repository: str, reviewer_ready: bool,
