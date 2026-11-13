@@ -1,0 +1,49 @@
+name: Sites F1-292 Portal CreateProject v3 signed OpenAPI contract
+on:
+  pull_request:
+    paths:
+      - 'contracts/portal-sites/v1/commercial-epoch-envelope.v3.candidate.schema.json'
+      - 'contracts/portal-sites/v1/openapi.v3.candidate.json'
+      - 'contracts/portal-sites/v1/openapi.candidate.json'
+      - 'contracts/portal-sites/v1/create-project.schema.json'
+      - 'contracts/portal-sites/v1/candidate-envelope.schema.json'
+      - 'src/Security/SyntheticCommercialEpochSignedCommand.php'
+      - 'tests/f292-v3-openapi-wire-policy.php'
+      - 'ci/f292_portal_v3_openapi_contract.py'
+      - '.github/workflows/sites-f1-292-v3-openapi.yml'
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  contract-v3-no-downgrade:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          coverage: none
+      - name: Static OpenAPI schema shape and PHP parity
+        run: |
+          python3 -m py_compile ci/f292_portal_v3_openapi_contract.py
+          python3 ci/f292_portal_v3_openapi_contract.py
+      - name: Reject v1/v2 downgrade, invalid epochs, TTL and replay
+        run: |
+          php -l tests/f292-v3-openapi-wire-policy.php
+          php tests/f292-v3-openapi-wire-policy.php
+      - name: No operational permission or endpoint
+        run: |
+          grep -Eq '"status"\s*:\s*"BLOCKED"' config/operational-readiness.json
+          grep -Eq '"non_operational"\s*:\s*true' config/operational-readiness.json
+          test ! -f apps/sites/routes/api.php
