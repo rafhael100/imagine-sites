@@ -22,6 +22,7 @@ on:
       - 'ci/f330_private_restore_selftest.py'
       - 'ci/f331_atomic_private_rename.py'
       - 'ci/f331_atomic_restore_selftest.py'
+      - 'ci/f338_atomic_zip_selftest.py'
       - '.github/workflows/sites-f1-24-release-bundle.yml'
       - 'docs/SITES-F1-24-RELEASE-BUNDLE.md'
 
@@ -69,6 +70,8 @@ jobs:
           python3 ci/f330_private_restore_selftest.py
           python3 -m py_compile ci/f331_atomic_private_rename.py ci/f331_atomic_restore_selftest.py
           python3 ci/f331_atomic_restore_selftest.py
+          python3 -m py_compile ci/f338_atomic_zip_selftest.py
+          python3 ci/f338_atomic_zip_selftest.py
       - name: Install locked Laravel dependencies without scripts
         working-directory: apps/sites
         run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
