@@ -90,7 +90,7 @@ f361Check(f361Denied(static fn()=> $app->query(
        '00000000-0000-0000-0000-000000000000'::uuid)"
 ),'42501'), 'tenant login cannot forge dispatcher ACK');
 f361Check(f361Denied(static fn()=> $w1->query(
-    "SELECT sites_f360.admit_project('worker-op','worker-site',
+    "SELECT sites_f360.admit_project('tenant-f360-b','worker-op','worker-site',
       'worker-contract','onepage',1,'".
        hash('sha256','worker-not-allowed')."')"
 ),'42501'), 'worker cannot impersonate project admission login');
