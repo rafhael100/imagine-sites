@@ -1,0 +1,64 @@
+name: Sites F1-360 Portal durable purchase to private ingress
+on:
+  pull_request:
+    paths:
+      - 'tests/f360-portal-persisted-purchase-to-sites.php'
+      - '.github/workflows/sites-f1-360-persisted-portal-queue.yml'
+permissions:
+  contents: read
+jobs:
+  portal-persisted-to-sites:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: synthetic-ci-only
+          POSTGRES_DB: portal_purchase_rehearsal
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_purchase_rehearsal"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    steps:
+      - name: Checkout exact Sites review head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Checkout pinned Portal protocol encoder (read-only)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: rafhael100/imagine-portal
+          ref: bf1b2794de4d6000f120ffa2b1e6dd557f34c35e
+          path: external/portal-protocol
+          persist-credentials: false
+      - name: Checkout pinned Portal RLS persisted-purchase candidate (read-only)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: rafhael100/imagine-portal
+          ref: 1b10af7f68d54bb8e744e3824a24f4f77d219c26
+          path: external/portal-purchase
+          persist-credentials: false
+      - name: PHP 8.4 with PostgreSQL
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql
+          coverage: none
+      - name: Prepare disposable roles and verify Portal database contract
+        run: |
+          set -euo pipefail
+          php -l tests/f360-portal-persisted-purchase-to-sites.php
+          php -l external/portal-purchase/apps/portal/app/Homologation/PersistedTestPurchase.php
+          php -l external/portal-purchase/apps/portal/app/Homologation/RoleBoundTestPurchase.php
+          php external/portal-purchase/apps/portal/tools/test_persisted_purchase.php
+      - name: Verified synthetic Portal order to Sites queue, no deployment
+        env:
+          SITES_F1_360_CROSS_REPO: '1'
+          SITES_F1_360_PORTAL_SIGNER_PATH: ${{ github.workspace }}/external/portal-protocol
+          SITES_F1_360_PORTAL_PURCHASE_PATH: ${{ github.workspace }}/external/portal-purchase
+        run: |
+          set -euo pipefail
+          php tests/f360-portal-persisted-purchase-to-sites.php
