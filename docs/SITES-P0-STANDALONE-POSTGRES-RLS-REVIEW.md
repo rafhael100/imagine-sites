@@ -36,4 +36,10 @@ Na fixture descartável F1-347, dois logins SQL independentes agora exercitam os
 
 ### F1-352 — impedir shadowing via tabelas temporárias (13/11/2026)
 
-Além de revogar CREATE no schema público, o laboratório agora revoga `TEMPORARY` de `PUBLIC` no banco descartável. Dois novos testes negativos tentam criar tabelas temporárias com o mesmo nome de `sites_projects` e do mapping privado. A finalidade é evitar que `pg_temp` encubra relações confiáveis quando uma aplicação usa nome SQL não qualificado. **Escopo:** somente o banco CI `sites_f93_lab`, sem migração operacional. Alteração de código: `da3f98e1e7975aa63f9fce4815df24eb62b51942`; executar novamente GitHub Actions antes de tratá-la como aprovada.
+Além de revogar CREATE no schema público, o laboratório agora revoga `TEMPORARY` de `PUBLIC` no banco descartável. Dois novos testes negativos tentam criar tabelas temporárias com o mesmo nome de `sites_projects` e do mapping privado. A finalidade é evitar que `pg_temp` encubra relações confiáveis quando uma aplicação usa nome SQL não qualificado. **Escopo:** somente o banco CI `sites_f93_lab`, sem migração operacional. Alteração de código: `da3f98e1e7975aa63f9fce4815df24eb62b51942`; **aprovada na matriz PG18 PHP 8.3/8.4**, [run #43478011772](https://github.com/rafhael100/imagine-sites/actions/runs/43478011772), commit de documentação `31d0153` contendo o teste F1-352.
+
+### F1-353 — autenticação SQL sem acesso implícito ao banco (13/11/2026)
+
+O mesmo banco descartável de CI agora revoga `CONNECT` de `PUBLIC` e concede acesso explícito apenas aos dois logins fictícios associados, preservando privilégio do administrador da fixture. Um terceiro login fictício `sites_f353_unbound`, criado sem vínculo, não obtém acesso nem com senha válida. O teste verifica tanto `has_database_privilege(...,'CONNECT')` como a recusa real da conexão.
+
+O objetivo é reduzir os caminhos de acesso por logins não cadastrados além das garantias de isolamento RLS. É apenas **defesa em profundidade para PG18 descartável**: não provisiona roles reais por tenant, não implementa identidade Portal↔Sites, não valida pooling ou rotação de credenciais. Alteração inicial `8da405f32efeb266d53c3559de67cf3c668a7ee1`; CI específica ainda não verificada nesta documentação. **NO-GO operacional mantido.**
