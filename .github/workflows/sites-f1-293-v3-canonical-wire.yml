@@ -1,0 +1,41 @@
+name: Sites F1-293 canonical signed v3 JSON anti-ambiguity (offline)
+on:
+  pull_request:
+    paths:
+      - 'src/Security/SyntheticCommercialEpochSignedCommand.php'
+      - 'tests/f293-v3-canonical-json-security.php'
+      - '.github/workflows/sites-f1-293-v3-canonical-wire.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  canonical-v3-wire:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          coverage: none
+      - name: Verify PHP syntax and exact canonical wire security
+        run: |
+          set -euo pipefail
+          php -l src/Security/SyntheticCommercialEpochSignedCommand.php
+          php -l tests/f293-v3-canonical-json-security.php
+          php tests/f292-v3-openapi-wire-policy.php
+          php tests/f293-v3-canonical-json-security.php
+      - name: Refuse operational readiness by default
+        run: |
+          grep -Eq '"status"\s*:\s*"BLOCKED"' config/operational-readiness.json
+          grep -Eq '"non_operational"\s*:\s*true' config/operational-readiness.json

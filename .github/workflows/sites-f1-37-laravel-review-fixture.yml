@@ -4,6 +4,7 @@ on:
     paths:
       - 'apps/sites/routes/console.php'
       - 'apps/sites/tests/Feature/SyntheticReviewFixtureCommandTest.php'
+      - 'apps/sites/tests/Feature/SyntheticStyleReviewCommandTest.php'
       - 'fixtures/sites/f1-37-copy.synthetic.json'
       - '.github/workflows/sites-f1-37-laravel-review-fixture.yml'
       - 'docs/SITES-F1-37-LARAVEL-REVIEW-FIXTURE.md'
@@ -31,6 +32,7 @@ jobs:
         run: |
           php -l apps/sites/routes/console.php
           php -l apps/sites/tests/Feature/SyntheticReviewFixtureCommandTest.php
+          php -l apps/sites/tests/Feature/SyntheticStyleReviewCommandTest.php
       - name: Install lockfile dependencies without scripts
         working-directory: apps/sites
         run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
@@ -59,7 +61,7 @@ jobs:
         working-directory: apps/sites
         env:
           APP_ENV: testing
-        run: php artisan test --filter=SyntheticReviewFixtureCommandTest --no-ansi
+        run: php artisan test --filter='(SyntheticReviewFixtureCommandTest|SyntheticStyleReviewCommandTest)' --no-ansi
       - name: Explicitly no provider usage
         if: always()
         run: echo "Fictional CLI-only. No client data, AI model, Portal HTTP, Cloudflare, VPS, or deployment."

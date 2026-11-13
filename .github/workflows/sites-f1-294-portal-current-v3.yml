@@ -1,0 +1,52 @@
+name: Sites F1-294 Portal current vs historical v3 signed source (offline)
+on:
+  pull_request:
+    paths:
+      - 'ci/f294_portal_current_v3_gate.py'
+      - '.github/workflows/sites-f1-294-portal-current-v3.yml'
+      - 'docs/SITES-F1-294-PORTAL-V3-REALITY-CHECK.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  pinned-portal-v3-compatibility-denial:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout exact public Portal DEVELOPMENT snapshot (no credentials)
+        uses: actions/checkout@v4
+        with:
+          repository: rafhael100/imagine-portal
+          ref: 47514f4eac64a3d7ab0a0924cc890fb5a124d8b8
+          path: .ci-portal-current
+          persist-credentials: false
+      - name: Checkout exact public Portal HISTORICAL v3 candidate (never production)
+        uses: actions/checkout@v4
+        with:
+          repository: rafhael100/imagine-portal
+          ref: 8d1e20bc5c39dc4106b549c5e979351b5c766615
+          path: .ci-portal-historical
+          persist-credentials: false
+      - name: Explicit NO-GO for missing or unreviewed current signer
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ci/f294_portal_current_v3_gate.py
+          python3 ci/f294_portal_current_v3_gate.py --self-test
+          python3 ci/f294_portal_current_v3_gate.py --current .ci-portal-current --history .ci-portal-historical > "$RUNNER_TEMP/sites-f294-report.txt"
+          grep -Fq '"releaseAuthorized": false' "$RUNNER_TEMP/sites-f294-report.txt"
+          grep -Fq '"sitesMayConnectToPortal": false' "$RUNNER_TEMP/sites-f294-report.txt"
+          cat "$RUNNER_TEMP/sites-f294-report.txt"
+      - name: Remove temporary public-source checkouts
+        if: always()
+        run: |
+          rm -rf .ci-portal-current .ci-portal-historical
+          rm -f "$RUNNER_TEMP/sites-f294-report.txt"
+      - name: Deny any operational interpretation
+        if: always()
+        run: echo 'PUBLIC SOURCE SHAs ONLY; no S2S identity, live endpoint, credentials, launch, merge or deployment.'
