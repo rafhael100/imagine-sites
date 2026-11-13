@@ -172,7 +172,7 @@ f365Check(f365Request('GET')[0]===405,
     'non-POST HTTP method refused');
 f365Check(f365Request('POST','{}','text/plain')[0]===415,
     'non-JSON HTTP content type refused');
-f365Check(f365Request('POST','{')[0]===400,
+f365Check(f365Request('POST','{invalid}')[0]===400,
     'malformed JSON refused without server crash');
 f365Check(f365Request('POST',str_repeat('x',8200))[0]===413,
     'oversized request refused before worker');
