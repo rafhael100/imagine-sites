@@ -62,3 +62,7 @@ Regerar seis pacotes no SHA exato F1-286 e inspecionar AppSec/UX da rota Laravel
 ## Renovação de seis pacotes A11Y + CRM pós-vínculo — 12/11/2026
 
 Regenerar pacotes por SHA do inventário F1-240 atual. AppSec revisa a independência de verificação de tempo e contexto, garantia de foco em Chrome e que nenhuma assinatura/relógio sintético autoriza dispatch. DBA/Portal/CRM verificam T0 durável, revogação e isolamento. Somente revisão, sem produção ou merge.
+
+## Revalidação F1-299 — seis revisões independentes (13/11/2026)
+
+Gerar os seis pacotes completos a partir do inventário F1-240 do **mesmo SHA** deste candidato integrado. Priorizar em B/C/D/E os arquivos da fronteira HTTP Laravel v3 raw, middleware de rotas cacheadas, classes de assinatura/replay, Nginx/PHP-FPM, verificação de artefatos privados e workflows. Distinguir provas automáticas de aprovação de AppSec/DBA/Portal/CRM, que ainda não existe. Integrar apenas depois de branch protection, revisão independente qualificada e homologação operacional; permanecer DRAFT/NO-GO.
