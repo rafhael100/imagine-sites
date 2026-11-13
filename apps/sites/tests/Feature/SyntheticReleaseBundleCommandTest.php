@@ -208,6 +208,59 @@ final class SyntheticReleaseBundleCommandTest extends TestCase
         }
     }
 
+    public function test_opt_in_structural_qa_evidence_checks_both_products_without_granting_release(): void
+    {
+        putenv('SITES_SYNTHETIC_BUNDLE=1');
+        putenv('SITES_SYNTHETIC_VERIFY=1');
+        foreach (['onepage','landing_page'] as $product) {
+            self::assertSame(0,Artisan::call('sites:package-fixture',
+                ['product'=>$product]));
+            $directory=$this->path($product);
+            $html=(string)file_get_contents($directory.'/index.html');
+            $manifest=(string)file_get_contents($directory.'/release-manifest.json');
+            $arguments=[
+                'product'=>$product,
+                'artifactDigest'=>hash('sha256',$html),
+                'bundleDigest'=>hash('sha256',$html.chr(0).$manifest),
+            ];
+            self::assertSame(1,Artisan::call('sites:verify-fixture-bundle',
+                $arguments+['--include-qa'=>true]),
+                'Standalone QA flag must not degrade to an ordinary successful verification');
+            self::assertSame(0,Artisan::call('sites:verify-fixture-bundle',
+                $arguments+['--evidence-json'=>true,'--include-qa'=>true]));
+            $first=trim(Artisan::output());
+            self::assertSame(0,Artisan::call('sites:verify-fixture-bundle',
+                $arguments+['--evidence-json'=>true,'--include-qa'=>true]));
+            self::assertSame($first,trim(Artisan::output()),
+                'QA evidence must be byte-for-byte deterministic');
+            $report=json_decode($first,true,16,JSON_THROW_ON_ERROR);
+            self::assertSame('sites.synthetic.private-bundle-evidence.v1',
+                $report['schemaVersion']);
+            self::assertSame($product,$report['product']);
+            self::assertTrue($report['verifiedLocalBytes']);
+            self::assertFalse($report['trustedPins']);
+            self::assertFalse($report['officialClientAcceptance']);
+            self::assertFalse($report['releaseAuthorized']);
+            self::assertTrue($report['structuralQa']['passed']);
+            self::assertTrue($report['structuralQa']['humanReviewRequired']);
+            self::assertFalse($report['structuralQa']['wcagCertified']);
+            self::assertCount(10,$report['structuralQa']['checks']);
+            foreach ($report['structuralQa']['checks'] as $name=>$passed) {
+                self::assertIsString($name);
+                self::assertTrue($passed);
+            }
+            self::assertSame($html,file_get_contents($directory.'/index.html'));
+            self::assertSame($manifest,file_get_contents($directory.'/release-manifest.json'));
+            self::assertSame(1,Artisan::call('sites:verify-fixture-bundle',
+                array_replace($arguments,[
+                    'bundleDigest'=>str_repeat('0',64),
+                    '--evidence-json'=>true,'--include-qa'=>true,
+                ])), 'Wrong digest must deny QA evidence before inspection');
+            self::assertStringNotContainsString('"structuralQa":',Artisan::output(),
+                'A failed verification cannot claim a passed QA report');
+        }
+    }
+
     public function test_private_writer_fails_fast_when_another_process_holds_product_lock(): void
     {
         putenv('SITES_SYNTHETIC_BUNDLE=1');
