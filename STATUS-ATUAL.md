@@ -34,6 +34,11 @@
 - **F1-367** no mesmo PR #446: dois contêineres PostgreSQL18 descartáveis e independentes por instância, um do Sites e outro do receptor fictício Portal. Recibo só é assinado depois de COMMIT do receptor; testes de rollback, reentrega, conflito e deduplicação. **CI PHP8.3/8.4 PASS** [#43517567819](https://github.com/rafhael100/imagine-sites/actions/runs/43517567819).
 - **Sem promoção operacional:** as provas são somente entre processos/contêineres efêmeros do GitHub; não são as instâncias Portal/Sites/CRM da VPS, não usam pagamento, IAM ou vault reais e não testam DR externo. PRs empilhados #444→#445→#446 permanecem DRAFT/NO-GO, sem merge/deploy. Os dez gates continuam bloqueados.
 
+## 13/11/2026 — recuperação após perda HTTP, sem integração operacional
+
+- [PR #448](https://github.com/rafhael100/imagine-sites/pull/448), F1-368: receptor Portal de teste confirma um recibo em PG18 independente mas simula perda da resposta HTTP. Sites conserva o evento sem ACK, o CI reinicia o processo receptor e outro trabalhador recupera o evento por estado persistido com novo lease; Portal retorna recibo assinado `already_recorded`, sem duplicar, e só então Sites confirma. **PG18 PHP 8.3/8.4 PASS** [run #43519387668](https://github.com/rafhael100/imagine-sites/actions/runs/43519387668).
+- Os PRs #444 → #445 → #446 → #448 são candidatos de laboratório empilhados; todos seguem **DRAFT/NO-GO**. Isto não comprova falha de banco, restauração de backup, IAM Portal S2S, pagamento, privacidade, DNS ou HTTPS real. `main`, `dev`, VPS e Cloudflare não foram alterados; dez gates ainda BLOCKED.
+
 **Ainda não há ambiente operacional Sites publicado.** P0/RF-PEND/RV-CT/AppSec/LGPD, contratos financeiros, identidade, Cloudflare/DNS, banco produtivo, geração real por IA/n8n, captação/CRM fisicamente redundante e backups/restore continuam não homologados.
 
 **Gate exclusivo do responsável:** conexão autorizada de ambiente Leaseweb + Cloudflare e domínio técnico de teste, com gestão segura de credenciais/quotas, antes de qualquer homologação real. Não inserir credenciais no GitHub público ou neste chat.
