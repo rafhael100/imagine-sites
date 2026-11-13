@@ -84,6 +84,18 @@ def inspect_rendered(value: object) -> None:
     if not isinstance(nets, dict) or set(nets) != {NETWORK}:
         raise ValueError("unexpected network inventory")
     network=nets[NETWORK]
+    # Docker Compose v2 normalizes a harmless default IPAM object even if
+    # no IPAM is declared in the source. Accept only the empty/default
+    # representation; custom networks, subnets and gateway allocation fail.
+    ipam=network.get("ipam") if isinstance(network,dict) else None
+    default_ipam=(
+        ipam is None or
+        (isinstance(ipam,dict)
+         and set(ipam)<={"driver","config","options"}
+         and ipam.get("driver") in (None,"default")
+         and ipam.get("config") in (None,[],{})
+         and ipam.get("options") in (None,{}))
+    )
     if (not isinstance(network,dict)
             or network.get("internal") is not True
             or network.get("name") not in (
@@ -91,17 +103,10 @@ def inspect_rendered(value: object) -> None:
             or network.get("external") is True
             or network.get("driver") not in (None,"bridge")
             or network.get("attachable",False) is not False
-            or set(network)-{"name","internal","driver","external","attachable"}):
-        # Only non-sensitive Compose network keys and boolean equivalence
-        # are logged; never dump the full document or DB env.
-        raise ValueError(
-            "lab network safe-schema mismatch keys="+
-            ",".join(sorted(network))+
-            " projectNameMatches="+str(network.get("name") in (
-                None,"imagine-sites-lab_sites-lab-isolated"))+
-            " attachableIsFalse="+str(network.get("attachable",False) is False)+
-            " driverAllowed="+str(network.get("driver") in (None,"bridge"))
-        )
+            or not default_ipam
+            or set(network)-{"name","internal","driver","external",
+                             "attachable","ipam"}):
+        raise ValueError("lab network must remain an isolated private bridge")
     for name, service in services.items():
         if not isinstance(service, dict):
             raise ValueError("invalid service")
@@ -305,6 +310,8 @@ def self_test(ignore: str, dockerfile: str) -> None:
         lambda s: s.update({"name": "other-project"}),
         lambda s: s["networks"][NETWORK].update({"name": "other-stack_network"}),
         lambda s: s["networks"][NETWORK].update({"driver": "macvlan"}),
+        lambda s: s["networks"][NETWORK].update({"ipam": {"driver":"default","config":[{"subnet":"10.0.0.0/8"}]}}),
+        lambda s: s["networks"][NETWORK].update({"ipam": {"driver":"host"}}),
         lambda s: s["networks"][NETWORK].update({"attachable": True}),
         lambda s: s["networks"][NETWORK].update({"external": True}),
         lambda s: s["volumes"]["sites-lab-data"].update({"name": "production_db"}),
