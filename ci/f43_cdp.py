@@ -247,7 +247,7 @@ def run(gallery: Path, browser: str) -> None:
                     assert result["skipTarget"] == "#apos-previa" and result["skipPresent"] == "-1", (filename,result)
                     assert result["linksVisible"] and result["navigationLocal"], (filename, result)
                     assert result["frameSandbox"] == "" and not result["frameSrc"], (filename, result)
-                    assert result["frameTitle"] and result["frameTabindex"] == "0" and result["qa"] == 7, (filename, result)
+                    assert result["frameTitle"] and result["frameTabindex"] == "0" and result["qa"] == 10, (filename, result)
                     assert result["controls"] == 0, (filename, result)
                     assert_review_text_contrast(client, filename)
 
