@@ -1,0 +1,40 @@
+name: Sites F1-46 PHP-Python review handoff wire contract - lab only
+on:
+  pull_request:
+    paths:
+      - 'contracts/portal-sites/v1/review-handoff-envelope.schema.json'
+      - 'tests/f46-review-wire.php'
+      - 'tests/f46_review_contracts.py'
+      - '.github/workflows/sites-f1-46-review-wire.yml'
+      - 'docs/SITES-F1-46-REVIEW-WIRE.md'
+      - 'src/Security/SyntheticReviewHandoffEnvelope.php'
+permissions:
+  contents: read
+jobs:
+  candidate-review-wire:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          extensions: mbstring
+          coverage: none
+      - name: Validate PHP fixture and JSON Schema syntax
+        run: |
+          set -euo pipefail
+          php -l tests/f46-review-wire.php
+          python3 -m json.tool contracts/portal-sites/v1/review-handoff-envelope.schema.json >/dev/null
+      - name: Cross-language PHP->Python HMAC and schema probes, no dependencies
+        run: python3 tests/f46_review_contracts.py
+      - name: Explicitly no network/client/Portal endpoint
+        if: always()
+        run: echo "Candidate schema + PHP/Python local fixture only. No secrets, Portal rights, customer approval, VPS or deploy."

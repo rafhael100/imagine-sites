@@ -1,0 +1,50 @@
+name: Sites F1-166 independent-looking binding revision fence before CRM wire
+on:
+  pull_request:
+    paths:
+      - 'src/Integration/SyntheticCrmTechnicalPreparationAssessment.php'
+      - 'src/Integration/SyntheticCrmTechnicalHandoffPreflight.php'
+      - 'tests/f166-crm-handoff-binding-fence.php'
+      - '.github/workflows/sites-f1-166-crm-binding-fence.yml'
+permissions:
+  contents: read
+jobs:
+  deny-untrusted-binding:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    env:
+      APP_ENV: testing
+      SITES_F165_SYNTHETIC_AUTH: '1'
+      SITES_F166_AUTHORITY_FENCE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: rafhael100/imagine-crm
+          ref: 0ee32ec1268047a52b5429622fb5f34716f818ae
+          path: crm-current
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          coverage: none
+      - name: Verify pinned CRM source and lint
+        run: |
+          set -euo pipefail
+          test "$(git -C crm-current rev-parse HEAD)" = 0ee32ec1268047a52b5429622fb5f34716f818ae
+          php -l src/Integration/SyntheticCrmTechnicalPreparationAssessment.php
+          php -l src/Integration/SyntheticCrmTechnicalHandoffPreflight.php
+          php -l tests/f166-crm-handoff-binding-fence.php
+      - name: Test deny-only binding revision fence and genuine CRM compatibility
+        run: |
+          set -euo pipefail
+          php tests/f165-crm-technical-handoff-wire-parity.php
+          php tests/f166-crm-handoff-binding-fence.php
+          echo "Unverified source snapshots never authorize lead, delivery, ACK, storage or retry."
