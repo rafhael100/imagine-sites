@@ -140,7 +140,15 @@ def main(browser: str) -> None:
                             robots:document.querySelector('meta[name="robots"]')?.content,
                             sideCards:document.querySelectorAll('.sidebar .card').length,
                             activeControl:!!tab,
-                            forbidden:document.querySelectorAll('script,form,button,input').length
+                            forbidden:document.querySelectorAll('script,form,button,input').length,
+                            qaRows:document.querySelectorAll('#qa .qa-list li').length,
+                            qaStatuses:[...document.querySelectorAll('#qa .qa-list .qa-state')].map(n=>n.textContent.trim()),
+                            menuTargets:[...document.querySelectorAll('nav.tabs a')].map(a=>({
+                              width:a.getBoundingClientRect().width,
+                              height:a.getBoundingClientRect().height,
+                              visible:getComputedStyle(a).visibility==='visible'
+                            })),
+                            qaRegionLabel:document.querySelector('#qa')?.getAttribute('aria-labelledby')
                           };
                         })()""")
                         if state.get("ready") and state.get("logoReady") and state.get("activeControl"):
@@ -160,8 +168,23 @@ def main(browser: str) -> None:
                         or not state["clientIsolated"]
                         or state["robots"]!="noindex, nofollow"
                         or state["forbidden"]!=0
-                        or state["sideCards"]<2):
+                        or state["sideCards"]<2
+                        or state["qaRows"]!=10
+                        or len(state["qaStatuses"])!=10
+                        or any(status!="Conforme" for status in state["qaStatuses"])
+                        or state["qaRegionLabel"]!="qa-heading"
+                        or not state["menuTargets"]
+                        or any(
+                            not item["visible"] or item["height"] < 43.5
+                            or item["width"] <= 0
+                            for item in state["menuTargets"]
+                        )):
                         fail("real-browser visual/security invariant failed: "+label+" "+str(state))
+                    # F1-315: verify real click/touch surfaces in Chrome,
+                    # not just CSS source text. All visible navigation links
+                    # must remain at least 44 CSS pixels tall.
+                    print(f"PASS F1-315 {label}: {len(state['menuTargets'])} "
+                          "touch targets >=44px; complete 10-item QA summary")
                     shot=c.call("Page.captureScreenshot",{
                         "format":"png","captureBeyondViewport":False,
                         "fromSurface":True})
