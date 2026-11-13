@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "sites.ai-copy.v3",
+  "headline": "Experiências digitais para organizar sua comunicação",
+  "description": "Uma demonstração de página responsiva, inteiramente fictícia, com serviços e respostas para revisão interna antes de qualquer publicação.",
+  "callToAction": "Conheça nossas soluções",
+  "benefits": [
+    "Informações objetivas",
+    "Conteúdo bem organizado",
+    "Navegação acessível"
+  ],
+  "faq": [
+    {
+      "question": "Como esta página é produzida?",
+      "answer": "O conteúdo é estruturado em uma prévia estática com verificação de integridade e revisão humana."
+    },
+    {
+      "question": "A demonstração já recebe contatos?",
+      "answer": "Não. Formulários e qualquer transmissão de dados permanecem desabilitados nesta versão privada."
+    }
+  ],
+  "highlights": [
+    {
+      "title": "Apresentação de serviços",
+      "description": "Uma visão clara das informações principais, com layout adaptável a diferentes telas."
+    },
+    {
+      "title": "Páginas para campanhas",
+      "description": "Estrutura objetiva para expor benefícios e orientar a revisão editorial do conteúdo."
+    }
+  ]
+}

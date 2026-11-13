@@ -1,0 +1,51 @@
+name: Sites F1-273 Chrome native FAQ keyboard and responsive QA
+on:
+  pull_request:
+    paths:
+      - 'ci/f273_export_native_faq.php'
+      - 'ci/f273_faq_chromium_keyboard.py'
+      - 'src/Production/StaticSiteRenderer.php'
+      - 'src/Production/SyntheticPreviewQaReport.php'
+      - '.github/workflows/sites-f1-273-faq-chrome.yml'
+permissions:
+  contents: read
+jobs:
+  native-faq-chrome-qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      APP_ENV: testing
+      GITHUB_ACTIONS: 'true'
+      SITES_F273_FAQ_CHROME: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring,dom,xml
+          tools: composer:v2
+          coverage: none
+      - name: Lint PHP/Python and build two private exact HTML fixtures
+        run: |
+          set -euo pipefail
+          php -l ci/f273_export_native_faq.php
+          python3 -m py_compile ci/f273_faq_chromium_keyboard.py
+          cd apps/sites
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts
+          cd ../..
+          php ci/f273_export_native_faq.php
+          test -s "$RUNNER_TEMP/sites-f273-native-faq.json"
+      - name: Test keyboard Enter/Space/Tab on desktop mobile and narrow
+        run: |
+          set -euo pipefail
+          browser=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
+          test -n "$browser"
+          python3 ci/f273_faq_chromium_keyboard.py "$browser"
+      - name: Delete private fixture on runner
+        if: always()
+        run: rm -f "$RUNNER_TEMP/sites-f273-native-faq.json"
+      - name: Scope
+        if: always()
+        run: echo 'Only fictitious HTML via about:blank local CDP, no browser downloads, network, screenshots, client data, real preview or deploy.'

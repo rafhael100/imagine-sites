@@ -1,0 +1,45 @@
+name: Sites F1-272 private Laravel FAQ disclosure comparison
+on:
+  pull_request:
+    paths:
+      - 'apps/sites/routes/web.php'
+      - 'apps/sites/resources/views/labs/review.blade.php'
+      - 'apps/sites/tests/Feature/SyntheticFaqDisclosureReviewTest.php'
+      - '.github/workflows/sites-f1-272-faq-review.yml'
+permissions:
+  contents: read
+jobs:
+  private-faq-review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring,dom,xml,curl,pdo,pdo_pgsql
+          tools: composer:v2
+          coverage: none
+      - name: Syntax and pinned Laravel dependency installation
+        run: |
+          set -euo pipefail
+          php -l apps/sites/routes/web.php
+          php -l apps/sites/tests/Feature/SyntheticFaqDisclosureReviewTest.php
+          cd apps/sites
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts
+      - name: Review 24 FAQ modes plus prior CTA route
+        working-directory: apps/sites
+        env:
+          APP_ENV: testing
+        run: |
+          set -euo pipefail
+          php artisan test --filter='(SyntheticFaqDisclosureReviewTest|SyntheticSecondaryCtaReviewTest)' --no-ansi
+      - name: Scope
+        if: always()
+        run: echo 'In-process read-only demo without forms, live clients, CRM, public hosting or publication.'
