@@ -62,6 +62,8 @@ foreach([
          active boolean NOT NULL,
          revision integer NOT NULL CHECK (revision >= 1))",
     "REVOKE ALL ON public.sites_f347_login_map FROM PUBLIC",
+    // Prevent pg_temp table shadowing through default PUBLIC TEMP permission.
+    "REVOKE TEMPORARY ON DATABASE sites_f93_lab FROM PUBLIC",
     "INSERT INTO public.sites_f347_login_map
          (login_name,tenant_ref,active,revision) VALUES
          ('sites_f347_a','tenant-f93-a',true,1),
@@ -139,6 +141,12 @@ f347Check(f347SqlDenied(static fn()=> $a->exec(
 f347Check(f347SqlDenied(static fn()=> $b->exec(
     'CREATE TABLE public.sites_f350_unauthorized (id integer)'
 )), 'mapped login cannot create unapproved schema objects');
+f347Check(f347SqlDenied(static fn()=> $a->exec(
+    'CREATE TEMPORARY TABLE sites_projects (site_ref text)'
+)), 'mapped login cannot shadow trusted tables using pg_temp');
+f347Check(f347SqlDenied(static fn()=> $b->exec(
+    'CREATE TEMPORARY TABLE sites_f347_login_map (login_name text)'
+)), 'mapped login cannot shadow the private identity map using pg_temp');
 
 // F1-351: a compromised SQL connection must not mutate RLS policy,
 // impersonate the owner or redefine the SECURITY DEFINER authority.
