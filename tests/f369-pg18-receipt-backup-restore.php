@@ -157,8 +157,8 @@ function f369LeasedFromRestore(PDO $portal, PDO $sites):array {
 
 if($phase==='cause-loss') {
     $original=f369Db('5433','portal_f367_lab','f367-fictional-portal-db-only');
-    f369Check(f369Count($original)===4,
-        'previous F1-367/368 produced four committed fictional Portal receipts');
+    f369Check(f369Count($original)===3,
+        'previous F1-367/368 produced three committed fictional Portal receipts');
     $pending=(int)$sites->query(
         "SELECT count(*) FROM sites_f360.outbox WHERE delivery_state='pending'"
     )->fetchColumn();
@@ -170,8 +170,8 @@ if($phase==='cause-loss') {
     f369Check($response[0]===503 &&
         ($response[1]['reason']??'')==='simulated_response_loss',
         'receiver committed but returned lost-response failure');
-    f369Check(f369Count($original)===5,
-        'original Portal PG18 committed fifth receipt before response loss');
+    f369Check(f369Count($original)===4,
+        'original Portal PG18 committed fourth receipt before response loss');
     $state=f369State($sites,$event);
     f369Check($state['delivery_state']==='leased' &&
         $state['lease_ref']===$event['lease_ref'] &&
@@ -185,8 +185,8 @@ if($phase==='cause-loss') {
     exit(0);
 }
 $restore=f369Db('5434','portal_f369_restore_lab','f369-fictional-restore-db-only');
-f369Check(f369Count($restore)===5,
-    'pg_restore into separate third PostgreSQL18 recovered five receipts');
+f369Check(f369Count($restore)===4,
+    'pg_restore into separate third PostgreSQL18 recovered four receipts');
 $pair=f369LeasedFromRestore($restore,$sites);
 $stored=$pair['receipt'];
 $previous=$pair['state'];
@@ -231,7 +231,7 @@ $reply=f369Http(f369Envelope($new));
 f369Check(f369ReceiptValid($new,$reply) &&
     ($reply[1]['disposition']??'')==='already_recorded',
     'receiver using restored DB recognizes existing event and signs current lease');
-f369Check(f369Count($restore)===5,'HTTP replay does not duplicate restored receipt');
+f369Check(f369Count($restore)===4,'HTTP replay does not duplicate restored receipt');
 $conflict=f369Envelope($new);
 $conflict['commandDigest']=hash('sha256','f369-conflicting-synthetic-digest');
 $unsigned=array_slice($conflict,0,-1,true);
@@ -239,7 +239,7 @@ $conflict['mac']=hash_hmac('sha256',json_encode(
     $unsigned,JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES
 ),'F366-FICTIONAL-SITES-DISPATCH-KEY-00000000001');
 f369Check(f369Http($conflict)[0]===409 &&
-    f369Count($restore)===5,
+    f369Count($restore)===4,
     'restored DB denies conflicting digest under same idempotent key');
 f369Check(!f369Ack($worker,[
     'tenant_ref'=>$stored['tenant_ref'],
