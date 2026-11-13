@@ -42,6 +42,15 @@ final readonly class SyntheticCrmCombinedRetryPreflightV1
             return new self('RETRY_TIME_EVIDENCE_DISAGREES','NOT_CHECKED',false);
         }
 
+        // F1-320: identical next-due timestamps are insufficient when two
+        // different durable T0 ledgers are accidentally mixed by a worker.
+        // Do not query mutable binding authorities for mixed deadline origins.
+        if ($attempt->originalT0->getTimestamp() !==
+                $retryWindow->originalT0->getTimestamp()) {
+            return new self('RETRY_ORIGINAL_T0_CONTEXT_DISAGREES',
+                'NOT_CHECKED',false);
+        }
+
         // This class is intentionally a composition of existing fences:
         // reuse the F1-280 immutable destination/ledger identity comparison
         // and F1-281 double-source revision check without re-implementing.
