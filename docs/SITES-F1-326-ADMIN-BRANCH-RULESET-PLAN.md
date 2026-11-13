@@ -25,7 +25,7 @@ Na pasta raiz do repositório, com Python 3 e GitHub CLI (gh) instalados:
     python ci/f326_branch_ruleset_plan.py plan > imagine-sites-ruleset-proposto.json
     python ci/f326_branch_ruleset_plan.py audit
 
-O audit é **somente leitura**. Informa se o GitHub reporta quatro tipos de regras ativas em cada branch; não garante valores exatos nem que pushes diretos sejam realmente rejeitados. Renderizar o plano não exige autenticação.
+O audit é **somente leitura**. A F1-327 verifica não apenas os quatro tipos de regra ativa em cada branch, mas também ao menos uma aprovação independente, descarte de aprovações obsoletas, aceite do último push, resolução das conversas e os três nomes exatos de checks obrigatórios com sincronização estrita. Os próprios avaliadores passaram a ter testes negativos para regras degradadas. **Ainda não confirma** exceções de bypass, disponibilidade de revisores, CODEOWNERS, herança de regras organizacionais nem que pushes diretos sejam realmente rejeitados. Renderizar o plano não exige autenticação.
 
 **Só após** o administrador confirmar pelo menos um colaborador externo habilitado a revisar a PR, validar permissões/planos do GitHub e aprovar expressamente a mudança administrativa, a aplicação opcional é:
 

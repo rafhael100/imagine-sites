@@ -150,6 +150,7 @@ def self_test() -> None:
             continue
         raise AssertionError(f"unsafe policy mutation {index} accepted")
     print("F1-326: 1 canonical policy and 7 negative mutations verified offline")
+    audit_self_test()
 
 
 def github_api(
@@ -187,38 +188,116 @@ def github_api(
         raise RuntimeError("GitHub response is not a JSON object/list") from exc
 
 
+def evaluate_active_rules(branch: str, rules: list[Any]) -> dict[str, Any]:
+    """F1-327: check the actual active-rule PARAMETERS, not just rule types.
+
+    This cannot inspect bypass rights, reviewer availability or a rejected
+    direct push. A separate authenticated admin audit remains mandatory.
+    """
+    if branch not in ("dev", "main"):
+        raise ValueError("only exact protected branch names may be audited")
+    known = [r for r in rules if isinstance(r, dict)]
+    types = {r.get("type") for r in known}
+    pr_secure = False
+    checks_secure = False
+    for rule in known:
+        params = rule.get("parameters")
+        if not isinstance(params, dict):
+            continue
+        if rule.get("type") == "pull_request":
+            approvals = params.get("required_approving_review_count")
+            if (
+                type(approvals) is int and approvals >= 1
+                and params.get("dismiss_stale_reviews_on_push") is True
+                and params.get("require_last_push_approval") is True
+                and params.get("required_review_thread_resolution") is True
+            ):
+                pr_secure = True
+        if rule.get("type") == "required_status_checks":
+            entries = params.get("required_status_checks")
+            if not isinstance(entries, list):
+                continue
+            contexts = {
+                item["context"] for item in entries
+                if isinstance(item, dict)
+                and isinstance(item.get("context"), str)
+            }
+            if (
+                params.get("strict_required_status_checks_policy") is True
+                and set(REQUIRED_CHECKS).issubset(contexts)
+            ):
+                checks_secure = True
+
+    all_types = {
+        "pull_request", "required_status_checks",
+        "non_fast_forward", "deletion",
+    }.issubset(types)
+    return {
+        "branch": branch,
+        "hasAllFourTypes": all_types,
+        "independentReviewParameters": pr_secure,
+        "alwaysOnRequiredChecks": checks_secure,
+        "hasEnforcedBaseline": all_types and pr_secure and checks_secure,
+        "bypassAndDirectPushNotVerified": True,
+    }
+
+
 def inspect_active_branch_rules(branch: str) -> dict[str, Any]:
     rules = github_api(f"repos/{REPOSITORY}/rules/branches/{branch}?per_page=100")
     if not isinstance(rules, list):
         raise RuntimeError("GitHub returned non-list branch rules")
-    types = {r.get("type") for r in rules if isinstance(r, dict)}
-    return {
-        "branch": branch,
-        "hasPullRequest": "pull_request" in types,
-        "hasStatusChecks": "required_status_checks" in types,
-        "preventsForcePush": "non_fast_forward" in types,
-        "preventsDeletion": "deletion" in types,
-        "hasAllFourTypes": {
-            "pull_request", "required_status_checks",
-            "non_fast_forward", "deletion",
-        }.issubset(types),
-    }
+    return evaluate_active_rules(branch, rules)
 
 
 def audit() -> int:
     reports = [inspect_active_branch_rules(b) for b in ("dev", "main")]
     for result in reports:
         print(json.dumps(result, sort_keys=True))
-    if not all(p["hasAllFourTypes"] for p in reports):
-        print("BLOCKED: missing active rule types; administrative review required",
-              file=sys.stderr)
+    if not all(p["hasEnforcedBaseline"] for p in reports):
+        print(
+            "BLOCKED: at least one branch lacks effective approval/check "
+            "parameters or anti-delete/force-push rules",
+            file=sys.stderr,
+        )
         return 2
     print(
-        "F1-326: GitHub reports four active rule TYPES on dev/main; "
-        "an administrator must still verify approval counts, contexts, "
-        "bypass rights, role access and rejected direct pushes."
+        "F1-327: GitHub reports the expected active rules and parameters "
+        "on both branches. Admin must STILL check bypass rights, reviewer "
+        "access, CODEOWNERS and rejected direct pushes; not a release permit."
     )
     return 0
+
+
+def audit_self_test() -> None:
+    plan = make_plan()
+    rows = copy.deepcopy(plan["rules"])
+    if not evaluate_active_rules("dev", rows)["hasEnforcedBaseline"]:
+        raise AssertionError("valid fixture rejected")
+    if not evaluate_active_rules("main", rows)["hasEnforcedBaseline"]:
+        raise AssertionError("main valid fixture rejected")
+
+    mutations = [
+        lambda r: r.pop(0),  # deletion protection absent
+        lambda r: r.pop(1),  # force-push protection absent
+        lambda r: r[2]["parameters"].update(required_approving_review_count=0),
+        lambda r: r[2]["parameters"].update(require_last_push_approval=False),
+        lambda r: r[2]["parameters"].update(
+            dismiss_stale_reviews_on_push=False
+        ),
+        lambda r: r[2]["parameters"].update(
+            required_review_thread_resolution=False
+        ),
+        lambda r: r[3]["parameters"]["required_status_checks"].pop(),
+        lambda r: r[3]["parameters"].update(
+            strict_required_status_checks_policy=False
+        ),
+    ]
+    for index, mutate in enumerate(mutations):
+        bad = copy.deepcopy(rows)
+        mutate(bad)
+        if evaluate_active_rules("dev", bad)["hasEnforcedBaseline"]:
+            raise AssertionError(f"unsafe active rule mutation {index} accepted")
+    print("F1-327: 2 valid branch baselines and 8 negative audits passed offline")
 
 
 def apply_plan(*, confirm_repository: str, reviewer_ready: bool,
