@@ -7,7 +7,7 @@ Esta ferramenta foi criada para reduzir o trabalho manual da pendência [SITES-G
 ## O que é observado
 
 - Sistema Linux/Ubuntu e versão (com indicação se corresponde ao padrão candidato Ubuntu 24.04), arquitetura, CPUs, memória disponível/total e espaço livre no diretório que o operador selecionar.
-- Existência de comandos locais: Docker CLI, Docker Compose CLI, Git, PHP, Composer e Python, incluindo **somente números de versão sanitizados**, nunca stdout/stderr completo.
+- Existência no `PATH` de comandos locais: Docker CLI, Docker Compose CLI, Git, PHP, Composer e Python. **Por padrão nenhum executável externo é iniciado e a versão fica `null`**. Números de versão sanitizados são opcionais, mediante `--probe-versions` explícito.
 - Se a pasta de trabalho indicada existe, se é diretório real (não symlink), se pertence ao UID efetivo e se grupo/outros possuem acesso.
 - Se informado `--repo`, lê **somente** `config/operational-readiness.json` e resume status, número de gates e quantos estão falsos. Nunca modifica o arquivo.
 - Uma lista fixa das revisões e homologações humanas que ainda faltam.
@@ -30,9 +30,9 @@ Se não houver checkout local do repositório, omita `--repo`. Para formatar o r
 python3 ci/p0_staging_host_readonly_probe.py --workspace . | python3 -m json.tool
 ```
 
-As consultas `--version` dos CLIs locais são executadas com timeout de cinco segundos e sem shell. Elas não contatam intencionalmente o Docker daemon, mas o administrador deve executar a ferramenta **somente em host confiável**, pois binários instalados no PATH são código local do operador. O relatório omite sua saída bruta e preserva apenas a versão numérica. A ferramenta não verifica portas abertas, DNS, rede pública nem endpoints reais; essas verificações exigem aprovação e ambiente próprio.
+**Modo padrão seguro:** somente verifica se os nomes de comando estão no `PATH`, sem iniciar executáveis. A presença no PATH não demonstra compatibilidade funcional ou serviço em execução. Se um administrador de sistema **assumir conscientemente** o risco de executar código local para consultar as versões, pode acrescentar `--probe-versions`; nesse modo, cada CLI é iniciada com argumento de versão, timeout de cinco segundos e sem shell, com saída filtrada para um número. **Com a flag opcional não é possível garantir ausência de efeitos colaterais**, pois os próprios executáveis são código local; o JSON assinala `versionCommandsExecuted=true` e `externalCommandSideEffectsNotAttested=true`. Não usar a flag em host desconhecido ou sem autorização. A ferramenta não verifica portas abertas, DNS, rede pública nem endpoints reais; essas verificações exigem aprovação e ambiente próprio.
 
-A saída JSON tem sempre `status="BLOCKED_PENDING_OPERATOR_AND_SECURITY_REVIEW"`, `goLiveAuthorized=false`, `homologationComplete=false` e `liveEndpointTested=false`. O retorno 0 do comando significa **somente que o relatório foi produzido**, jamais que o host está apto para produção. Um campo de requisito positivo NÃO libera gates.
+A saída JSON tem sempre `status="BLOCKED_PENDING_OPERATOR_AND_SECURITY_REVIEW"`, `goLiveAuthorized=false`, `homologationComplete=false` e `liveEndpointTested=false`. O campo `filesModifiedByProbe=false` se refere **somente às ações diretas do script**, não atesta ações de terceiros nem de programas executados com a opção de versão. O retorno 0 do comando significa **somente que o relatório foi produzido**, jamais que o host está apto para produção. Um campo de requisito positivo NÃO libera gates.
 
 ## Como usar o resultado na homologação
 
