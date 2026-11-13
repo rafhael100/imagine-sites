@@ -1,0 +1,54 @@
+name: Sites F1-192 actual Chromium brand palette contrast
+on:
+  pull_request:
+    paths:
+      - 'tests/f192-brand-palette-chrome-fixtures.php'
+      - 'ci/f192_brand_palette_cdp.py'
+      - '.github/workflows/sites-f1-192-brand-palette-chrome.yml'
+permissions:
+  contents: read
+concurrency:
+  group: F1-192-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  chromium-brand-colors:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 17
+    env:
+      APP_ENV: testing
+      SITES_F192_CHROME_LAB: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring,dom
+          tools: none
+          coverage: none
+      - name: Verify fixture CLI and Chrome CDP test program
+        run: |
+          set -euo pipefail
+          php -l tests/f192-brand-palette-chrome-fixtures.php
+          python3 -m py_compile ci/f192_brand_palette_cdp.py ci/f43_cdp.py ci/f44_contrast.py
+      - name: Generate 18 isolated nonpublishable brand previews
+        run: |
+          set -euo pipefail
+          php tests/f192-brand-palette-chrome-fixtures.php
+          test -f /tmp/sites-f192-palette-gallery/gallery-manifest.json
+      - name: Verify 54 computed CSS color and layout states in local Chromium
+        run: |
+          set -euo pipefail
+          browser=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
+          if test -z "$browser"; then
+            echo "Preinstalled Chrome unavailable; no external software download." >&2
+            exit 1
+          fi
+          "$browser" --version
+          python3 ci/f192_brand_palette_cdp.py /tmp/sites-f192-palette-gallery "$browser"
+      - name: Remove ephemeral synthetic files and Python bytecode
+        if: always()
+        run: |
+          rm -rf /tmp/sites-f192-palette-gallery ci/__pycache__
+          echo "No screenshot uploads, customer data, external Chrome service or deployment."

@@ -1,0 +1,46 @@
+name: Sites F1-326 administrator ruleset plan (offline only)
+on:
+  pull_request:
+    paths:
+      - 'ci/f326_branch_ruleset_plan.py'
+      - 'docs/SITES-F1-326-ADMIN-BRANCH-RULESET-PLAN.md'
+      - '.github/workflows/sites-f1-326-branch-ruleset-plan.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  read-only-ruleset-plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Lint and adversarial self-tests (NO GitHub API)
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ci/f326_branch_ruleset_plan.py
+          python3 ci/f326_branch_ruleset_plan.py self-test
+      - name: Render and verify offline exact dev/main policy
+        run: |
+          set -euo pipefail
+          python3 ci/f326_branch_ruleset_plan.py plan > "$RUNNER_TEMP/ruleset.json"
+          python3 - "$RUNNER_TEMP/ruleset.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          doc=json.loads(Path(sys.argv[1]).read_text())
+          assert doc["enforcement"]=="active"
+          assert doc["bypass_actors"]==[]
+          assert doc["conditions"]["ref_name"]["include"]==[
+              "refs/heads/dev","refs/heads/main"]
+          assert [r["type"] for r in doc["rules"]]==[
+              "deletion","non_fast_forward","pull_request","required_status_checks"]
+          pr=doc["rules"][2]["parameters"]
+          assert pr["required_approving_review_count"]==1
+          assert pr["require_last_push_approval"] is True
+          assert len(doc["rules"][3]["parameters"]["required_status_checks"])==3
+          print("F1-326: rendered governance policy verified without API access")
+          PY
+      - name: Confirm this CI has no administrative side effects
+        if: always()
+        run: echo 'No GitHub ruleset creation, no token, no write permission, no merge/deploy.'

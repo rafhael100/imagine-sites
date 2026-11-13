@@ -43,9 +43,37 @@ final readonly class SyntheticReleaseBundle
             $manifest,
             JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
         )."\n";
+        // Align in-memory bundles with the bounded filesystem readback
+        // policy: a generated package must be verifiable by F1-301/F1-302.
+        if (strlen($json)<1 || strlen($json)>8192) {
+            throw new DomainException('Synthetic release manifest exceeds private byte policy.');
+        }
         // File names are FIXED, never interpolated from client/tenant input.
         $this->files = ['index.html' => $artifact->html, 'release-manifest.json' => $json];
         $this->bundleDigest = hash('sha256', $artifact->html."\0".$json);
+    }
+
+
+    /**
+     * Verify a private package against a separately pinned, exact SHA-256
+     * of the complete original two-file byte sequence. The pin MUST come
+     * from an independent, authenticated source in a future integration.
+     * This is integrity comparison, not a signature or release authority.
+     *
+     * @param array<string,mixed> $files
+     */
+    public static function verifyExactBundle(
+        array $files,
+        ReleaseManifest $expected,
+        string $expectedBundleDigest,
+    ): bool {
+        if (!preg_match('/\A[a-f0-9]{64}\z/D', $expectedBundleDigest) ||
+            !self::verifyFiles($files, $expected)) {
+            return false;
+        }
+        $actual = hash('sha256',
+            $files['index.html']."\0".$files['release-manifest.json']);
+        return hash_equals($expectedBundleDigest, $actual);
     }
 
     /** @param array<string,mixed> $files */
@@ -58,6 +86,12 @@ final readonly class SyntheticReleaseBundle
 
         $html = $files['index.html'];
         $raw = $files['release-manifest.json'];
+        // Fail closed BEFORE parsing or auditing malformed oversized inputs.
+        // These are the exact F1-301 bounded disk readback limits.
+        if (strlen($html)<1 || strlen($html)>150000 ||
+            strlen($raw)<1 || strlen($raw)>8192) {
+            return false;
+        }
         if (!InertPreviewAudit::isSafe($html)) return false;
 
         try {
@@ -86,7 +120,20 @@ final readonly class SyntheticReleaseBundle
             return false;
         }
 
-        return hash_equals($expected->digest, $meta['artifactDigest'])
+        // PHP json_decode accepts duplicate object keys and normalizes escaped
+        // spellings. Other consumers may choose a different duplicate key.
+        // Require the SINGLE canonical byte representation emitted by our
+        // builder, so ambiguous/reformatted manifests fail closed.
+        try {
+            $canonical = json_encode(
+                $meta,
+                JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
+            )."\n";
+        } catch (\JsonException) {
+            return false;
+        }
+        return hash_equals($raw, $canonical)
+            && hash_equals($expected->digest, $meta['artifactDigest'])
             && hash_equals($meta['artifactDigest'], hash('sha256', $html));
     }
 
