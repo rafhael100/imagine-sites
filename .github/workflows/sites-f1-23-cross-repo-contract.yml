@@ -4,6 +4,10 @@ on:
   pull_request:
     paths:
       - 'tests/f23-cross-repo.php'
+      - 'tests/f359-portal-signer-to-sites-ingress.php'
+      - 'src/Integration/SyntheticSitesOrderIngress.php'
+      - 'src/Security/SyntheticSignedAuthorityAdmission.php'
+      - 'src/Security/SyntheticAuthorityAttestation.php'
       - '.github/workflows/sites-f1-23-cross-repo-contract.yml'
       - 'docs/SITES-F1-23-PORTAL-CROSS-REPO-COMPAT.md'
 
@@ -20,6 +24,7 @@ jobs:
         php: ['8.3', '8.4']
     env:
       SITES_F1_23_CROSS_REPO: '1'
+      SITES_F1_359_CROSS_REPO: '1'
       SITES_F1_23_PORTAL_PATH: '/home/runner/work/imagine-sites/imagine-sites/portal-candidate'
     steps:
       - uses: actions/checkout@v4
@@ -46,10 +51,13 @@ jobs:
       - name: Syntax check independent code from both repositories
         run: |
           php -l tests/f23-cross-repo.php
+          php -l tests/f359-portal-signer-to-sites-ingress.php
           php -l portal-candidate/apps/portal/app/Domain/SitesIntegration/SyntheticSitesEnvelopeSigner.php
           php -l portal-candidate/apps/portal/app/Domain/SitesIntegration/SitesCreateProjectEncoder.php
       - name: Run real candidate class interoperability tests (in-memory fake authority)
-        run: php tests/f23-cross-repo.php
+        run: |
+          php tests/f23-cross-repo.php
+          php tests/f359-portal-signer-to-sites-ingress.php
       - name: State limits and no operational side effect
         if: always()
         run: echo "Pinned public Portal candidate classes, fictional source, no API, no key vault, no client data or deploy."
