@@ -8,6 +8,9 @@ on:
       - 'tests/f362-pinned-portal-to-pg-outbox.php'
       - 'tests/f363-pg-durable-nonce.php'
       - 'tests/f364-transactional-signed-ingress-adapter.php'
+      - 'tests/f365-loopback-http-client.php'
+      - 'tests/fixtures/f365-loopback-router.php'
+      - 'tests/fixtures/f365-loopback-worker.php'
       - 'src/Persistence/LabTransactionalSignedIngressV1.php'
       - 'tests/fixtures/f363-pg-durable-nonce.sql'
       - 'tests/fixtures/f361-pg-outbox-worker.sql'
@@ -45,6 +48,7 @@ jobs:
       SITES_F362_CROSS_STACK_LAB: '1'
       SITES_F363_NONCE_LAB: '1'
       SITES_F364_BRIDGE_LAB: '1'
+      SITES_F365_HTTP_LAB: '1'
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: '5432'
@@ -71,7 +75,7 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
           tools: none
-          extensions: pdo,pdo_pgsql
+          extensions: pdo,pdo_pgsql,curl
           coverage: none
       - name: PHP syntax and PG18 extension
         run: |
@@ -82,6 +86,10 @@ jobs:
           php -l tests/f363-pg-durable-nonce.php
           php -l src/Persistence/LabTransactionalSignedIngressV1.php
           php -l tests/f364-transactional-signed-ingress-adapter.php
+          php -l tests/f365-loopback-http-client.php
+          php -l tests/fixtures/f365-loopback-router.php
+          php -l tests/fixtures/f365-loopback-worker.php
+          php -r 'if (!extension_loaded("curl")) exit(1);'
           php -r 'if (!extension_loaded("pdo_pgsql")) exit(1);'
       - name: Fail closed without explicit opt-in
         run: |
@@ -133,6 +141,28 @@ jobs:
         run: |
           set -euo pipefail
           SITES_F362_PORTAL_PATH="$GITHUB_WORKSPACE/portal-candidate" SITES_F362_SITES_PATH="$GITHUB_WORKSPACE/sites-signed-candidate" php tests/f364-transactional-signed-ingress-adapter.php
+      - name: F1-365 actual loopback HTTP request to separate PHP worker and PG18
+        run: |
+          set -euo pipefail
+          export SITES_F362_PORTAL_PATH="$GITHUB_WORKSPACE/portal-candidate"
+          export SITES_F362_SITES_PATH="$GITHUB_WORKSPACE/sites-signed-candidate"
+          if SITES_F365_HTTP_LAB=0 php tests/fixtures/f365-loopback-worker.php <<< '{}'; then
+            # No admission occurs, even if the worker reports a generic refusal.
+            echo 'F1-365 denied without opt-in (worker is never a standalone API)'
+          fi
+          php -S 127.0.0.1:18965 -t tests/fixtures tests/fixtures/f365-loopback-router.php > "$RUNNER_TEMP/f365-http.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 30); do
+            if curl --noproxy '*' -fsS --output /dev/null http://127.0.0.1:18965/health; then
+              ready=1
+              break
+            fi
+            sleep 0.3
+          done
+          test "$ready" = 1
+          php tests/f365-loopback-http-client.php
       - name: Scope limitation
         if: always()
         run: |
