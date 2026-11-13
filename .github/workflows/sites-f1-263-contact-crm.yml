@@ -1,0 +1,38 @@
+name: Sites F1-263 privacy-bound CRM intake admission (offline)
+on:
+  pull_request:
+    paths:
+      - 'src/Integration/SyntheticLeadIntakePrivacyGateV1.php'
+      - 'src/Integration/SyntheticLeadIntakePrivacyAssessmentV1.php'
+      - 'src/Integration/SyntheticContactPrivacyPreflightV1.php'
+      - 'tests/f263-contact-crm-admission.php'
+      - '.github/workflows/sites-f1-263-contact-crm.yml'
+permissions:
+  contents: read
+jobs:
+  denied-intake-preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+          tools: none
+          coverage: none
+      - name: Check no-authority CRM intake and privacy gates
+        run: |
+          set -euo pipefail
+          php -l src/Integration/SyntheticLeadIntakePrivacyGateV1.php
+          php -l src/Integration/SyntheticLeadIntakePrivacyAssessmentV1.php
+          php -l tests/f263-contact-crm-admission.php
+          php tests/f262-contact-privacy-preflight.php
+          php tests/f263-contact-crm-admission.php
+          echo 'No live form, S2S identity, PII, consent receipt, durable replay ledger, CRM or provider network.'

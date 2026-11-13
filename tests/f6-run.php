@@ -49,12 +49,15 @@ pass(!str_contains($a->html,'http://') && !str_contains($a->html,'https://'), 'n
 $manifest = new ReleaseManifest('tenant-fake-a','site-fake-a','release-001',$a->digest);
 pass(ReleasePreviewPolicy::evaluate($manifest,$a)->allowed, 'content-addressed preview accepts same digest');
 $malicious = new SiteBrief('onepage','<img src=x onerror=alert(1)>','<script>alert(1)</script>',
-    '" onmouseover="alert(1)',"Clique <a>",['<iframe src="https://evil.example">']);
+    '" onmouseover="alert(1)',"Clique <a>",['<iframe src="literal-text">']);
 $m = $renderer->render($malicious);
 pass(!str_contains($m->html,'<script>') && !str_contains($m->html,'<img src=x'), 'injected tags escaped as text');
 pass(str_contains($m->html,'&lt;script&gt;'), 'HTML injection encoded');
 pass(str_contains($m->html,'&quot; onmouseover='), 'attribute injection quoted/encoded');
-pass(!str_contains($m->html,'https://evil.example"'), 'unsafe iframe not emitted as raw tag');
+pass(str_contains($m->html,'&lt;iframe src=&quot;literal-text&quot;&gt;'), 'iframe-looking text stays escaped');
+pass(denied(fn()=>new SiteBrief('onepage',$brief->brand,$brief->headline,
+    $brief->description,$brief->callToAction,['<iframe src="https://evil.example">'])),
+    'remote URL hidden in attribute-looking benefit denied at ingestion');
 pass(!ReleasePreviewPolicy::evaluate($manifest,$m)->allowed, 'different content invalidates approved digest');
 $landing = $renderer->render(new SiteBrief('landing_page',$brief->brand,$brief->headline,
     $brief->description,$brief->callToAction,$brief->benefits));
