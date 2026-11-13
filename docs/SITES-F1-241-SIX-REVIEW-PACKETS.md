@@ -66,3 +66,7 @@ Regenerar pacotes por SHA do inventário F1-240 atual. AppSec revisa a independ�
 ## Revalidação F1-299 — seis revisões independentes (13/11/2026)
 
 Gerar os seis pacotes completos a partir do inventário F1-240 do **mesmo SHA** deste candidato integrado. Priorizar em B/C/D/E os arquivos da fronteira HTTP Laravel v3 raw, middleware de rotas cacheadas, classes de assinatura/replay, Nginx/PHP-FPM, verificação de artefatos privados e workflows. Distinguir provas automáticas de aprovação de AppSec/DBA/Portal/CRM, que ainda não existe. Integrar apenas depois de branch protection, revisão independente qualificada e homologação operacional; permanecer DRAFT/NO-GO.
+
+## Nova revisão F1-301 — seis pacotes em SHA integrado (13/11/2026)
+
+Regenerar todos os seis pacotes a partir do inventário F1-240 do **mesmo SHA** que reúne #367–#369. Destacar para engenharia/AppSec os riscos de TOCTOU, rename/lock e lifecycle do arquivo .lock, integridade byte a byte, fiabilidade de PHP/SAPI e testes negativos de symlink/hardlink. Checagens automáticas **não** constituem revisão humana. Proteção das branches #281, banco #34 e demais gates permanecem pendentes.
