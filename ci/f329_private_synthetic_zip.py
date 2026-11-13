@@ -249,6 +249,12 @@ def write_exclusive(path: Path, data: bytes) -> None:
                 raise ValueError("private ZIP output inode replaced")
         finally:
             os.close(fd)
+        # F1-335: a successful fsync/write is NOT proof that the expected
+        # private bytes survived. Reopen via another pinned directory FD,
+        # compare complete exact bytes, then fsync parent before returning.
+        if read_owner_regular(path) != data:
+            raise ValueError("private ZIP post-write exact readback mismatch")
+        os.fsync(directory_fd)
     except BaseException:
         # Never delete a replacement inode if another local process swapped
         # the path while the private archive write was failing.
