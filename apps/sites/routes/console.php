@@ -78,8 +78,10 @@ Artisan::command('sites:package-fixture {product=onepage}', function (): int {
         'tenant-fixture','site-fixture','release-bundle-'.$product,$artifact->digest
     );
     $bundle=new \Imagine\Sites\Production\SyntheticReleaseBundle($release,$artifact);
-    if (!\Imagine\Sites\Production\SyntheticReleaseBundle::verifyFiles($bundle->files,$release)) {
-        $this->error('Built package did not pass integrity policy.');
+    if (!\Imagine\Sites\Production\SyntheticReleaseBundle::verifyExactBundle(
+        $bundle->files,$release,$bundle->bundleDigest
+    )) {
+        $this->error('Built package did not pass exact integrity policy.');
         return Command::FAILURE;
     }
 
@@ -106,6 +108,28 @@ Artisan::command('sites:package-fixture {product=onepage}', function (): int {
             return Command::FAILURE;
         }
         @chmod($target,0600);
+    }
+    // F1-296: verify bytes actually stored in private scratch, not only
+    // the in-memory bundle. This is not external publication observation.
+    $readback=[];
+    foreach (array_keys($bundle->files) as $name) {
+        $target=$directory.'/'.$name;
+        if (is_link($target) || !is_file($target)) {
+            $this->error('Private bundle readback is missing or unsafe.');
+            return Command::FAILURE;
+        }
+        $bytes=file_get_contents($target);
+        if ($bytes===false) {
+            $this->error('Private bundle readback failed.');
+            return Command::FAILURE;
+        }
+        $readback[$name]=$bytes;
+    }
+    if (!\Imagine\Sites\Production\SyntheticReleaseBundle::verifyExactBundle(
+        $readback,$release,$bundle->bundleDigest
+    )) {
+        $this->error('Private bundle readback digest mismatch.');
+        return Command::FAILURE;
     }
     $this->line('PRIVATE SYNTHETIC TEST PACKAGE ONLY — NOT PUBLISHABLE.');
     $this->line('Package SHA-256: '.$bundle->bundleDigest);

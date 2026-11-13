@@ -55,6 +55,21 @@ final class SyntheticReleaseBundleCommandTest extends TestCase
         self::assertFalse($meta['officialClientAcceptance']);
         self::assertStringContainsString('noindex, nofollow',$html);
         self::assertStringContainsString('PRIVATE SYNTHETIC TEST PACKAGE ONLY',Artisan::output());
+        $release=new \Imagine\Sites\Domain\ReleaseManifest(
+            'tenant-fixture','site-fixture','release-bundle-onepage',$meta['artifactDigest']
+        );
+        $files=[
+            'index.html'=>$html,
+            'release-manifest.json'=>(string)file_get_contents($dir.'/release-manifest.json'),
+        ];
+        $pinnedDigest=hash('sha256',$files['index.html']."\0".$files['release-manifest.json']);
+        self::assertTrue(\Imagine\Sites\Production\SyntheticReleaseBundle::verifyExactBundle(
+            $files,$release,$pinnedDigest
+        ));
+        $files['release-manifest.json'].="\n";
+        self::assertFalse(\Imagine\Sites\Production\SyntheticReleaseBundle::verifyExactBundle(
+            $files,$release,$pinnedDigest
+        ));
     }
 
     public function test_landing_is_supported_with_no_executable_forms(): void
