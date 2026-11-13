@@ -154,14 +154,19 @@ def build_report(workspace: Path, repo: Path | None,
     return {
         "schemaVersion": "sites.staging.host-readiness-observation.v1",
         "component": "Imagine Sites Engine",
-        "mode": "LOCAL_READ_ONLY_PREPARATION",
+        "mode": (
+            "LOCAL_VERSION_COMMAND_OBSERVATION"
+            if probe_versions else "LOCAL_READ_ONLY_PREPARATION"
+        ),
         "goLiveAuthorized": False,
         "homologationComplete": False,
         "liveEndpointTested": False,
-        "dockerDaemonContacted": False,
+        # With optional version commands, external side effects cannot be
+        # proven absent, even when only standard --version flags are passed.
+        "dockerDaemonContacted": None if probe_versions else False,
         "credentialsInspected": False,
         "customerDataInspected": False,
-        "networkRequestsMade": False,
+        "networkRequestsMade": None if probe_versions else False,
         "filesModifiedByProbe": False,
         "versionCommandsExecuted": probe_versions,
         "externalCommandSideEffectsNotAttested": probe_versions,
