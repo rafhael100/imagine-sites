@@ -129,7 +129,7 @@ def verify(raw: bytes, private_dir: Path, product: str,
         chunks.append(data)
     if hashlib.sha256(chunks[0]).hexdigest() != expected_artifact:
         raise ValueError("actual HTML digest mismatch")
-    if hashlib.sha256(chunks[0] + b"\\0" + chunks[1]).hexdigest() != expected_bundle:
+    if hashlib.sha256(chunks[0] + bytes([0]) + chunks[1]).hexdigest() != expected_bundle:
         raise ValueError("actual bundle digest mismatch")
 
 
