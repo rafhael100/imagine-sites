@@ -1,5 +1,13 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## F1-321 — origem temporal do backoff de CRM vinculada ao T0 — 13/11/2026
+
+- **F1-321 / PR #395**, head `f5acef3f3bb0d5c98ce7ae55a20012bb3c57806b`: o plano sintético F1-277 registra o `originalT0` UTC; a janela F1-279 nega reaproveitar esse plano com um T0 de outro registro, mesmo se timestamps subsequentes parecerem válidos. Teste negativo de troca do T0. No preflight F1-319, dois planos coerentes com T0 diferentes podem chegar ao mesmo horário previsto: o comparador F1-320 ainda precisa negar a mistura. `mayDispatchToCrm=false` inalterado.
+- **Integração em revisão:** novo candidato inclui F1-317–321 e alterações anteriores F1-302–316. Executar e conferir novamente inventário F1-240, seis pacotes F1-241, testes CRM/PHP/Laravel e segurança no SHA exato. Resultados de PRs anteriores não substituem resultado do HEAD integrado.
+- **Não operacional:** integração com Portal, autorização S2S, banco/restore anti-revogação, CRM físico primário/contingência, retenção PII/LGPD, homologação e produção continuam não implementadas ou não homologadas. Não há aceitação real, deduplicação distribuída ou confirmação externa de lead. Branch protection/revisão #281 e OP01–OP05 (#33–#38) em aberto, `config/operational-readiness.json` com `BLOCKED`/dez gates `false`. Sem merge, deploy, cliente, PII, segredo, DNS, Cloudflare/VPS ou despesas.
+
+---
+
 ## F1-313–316 — painel interno Imagine: QA completo, navegação responsiva e provas Chromium — 13/11/2026
 
 - **F1-313 / PR #385:** revisões administrativas Laravel mostram todas as dez verificações estruturais (antes exibiam sete), incluindo seções rotuladas, nomes dos links e FAQ semântica; cada item tem status textual legível e região QA com título acessível. Atualizados os contratos editoriais Laravel e o teste Chrome F1-43 que ainda esperavam sete itens.
