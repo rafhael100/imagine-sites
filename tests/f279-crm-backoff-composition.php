@@ -76,6 +76,32 @@ $old=Window::inspect($deadline,$retry,$response,$plus($t0,-1),$plus($t0,3600));
 f279($old->reasonCode==='UNVERIFIED_RESPONSE_OBSERVATION',
     'provider observation before durable T0 fails closed');
 
+// F1-317: a retry must not borrow a 429/Retry-After observation from
+// another older attempt even if the timestamps are within original T0.
+$recentLast=$plus($t0,3600);
+$recentBackoff=Backoff::assess($deadline,$plus($t0,4500),2,$recentLast,true);
+f279($recentBackoff->lastAttemptAt->getTimestamp()===$recentLast->getTimestamp(),
+    'latest failed attempt timestamp remains immutable in retry plan');
+$staleObserved=Window::inspect($deadline,$recentBackoff,Response::assess(429,'300'),
+    $plus($t0,3599),$plus($t0,4500));
+f279($staleObserved->reasonCode==='STALE_PROVIDER_REPLY_BEFORE_LATEST_ATTEMPT' &&
+    $staleObserved->nextConsiderationAt===null && !$staleObserved->timeElapsed &&
+    !$staleObserved->mayDispatchToCrm(),
+    'provider reply preceding latest failed attempt never shortens later retry');
+$equalObserved=Window::inspect($deadline,$recentBackoff,Response::assess(429,'300'),
+    $recentLast,$plus($t0,4500));
+f279($equalObserved->reasonCode==='TEMPORAL_CHECK_PASSED_NO_AUTHORITY' &&
+    $equalObserved->nextConsiderationAt?->getTimestamp()===$t0->getTimestamp()+4500 &&
+    $equalObserved->timeElapsed,
+    'reply at most recent attempt preserves immutable backoff');
+$tzRecent=new DateTimeZone('America/Sao_Paulo');
+$crossZone=Window::inspect($deadline,$recentBackoff,
+    Response::assess(429,'300'),
+    $plus($t0,3599)->setTimezone($tzRecent),
+    $plus($t0,4500)->setTimezone($tzRecent));
+f279($crossZone->reasonCode==='STALE_PROVIDER_REPLY_BEFORE_LATEST_ATTEMPT',
+    'stale reply remains denied in alternate timezone');
+
 $rejectRetry=Backoff::assess($deadline,$plus($t0,200),1,$t0,false);
 $rejected=Window::inspect($deadline,$rejectRetry,$response,$observed,$plus($t0,3600));
 f279($rejected->reasonCode==='RETRY_HISTORY_NOT_VERIFIED',

@@ -43,6 +43,12 @@ final readonly class SyntheticCrmRetryWindowV1
         if ($current >= $originalDeadline->deliveryDeadline) {
             return new self('ORIGINAL_T0_WINDOW_EXPIRED',null,false);
         }
+        // F1-317: a response from an earlier failed attempt must never be
+        // reused to shorten the wait for a later one. Read-only UTC evidence
+        // only: it cannot prove that the response belongs to this attempt.
+        if ($observed < $retry->lastAttemptAt->setTimezone($utc)) {
+            return new self('STALE_PROVIDER_REPLY_BEFORE_LATEST_ATTEMPT',null,false);
+        }
         if (!$response->retryTimeMayBeConsidered) {
             return new self('RESPONSE_NOT_RETRY_CANDIDATE',null,false);
         }
