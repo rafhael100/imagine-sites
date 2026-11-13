@@ -92,7 +92,16 @@ def inspect_rendered(value: object) -> None:
             or network.get("driver") not in (None,"bridge")
             or network.get("attachable",False) is not False
             or set(network)-{"name","internal","driver","external","attachable"}):
-        raise ValueError("lab network must remain an isolated private bridge")
+        # Only non-sensitive Compose network keys and boolean equivalence
+        # are logged; never dump the full document or DB env.
+        raise ValueError(
+            "lab network safe-schema mismatch keys="+
+            ",".join(sorted(network))+
+            " projectNameMatches="+str(network.get("name") in (
+                None,"imagine-sites-lab_sites-lab-isolated"))+
+            " attachableIsFalse="+str(network.get("attachable",False) is False)+
+            " driverAllowed="+str(network.get("driver") in (None,"bridge"))
+        )
     for name, service in services.items():
         if not isinstance(service, dict):
             raise ValueError("invalid service")
