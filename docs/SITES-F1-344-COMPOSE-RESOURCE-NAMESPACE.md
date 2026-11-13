@@ -11,10 +11,10 @@ Mesmo sem portas públicas e com rede `internal: true`, um Compose modificado po
 `ci/f74_docker_lab_boundary.py`, executado antes de Docker build/start no workflow F1-83, exige:
 
 - Nome de projeto `imagine-sites-lab`.
-- Uma única rede `sites-lab-isolated`, de nome renderizado `imagine-sites-lab_sites-lab-isolated`, `internal: true`, driver bridge padrão ou omitido, sem `external`, sem modo `attachable` e sem campos extras.
+- Uma única rede `sites-lab-isolated`, de nome renderizado `imagine-sites-lab_sites-lab-isolated`, `internal: true`, driver bridge padrão ou omitido, sem `external`, sem modo `attachable` e sem campos extras. O JSON renderizado do Docker Compose pode incluir um objeto `ipam` padrão; somente o objeto vazio/driver `default` sem redes ou gateways personalizados é aceito.
 - Um único volume `sites-lab-data`, com nome renderizado `imagine-sites-lab_sites-lab-data`, driver local padrão ou omitido, sem `external`, `driver_opts` ou nomes apontando para outro stack.
 
-A forma renderizada pode omitir os campos `name` internos quando usada apenas no fixture de testes, mas jamais aceitar outro nome. Há mutações negativas simulando rede `macvlan`, rede anexável, nome de outra aplicação, volume chamado `production_db`, volume externo, driver personalizado e novo volume não previsto.
+A forma renderizada pode omitir os campos `name` internos quando usada apenas no fixture de testes, mas jamais aceitar outro nome. Há mutações negativas simulando rede `macvlan`, IPAM com sub-rede forçada ou driver arbitrário, rede anexável, nome de outra aplicação, volume chamado `production_db`, volume externo, driver personalizado e novo volume não previsto.
 
 ## Limitações
 
