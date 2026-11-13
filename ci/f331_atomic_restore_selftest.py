@@ -28,6 +28,13 @@ def denied(fn, label: str, errnos: tuple[int, ...] = ()) -> None:
     raise AssertionError("unsafe atomic restore operation succeeded: " + label)
 
 
+SCOPE = ("tenant.synthetic", "site.synthetic", "release.synthetic")
+
+
+def restore_with_scope(*args):
+    return recovery.restore(*args, *SCOPE)
+
+
 def main() -> None:
     checks = 0
     with tempfile.TemporaryDirectory(prefix="sites-f331-") as root:
@@ -90,7 +97,7 @@ def main() -> None:
                         raise OSError(errno.EIO, "fictional IO failure")
 
                     recovery.os.write = fail_write
-                    denied(lambda: recovery.restore(*args),
+                    denied(lambda: restore_with_scope(*args),
                            "write failure must block promotion", (errno.EIO,))
                 finally:
                     recovery.os.write = normal_write
@@ -110,7 +117,7 @@ def main() -> None:
                         return real_rename(fd, stage, final)
 
                     recovery.rename_no_replace = competing_target
-                    denied(lambda: recovery.restore(*args),
+                    denied(lambda: restore_with_scope(*args),
                            "competing target cannot be replaced", (errno.EEXIST,))
                 finally:
                     recovery.rename_no_replace = real_rename
@@ -119,12 +126,12 @@ def main() -> None:
                 (parent / target / "sentinel").unlink()
                 (parent / target).rmdir()
 
-                result = recovery.restore(*args)
+                result = restore_with_scope(*args)
                 assert result["labFilesRecovered"] is True
                 assert result["operationalRestore"] is False
                 assert backup.read_private_bundle(parent / target) == files
                 checks += 1
-                denied(lambda: recovery.restore(*args),
+                denied(lambda: restore_with_scope(*args),
                        "repeat restore must fail before writing")
                 assert backup.read_private_bundle(parent / target) == files
                 checks += 1

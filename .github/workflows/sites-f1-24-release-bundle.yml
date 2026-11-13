@@ -123,7 +123,9 @@ jobs:
               python3 ../../ci/f330_private_synthetic_restore.py \
               --archive "$archive" --parent "$restore_parent" \
               --target-name "restored-f330-$product" --product "$product" \
-              --artifact "$artifact" --bundle "$bundle"
+              --artifact "$artifact" --bundle "$bundle" \
+              --tenant-ref tenant-fixture --site-ref site-fixture \
+              --release-ref "release-bundle-$product"
             cmp "$base/index.html" \
               "$restore_parent/restored-f330-$product/index.html"
             cmp "$base/release-manifest.json" \
@@ -132,7 +134,9 @@ jobs:
               python3 ../../ci/f330_private_synthetic_restore.py \
               --archive "$archive" --parent "$restore_parent" \
               --target-name "restored-f330-$product" --product "$product" \
-              --artifact "$artifact" --bundle "$bundle"; then
+              --artifact "$artifact" --bundle "$bundle" \
+              --tenant-ref tenant-fixture --site-ref site-fixture \
+              --release-ref "release-bundle-$product"; then
               echo 'Unexpected overwrite of verified private restoration'
               exit 1
             fi
