@@ -76,6 +76,37 @@ final class SyntheticReleaseBundleCommandTest extends TestCase
         ));
     }
 
+    public function test_staging_files_are_exclusive_0600_under_permissive_umask(): void
+    {
+        putenv('SITES_SYNTHETIC_BUNDLE=1');
+        $originalUmask=umask(0000);
+        try {
+            self::assertSame(0,Artisan::call('sites:package-fixture',
+                ['product'=>'landing_page']));
+        } finally {
+            umask($originalUmask);
+        }
+        $directory=$this->path('landing_page');
+        $html=(string)file_get_contents($directory.'/index.html');
+        $manifest=(string)file_get_contents($directory.'/release-manifest.json');
+        foreach (['index.html','release-manifest.json'] as $name) {
+            $path=$directory.'/'.$name;
+            clearstatcache(true,$path);
+            self::assertSame(0600,fileperms($path) & 0777,
+                'Final private file must inherit restrictive creation mode');
+        }
+        clearstatcache(true,storage_path('app/private/.sites-f1-24-landing_page.lock'));
+        self::assertSame(
+            0600,
+            fileperms(storage_path('app/private/.sites-f1-24-landing_page.lock')) & 0777
+        );
+        self::assertStringContainsString('noindex, nofollow',$html);
+        self::assertSame(hash('sha256',$html),
+            json_decode($manifest,true,16,JSON_THROW_ON_ERROR)['artifactDigest']);
+        $leftovers=glob(storage_path('app/private/.sites-f1-24-landing_page-*.tmp'));
+        self::assertSame([],$leftovers===false?[]:$leftovers);
+    }
+
     public function test_second_write_cannot_replace_previously_verified_bundle(): void
     {
         putenv('SITES_SYNTHETIC_BUNDLE=1');
