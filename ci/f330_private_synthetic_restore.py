@@ -28,6 +28,28 @@ LAB_FLAG = "SITES_SYNTHETIC_RESTORE"
 EXPECTED_FILES = [name for name, _ in FIXED_FILES]
 
 
+def require_pinned_scope(
+    files: dict[str, bytes], tenant_ref: str, site_ref: str,
+    release_ref: str,
+) -> None:
+    """F1-332: independently supplied project/release identity, fail closed.
+
+    These CLI strings are NOT authenticated grants. Never derive their values
+    from the ZIP or HTTP request on behalf of a real customer.
+    """
+    expected = (tenant_ref, site_ref, release_ref)
+    if any(not isinstance(value, str) or not re.fullmatch(
+        r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", value,
+    ) for value in expected):
+        raise ValueError("missing or invalid pinned tenant/site/release identity")
+    # verify_zip already validates the manifest structure and local digest.
+    # Load only after that, then require the independent exact tuple.
+    manifest = json.loads(files["release-manifest.json"].decode("utf-8"))
+    actual = tuple(manifest[key] for key in ("tenantRef", "siteRef", "releaseRef"))
+    if actual != expected:
+        raise ValueError("private ZIP belongs to a different synthetic scope")
+
+
 def ensure_lab() -> None:
     if (sys.platform != "linux" or os.environ.get("APP_ENV") != "testing"
             or os.environ.get(LAB_FLAG) != "1"
@@ -39,7 +61,8 @@ def ensure_lab() -> None:
 
 
 def restore(archive_path: Path, parent: Path, target_name: str,
-            product: str, artifact: str, bundle: str) -> dict[str, object]:
+            product: str, artifact: str, bundle: str,
+            tenant_ref: str, site_ref: str, release_ref: str) -> dict[str, object]:
     ensure_lab()
     check_pins(artifact, bundle)
     if product not in ("onepage", "landing_page"):
@@ -50,6 +73,8 @@ def restore(archive_path: Path, parent: Path, target_name: str,
     # Prove in-memory archive bytes before touching any destination directory.
     raw_archive = read_owner_regular(archive_path)
     files = verify_zip(raw_archive, product, artifact, bundle)
+    # Check scope BEFORE any destination directory or staging is created.
+    require_pinned_scope(files, tenant_ref, site_ref, release_ref)
     parent_fd = open_private_directory(parent)
     try:
         stat_parent = os.fstat(parent_fd)
@@ -126,6 +151,8 @@ def restore(archive_path: Path, parent: Path, target_name: str,
             "archiveSha256": sha(raw_archive),
             "artifactDigest": artifact,
             "bundleDigest": bundle,
+            "scopeMatched": True,
+            "scopeAuthenticated": False,
             "syntheticOnly": True,
             "labFilesRecovered": True,
             "operationalRestore": False,
@@ -153,11 +180,15 @@ def main() -> None:
     parser.add_argument("--product", required=True, choices=("onepage", "landing_page"))
     parser.add_argument("--artifact", required=True)
     parser.add_argument("--bundle", required=True)
+    parser.add_argument("--tenant-ref", required=True)
+    parser.add_argument("--site-ref", required=True)
+    parser.add_argument("--release-ref", required=True)
     args = parser.parse_args()
     try:
         result = restore(
             args.archive, args.parent, args.target_name,
             args.product, args.artifact, args.bundle,
+            args.tenant_ref, args.site_ref, args.release_ref,
         )
     except (ValueError, OSError, KeyError, TypeError):
         print(
