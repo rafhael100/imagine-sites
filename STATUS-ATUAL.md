@@ -1,5 +1,16 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## F1-308–312 — correções de segurança do verificador e writer privados — 13/11/2026
+
+- **F1-308/309, PR #380**, SHA `6c282204713aad8fbdc4df4da9e75273434773cb`: verificador Python fixa diretório, usa `O_NOFOLLOW|O_NONBLOCK` para arquivos e lê JSON de evidência com limite de 4096 bytes antes de parse; testes sintéticos FIFO/symlink/hardlink/substituição, pins falsos e permissão. **5/5 workflows retornados com success**.
+- **F1-310, PR #381**, SHA `f069e8b3d905692fb3d1de4c665b6ec9c932805c`: verificação independente de HTML inerte e metadados essenciais antes de aceitar um relatório QA todo verdadeiro, recusando script ou indexação com digests recomputados. **4/4 workflows retornados com success**. Não é auditoria WCAG/AppSec.
+- **F1-311, PR #382**, SHA `927ddadd2c3e1f4eef835281252eccad2b102b89`: remove `chmod(path)` da trava privada pós-flock, cria inode ausente exclusivamente com umask 0077 e nega lock preexistente 0644. **5/5 workflows retornados com success**.
+- **F1-312, PR #383**, SHA `731f7a05cce0f7967aeabcccbec6d92610173f5a`: staging do pacote privado usa `fopen('xb')`, umask 0077, write loop, flush e readback existente, sem `file_put_contents` truncador nem `chmod(path)`. Novo teste Laravel verifica arquivos 0600 sob umask permissivo. **CI do próprio SHA deve ser validado integralmente**, assim como o HEAD integrado.
+- **Novo candidato de integração:** contém a cadeia F1-302–312 e deve rodar F1-240 (inventário integral), F1-241 (seis pacotes de revisão) e regressão completa antes de qualquer avaliação de promoção à dev. Ainda não há revisão AppSec/DBA independente atestada.
+- **Não homologado:** PHP filesystem local, lock cooperativo e testes sintéticos não protegem contra processo local hostil com a mesma identidade, nem substituem IAM, digest autenticado ou observação de CDN. `config/operational-readiness.json` mantém `BLOCKED` e os dez gates falsos. GitHub #281 e OP01–OP05 #33–#38 pendentes. `dev`/`main` intocadas; sem merge, deploy, domínio, Cloudflare, VPS, CRM/Portal real, segredos, dados de clientes ou custos.
+
+---
+
 ## F1-306–307 — QA estrutural em evidência privada, dupla verificação offline — 13/11/2026
 
 - **F1-306 / PR #377**, SHA `10886f46d21140afc5d00e452427e5bbb2aba933`: `--include-qa` com `--evidence-json` adiciona dez critérios estruturais PHP/Laravel à evidência dos bytes privados previamente verificados; retorna falha se o QA falhar ou se o modo JSON não for solicitado. O relatório permanece sem HTML, caminhos ou dados pessoais, `trustedPins=false`, `officialClientAcceptance=false`, `releaseAuthorized=false`, `humanReviewRequired=true`, `wcagCertified=false`. **17/17 workflows retornados success** no próprio SHA.
