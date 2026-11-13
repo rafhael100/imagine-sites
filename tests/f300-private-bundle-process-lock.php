@@ -54,12 +54,43 @@ try {
         'no followed symlink write occurred');
     unlink($unsafe);
     unlink($target);
+
+    check300(Lock::acquire($dir.chr(0).'suffix','onepage',true)===null,
+        'NUL in private directory path is denied before filesystem calls');
+
+    file_put_contents($unsafe,'untrusted data');
+    check300(Lock::acquire($dir,'onepage',true)===null,
+        'nonempty existing writer lock is denied without truncation');
+    check300(file_get_contents($unsafe)==='untrusted data',
+        'failed acquisition leaves foreign lock bytes unchanged');
+    unlink($unsafe);
+
+    file_put_contents($unsafe,'');
+    chmod($unsafe,0644);
+    check300(Lock::acquire($dir,'onepage',false)===null,
+        'read-only verifier denies a world-readable lock file');
+    $repaired=Lock::acquire($dir,'onepage',true);
+    check300($repaired!==null,'writer can secure an otherwise valid empty lock');
+    check300((fileperms($unsafe) & 0777)===0600,
+        'writer acquires an exclusively private 0600 inode');
+    $repaired?->release();
+
+    $hard=$dir.'/extra-lock-hardlink';
+    check300(link($unsafe,$hard),'hardlink fixture created');
+    check300(Lock::acquire($dir,'onepage',true)===null,
+        'writer rejects lock inode with multiple hardlinks');
+    check300(Lock::acquire($dir,'onepage',false)===null,
+        'verifier rejects lock inode with multiple hardlinks');
+    unlink($hard);
+    check300(Lock::acquire($dir,'onepage',false)!==null,
+        'secure lock can be acquired after unsafe hardlink removal');
 } finally {
     foreach (['onepage','landing_page'] as $product) {
         $path=$dir.'/.sites-f1-24-'.$product.'.lock';
         if (is_file($path) || is_link($path)) @unlink($path);
     }
     @unlink($dir.'/canary.txt');
+    @unlink($dir.'/extra-lock-hardlink');
     @rmdir($dir);
 }
 echo "$checks F1-300 private bundle interprocess locks passed (synthetic only).\n";
