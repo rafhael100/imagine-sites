@@ -76,9 +76,21 @@ if(!hash_equals($expected,$msg['mac'])) {
     f367Reply(403,['stored'=>false,'reason'=>'unauthenticated']);
 }
 try {
+    // F1-369 CI-only failover: receiver may connect to the separately
+    // restored third PostgreSQL18 service. Explicit env gates prevent an
+    // arbitrary host/database override; this is NOT service discovery.
+    $restoreMode=getenv('SITES_F369_RESTORED_RECEIVER_LAB')==='1';
+    if($restoreMode && getenv('SITES_F369_RESTORE_LAB')!=='1') {
+        f367Reply(503,['stored'=>false,'reason'=>'restore_not_authorized']);
+    }
+    $dsn=$restoreMode
+        ? 'pgsql:host=127.0.0.1;port=5434;dbname=portal_f369_restore_lab;connect_timeout=5'
+        : 'pgsql:host=127.0.0.1;port=5433;dbname=portal_f367_lab;connect_timeout=5';
+    $password=$restoreMode
+        ? 'f369-fictional-restore-db-only'
+        : 'f367-fictional-portal-db-only';
     $pdo=new PDO(
-        'pgsql:host=127.0.0.1;port=5433;dbname=portal_f367_lab;connect_timeout=5',
-        'postgres','f367-fictional-portal-db-only',
+        $dsn,'postgres',$password,
         [PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,
          PDO::ATTR_EMULATE_PREPARES=>false,PDO::ATTR_TIMEOUT=>6]
     );
