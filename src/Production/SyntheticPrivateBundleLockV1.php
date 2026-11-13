@@ -49,7 +49,20 @@ final class SyntheticPrivateBundleLockV1
             return null;
         }
 
-        $handle=@fopen($path,$mayCreateLock?'c':'r');
+        // F1-311: never chmod a *path* after locking: an adversarial path
+        // replacement could chmod a different file before post-validation.
+        // New files use exclusive O_EXCL creation with a restrictive umask.
+        // An existing lock is opened read-only and must ALREADY be 0600.
+        if ($mayCreateLock && !file_exists($path)) {
+            $originalUmask=umask(0077);
+            try {
+                $handle=@fopen($path,'x');
+            } finally {
+                umask($originalUmask);
+            }
+        } else {
+            $handle=@fopen($path,'rb');
+        }
         if (!is_resource($handle)) return null;
 
         // Validate opened inode rather than trusting only a prior path
@@ -63,13 +76,9 @@ final class SyntheticPrivateBundleLockV1
             @fclose($handle);
             return null;
         }
-        if ($mayCreateLock && !@chmod($path,0600)) {
-            @flock($handle,LOCK_UN);
-            @fclose($handle);
-            return null;
-        }
-        // F1-303: recheck the same empty, private inode AFTER exclusive
-        // lock acquisition and optional chmod. A replaced path, symlink,
+        // Recheck the same empty, private inode AFTER exclusive locking.
+        // Never repair permissions by pathname (see F1-311). A swapped
+        // path, symlink,
         // hardlink or a nonprivate lock file must never be accepted.
         $locked=@fstat($handle);
         clearstatcache(true,$path);

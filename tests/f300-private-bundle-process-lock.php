@@ -67,12 +67,25 @@ try {
 
     file_put_contents($unsafe,'');
     chmod($unsafe,0644);
+    clearstatcache(true,$unsafe);
     check300(Lock::acquire($dir,'onepage',false)===null,
         'read-only verifier denies a world-readable lock file');
-    $repaired=Lock::acquire($dir,'onepage',true);
-    check300($repaired!==null,'writer can secure an otherwise valid empty lock');
+    check300(Lock::acquire($dir,'onepage',true)===null,
+        'writer refuses existing permissive lock instead of chmod(path)');
+    clearstatcache(true,$unsafe);
+    check300((fileperms($unsafe) & 0777)===0644,
+        'a failed writer must not alter preexisting lock permissions');
+    unlink($unsafe);
+    $previousMask=umask(0000);
+    try {
+        $repaired=Lock::acquire($dir,'onepage',true);
+    } finally {
+        umask($previousMask);
+    }
+    check300($repaired!==null,'writer creates a new exclusive private lock');
+    clearstatcache(true,$unsafe);
     check300((fileperms($unsafe) & 0777)===0600,
-        'writer acquires an exclusively private 0600 inode');
+        'new lock is 0600 despite a permissive process umask');
     $repaired?->release();
 
     $hard=$dir.'/extra-lock-hardlink';
