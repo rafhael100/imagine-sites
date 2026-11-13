@@ -136,7 +136,7 @@ f356Check(f356Denied(static fn()=>f356Admit(
     $wire, $portal, $external, null, null, null, $keyExternal, $keyPortal)),
     'cross-service credential substitution denied');
 f356Check(f356Denied(static fn()=>f356Admit(
-    $wire, $portal, $external, null, null, null, $keyPortal)),
+    $wire, $portal, $external, null, null, null, null, $keyPortal)),
     'identical Portal and external authority keys denied');
 f356Check(f356Denied(static fn()=>f356Admit(
     $wire, $portal, $external, null, null, null, $keyCommand)),
