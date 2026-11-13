@@ -64,7 +64,7 @@ checkF24(!SyntheticReleaseBundle::verifyExactBundle(
     $reversed,$manifest,$bundle->bundleDigest
 ), 'file ordering is part of exact private package grammar');
 $mutatedManifest=$bundle->files;
-$mutatedManifest['release-manifest.json'].="\\n";
+$mutatedManifest['release-manifest.json'].="\n";
 checkF24(!SyntheticReleaseBundle::verifyExactBundle(
     $mutatedManifest,$manifest,$bundle->bundleDigest
 ), 'even whitespace appended to manifest invalidates package');
