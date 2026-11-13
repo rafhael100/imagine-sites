@@ -1,5 +1,16 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## F1-326–328 — preparação verificável de proteção dev/main — 13/11/2026
+
+- **F1-326 / PR #402**, SHA `6e43e34f3dfd08799e4934db58e233d69b16ebb1`: plano offline reproduzível de GitHub ruleset para `dev/main` com PR obrigatório, uma revisão independente, descarte de revisões antigas, aprovação do último push, força de checks de PHP 8.3/8.4 e bloqueio de deploy, proteção contra force-push/delete, sem bypass configurado. Usa jobs estáveis realmente executados em todas as PRs: `prevent-accidental-production`, `pure-domain (8.3)` e `pure-domain (8.4)`. Script de GitHub CLI só **pode** aplicar com aprovação de administrador, revisor real e três flags explícitas. **NÃO aplicado por esta entrega.** CI offline do plano e documentação Windows/PowerShell. **5/5 workflows success** no SHA individual.
+- **F1-327 / PR #403**, SHA `ad864195dfdad003738f29daf2b86e4e5f8c4643`: auditoria read-only passa a validar parâmetros de aprovação (incluindo último push/revisões obsoletas) e os três checks obrigatórios, não apenas nomes/tipos de regra; self-test adversarial. **4/4 workflows success**.
+- **F1-328 / PR #404**, SHA `933b3e11d87cb12d18fdbfd15d7947b4e6b89453`: auditoria do ruleset específico também exige prova *visível* de lista de exceções `bypass_actors=[]`; campo omitido por falta de permissão administrativa falha fechado. Não verifica disponibilidade de colaboradores de revisão, inherited rulesets ou recusa real de push; teste administrativo permanece P0. Resultado de CI do SHA F1-328 e do candidato integrado deve ser confirmado.
+- **Runbook pronto:** `docs/SITES-F1-326-ADMIN-BRANCH-RULESET-PLAN.md`; script `ci/f326_branch_ruleset_plan.py`. O modo padrão é renderização e self-test SEM rede, credenciais, despesas nem alterações de GitHub. `audit` usa API de leitura apenas no computador de administrador; `apply` separado exige ação explícita e credenciais adequadas do GitHub CLI, **não deve ser chamado a partir de CI**.
+- **Candidato integrado:** a política de domínio apex/SEO/redirect (F1-322–325) e a proposta de governança (F1-326–328) foram consolidadas sobre o histórico anterior. Revisões de AppSec/DBA/Portal/CRM e configuração administrativa real da issue #281 CONTINUAM NÃO SATISFEITAS; não cadastrar CODEOWNERS sem pessoas/equipes reais confirmadas. Exigir inventário F1-240, pacotes F1-241 e CI do SHA exato antes da promoção.
+- **Operação:** `config/operational-readiness.json` permanece `BLOCKED` com os dez gates `false`. OP01–OP05 (#33–#38) e homologação Leaseweb/Cloudflare/CRM/Portal em aberto. Nenhum merge, deploy, publicação, usuário, token, DNS, integração real ou custo realizado.
+
+---
+
 ## F1-322–325 — domínio principal sem www e consistência SEO/redirecionamento — 13/11/2026
 
 - **F1-322 / PR #397** (`7c2a339f1d80ede646aada9e6e421b68defd1621`): a política offline de domínio base rejeita prefixos reservados dos apps Imagine (incluindo `agents`, `performance`, `universidade`) e sufixos públicos óbvios (`com.br`, `co.uk` etc.). O controle é conservador e NÃO substitui uma Public Suffix List atualizada ou prova de titularidade. **5/5 fluxos retornados success.**
