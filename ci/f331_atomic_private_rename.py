@@ -15,15 +15,11 @@ import sys
 RENAME_NOREPLACE = 1
 
 
-def rename_no_replace(parent_fd: int, stage_name: str,
-                      final_name: str) -> None:
+def _kernel_rename_no_replace(parent_fd: int, stage_name: str,
+                              final_name: str) -> None:
+    """Common Linux-only rename primitive; no unsafe os.rename fallback."""
     if sys.platform != "linux":
         raise OSError(errno.ENOSYS, "requires Linux atomic renameat2")
-    if (not re.fullmatch(r"\.sites-f331-restore-[0-9a-f]{16}\.tmp", stage_name)
-            or not re.fullmatch(
-                r"restored-f330-(?:onepage|landing_page)", final_name
-            )):
-        raise ValueError("unexpected fixed synthetic rename names")
     libc = ctypes.CDLL(None, use_errno=True)
     fn = getattr(libc, "renameat2", None)
     if fn is None:
@@ -38,8 +34,31 @@ def rename_no_replace(parent_fd: int, stage_name: str,
         parent_fd, os.fsencode(final_name), RENAME_NOREPLACE,
     )
     if rv != 0:
-        code = ctypes.get_errno()
-        raise OSError(code, "atomic private no-overwrite promotion denied")
+        raise OSError(
+            ctypes.get_errno(),
+            "atomic private no-overwrite promotion denied",
+        )
+
+
+def rename_no_replace(parent_fd: int, stage_name: str,
+                      final_name: str) -> None:
+    """F1-331: allow only the fixed private restore directory names."""
+    if (not re.fullmatch(r"\.sites-f331-restore-[0-9a-f]{16}\.tmp", stage_name)
+            or not re.fullmatch(
+                r"restored-f330-(?:onepage|landing_page)", final_name
+            )):
+        raise ValueError("unexpected fixed synthetic rename names")
+    _kernel_rename_no_replace(parent_fd, stage_name, final_name)
+
+
+def rename_zip_no_replace(parent_fd: int, stage_name: str,
+                          final_name: str) -> None:
+    """F1-338: promote *only* a private staging ZIP to its final ZIP name."""
+    if (not re.fullmatch(r"\.sites-f338-archive-[0-9a-f]{16}\.tmp", stage_name)
+            or not re.fullmatch(r"[a-z0-9][a-z0-9._-]{0,100}\.zip",
+                                final_name)):
+        raise ValueError("unexpected synthetic ZIP staging/final names")
+    _kernel_rename_no_replace(parent_fd, stage_name, final_name)
 
 
 def check_platform() -> None:
