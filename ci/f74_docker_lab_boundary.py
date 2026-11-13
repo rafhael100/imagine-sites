@@ -61,16 +61,38 @@ def check_context(ignore: str, dockerfile: str) -> None:
 def inspect_rendered(value: object) -> None:
     if not isinstance(value, dict):
         raise ValueError("Compose config must be an object")
+    # F1-344: a sandbox can still consume another stack's volume or
+    # network if the Compose PROJECT, network name, or volume is overridden.
+    # Reject externally named resources before Docker starts anything.
+    if value.get("name") != "imagine-sites-lab":
+        raise ValueError("unexpected Compose project namespace")
+    volumes = value.get("volumes")
+    if not isinstance(volumes,dict) or set(volumes)!={"sites-lab-data"}:
+        raise ValueError("only the disposable PG lab volume is permitted")
+    volume=volumes["sites-lab-data"]
+    if (not isinstance(volume,dict)
+            or volume.get("name") not in (
+                None,"imagine-sites-lab_sites-lab-data")
+            or volume.get("external") is True
+            or volume.get("driver") not in (None,"local")
+            or set(volume)-{"name","external","driver"}):
+        raise ValueError("unexpected external or redirected lab volume")
     services = value.get("services")
     nets = value.get("networks")
     if not isinstance(services, dict) or set(services) != SERVICES:
         raise ValueError("unexpected service inventory")
     if not isinstance(nets, dict) or set(nets) != {NETWORK}:
         raise ValueError("unexpected network inventory")
-    if nets[NETWORK].get("internal") is not True or (
-        nets[NETWORK].get("external") is True
-    ):
-        raise ValueError("lab network must be private and internal")
+    network=nets[NETWORK]
+    if (not isinstance(network,dict)
+            or network.get("internal") is not True
+            or network.get("name") not in (
+                None,"imagine-sites-lab_sites-lab-isolated")
+            or network.get("external") is True
+            or network.get("driver") not in (None,"bridge")
+            or network.get("attachable",False) is not False
+            or set(network)-{"name","internal","driver","external","attachable"}):
+        raise ValueError("lab network must remain an isolated private bridge")
     for name, service in services.items():
         if not isinstance(service, dict):
             raise ValueError("invalid service")
@@ -233,8 +255,15 @@ def fixture() -> dict:
         },
     }
     return {
+        "name": "imagine-sites-lab",
         "services": {"sites-lab-db": db, "sites-lab-tests": test},
-        "networks": {NETWORK: {"internal": True}},
+        "networks": {NETWORK: {
+            "name": "imagine-sites-lab_sites-lab-isolated",
+            "internal": True,
+        }},
+        "volumes": {"sites-lab-data": {
+            "name": "imagine-sites-lab_sites-lab-data",
+        }},
     }
 
 
@@ -264,6 +293,15 @@ def self_test(ignore: str, dockerfile: str) -> None:
     for change in (
         lambda s: s["services"]["sites-lab-db"].update({"ports": ["5432:5432"]}),
         lambda s: s["networks"][NETWORK].update({"internal": False}),
+        lambda s: s.update({"name": "other-project"}),
+        lambda s: s["networks"][NETWORK].update({"name": "other-stack_network"}),
+        lambda s: s["networks"][NETWORK].update({"driver": "macvlan"}),
+        lambda s: s["networks"][NETWORK].update({"attachable": True}),
+        lambda s: s["networks"][NETWORK].update({"external": True}),
+        lambda s: s["volumes"]["sites-lab-data"].update({"name": "production_db"}),
+        lambda s: s["volumes"]["sites-lab-data"].update({"driver_opts": {"type": "none", "device": "/home"}}),
+        lambda s: s["volumes"]["sites-lab-data"].update({"external": True}),
+        lambda s: s["volumes"].update({"other": {"name": "unexpected"}}),
         lambda s: s["services"]["sites-lab-tests"].update({"privileged": True}),
         lambda s: s["services"]["sites-lab-db"]["healthcheck"].update({"test": ["CMD-SHELL", "sh -c 'touch /tmp/unexpected'"]}),
         lambda s: s["services"]["sites-lab-db"]["healthcheck"].update({"disable": True}),
