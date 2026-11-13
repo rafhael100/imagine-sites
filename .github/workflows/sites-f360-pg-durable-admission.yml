@@ -9,6 +9,8 @@ on:
       - 'tests/f363-pg-durable-nonce.php'
       - 'tests/f364-transactional-signed-ingress-adapter.php'
       - 'tests/f365-loopback-http-client.php'
+      - 'tests/f366-pg-outbox-to-portal-http.php'
+      - 'tests/fixtures/f366-portal-receipt-router.php'
       - 'tests/fixtures/f365-loopback-router.php'
       - 'tests/fixtures/f365-loopback-worker.php'
       - 'src/Persistence/LabTransactionalSignedIngressV1.php'
@@ -49,6 +51,7 @@ jobs:
       SITES_F363_NONCE_LAB: '1'
       SITES_F364_BRIDGE_LAB: '1'
       SITES_F365_HTTP_LAB: '1'
+      SITES_F366_PORTAL_RECEIPT_LAB: '1'
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: '5432'
@@ -89,6 +92,8 @@ jobs:
           php -l tests/f365-loopback-http-client.php
           php -l tests/fixtures/f365-loopback-router.php
           php -l tests/fixtures/f365-loopback-worker.php
+          php -l tests/fixtures/f366-portal-receipt-router.php
+          php -l tests/f366-pg-outbox-to-portal-http.php
           php -r 'if (!extension_loaded("curl")) exit(1);'
           php -r 'if (!extension_loaded("pdo_pgsql")) exit(1);'
       - name: Fail closed without explicit opt-in
@@ -162,6 +167,22 @@ jobs:
           done
           test "$ready" = 1
           php tests/f365-loopback-http-client.php
+      - name: F1-366 outbox HTTP to synthetic Portal signed receipt, then PG18 ACK
+        run: |
+          set -euo pipefail
+          php -S 127.0.0.1:18966 -t tests/fixtures tests/fixtures/f366-portal-receipt-router.php > "$RUNNER_TEMP/f366-portal.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 30); do
+            if curl --noproxy '*' -fsS --output /dev/null http://127.0.0.1:18966/health; then
+              ready=1
+              break
+            fi
+            sleep 0.3
+          done
+          test "$ready" = 1
+          php tests/f366-pg-outbox-to-portal-http.php
       - name: Scope limitation
         if: always()
         run: |
