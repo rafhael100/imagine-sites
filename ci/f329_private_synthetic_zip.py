@@ -232,7 +232,8 @@ def write_exclusive(path: Path, data: bytes) -> None:
         fd = os.open(path.name, os.O_WRONLY | os.O_CREAT | os.O_EXCL |
                      os.O_NOFOLLOW | os.O_CLOEXEC, mode=0o600,
                      dir_fd=directory_fd)
-        created_identity = file_identity(os.fstat(fd))
+        created = os.fstat(fd)
+        created_identity = (created.st_dev, created.st_ino)
         try:
             offset = 0
             while offset < len(data):
@@ -249,6 +250,12 @@ def write_exclusive(path: Path, data: bytes) -> None:
                 raise ValueError("private ZIP output inode replaced")
         finally:
             os.close(fd)
+        # F1-335: a successful fsync/write is NOT proof that the expected
+        # private bytes survived. Reopen via another pinned directory FD,
+        # compare complete exact bytes, then fsync parent before returning.
+        if read_owner_regular(path) != data:
+            raise ValueError("private ZIP post-write exact readback mismatch")
+        os.fsync(directory_fd)
     except BaseException:
         # Never delete a replacement inode if another local process swapped
         # the path while the private archive write was failing.
@@ -256,7 +263,12 @@ def write_exclusive(path: Path, data: bytes) -> None:
             try:
                 named = os.stat(path.name, dir_fd=directory_fd,
                                 follow_symlinks=False)
-                if file_identity(named) == created_identity:
+                # File *size* changes naturally while writing. Compare
+                # only immutable device+inode identity during cleanup,
+                # and refuse links/special files; a replacement must never
+                # be deleted merely because it has the same byte length.
+                if (stat.S_ISREG(named.st_mode) and named.st_nlink == 1
+                        and (named.st_dev, named.st_ino) == created_identity):
                     os.unlink(path.name, dir_fd=directory_fd)
             except OSError:
                 pass
