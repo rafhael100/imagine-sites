@@ -11,12 +11,14 @@ import json
 import os
 from pathlib import Path
 import re
+import secrets
 import stat
 import sys
 
 from f307_private_qa_json_contract import (
     FIXED_FILES, file_identity, open_private_directory,
 )
+from f331_atomic_private_rename import check_platform, rename_no_replace
 from f329_private_synthetic_zip import (
     check_files, check_pins, read_owner_regular, read_private_bundle,
     sha, verify_zip,
@@ -44,6 +46,7 @@ def restore(archive_path: Path, parent: Path, target_name: str,
         raise ValueError("unknown laboratory product")
     if target_name != "restored-f330-" + product:
         raise ValueError("fixed one-off lab target name required")
+    check_platform()
     # Prove in-memory archive bytes before touching any destination directory.
     raw_archive = read_owner_regular(archive_path)
     files = verify_zip(raw_archive, product, artifact, bundle)
@@ -55,18 +58,20 @@ def restore(archive_path: Path, parent: Path, target_name: str,
             raise ValueError("destination parent must be owner-private")
         if target_name in os.listdir(parent_fd):
             raise ValueError("restored directory already exists")
-        # mkdir is exclusive even if the target becomes a symlink/dir
-        # between the listing and creation. NEVER write existing fixtures.
-        os.mkdir(target_name, mode=0o700, dir_fd=parent_fd)
+        # F1-331: build in an unpredictable private staging directory.
+        # The final name does NOT exist until every byte is fsynced and
+        # independently read back. Rename requires kernel RENAME_NOREPLACE.
+        stage_name = ".sites-f331-restore-" + secrets.token_hex(8) + ".tmp"
+        os.mkdir(stage_name, mode=0o700, dir_fd=parent_fd)
         child_fd = os.open(
-            target_name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW |
+            stage_name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW |
             os.O_CLOEXEC, dir_fd=parent_fd,
         )
         try:
             child_before = os.fstat(child_fd)
             if (child_before.st_mode & 0o077
                     or file_identity(child_before) != file_identity(
-                        os.stat(target_name, dir_fd=parent_fd,
+                        os.stat(stage_name, dir_fd=parent_fd,
                                 follow_symlinks=False))):
                 raise ValueError("private recovery directory replaced")
             for name in EXPECTED_FILES:
@@ -95,18 +100,26 @@ def restore(archive_path: Path, parent: Path, target_name: str,
                     os.close(fd)
             os.fsync(child_fd)
             if (file_identity(os.fstat(child_fd)) != file_identity(
-                    os.stat(target_name, dir_fd=parent_fd,
+                    os.stat(stage_name, dir_fd=parent_fd,
                             follow_symlinks=False))):
                 raise ValueError("restored directory substituted")
         finally:
             os.close(child_fd)
-        # Separate fully bounded readback: a syntactically valid archive
-        # cannot mark success unless both *written bytes* match pins.
+        # Read back the STAGED inode before publishing the final name.
+        staged = read_private_bundle(parent / stage_name)
+        if staged != files:
+            raise ValueError("staged recovery disagrees with exact ZIP bytes")
+        check_files(staged, product, artifact, bundle)
+
+        # Atomic Linux rename; never fall back to os.rename(), which could
+        # silently overwrite a concurrent directory at the final name.
+        rename_no_replace(parent_fd, stage_name, target_name)
+        os.fsync(parent_fd)
+        # Separate final-name readback of the exact files after promotion.
         recovered = read_private_bundle(parent / target_name)
         if recovered != files:
             raise ValueError("recovered bundle bytes differ from original")
         check_files(recovered, product, artifact, bundle)
-        os.fsync(parent_fd)
         return {
             "schemaVersion": "sites.synthetic.private-restore-evidence.v1",
             "product": product,
@@ -121,9 +134,9 @@ def restore(archive_path: Path, parent: Path, target_name: str,
             "crmTouched": False,
         }
     except BaseException:
-        # Intentional fail-closed quarantine: a partial, private directory
-        # is never exposed to HTTP or silently retried/overwritten. Manual
-        # cleanup of this fictional scratch path is the operator's task.
+        # Fail closed: if writing failed before promotion, the incomplete
+        # files remain ONLY under a private hidden staging name. No partial
+        # final-name restore exists. Scratch cleanup is an operator task.
         # No risky pathname-based recursive deletion of replaced entries.
         raise
     finally:
