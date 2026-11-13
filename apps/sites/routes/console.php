@@ -132,13 +132,11 @@ Artisan::command('sites:package-fixture {product=onepage}', function (): int {
         // Read back the actual staged bytes before any final directory exists.
         $readback=[];
         foreach (array_keys($bundle->files) as $name) {
-            $target=$staging.'/'.$name;
-            if (is_link($target) || !is_file($target)) {
-                throw new \RuntimeException('synthetic_stage_path_untrusted');
-            }
-            $bytes=file_get_contents($target);
-            if ($bytes===false) {
-                throw new \RuntimeException('synthetic_stage_read_failed');
+            $bytes=\Imagine\Sites\Production\SyntheticPrivateRegularFileReadV1::read(
+                $staging.'/'.$name,$name==='index.html'?150000:8192
+            );
+            if ($bytes===null) {
+                throw new \RuntimeException('synthetic_stage_inode_or_readback_failed');
             }
             $readback[$name]=$bytes;
         }
@@ -230,19 +228,11 @@ Artisan::command(
         }
         $files=[];
         foreach (['index.html'=>150000,'release-manifest.json'=>8192] as $name=>$maxBytes) {
-            $file=$directory.'/'.$name;
-            if (is_link($file) || !is_file($file)) {
-                $this->error('Private bundle includes an unsafe file.');
-                return Command::FAILURE;
-            }
-            $size=filesize($file);
-            if ($size===false || $size<1 || $size>$maxBytes) {
-                $this->error('Private bundle file size not allowed.');
-                return Command::FAILURE;
-            }
-            $bytes=file_get_contents($file);
-            if (!is_string($bytes) || strlen($bytes)!==$size) {
-                $this->error('Private bundle readback failed.');
+            $bytes=\Imagine\Sites\Production\SyntheticPrivateRegularFileReadV1::read(
+                $directory.'/'.$name,$maxBytes
+            );
+            if ($bytes===null) {
+                $this->error('Private bundle file inode or size not verified.');
                 return Command::FAILURE;
             }
             $files[$name]=$bytes;
