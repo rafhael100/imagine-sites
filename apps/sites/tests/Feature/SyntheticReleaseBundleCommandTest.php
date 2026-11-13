@@ -330,6 +330,35 @@ final class SyntheticReleaseBundleCommandTest extends TestCase
         self::assertDirectoryDoesNotExist($this->path('onepage'));
     }
 
+    public function test_writer_denies_preexisting_insecure_lock_without_chmod(): void
+    {
+        putenv('SITES_SYNTHETIC_BUNDLE=1');
+        $private=storage_path('app/private');
+        if (!is_dir($private)) mkdir($private,0700,true);
+        $lock=$private.'/.sites-f1-24-onepage.lock';
+        file_put_contents($lock,'');
+        chmod($lock,0644);
+        clearstatcache(true,$lock);
+        self::assertSame(1,Artisan::call('sites:package-fixture',
+            ['product'=>'onepage']));
+        clearstatcache(true,$lock);
+        self::assertSame(0644,fileperms($lock) & 0777,
+            'Writer must not alter permissions of a potentially substituted path');
+        self::assertDirectoryDoesNotExist($this->path('onepage'));
+        unlink($lock);
+        $originalMask=umask(0000);
+        try {
+            self::assertSame(0,Artisan::call('sites:package-fixture',
+                ['product'=>'onepage']),
+                'New private lock must be created safely even with permissive umask');
+        } finally {
+            umask($originalMask);
+        }
+        clearstatcache(true,$lock);
+        self::assertSame(0600,fileperms($lock) & 0777);
+        self::assertFileExists($this->path('onepage').'/index.html');
+    }
+
     public function test_writer_rejects_symlink_lock_without_creating_bundle(): void
     {
         putenv('SITES_SYNTHETIC_BUNDLE=1');
