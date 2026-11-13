@@ -16,6 +16,8 @@ on:
       - 'apps/sites/tests/Feature/SyntheticReleaseBundleCommandTest.php'
       - 'ci/f307_private_qa_json_contract.py'
       - 'ci/f308_f309_descriptor_readback_selftest.py'
+      - 'ci/f329_private_synthetic_zip.py'
+      - 'ci/f329_synthetic_zip_selftest.py'
       - '.github/workflows/sites-f1-24-release-bundle.yml'
       - 'docs/SITES-F1-24-RELEASE-BUNDLE.md'
 
@@ -57,6 +59,8 @@ jobs:
           php tests/f301-private-regular-file-read.php
           php tests/f27-offline-preview-audit.php
           python3 ci/f308_f309_descriptor_readback_selftest.py
+          python3 -m py_compile ci/f329_private_synthetic_zip.py ci/f329_synthetic_zip_selftest.py
+          python3 ci/f329_synthetic_zip_selftest.py
       - name: Install locked Laravel dependencies without scripts
         working-directory: apps/sites
         run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
@@ -94,6 +98,22 @@ jobs:
               --report "$RUNNER_TEMP/f307-$product.json" \
               --directory "$base" --product "$product" \
               --artifact "$artifact" --bundle "$bundle"
+            # F1-329: deterministic portable backup of these *synthetic*
+            # private bytes, with no extraction, restore or upload.
+            archive="$RUNNER_TEMP/sites-f329-$product.zip"
+            python3 ../../ci/f329_private_synthetic_zip.py create \
+              --directory "$base" --archive "$archive" \
+              --product "$product" --artifact "$artifact" --bundle "$bundle"
+            python3 ../../ci/f329_private_synthetic_zip.py inspect \
+              --archive "$archive" --product "$product" \
+              --artifact "$artifact" --bundle "$bundle"
+            if python3 ../../ci/f329_private_synthetic_zip.py create \
+              --directory "$base" --archive "$archive" \
+              --product "$product" --artifact "$artifact" --bundle "$bundle"; then
+              echo 'Unexpected overwrite of existing private ZIP'
+              exit 1
+            fi
+            rm -f "$archive"
             # A mismatched caller pin can never produce successful QA JSON.
             if SITES_SYNTHETIC_VERIFY=1 php artisan sites:verify-fixture-bundle "$product" "$(printf '%064d' 0)" "$bundle" --evidence-json --include-qa > "$RUNNER_TEMP/f307-denied-$product.txt" 2>&1; then
               echo 'Unsafe success for wrong independent synthetic digest'
