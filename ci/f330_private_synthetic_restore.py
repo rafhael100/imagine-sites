@@ -29,8 +29,8 @@ EXPECTED_FILES = [name for name, _ in FIXED_FILES]
 def ensure_lab() -> None:
     if (sys.platform != "linux" or os.environ.get("APP_ENV") != "testing"
             or os.environ.get(LAB_FLAG) != "1"
-            or os.environ.get("GITHUB_ACTIONS") == "false" and
-            os.environ.get("SITES_ALLOW_LOCAL_SYNTHETIC_RESTORE") != "1"):
+            or (os.environ.get("GITHUB_ACTIONS") != "true" and
+                os.environ.get("SITES_ALLOW_LOCAL_SYNTHETIC_RESTORE") != "1")):
         # GitHub Actions is not an authorization source; this extra
         # local-only flag avoids accidental invocations on a developer VPS.
         raise ValueError("offline synthetic restore flags missing")
@@ -48,7 +48,6 @@ def restore(archive_path: Path, parent: Path, target_name: str,
     raw_archive = read_owner_regular(archive_path)
     files = verify_zip(raw_archive, product, artifact, bundle)
     parent_fd = open_private_directory(parent)
-    created = False
     try:
         stat_parent = os.fstat(parent_fd)
         if (not stat.S_ISDIR(stat_parent.st_mode)
@@ -59,7 +58,6 @@ def restore(archive_path: Path, parent: Path, target_name: str,
         # mkdir is exclusive even if the target becomes a symlink/dir
         # between the listing and creation. NEVER write existing fixtures.
         os.mkdir(target_name, mode=0o700, dir_fd=parent_fd)
-        created = True
         child_fd = os.open(
             target_name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW |
             os.O_CLOEXEC, dir_fd=parent_fd,
