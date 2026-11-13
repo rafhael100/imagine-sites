@@ -125,6 +125,29 @@ def inspect_rendered(value: object) -> None:
         raise ValueError("DB must have one volume and one exact read-only role-init fixture")
     admin_env = db.get("environment", {})
     app_env = test.get("environment", {})
+    # F1-342: even with an isolated network, additional PostgreSQL init
+    # variables (especially POSTGRES_HOST_AUTH_METHOD=trust) can disable
+    # authentication. Require exact keys rather than accepting harmless-
+    # looking extras; similarly pin the application's local DB endpoint.
+    approved_db_keys = {
+        "POSTGRES_DB", "POSTGRES_USER", "POSTGRES_PASSWORD",
+        "SITES_LAB_DB_PASSWORD",
+    }
+    approved_app_keys = {
+        "APP_ENV", "APP_DEBUG", "GITHUB_ACTIONS", "DB_CONNECTION",
+        "DB_HOST", "DB_PORT", "DB_DATABASE", "DB_USERNAME", "DB_PASSWORD",
+    }
+    if (not isinstance(admin_env, dict) or not isinstance(app_env, dict)
+            or set(admin_env) != approved_db_keys
+            or set(app_env) != approved_app_keys):
+        raise ValueError("only the exact synthetic DB/test environment is allowed")
+    if (app_env.get("APP_ENV") != "testing"
+            or app_env.get("APP_DEBUG") != "false"
+            or app_env.get("GITHUB_ACTIONS") not in ("true", "false")
+            or app_env.get("DB_CONNECTION") != "pgsql"
+            or app_env.get("DB_HOST") != "sites-lab-db"
+            or app_env.get("DB_PORT") != "5432"):
+        raise ValueError("untrusted test environment or external DB endpoint")
     if (admin_env.get("POSTGRES_USER") != "postgres"
         or admin_env.get("POSTGRES_DB") != "sites_lab"
         or app_env.get("DB_USERNAME") != "siteslab"
@@ -171,7 +194,9 @@ def fixture() -> dict:
         "environment": {
             "DB_PASSWORD": "SYNTHETIC-APP-ONLY",
             "DB_USERNAME": "siteslab", "DB_DATABASE": "sites_lab",
-            "APP_ENV": "testing",
+            "APP_ENV": "testing", "APP_DEBUG": "false",
+            "GITHUB_ACTIONS": "true", "DB_CONNECTION": "pgsql",
+            "DB_HOST": "sites-lab-db", "DB_PORT": "5432",
         },
     }
     return {
@@ -225,6 +250,14 @@ def self_test(ignore: str, dockerfile: str) -> None:
         lambda s: s["services"]["sites-lab-db"]["environment"].update({"POSTGRES_PASSWORD": "SYNTHETIC-APP-ONLY"}),
         lambda s: s["services"]["sites-lab-db"]["volumes"][1].update({"read_only": False}),
         lambda s: s["services"]["sites-lab-tests"]["environment"].update({"DB_USERNAME": "postgres"}),
+        lambda s: s["services"]["sites-lab-db"]["environment"].update({"POSTGRES_HOST_AUTH_METHOD": "trust"}),
+        lambda s: s["services"]["sites-lab-db"]["environment"].update({"POSTGRES_INITDB_ARGS": "--auth-host=trust"}),
+        lambda s: s["services"]["sites-lab-tests"]["environment"].update({"DB_HOST": "host.docker.internal"}),
+        lambda s: s["services"]["sites-lab-tests"]["environment"].update({"DB_CONNECTION": "sqlite"}),
+        lambda s: s["services"]["sites-lab-tests"]["environment"].update({"APP_DEBUG": "true"}),
+        lambda s: s["services"]["sites-lab-tests"]["environment"].update({"APP_ENV": "production"}),
+        lambda s: s["services"]["sites-lab-tests"]["environment"].update({"GITHUB_ACTIONS": "unexpected"}),
+        lambda s: s["services"]["sites-lab-tests"]["environment"].update({"SITES_SHARED_SECRET": "injected"}),
     ):
         corrupted = fixture()
         change(corrupted)
