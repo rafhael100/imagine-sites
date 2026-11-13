@@ -1,5 +1,15 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## F1-341–342 — fronteiras de laboratório Docker e credenciais do PostgreSQL — 13/11/2026
+
+- **F1-341 / PR #429**, SHA `ff29959110e6b2b9e15964e0183b9a476e78b41f`: reforça `ci/f74_docker_lab_boundary.py` contra `pid/ipc/uts` de host, `user: 0:0`, `entrypoint/command` personalizados, `env_file`, `volumes_from`, `group_add`, `sysctls`, `seccomp=unconfined` e outras alterações que poderiam escapar da fronteira do teste mesmo sem publicar portas. **4/4 workflows success**, incluindo F1-83 Compose/PG descartável em GitHub Actions.
+- **F1-342 / PR #430**, SHA `228b4471803ca5ce8f4e814eba13e2e730869788`: aplica allowlist exata de variáveis de ambiente do Postgres e do PHP e fixa `DB_HOST=sites-lab-db`, `DB_PORT=5432`, `DB_CONNECTION=pgsql`, `APP_ENV=testing`, `APP_DEBUG=false`, isolando senhas admin/app. Bloqueia `POSTGRES_HOST_AUTH_METHOD=trust`, `POSTGRES_INITDB_ARGS=--auth-host=trust`, DB externo e env de segredo inesperado. Negativos estáticos e Compose renderizado executados antes do build, com teste real do PG18 descartável. **4/4 workflows success**.
+- **Outra entrega separada:** PR #428 (base `dev`) inclui diagnóstico Ubuntu/VPS P0 **somente leitura por padrão**, com opt-in explícito para executar comandos locais de versão e campos de rede/daemon `null` (não atestado) nessa modalidade. Não rodado na VPS Leaseweb real; cabe ao operador autorizado escolher quando executá-lo. Verificar CI do último SHA individual do PR #428 antes de revisão.
+- **Candidato integrado:** base `dev`, cadeia F1-302–342. Executar novamente CI, F1-240 inventário diff e F1-241 seis pacotes de revisão no novo SHA. `dev/main` inalteradas.
+- **NO-GO:** `config/operational-readiness.json` permanece `BLOCKED`, dez gates falsos. Nenhum teste em Docker/PG fictícios demonstra ambiente Leaseweb, Cloudflare, identidade Portal, banco SaaS multiempresa autorizado ou publicação. Pendem #281 (proteções de branches e revisão independente) e OP01–OP05 #33–#38, sem merge, deploy, DNS, VPS, credenciais de clientes, PII ou custos.
+
+---
+
 ## F1-339–340 — Imagine Experience System e saltos de teclado validados — 13/11/2026
 
 - **F1-339 / PR #424**, SHA `0f415d3cc3d3461e8753973aed4d0f5a53df7e8f`: geometria da UI interna do Sites usa tokens do Portal Node original: conteúdo max 1380px, menu lateral 240px desktop, panel 14px, navegação 10px e ritmo 4/8/12/16/24/32/48px. Paleta original grafite #171B19, laranja #F9941D, branco e fundo #F7F7F8, logomarca PNG. Sites/landing pages finais dos clientes preservam marca própria. **6/6 CI success no SHA individual**, com screenshots Chromium de quatro viewports no run `43446297819`.
