@@ -1,5 +1,15 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## F1-339–340 — Imagine Experience System e saltos de teclado validados — 13/11/2026
+
+- **F1-339 / PR #424**, SHA `0f415d3cc3d3461e8753973aed4d0f5a53df7e8f`: geometria da UI interna do Sites usa tokens do Portal Node original: conteúdo max 1380px, menu lateral 240px desktop, panel 14px, navegação 10px e ritmo 4/8/12/16/24/32/48px. Paleta original grafite #171B19, laranja #F9941D, branco e fundo #F7F7F8, logomarca PNG. Sites/landing pages finais dos clientes preservam marca própria. **6/6 CI success no SHA individual**, com screenshots Chromium de quatro viewports no run `43446297819`.
+- **F1-340 / PR #425**, **SHA corrigido e validado `b598b1d5d16f4dc01a873873d726881745b3eba5`**: primeiro link teclado do painel interno leva ao `main#sites-review-main`, alvo real, visível ao foco, min 44px. A primeira rodada detectou inconsistências em testes legados (whitelist e contagem antiga de âncoras e foco CDP). Corrigida a whitelist PHP para permitir **somente** novo fragmento conhecido, ativação de página Chrome, invariantes de F1-291, F1-43 (Enter/Tab para `main` e pular iframe) e F1-163 (galeria rica). **27/27 CI workflow runs `success`** no SHA corrigido, incluindo F1-38/41/163/290/291 e Laravel/Chrome. Os dois mecanismos de pular conteúdo permanecem úteis; não foi introduzido botão/rota falsa nem exposição externa.
+- **Revisão visual externa:** issue #351 contém comentário com escopo, provas, screenshot do workflow F1-291 e tarefas humanas pendentes. Os artefatos de capturas sintéticas expiram em sete dias. Não alegar migração de todas as páginas operacionais/cliente ou conformidade WCAG AA integral.
+- **Candidato integrado atualizado:** este branch substitui o candidato #426 antigo (que não contém os últimos ajustes de testes). Ao criar PR base `dev`, testar novamente inventário F1-240, seis pacotes F1-241 e toda CI contra SHA exato. O candidato anterior #423 (F1-302–338) retornou 100/100 verificações `success` na primeira página. `dev/main` não foram mescladas.
+- **Não operacional:** governança de branches #281 e revisão AppSec independente ausentes; OP01–OP05 #33–#38 sem homologação. `config/operational-readiness.json` segue `BLOCKED`, 10 gates `false`. Sem publicação/Cloudflare/VPS/DNS, cliente, PII, CRM/Portal real, segredos, merge, deploy ou custos.
+
+---
+
 ## F1-338 — ZIP privado promovido de staging verificado em operação atômica — 13/11/2026
 
 - **F1-338 / PR #422**, SHA `b344dc5eef99bc5be6e8612b7f15642a12c7116c`: substitui a criação antecipada do nome definitivo do ZIP por staging privado aleatório de modo 0600, fsync, readback integral de todos os bytes e promoção atômica `renameat2(RENAME_NOREPLACE)` no Linux. Não existe fallback a `rename` que sobrescreva destino. Revalida o nome final após a promoção e fsync da pasta. Limpa somente inode criado por este processo em falha, sem tocar destino concorrente. Testes adversariais cobrem interrupção de gravação, observação durante a escrita, concorrente que ganha a criação do nome e corrupção simulada pós-rename. **5/5 verificações CI retornadas `success` no SHA individual**.
