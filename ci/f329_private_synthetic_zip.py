@@ -180,6 +180,10 @@ def read_owner_regular(path: Path) -> bytes:
     """Bounded, nonblocking, no-follow archive read from a pinned directory."""
     directory_fd = open_private_directory(path.parent)
     try:
+        # F1-334: 0600 on the ZIP itself is not sufficient to treat a
+        # group/world-traversable archive directory as a private backup area.
+        if os.fstat(directory_fd).st_mode & 0o077:
+            raise ValueError("private ZIP directory exposes group/other access")
         name = path.name
         if not re.fullmatch(r"[a-z0-9][a-z0-9._-]{0,100}\.zip", name):
             raise ValueError("unexpected private archive filename")
@@ -223,6 +227,8 @@ def write_exclusive(path: Path, data: bytes) -> None:
     directory_fd = open_private_directory(path.parent)
     created_identity = None
     try:
+        if os.fstat(directory_fd).st_mode & 0o077:
+            raise ValueError("private ZIP output directory must be owner-only")
         fd = os.open(path.name, os.O_WRONLY | os.O_CREAT | os.O_EXCL |
                      os.O_NOFOLLOW | os.O_CLOEXEC, mode=0o600,
                      dir_fd=directory_fd)

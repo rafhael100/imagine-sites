@@ -108,7 +108,9 @@ jobs:
               --artifact "$artifact" --bundle "$bundle"
             # F1-329: deterministic portable backup of these *synthetic*
             # private bytes, with no extraction, restore or upload.
-            archive="$RUNNER_TEMP/sites-f329-$product.zip"
+            archive_dir="$RUNNER_TEMP/sites-f334-private-zip-$product"
+            mkdir -m 700 "$archive_dir"
+            archive="$archive_dir/sites-f329-$product.zip"
             python3 ../../ci/f329_private_synthetic_zip.py create \
               --directory "$base" --archive "$archive" \
               --product "$product" --artifact "$artifact" --bundle "$bundle" \
