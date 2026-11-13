@@ -230,3 +230,139 @@ Artisan::command('sites:review-fixture {product=onepage}', function (): int {
     $this->line('Portal official client acceptance: false; publishable: false.');
     return Command::SUCCESS;
 })->purpose('Generate a non-operational, private, fictional Laravel review handoff');
+
+
+/**
+ * F1-358: complete fictional signed Portal order -> authenticated authority
+ * snapshots -> idempotent queue -> inert private review package.
+ *
+ * CI-ONLY: NEVER an HTTP route, real order, production DB, payments, AI call,
+ * customer acceptance, Cloudflare publication or delivered site.
+ */
+Artisan::command('sites:authenticated-order-fixture {product=onepage}', function (): int {
+    if (PHP_SAPI !== 'cli' || !app()->environment('testing') ||
+        getenv('GITHUB_ACTIONS') !== 'true' ||
+        getenv('SITES_AUTHENTICATED_ORDER_LAB') !== '1') {
+        $this->error('F1-358 requires CI, testing and explicit fictional order flag.');
+        return Command::FAILURE;
+    }
+
+    $product=(string)$this->argument('product');
+    if (!in_array($product,['onepage','landing_page'],true)) {
+        $this->error('Only fictional Onepage or Landing Page product supported.');
+        return Command::FAILURE;
+    }
+
+    // Fixed fixture-only keys and identities, NEVER real customer credentials.
+    $commandKey='F358-FICTIONAL-PORTAL-COMMAND-KEY-NOT-FOR-PRODUCTION';
+    $portalKey='F358-FICTIONAL-PORTAL-PROOF-KEY-NOT-FOR-PRODUCTION';
+    $externalKey='F358-FICTIONAL-EXTERNAL-REVOCATION-KEY-NOT-FOR-PRODUCTION';
+    $now=1790000000;
+    $tenant='tenant-f358';
+    $site='site-f358-'.$product;
+    $workflowRef='workflow-f358-'.$product;
+    $release='release-f358-'.$product;
+    try {
+        $source=base_path('../../fixtures/sites/f1-37-copy.synthetic.json');
+        if (!is_file($source)) {
+            throw new \RuntimeException('Missing fictional copy fixture.');
+        }
+        $command=new \Imagine\Sites\Integration\SiteProjectCommand(
+            '1','operation-f358-'.$product,$tenant,'order-f358-'.$product,
+            'contract-f358-'.$product,1,$product,'idem-f358-'.$product
+        );
+        $snapshot=new \Imagine\Sites\Security\SyntheticAuthoritySnapshot(
+            $tenant,$command->contractRef,1,true,$now-1,$now+20
+        );
+        $signed=\Imagine\Sites\Security\SyntheticSignedCommand::sign(
+            $command,$commandKey,'nonce-f358-'.$product,$now-1,$now+60
+        );
+        $portal=\Imagine\Sites\Security\SyntheticAuthorityAttestation::sign(
+            'imagine-portal-authority',$snapshot,$portalKey
+        );
+        $outOfBand=\Imagine\Sites\Security\SyntheticAuthorityAttestation::sign(
+            'imagine-independent-revocation',$snapshot,$externalKey
+        );
+        $replay=new class implements \Imagine\Sites\Security\ReplayStore {
+            private array $seen=[];
+            public function rememberOnce(string $issuer,string $nonce,int $expiresAt): bool {
+                $key=$issuer.':'.$nonce;
+                if(isset($this->seen[$key]))return false;
+                $this->seen[$key]=true;
+                return true;
+            }
+        };
+        $admitted=\Imagine\Sites\Integration\SyntheticSitesOrderIngress::receive(
+            $signed,$portal,$outOfBand,$commandKey,$portalKey,$externalKey,
+            $now,$replay,new \Imagine\Sites\Domain\SyntheticIdempotencyLedger(),
+            $site,$workflowRef
+        );
+        if($admitted['status']!=='queued' || $admitted['publishable']!==false ||
+            !$admitted['workflow'] instanceof \Imagine\Sites\Production\SyntheticProductionWorkflow) {
+            throw new \RuntimeException('Fictional order was not safely queued.');
+        }
+
+        $copy=json_decode((string)file_get_contents($source),true,16,JSON_THROW_ON_ERROR);
+        $brief=\Imagine\Sites\Production\StructuredCopyCandidate::assemble(
+            $product,'Marca Fictícia Imagine',$copy
+        );
+        $artifact=(new StaticSiteRenderer())->render($brief);
+        if(!\Imagine\Sites\Production\InertPreviewAudit::isSafe($artifact->html)) {
+            throw new \RuntimeException('Generated review HTML is not inert.');
+        }
+        $flow=$admitted['workflow']->advance('agent','start_draft',0);
+        $flow=$flow->advance('agent','submit_draft',1,$artifact->digest);
+        $flow=$flow->advance('imagine_reviewer','approve_internal',2,$artifact->digest);
+        $candidate=$flow->portalReviewCandidate($release,$artifact->digest,3);
+        $manifest=new \Imagine\Sites\Domain\ReleaseManifest(
+            $tenant,$site,$release,$artifact->digest
+        );
+        $bundle=new \Imagine\Sites\Production\SyntheticReleaseBundle($manifest,$artifact);
+        if(!\Imagine\Sites\Production\SyntheticReleaseBundle::verifyFiles($bundle->files,$manifest) ||
+            $candidate['publishable']!==false ||
+            $candidate['officialClientAcceptance']!==false) {
+            throw new \RuntimeException('Unsafe or publishable review candidate.');
+        }
+        $candidateJson=json_encode(
+            $candidate, JSON_THROW_ON_ERROR|JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE
+        )."\n";
+    } catch(\Throwable $e) {
+        $this->error('F1-358 failed closed: fictional order/review validation denied.');
+        return Command::FAILURE;
+    }
+
+    $root=storage_path('app/private');
+    $dir=$root.'/sites-f358-'.$product;
+    if(is_link($root) || is_link($dir) || file_exists($dir) ||
+        (file_exists($root) && !is_dir($root))) {
+        $this->error('Refusing unexpected or existing private output path.');
+        return Command::FAILURE;
+    }
+    if(!is_dir($root) && !mkdir($root,0700,true) && !is_dir($root)) {
+        $this->error('Cannot create isolated private output.');
+        return Command::FAILURE;
+    }
+    if(!mkdir($dir,0700)) {
+        $this->error('Cannot create fresh fictional order output.');
+        return Command::FAILURE;
+    }
+    $files=$bundle->files+['portal-review-candidate.json'=>$candidateJson];
+    foreach($files as $name=>$bytes) {
+        $fp=@fopen($dir.'/'.$name,'x');
+        if($fp===false) {
+            $this->error('Could not write private fictional package.');
+            return Command::FAILURE;
+        }
+        $ok=fwrite($fp,$bytes)===strlen($bytes);
+        fclose($fp);
+        if(!$ok) {
+            $this->error('Could not finish private fictional package.');
+            return Command::FAILURE;
+        }
+        @chmod($dir.'/'.$name,0600);
+    }
+    $this->line('F1-358 authenticated FICTIONAL order and private review candidate only.');
+    $this->line('Artifact SHA-256: '.$artifact->digest);
+    $this->line('NOT DELIVERED / NOT PUBLISHED / NO OFFICIAL CUSTOMER ACCEPTANCE.');
+    return Command::SUCCESS;
+})->purpose('Run fictional Portal -> Sites signed order to private review in isolated CI only');
