@@ -140,6 +140,34 @@ f347Check(f347SqlDenied(static fn()=> $b->exec(
     'CREATE TABLE public.sites_f350_unauthorized (id integer)'
 )), 'mapped login cannot create unapproved schema objects');
 
+// F1-351: a compromised SQL connection must not mutate RLS policy,
+// impersonate the owner or redefine the SECURITY DEFINER authority.
+// These are adversarial negative tests of the isolated CI fixture only.
+f347Check(f347SqlDenied(static fn()=> $a->exec(
+    'SET ROLE postgres'
+)), 'mapped login cannot assume the schema owner role');
+f347Check(f347SqlDenied(static fn()=> $a->exec(
+    'ALTER TABLE public.sites_projects DISABLE ROW LEVEL SECURITY'
+)), 'mapped login cannot turn off project RLS');
+f347Check(f347SqlDenied(static fn()=> $b->exec(
+    'DROP POLICY sites_projects_login_policy ON public.sites_projects'
+)), 'mapped login cannot drop the tenant isolation policy');
+f347Check(f347SqlDenied(static fn()=> $a->exec(
+    'DROP FUNCTION public.sites_f347_scope_tenant()'
+)), 'mapped login cannot drop the private tenant scope function');
+f347Check(f347SqlDenied(static fn()=> $b->exec(
+    'GRANT SELECT ON TABLE public.sites_f347_login_map TO sites_f347_b'
+)), 'mapped login cannot grant itself access to the private identity mapping');
+$a->exec('SET search_path = pg_temp, public');
+f347Check(
+    f347Count($a, 'sites_projects')===1 &&
+    (string)$a->query(
+        'SELECT public.sites_f347_scope_tenant()'
+    )->fetchColumn()==='tenant-f93-a',
+    'session search_path changes do not redirect qualified scope authority'
+);
+$a->exec('RESET search_path');
+
 // Untrusted GUC values can still be changed by apps, but they are no
 // longer the authority consulted by these temporary lab policies.
 $a->beginTransaction();
