@@ -57,13 +57,16 @@ def open_private_directory(directory: Path) -> int:
     """Pin the directory inode; reject a final-component symlink."""
     flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
     fd = os.open(directory, flags)
-    opened = os.fstat(fd)
-    named = os.stat(directory, follow_symlinks=False)
-    if (not stat.S_ISDIR(opened.st_mode) or
-            file_identity(opened) != file_identity(named)):
+    try:
+        opened = os.fstat(fd)
+        named = os.stat(directory, follow_symlinks=False)
+        if (not stat.S_ISDIR(opened.st_mode) or
+                file_identity(opened) != file_identity(named)):
+            raise ValueError("private directory changed while opening")
+        return fd
+    except BaseException:
         os.close(fd)
-        raise ValueError("private directory changed while opening")
-    return fd
+        raise
 
 
 def read_regular_private(directory_fd: int, filename: str, max_bytes: int) -> bytes:
@@ -72,8 +75,8 @@ def read_regular_private(directory_fd: int, filename: str, max_bytes: int) -> by
     Access the named inode *relative to a pinned directory descriptor* and
     compare its metadata against the opened file before and after reading.
     """
-    if filename not in ("index.html", "release-manifest.json") and (
-        filename != "evidence.json"
+    if filename not in ("index.html", "release-manifest.json", "evidence.json") and (
+        re.fullmatch(r"f307-(?:onepage|landing_page)\.json", filename) is None
     ):
         raise ValueError("untrusted evidence filename")
     before = os.stat(filename, dir_fd=directory_fd, follow_symlinks=False)
@@ -109,9 +112,11 @@ def read_regular_private(directory_fd: int, filename: str, max_bytes: int) -> by
 
 def read_bounded_report(path: Path) -> bytes:
     """F1-309: do not read unbounded or linked evidence before JSON parsing."""
-    with os.fdopen(open_private_directory(path.parent), "rb") as directory:
-        # Descriptor used as an integer dir_fd, not as a readable stream.
-        return read_regular_private(directory.fileno(), "evidence.json", 4096)
+    directory_fd = open_private_directory(path.parent)
+    try:
+        return read_regular_private(directory_fd, path.name, 4096)
+    finally:
+        os.close(directory_fd)
 
 
 def verify(raw: bytes, private_dir: Path, product: str,
