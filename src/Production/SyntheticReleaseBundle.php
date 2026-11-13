@@ -48,6 +48,29 @@ final readonly class SyntheticReleaseBundle
         $this->bundleDigest = hash('sha256', $artifact->html."\0".$json);
     }
 
+
+    /**
+     * Verify a private package against a separately pinned, exact SHA-256
+     * of the complete original two-file byte sequence. The pin MUST come
+     * from an independent, authenticated source in a future integration.
+     * This is integrity comparison, not a signature or release authority.
+     *
+     * @param array<string,mixed> $files
+     */
+    public static function verifyExactBundle(
+        array $files,
+        ReleaseManifest $expected,
+        string $expectedBundleDigest,
+    ): bool {
+        if (!preg_match('/\\A[a-f0-9]{64}\\z/D', $expectedBundleDigest) ||
+            !self::verifyFiles($files, $expected)) {
+            return false;
+        }
+        $actual = hash('sha256',
+            $files['index.html']."\\0".$files['release-manifest.json']);
+        return hash_equals($expectedBundleDigest, $actual);
+    }
+
     /** @param array<string,mixed> $files */
     public static function verifyFiles(array $files, ReleaseManifest $expected): bool
     {
