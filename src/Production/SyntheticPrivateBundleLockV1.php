@@ -28,6 +28,7 @@ final class SyntheticPrivateBundleLockV1
         }
 
         $path=$privateDirectory.'/.sites-f1-24-'.$product.'.lock';
+        clearstatcache(true,$path);
         if (is_link($path) ||
             (file_exists($path) && !is_file($path)) ||
             (!$mayCreateLock && !is_file($path))) {
@@ -40,6 +41,7 @@ final class SyntheticPrivateBundleLockV1
         // Validate opened inode rather than trusting only a prior path
         // check; fail closed on a swapped file, symlink or hardlink.
         $opened=@fstat($handle);
+        clearstatcache(true,$path);
         $named=@lstat($path);
         if (!is_array($opened) || !is_array($named) ||
             (($opened['mode'] & 0170000) !== 0100000) ||
