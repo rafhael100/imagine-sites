@@ -149,6 +149,32 @@ def main() -> None:
             ), "symlinked parent directory")
             count += 1
 
+            # F1-335: a storage layer can ACK the correct length while
+            # writing altered bytes. Only independent post-write readback
+            # may report a successful archive.
+            corrupt_path = base / f"corrupt-f335-{product}.zip"
+            write_original = archive.os.write
+            try:
+                def write_wrong_bytes(fd: int, payload: bytes) -> int:
+                    return write_original(fd, b"X" + payload[1:])
+                archive.os.write = write_wrong_bytes
+                deny(lambda: archive.write_exclusive(corrupt_path, raw),
+                     "ZIP write silently corrupted while returning full size")
+            finally:
+                archive.os.write = write_original
+            assert not corrupt_path.exists()
+            count += 1
+
+            partial_path = base / f"short-f335-{product}.zip"
+            try:
+                archive.os.write = lambda fd, payload: 0
+                deny(lambda: archive.write_exclusive(partial_path, raw),
+                     "short ZIP write must fail without leaving a valid backup")
+            finally:
+                archive.os.write = write_original
+            assert not partial_path.exists()
+            count += 1
+
             destination = base / f"sites-f329-{product}.zip"
             archive.write_exclusive(destination, raw)
             assert archive.read_owner_regular(destination) == raw
