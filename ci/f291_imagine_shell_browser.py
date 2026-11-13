@@ -201,6 +201,44 @@ def main(browser: str) -> None:
                         "previewDigest":manifest["files"][label+".html"]["sha256"],
                         "safe":True,
                     }
+                # F1-316: 1366px desktop reduced to a 683px CSS viewport
+                # models the responsive reflow threshold at 200% zoom.
+                # This is NOT a replacement for human optical zoom/a11y QA.
+                c.call("Emulation.setDeviceMetricsOverride",{
+                    "width":683,"height":560,"deviceScaleFactor":1,"mobile":False
+                })
+                frame=c.call("Page.navigate",{"url":"about:blank"})["frameId"]
+                c.call("Page.setDocumentContent",{
+                    "frameId":frame,"html":pages["desktop"]
+                })
+                zoom=None
+                for _ in range(100):
+                    zoom=c.evaluate("""(() => {
+                      const links=[...document.querySelectorAll('nav.tabs a')];
+                      const logo=document.querySelector('.imagine-original-logo');
+                      return {
+                        ready:document.readyState==='complete' && !!logo && logo.complete,
+                        width:innerWidth, documentWidth:document.documentElement.scrollWidth,
+                        bodyWidth:document.body.scrollWidth,
+                        menuCount:links.length,
+                        allTouchable:links.length>0 && links.every(a =>
+                          a.getBoundingClientRect().height>=43.5 &&
+                          a.getBoundingClientRect().width>0),
+                        qaRows:document.querySelectorAll('#qa .qa-list li').length,
+                        frameIsolated:document.querySelector('iframe')?.getAttribute('sandbox')==='',
+                        noPublish:document.querySelectorAll('form,button,script').length===0
+                      };
+                    })()""")
+                    if zoom["ready"]:
+                        break
+                    time.sleep(.05)
+                if (not zoom or not zoom["ready"] or zoom["width"]!=683
+                    or zoom["documentWidth"]>685 or zoom["bodyWidth"]>685
+                    or not zoom["allTouchable"] or zoom["qaRows"]!=10
+                    or not zoom["frameIsolated"] or not zoom["noPublish"]):
+                    fail("zoom-equivalent desktop reflow failed: "+str(zoom))
+                print("PASS F1-316: desktop-equivalent 200% CSS viewport "
+                      "reflows at 683px without overflow or reduced touch targets")
             finally:
                 c.close()
         finally:
