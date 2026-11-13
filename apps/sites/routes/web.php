@@ -11,6 +11,7 @@ use Imagine\Sites\Integration\SiteProjectAdmission;
 use Imagine\Sites\Security\DenyingReplayStore;
 use Imagine\Sites\Security\ReplayStore;
 use Imagine\Sites\Security\SyntheticSignedCommand;
+use Imagine\Sites\Security\SyntheticCommercialEpochSignedCommand;
 
 // Only available to in-process CLI test harnesses with an explicit flag.
 // Under PHP-FPM, Swoole, Apache and PHP's HTTP dev server, this path
@@ -52,6 +53,61 @@ Route::post('/_lab/sites/v1/create-project', static function (Request $request) 
         'fingerprint'=>$cmd->semanticFingerprint(),
     ],202);
 })->name('sites.lab.create-project');
+
+
+/**
+ * F1-299: exact RAW JSON v3 command lab, never a public Portal integration.
+ * Route is registered only for in-process CLI/testing by the parent guard,
+ * and must independently check its opt-in + loopback even with route cache.
+ * No service identity, secret manager, operational Portal or database write.
+ */
+Route::post('/_lab/sites/v3/create-project', static function (Request $request) {
+    if (PHP_SAPI!=='cli' || !app()->environment('testing') ||
+        getenv('SITES_SYNTHETIC_HTTP')!=='1' ||
+        getenv('SITES_SYNTHETIC_V3_INTAKE')!=='1' ||
+        !in_array($request->ip(),['127.0.0.1','::1'],true) ||
+        !in_array($request->server('REMOTE_ADDR'),['127.0.0.1','::1'],true)) {
+        return response('Not found',404);
+    }
+    if (strtolower(trim((string)$request->header('Content-Type')))!=='application/json') {
+        return response()->json(['error'=>'lab_json_required'],415);
+    }
+
+    // Public-only synthetic fixture bytes, NEVER a service credential.
+    $dummyKey='DO-NOT-USE-SYNTHETIC-TEST-KEY-IN-PRODUCTION-123456789';
+    $replay=app()->bound(ReplayStore::class)
+        ? app(ReplayStore::class) : new DenyingReplayStore();
+    $authority=app()->bound(PortalProjectAuthorityGateway::class)
+        ? app(PortalProjectAuthorityGateway::class) : new DenyingPortalProjectAuthorityGateway();
+    try {
+        // Do not use ->json()->all(), which would erase duplicate-key
+        // ambiguity, alternate escapes and the exact signed byte sequence.
+        $raw=$request->getContent();
+        if (strlen($raw)>4096 || $raw==='') {
+            return response()->json(['error'=>'synthetic_v3_denied'],403);
+        }
+        $command=SyntheticCommercialEpochSignedCommand::verifyCanonicalJson(
+            $raw,$dummyKey,3,7,time(),$replay
+        );
+        $decision=(new SiteProjectAdmission($authority))->evaluate($command);
+        if (!$decision->allowed) {
+            return response()->json(['error'=>'synthetic_v3_denied'],403);
+        }
+    } catch (\DomainException|\InvalidArgumentException|\TypeError|\JsonException) {
+        return response()->json(['error'=>'synthetic_v3_denied'],403);
+    }
+    return response()->json([
+        'synthetic'=>true,
+        'status'=>'v3_contract_validated_not_executed',
+        'operationRef'=>$command->operationId,
+        'publishable'=>false,
+        'officialClientAcceptance'=>false,
+    ],202,[
+        'Cache-Control'=>'private, no-store, max-age=0',
+        'X-Content-Type-Options'=>'nosniff',
+        'X-Robots-Tag'=>'noindex, nofollow, noarchive',
+    ]);
+})->name('sites.lab.v3-create-project');
 
 
 /**
