@@ -39,6 +39,19 @@ foreach(['onepage','landing_page'] as $product) {
 
         f75Check(SyntheticReleaseBundle::verifyFiles($files,$manifest),
             "$product/$style: canonical generated manifest passes");
+        f75Check(strlen($files['index.html'])<=150000 &&
+            strlen($files['release-manifest.json'])<=8192,
+            "$product/$style: generated package fits both private reader byte limits");
+        foreach ([0,8193] as $length) {
+            $oversized=$files;
+            $oversized['release-manifest.json']=str_repeat('x',$length);
+            f75Check(!SyntheticReleaseBundle::verifyFiles($oversized,$manifest),
+                "$product/$style: invalid manifest length $length denied");
+        }
+        $oversized=$files;
+        $oversized['index.html']=str_repeat('x',150001);
+        f75Check(!SyntheticReleaseBundle::verifyFiles($oversized,$manifest),
+            "$product/$style: HTML over 150 KB rejected before auditing");
         $meta=json_decode($raw,true,16,JSON_THROW_ON_ERROR);
         $encoded=json_encode($meta,
             JSON_THROW_ON_ERROR|JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE

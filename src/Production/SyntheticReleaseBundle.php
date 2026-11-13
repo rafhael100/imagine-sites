@@ -43,6 +43,11 @@ final readonly class SyntheticReleaseBundle
             $manifest,
             JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
         )."\n";
+        // Align in-memory bundles with the bounded filesystem readback
+        // policy: a generated package must be verifiable by F1-301/F1-302.
+        if (strlen($json)<1 || strlen($json)>8192) {
+            throw new DomainException('Synthetic release manifest exceeds private byte policy.');
+        }
         // File names are FIXED, never interpolated from client/tenant input.
         $this->files = ['index.html' => $artifact->html, 'release-manifest.json' => $json];
         $this->bundleDigest = hash('sha256', $artifact->html."\0".$json);
@@ -81,6 +86,12 @@ final readonly class SyntheticReleaseBundle
 
         $html = $files['index.html'];
         $raw = $files['release-manifest.json'];
+        // Fail closed BEFORE parsing or auditing malformed oversized inputs.
+        // These are the exact F1-301 bounded disk readback limits.
+        if (strlen($html)<1 || strlen($html)>150000 ||
+            strlen($raw)<1 || strlen($raw)>8192) {
+            return false;
+        }
         if (!InertPreviewAudit::isSafe($html)) return false;
 
         try {
