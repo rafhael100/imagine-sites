@@ -1,5 +1,16 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## F1-313–316 — painel interno Imagine: QA completo, navegação responsiva e provas Chromium — 13/11/2026
+
+- **F1-313 / PR #385:** revisões administrativas Laravel mostram todas as dez verificações estruturais (antes exibiam sete), incluindo seções rotuladas, nomes dos links e FAQ semântica; cada item tem status textual legível e região QA com título acessível. Atualizados os contratos editoriais Laravel e o teste Chrome F1-43 que ainda esperavam sete itens.
+- **F1-314 / PR #386:** design system original Portal Node preservado (logo oficial, laranja #F9941D, grafite #171B19); links de menus têm altura mínima 44px, foco explícito, quebra responsiva para mobile e sem overflow nos cartões e preview. **11/11 workflow runs retornados com success** no SHA `9186fa1c81d6c13d5be1d88eda0ce8ce3f329fe8`.
+- **F1-315 / PR #387:** Chrome offline valida todos os targets `nav.tabs a` >=44px, 10/10 estados QA, região rotulada e preview isolado em 1365/820/390/320 CSS pixels, sem URLs externas; mantém screenshots fictícios para revisão. **4/4 workflow runs retornados com success** no SHA `6f262f9a1b500a557bc9647fa9bd6ca891bafe88`.
+- **F1-316 / PR #388:** inspeciona reorganização responsiva adicional a 683 CSS px (largura equivalente a 1366/2). Não confundir com prova completa de zoom óptico real nem com certificação WCAG. Validar resultado final de CI no SHA `3789e4b129c2d52e5995de7004bd932f0a35b393`.
+- **Integração UX atual:** sobre candidato de segurança #384, preserva todos os releases, hashes, políticas e escopos. Antes de promover a `dev`, revalidar F1-240, F1-241 e toda a suíte do novo HEAD; coletar revisão de UX, acessibilidade e AppSec independente. Issue de identidade #351 permanece aberta até telas reais, evidências por página, zoom 200% humano, mobile e aprovações.
+- **Fronteiras mantidas:** somente `APP_ENV=testing`/laboratórios CLI com dados fictícios; nenhum botão operacional, aprovação de cliente, captura de leads, DNS, Cloudflare, VPS ou despesas. `config/operational-readiness.json` 10/10 `false`; governança de branches #281 e OP01–OP05 #33–#38 continuam P0.
+
+---
+
 ## F1-308–312 — correções de segurança do verificador e writer privados — 13/11/2026
 
 - **F1-308/309, PR #380**, SHA `6c282204713aad8fbdc4df4da9e75273434773cb`: verificador Python fixa diretório, usa `O_NOFOLLOW|O_NONBLOCK` para arquivos e lê JSON de evidência com limite de 4096 bytes antes de parse; testes sintéticos FIFO/symlink/hardlink/substituição, pins falsos e permissão. **5/5 workflows retornados com success**.
