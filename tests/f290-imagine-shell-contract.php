@@ -29,6 +29,18 @@ $tokens=[
     '--imagine-radius-card'=>'9px',
     '--imagine-sidebar-width'=>'240px',
     '--imagine-font-ui'=>'Arial, Helvetica, sans-serif',
+    '--imagine-radius-panel'=>'14px',
+    '--imagine-radius-navigation'=>'10px',
+    '--imagine-shadow-panel'=>'0 6px 24px rgba(23, 27, 25, .035)',
+    '--imagine-content-max'=>'1380px',
+    '--imagine-touch-target'=>'44px',
+    '--imagine-space-1'=>'4px',
+    '--imagine-space-2'=>'8px',
+    '--imagine-space-3'=>'12px',
+    '--imagine-space-4'=>'16px',
+    '--imagine-space-6'=>'24px',
+    '--imagine-space-8'=>'32px',
+    '--imagine-space-12'=>'48px',
 ];
 foreach($tokens as $name=>$value) {
     assert290(str_contains($css,$name.': '.$value.';'),
@@ -73,6 +85,12 @@ assert290(str_contains($css,'min-height:44px; max-width:100%;') &&
     str_contains($css,'.preview-head { align-items:stretch; }') &&
     str_contains($css,'.workspace { overflow-x:hidden; }'),
     'staff-only navigation meets minimum touch target, keyboard focus and mobile wrapping');
+assert290(str_contains($css,'main { max-width:var(--imagine-content-max); }') &&
+    str_contains($css,'@media (min-width:941px)') &&
+    str_contains($css,'grid-template-columns:minmax(240px,var(--imagine-sidebar-width)) minmax(0,1fr)') &&
+    str_contains($css,'box-shadow:var(--imagine-shadow-panel);') &&
+    str_contains($css,'border-radius:var(--imagine-radius-navigation);'),
+    'staff-only shell follows original Portal panel, menu and content geometry');
 assert290(str_contains($view,'aria-label="Alternar produto"') &&
     str_contains($view,'aria-label="Alternar tema"') &&
     str_contains($view,'aria-label="Alternar dispositivo"'),
