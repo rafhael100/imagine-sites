@@ -89,6 +89,20 @@ Artisan::command('sites:package-fixture {product=onepage}', function (): int {
     // one directory rename. A failed write must not expose half a package.
     // No network, Cloudflare or customer path is involved.
     $private=storage_path('app/private');
+    if (is_link($private) ||
+        (!is_dir($private) && !mkdir($private,0700,true) && !is_dir($private)) ||
+        is_link($private)) {
+        $this->error('Private staging parent path is unsafe.');
+        return Command::FAILURE;
+    }
+    $productLock=\Imagine\Sites\Production\SyntheticPrivateBundleLockV1::acquire(
+        $private,$product,true
+    );
+    if ($productLock===null) {
+        $this->error('Private product package is locked or has unsafe lock state.');
+        return Command::FAILURE;
+    }
+    try {
     $directory=$private.'/sites-f1-24-'.$product;
     if (is_link($private) ||
         (!is_dir($private) && !mkdir($private,0700,true) && !is_dir($private)) ||
@@ -156,6 +170,9 @@ Artisan::command('sites:package-fixture {product=onepage}', function (): int {
     $this->line('Package SHA-256: '.$bundle->bundleDigest);
     $this->line('Artifact SHA-256: '.$artifact->digest);
     return Command::SUCCESS;
+    } finally {
+        $productLock->release();
+    }
 })->purpose('Create an inert, content-addressed fictional release bundle in private test storage');
 
 
@@ -184,6 +201,16 @@ Artisan::command(
         }
 
         $private=storage_path('app/private');
+        // Do not create a lock file in the READ-ONLY verifier.
+        // Missing lock means a fixture was not built by the safe writer.
+        $productLock=\Imagine\Sites\Production\SyntheticPrivateBundleLockV1::acquire(
+            $private,$product,false
+        );
+        if ($productLock===null) {
+            $this->error('Private bundle cannot be read without writer lock.');
+            return Command::FAILURE;
+        }
+        try {
         $directory=$private.'/sites-f1-24-'.$product;
         if (is_link($private) || is_link($directory) ||
             !is_dir($private) || !is_dir($directory)) {
@@ -232,6 +259,9 @@ Artisan::command(
         }
         $this->line('PASS: PRIVATE SYNTHETIC BUNDLE ONLY — NO RELEASE AUTHORITY.');
         return Command::SUCCESS;
+        } finally {
+            $productLock->release();
+        }
     }
 )->purpose('Read and verify one pinned synthetic private package without writing or publishing');
 
