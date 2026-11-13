@@ -91,6 +91,22 @@ assert319(Combined::inspect($original,$retry,$otherWindow,$attempt,$source)->rea
     'RETRY_TIME_EVIDENCE_DISAGREES' && $source->calls===0,
     'two inconsistent retry hints cannot be composed as a pass');
 
+// F1-320: even equal next-due timestamps are not interchangeable if
+// an outbox worker accidentally pairs diagnostics from two T0 ledgers.
+$foreignT0=new LeadDeadline($t0->modify('+60 seconds'));
+$foreignWindow=Window::inspect($foreignT0,$backoff,$response,$last,$now);
+assert319($foreignWindow->timeElapsed &&
+    $foreignWindow->nextConsiderationAt?->getTimestamp()===
+        $window->nextConsiderationAt?->getTimestamp() &&
+    $foreignWindow->originalT0->getTimestamp()!==$attempt->originalT0->getTimestamp(),
+    'different durable T0 can produce the exact same next-retry timestamp');
+$source=new Fixture319Authority([$snapshot(9),$snapshot(9)]);
+$crossT0=Combined::inspect($original,$retry,$foreignWindow,$attempt,$source);
+assert319($crossT0->reasonCode==='RETRY_ORIGINAL_T0_CONTEXT_DISAGREES' &&
+    $source->calls===0 && !$crossT0->syntheticContextMatched &&
+    !$crossT0->mayDispatchToCrm(),
+    'mixed retry-origin evidence denied before any binding lookup');
+
 foreach ([0,1,2,3,4,5] as $field) {
     $altered=$ids;
     $altered[$field]='11111111-1111-4111-8111-111111111111';
