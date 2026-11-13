@@ -1,0 +1,45 @@
+# F1-237 ephemeral CI ONLY. No host ports, no real client traffic.
+name: imagine-sites-fpm-probe
+services:
+  sites-fpm:
+    build:
+      context: ../..
+      dockerfile: ops/fpm-probe/Dockerfile
+    profiles: [ci]
+    restart: "no"
+    networks: [fpm-probe-internal]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    pids_limit: 128
+    mem_limit: 768m
+
+  sites-web:
+    image: nginxinc/nginx-unprivileged:1.27-alpine
+    profiles: [ci]
+    restart: "no"
+    depends_on: [sites-fpm]
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    networks: [fpm-probe-internal]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    pids_limit: 64
+    mem_limit: 128m
+
+  probe-client:
+    image: curlimages/curl:8.14.1
+    profiles: [ci]
+    restart: "no"
+    depends_on: [sites-web]
+    entrypoint: ["/bin/sh","/probe/check.sh"]
+    volumes:
+      - ./check.sh:/probe/check.sh:ro
+    networks: [fpm-probe-internal]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    pids_limit: 32
+    mem_limit: 64m
+
+networks:
+  fpm-probe-internal:
+    internal: true

@@ -1,0 +1,31 @@
+name: Sites F1-250 Composer scripts/plugins denied in root Docker builds
+on:
+  pull_request:
+    paths:
+      - 'ops/staging/Dockerfile'
+      - 'ops/fpm-probe/Dockerfile'
+      - 'ci/f250_rootless_composer_build_fence.py'
+      - '.github/workflows/sites-f1-250-rootless-composer.yml'
+      - 'docs/SITES-F1-250-ROOTLESS-COMPOSER.md'
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  rootless-composer-regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Reject root-time Composer hooks and root Laravel bootstrap
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ci/f250_rootless_composer_build_fence.py
+          python3 ci/f250_rootless_composer_build_fence.py
+      - name: Explain scope
+        run: |
+          echo 'Static negative checks only; real test Docker builds execute in F1-83 and F1-237 on the same PR head.'
+          echo 'No credentials, network publishing, production image or application deployment.'
