@@ -87,7 +87,7 @@ f360Check(
 );
 f360Check(f360Denied(static fn()=> $a->exec(
     "INSERT INTO sites_f360.outbox(tenant_ref,operation_ref,command_digest)
-     VALUES('tenant-f360-a','forged',$shaA)"
+     VALUES('tenant-f360-a','forged','$shaA')"
 ),'42501'), 'app login cannot directly forge an outbox row');
 f360Check(f360Denied(static fn()=> $a->exec('SET ROLE sites_f360_owner'),'42501'),
     'app login cannot impersonate protected schema owner');
