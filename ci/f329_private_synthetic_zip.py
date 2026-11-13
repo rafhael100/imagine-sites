@@ -75,6 +75,14 @@ def check_files(files: dict[str, bytes], product: str,
         if (not isinstance(value, str) or
                 not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", value)):
             raise ValueError("unrecognized synthetic manifest identity")
+    # F1-336: JSON parsers may accept multiple byte spellings for the
+    # same keys, while other services canonicalize/compare differently.
+    # Accept only the exact pretty-print representation created by the
+    # synthetic PHP ReleaseBundle (all its values are ASCII identifiers,
+    # booleans, hashes and integer sizes). ZIP digests alone are untrusted.
+    canonical = (json.dumps(doc, ensure_ascii=False, indent=4) + "\n").encode("utf-8")
+    if raw != canonical:
+        raise ValueError("noncanonical or ambiguously encoded private manifest")
 
 
 def require_pinned_scope(

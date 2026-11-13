@@ -123,6 +123,30 @@ def main() -> None:
                  "consistent cross-tenant ZIP rejected against project pin")
             count += 1
 
+            # F1-336: a self-consistent hash must not turn a differently
+            # encoded but parseable JSON manifest into an approved backup.
+            manifest_obj = json.loads(files["release-manifest.json"])
+            for rewritten in (
+                json.dumps(manifest_obj, separators=(",", ":")).encode("utf-8"),
+                files["release-manifest.json"].replace(
+                    b'"tenantRef"', b'"\\u0074enantRef"', 1
+                ),
+                files["release-manifest.json"].rstrip(b"\n"),
+            ):
+                assert rewritten != files["release-manifest.json"]
+                altered = dict(files)
+                altered["release-manifest.json"] = rewritten
+                altered_digest = archive.sha(
+                    files["index.html"] + b"\x00" + rewritten
+                )
+                deny(lambda changed=altered, pin=altered_digest: archive.check_files(
+                    changed, product, artifact, pin
+                ), "noncanonical JSON accepted with recomputed hash")
+                deny(lambda changed=altered, pin=altered_digest: archive.verify_zip(
+                    archive.make_zip(changed), product, artifact, pin
+                ), "ZIP accepted ambiguous manifest JSON")
+                count += 1
+
             raw = archive.make_zip(files)
             assert archive.make_zip(files) == raw
             assert archive.verify_zip(raw, product, artifact, bundle_digest) == files
