@@ -124,6 +124,16 @@ def main(browser: str) -> None:
                           const logo=document.querySelector('header img.imagine-original-logo');
                           const tab=document.querySelector('.tabs a[aria-current]');
                           const iframe=document.querySelector('iframe[sandbox]');
+                          const skip=document.querySelector('a.skip-shell');
+                          const target=document.querySelector('main#sites-review-main');
+                          const skipInitiallyHidden=!!skip &&
+                            getComputedStyle(skip).transform!=='none';
+                          if(skip) skip.focus();
+                          const skipFocusable=!!skip &&
+                            document.activeElement===skip &&
+                            getComputedStyle(skip).transform==='none';
+                          const skipHeight=skip?skip.getBoundingClientRect().height:0;
+                          if(skip) skip.blur();
                           return {
                             ready:document.readyState==='complete',
                             width:innerWidth,
@@ -131,6 +141,10 @@ def main(browser: str) -> None:
                             bodyWidth:document.body.scrollWidth,
                             logoReady:!!(logo && logo.complete && logo.naturalWidth===200),
                             logoAlt:logo?.alt,
+                            skipIsFirstLink:skip===document.body.querySelector('a'),
+                            skipPointsToMain:!!skip && skip.hash==='#sites-review-main' &&
+                              target===document.querySelector('main') && target.tabIndex===-1,
+                            skipInitiallyHidden,skipFocusable,skipHeight,
                             token:getComputedStyle(document.documentElement).getPropertyValue('--imagine-orange').trim(),
                             header:getComputedStyle(document.querySelector('header')).backgroundColor,
                             body:getComputedStyle(document.body).backgroundColor,
@@ -164,6 +178,11 @@ def main(browser: str) -> None:
                         or state["bodyWidth"]>width+2
                         or not state["logoReady"]
                         or state["logoAlt"]!="Imagine"
+                        or not state["skipIsFirstLink"]
+                        or not state["skipPointsToMain"]
+                        or not state["skipInitiallyHidden"]
+                        or not state["skipFocusable"]
+                        or state["skipHeight"]<43.5
                         or state["token"]!="#f9941d"
                         or state["header"]!="rgb(255, 255, 255)"
                         or state["body"]!="rgb(247, 247, 248)"
