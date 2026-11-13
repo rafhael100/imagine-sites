@@ -182,7 +182,7 @@ final class SyntheticReleaseBundleCommandTest extends TestCase
             $arguments=[
                 'product'=>$product,
                 'artifactDigest'=>hash('sha256',$html),
-                'bundleDigest'=>hash('sha256',$html."\\0".$manifest),
+                'bundleDigest'=>hash('sha256',$html.chr(0).$manifest),
                 '--evidence-json'=>true,
             ];
             self::assertSame(0,Artisan::call('sites:verify-fixture-bundle',$arguments));
