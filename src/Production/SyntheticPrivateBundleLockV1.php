@@ -14,6 +14,19 @@ namespace Imagine\Sites\Production;
  */
 final class SyntheticPrivateBundleLockV1
 {
+    /** @param mixed $opened @param mixed $named */
+    private static function sameEmptyLockFile(mixed $opened,mixed $named):bool
+    {
+        return is_array($opened) && is_array($named) &&
+            (($opened['mode'] & 0170000) === 0100000) &&
+            (($named['mode'] & 0170000) === 0100000) &&
+            (($opened['nlink'] ?? 0) === 1) &&
+            (($named['nlink'] ?? 0) === 1) &&
+            $opened['dev'] === $named['dev'] &&
+            $opened['ino'] === $named['ino'] &&
+            $opened['size'] === 0 && $named['size'] === 0;
+    }
+
     /** @param resource $handle */
     private function __construct(private mixed $handle) {}
 
@@ -23,6 +36,7 @@ final class SyntheticPrivateBundleLockV1
         bool $mayCreateLock = false,
     ): ?self {
         if (!in_array($product, ['onepage', 'landing_page'], true) ||
+            str_contains($privateDirectory, chr(0)) ||
             is_link($privateDirectory) || !is_dir($privateDirectory)) {
             return null;
         }
@@ -43,19 +57,29 @@ final class SyntheticPrivateBundleLockV1
         $opened=@fstat($handle);
         clearstatcache(true,$path);
         $named=@lstat($path);
-        if (!is_array($opened) || !is_array($named) ||
-            (($opened['mode'] & 0170000) !== 0100000) ||
-            ($opened['nlink'] ?? 0) !== 1 ||
-            $opened['ino'] !== $named['ino'] ||
-            $opened['dev'] !== $named['dev'] ||
+        if (!self::sameEmptyLockFile($opened,$named) ||
             is_link($path) ||
             !@flock($handle,LOCK_EX|LOCK_NB)) {
             @fclose($handle);
             return null;
         }
-        if ($mayCreateLock) {
-            // Empty fixed-name local file only, never a secret or client ID.
-            @chmod($path,0600);
+        if ($mayCreateLock && !@chmod($path,0600)) {
+            @flock($handle,LOCK_UN);
+            @fclose($handle);
+            return null;
+        }
+        // F1-303: recheck the same empty, private inode AFTER exclusive
+        // lock acquisition and optional chmod. A replaced path, symlink,
+        // hardlink or a nonprivate lock file must never be accepted.
+        $locked=@fstat($handle);
+        clearstatcache(true,$path);
+        $current=@lstat($path);
+        if (!self::sameEmptyLockFile($locked,$current) ||
+            !self::sameEmptyLockFile($locked,$opened) ||
+            is_link($path) || (($locked['mode'] & 0777) !== 0600)) {
+            @flock($handle,LOCK_UN);
+            @fclose($handle);
+            return null;
         }
         return new self($handle);
     }
