@@ -20,6 +20,12 @@
 - [PR #54](https://github.com/rafhael100/imagine-sites/pull/54) — F1-37, comando Laravel CLI de teste gera Onepage/Landing fictícias, pacote privado e proposta Portal com digest exato, sem aceitação nem publicação. CI PHP 8.3/8.4, Laravel, bundle e safety guard PASS; merge em `dev` (`a8d26fc`).
 - [SITES-HOMOLOGATION-ENTRY](docs/SITES-HOMOLOGATION-ENTRY-2026-11-09.md) — matriz de entrada e bloqueadores com issues #33–#38.
 
+## 13/11/2026 — candidatos P0 ainda isolados, sem integração em dev/main
+
+- [PR #442](https://github.com/rafhael100/imagine-sites/pull/442) — revisão PostgreSQL 18 pequena e independente, com testes F1-350..354 de menor privilégio, vedação de shadowing SQL, CONNECT explícito e prova negativa de restauração que reanima associação local. **CI PostgreSQL 18 PHP 8.3/8.4 aprovado**, mais recente [run #43480908411](https://github.com/rafhael100/imagine-sites/actions/runs/43480908411), porém permanece **draft/NO-GO**. A política GUC da migration original NÃO autentica tenant.
+- [PR #443](https://github.com/rafhael100/imagine-sites/pull/443) — F1-355: guarda sintética de admissão Portal↔Sites exige revisões/identidades/atividade/freshness de provas Portal e de revogação externa concordantes. **CI PHP 8.3/8.4 aprovado** ([run #43481381071](https://github.com/rafhael100/imagine-sites/actions/runs/43481381071)); guard anti-deploy [#43481381069](https://github.com/rafhael100/imagine-sites/actions/runs/43481381069) também aprovado. Sem IAM real, fonte externa, dados de clientes ou endpoints operacionais.
+- **Próximo bloqueio P0:** revisão independente e proteção dev/main (#281), IAM Portal (#33), fonte de revogação fora do domínio de restore e banco realmente homologado (#34), demais OP03–OP05 e infraestrutura de teste (#38). Dez gates continuam falsos; não promover PRs nem publicar por esses resultados de laboratório.
+
 **Ainda não há ambiente operacional Sites publicado.** P0/RF-PEND/RV-CT/AppSec/LGPD, contratos financeiros, identidade, Cloudflare/DNS, banco produtivo, geração real por IA/n8n, captação/CRM fisicamente redundante e backups/restore continuam não homologados.
 
 **Gate exclusivo do responsável:** conexão autorizada de ambiente Leaseweb + Cloudflare e domínio técnico de teste, com gestão segura de credenciais/quotas, antes de qualquer homologação real. Não inserir credenciais no GitHub público ou neste chat.
