@@ -38,6 +38,8 @@ OUTER = r"""(() => {
    referrer:iframe?.getAttribute('referrerpolicy'),
    skip:document.querySelector('a.skip-preview')?.getAttribute('href'),
    skipTarget:document.getElementById('apos-previa')?.getAttribute('tabindex'),
+   staffSkip:document.querySelector('a.skip-shell')?.getAttribute('href'),
+   staffMainTarget:document.getElementById('sites-review-main')?.getAttribute('tabindex'),
    iframeTitle:iframe?.getAttribute('title'),
    richInfo:document.body.textContent.includes('Conteúdo da página ampliado') &&
             document.body.textContent.includes('2 soluções e 2 perguntas frequentes'),
@@ -200,11 +202,13 @@ def inspect(root: Path, binary: str) -> None:
                         # F1-189: F1-183 introduced an explicit, real
                         # keyboard bypass of the sandboxed preview. It is a
                         # ninth fixed local anchor, not an external route.
-                        assert len(result["links"])==9,(label,result["links"])
+                        assert len(result["links"])==10,(label,result["links"])
+                        assert result["links"][0]=="#sites-review-main",(label,result["links"])
+                        assert result["staffSkip"]=="#sites-review-main" and result["staffMainTarget"]=="-1",label
                         assert result["links"][-2:]==["#apos-previa","#detalhes"],(label,result["links"])
                         assert result["skip"]=="#apos-previa" and result["skipTarget"]=="-1",label
                         for href in result["links"]:
-                            assert href in ("#apos-previa","#detalhes") or href in expected,(label,href)
+                            assert href in ("#sites-review-main","#apos-previa","#detalhes") or href in expected,(label,href)
                         count+=1
                     # Actual iframe HTML is inspected separately: no sandbox bypass.
                     for width,height in ((1365,900),(390,844),(320,740)):

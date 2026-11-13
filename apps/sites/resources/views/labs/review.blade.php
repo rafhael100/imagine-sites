@@ -88,8 +88,9 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
 </style>
 </head>
 <body>
+<a class="skip-shell" href="#sites-review-main">Ir para o conteúdo principal da revisão</a>
 <header><div class="brand"><img class="imagine-original-logo" src="/assets/logo-imagine.png" alt="Imagine" width="140"><span class="brand-app">Sites<small>Laboratório de revisão visual</small></span></div><span class="flag">Somente dados fictícios</span></header>
-<main>
+<main id="sites-review-main" tabindex="-1">
 <div class="intro">
   <div><div class="kicker">Produção de sites / Revisão</div><h1>Confira a prévia antes de avançar</h1><p class="sub">Experiência de demonstração. Nenhuma ação aprova ou publica um site.</p></div>
   <span class="status">Revisão interna pendente · Aceite oficial pendente no Portal</span>

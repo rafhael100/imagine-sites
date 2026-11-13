@@ -139,6 +139,8 @@ METRICS = r"""(() => {
     frameTitle:frame?.getAttribute('title'),frameTabindex:frame?.getAttribute('tabindex'),qa:document.querySelectorAll('.qa-list li').length,
     skipTarget:document.querySelector('a.skip-preview')?.getAttribute('href'),
     skipPresent:document.getElementById('apos-previa')?.getAttribute('tabindex'),
+    staffSkip:document.querySelector('a.skip-shell')?.getAttribute('href'),
+    staffMain:document.getElementById('sites-review-main')?.getAttribute('tabindex'),
     controls:document.querySelectorAll('form,button,input,script,object,embed').length
   };
 })()"""
@@ -242,7 +244,9 @@ def run(gallery: Path, browser: str) -> None:
                     assert result["lang"] == "pt-BR", (filename, result)
                     assert result["main"] == 1 and result["headings"] == 1, (filename, result)
                     assert result["navSelected"] == [1, 1], (filename, result)
-                    assert len(result["links"]) == 6, (filename, result)
+                    assert len(result["links"]) == 7, (filename, result)
+                    assert result["links"][0] == "#sites-review-main", (filename,result)
+                    assert result["staffSkip"] == "#sites-review-main" and result["staffMain"] == "-1", (filename,result)
                     assert result["links"][-2:] == ["#apos-previa", "#detalhes"], (filename,result)
                     assert result["skipTarget"] == "#apos-previa" and result["skipPresent"] == "-1", (filename,result)
                     assert result["linksVisible"] and result["navigationLocal"], (filename, result)
@@ -258,23 +262,36 @@ def run(gallery: Path, browser: str) -> None:
                     # rather than treating a missing footer as success.
                     client.call("Page.bringToFront")
                     client.evaluate("document.querySelector('a[href]').focus()")
+                    enter = {"key": "Enter", "code": "Enter",
+                             "windowsVirtualKeyCode": 13, "nativeVirtualKeyCode": 13}
+                    # F1-340: the FIRST keyboard link jumps to the main
+                    # landmark; unlike the iframe bypass this is an early
+                    # orientation aid, not a public navigation route.
+                    client.call("Input.dispatchKeyEvent", {"type": "rawKeyDown", **enter})
+                    client.call("Input.dispatchKeyEvent", {"type": "keyUp", **enter})
+                    shell_skip = client.evaluate("""(() => ({
+                      hash:location.hash,
+                      target:!!document.getElementById('sites-review-main')
+                    }))()""")
+                    assert shell_skip["hash"]=="#sites-review-main" and shell_skip["target"], (
+                        filename, "Enter on first link must jump to staff main", shell_skip
+                    )
+                    client.evaluate("document.querySelector('a[href]').focus()")
                     key = {"key": "Tab", "code": "Tab",
                            "windowsVirtualKeyCode": 9, "nativeVirtualKeyCode": 9}
                     focused = [client.evaluate(
                         "document.activeElement?.getAttribute('href') || document.activeElement?.tagName"
                     )]
-                    for _ in range(4):
+                    for _ in range(len(result["links"])-2):
                         client.call("Input.dispatchKeyEvent", {"type": "rawKeyDown", **key})
                         client.call("Input.dispatchKeyEvent", {"type": "keyUp", **key})
                         focused.append(client.evaluate(
                             "document.activeElement?.getAttribute('href') || document.activeElement?.tagName"
                         ))
-                    assert focused == result["links"][:5], (
-                        filename, "first four controls and iframe bypass must be keyboard reachable",
+                    assert focused == result["links"][:-1], (
+                        filename, "all controls and iframe bypass must be keyboard reachable",
                         focused, result["links"]
                     )
-                    enter = {"key": "Enter", "code": "Enter",
-                             "windowsVirtualKeyCode": 13, "nativeVirtualKeyCode": 13}
                     client.call("Input.dispatchKeyEvent", {"type": "rawKeyDown", **enter})
                     client.call("Input.dispatchKeyEvent", {"type": "keyUp", **enter})
                     skip_state=client.evaluate("""(() => ({
