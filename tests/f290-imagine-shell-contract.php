@@ -91,6 +91,13 @@ assert290(str_contains($css,'main { max-width:var(--imagine-content-max); }') &&
     str_contains($css,'box-shadow:var(--imagine-shadow-panel);') &&
     str_contains($css,'border-radius:var(--imagine-radius-navigation);'),
     'staff-only shell follows original Portal panel, menu and content geometry');
+assert290(str_contains($view,'<a class="skip-shell" href="#sites-review-main">') &&
+    str_contains($view,'<main id="sites-review-main" tabindex="-1">') &&
+    substr_count($view,'href="#sites-review-main"')===1 &&
+    str_contains($css,'.skip-shell:focus,.skip-shell:focus-visible') &&
+    str_contains($css,'min-height:var(--imagine-touch-target);') &&
+    str_contains($css,'transform:translateY(-160%);'),
+    'keyboard-first skip link has real main target, 44px focus surface and no fake route');
 assert290(str_contains($view,'aria-label="Alternar produto"') &&
     str_contains($view,'aria-label="Alternar tema"') &&
     str_contains($view,'aria-label="Alternar dispositivo"'),
