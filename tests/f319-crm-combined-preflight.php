@@ -85,7 +85,7 @@ assert319(Combined::inspect($original,$retry,$window,$wait,$source)->reasonCode=
     'ATTEMPT_SCOPE_OR_TIME_NOT_VERIFIED' && $source->calls===0,
     'provider wait never triggers binding reads');
 
-$otherWindow=Window::inspect($deadline,$backoff,Reply::assess(429,'700'),$last,$now);
+$otherWindow=Window::inspect($deadline,$backoff,Reply::assess(429,'1100'),$last,$now);
 $source=new Fixture319Authority([$snapshot(9),$snapshot(9)]);
 assert319(Combined::inspect($original,$retry,$otherWindow,$attempt,$source)->reasonCode===
     'RETRY_TIME_EVIDENCE_DISAGREES' && $source->calls===0,
