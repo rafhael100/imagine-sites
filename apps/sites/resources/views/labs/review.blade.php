@@ -73,7 +73,11 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
 .seo-snippet-advisories{padding-left:20px;margin:8px 0;color:#61470e;font-size:.78rem}
 @endif
 .note{font-size:.78rem;background:#ecf3fb;border:1px solid #d5e5f6;padding:15px 18px;border-radius:10px;margin-top:20px;color:#2a5077}
-.qa-summary{margin-top:20px;border-top:1px solid #e5ebf2;padding-top:17px}.qa-summary strong{font-size:.84rem}.qa-summary p{font-size:.73rem;color:#52647a;margin:5px 0 10px}.qa-list{padding:0;list-style:none;display:grid;gap:7px}.qa-list li{display:flex;gap:9px;align-items:center;font-size:.76rem}.qa-list span{display:grid;place-items:center;width:18px;height:18px;background:#e8f4ec;color:#246342;border-radius:50%;font-weight:800}.qa-summary p.pending{margin-top:11px;background:#fff8e9;color:#7a5b23;border-radius:7px;padding:9px}
+.qa-summary{margin-top:20px;border-top:1px solid #e5ebf2;padding-top:17px}.qa-summary strong{font-size:.84rem}
+.qa-summary h3{font-size:.95rem;font-weight:800;margin:0}
+.qa-list li{min-height:32px;gap:9px;flex-wrap:wrap}
+.qa-list .qa-state{margin-left:auto;color:#23623d;font-size:.75rem;white-space:nowrap}
+@media(max-width:610px){.qa-list .qa-state{width:100%;margin-left:24px}}.qa-summary p{font-size:.73rem;color:#52647a;margin:5px 0 10px}.qa-list{padding:0;list-style:none;display:grid;gap:7px}.qa-list li{display:flex;gap:9px;align-items:center;font-size:.76rem}.qa-list span{display:grid;place-items:center;width:18px;height:18px;background:#e8f4ec;color:#246342;border-radius:50%;font-weight:800}.qa-summary p.pending{margin-top:11px;background:#fff8e9;color:#7a5b23;border-radius:7px;padding:9px}
 .editorial-summary{margin-top:15px;padding-top:15px;border-top:1px solid #e5ebf2}
 .editorial-summary strong{font-size:.84rem}
 .editorial-summary .sub{margin:5px 0}
@@ -502,20 +506,27 @@ iframe{width:100%;height:505px;border:0;display:block;background:#fff}
         <div><dt>Aceite oficial</dt><dd>Não registrado</dd></div>
       </dl>
       <div class="locked">Aprovação, publicação e entrega desabilitadas neste laboratório.</div>
-      <div class="qa-summary" id="qa">
-        <strong>Verificações estruturais</strong>
-        <p>Resultados automáticos da prévia. Não equivalem à certificação de acessibilidade.</p>
-        <ul class="qa-list">
+      <div class="qa-summary" id="qa" aria-labelledby="qa-heading">
+        <h3 id="qa-heading">Verificações estruturais</h3>
+        <p>Dez verificações automáticas do HTML exato. Não equivalem à certificação de acessibilidade nem à aprovação do cliente.</p>
+        <ul class="qa-list" aria-label="Resultados da prévia privada">
         @foreach([
           'inert_markup'=>'HTML sem conteúdo ativo',
           'sha256_consistent'=>'Identidade dos bytes',
           'lang_and_title'=>'Idioma e título',
           'main_and_heading'=>'Regiões e H1',
           'navigation_anchors'=>'Links internos e IDs',
+          'section_heading_labels'=>'Títulos e nomes das seções',
+          'link_accessible_names'=>'Links com nomes acessíveis',
           'mobile_and_noindex'=>'Viewport e noindex',
-          'no_executable_elements'=>'Sem tags executáveis'
+          'no_executable_elements'=>'Sem tags executáveis',
+          'faq_disclosure_semantics'=>'FAQ com estrutura semântica'
         ] as $code=>$label)
-          <li><span aria-hidden="true">{{ ($qaChecks[$code]??false) ? '✓' : '!' }}</span>{{ $label }}</li>
+          <li>
+            <span aria-hidden="true">{{ ($qaChecks[$code]??false) ? '✓' : '!' }}</span>
+            <span>{{ $label }}</span>
+            <strong class="qa-state">{{ ($qaChecks[$code]??false) ? 'Conforme' : 'Revisar' }}</strong>
+          </li>
         @endforeach
         </ul>
         <p class="pending">Revisão visual, contraste, navegação por teclado e conteúdo exigem validação humana posterior.</p>
