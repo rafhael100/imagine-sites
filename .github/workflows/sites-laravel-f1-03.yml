@@ -39,7 +39,10 @@ jobs:
         working-directory: apps/sites
         run: |
           set -euo pipefail
-          ! php artisan route:list --json | grep -q '_lab/sites/v1/create-project'
+          php artisan route:list --json > "$RUNNER_TEMP/sites-routes.json"
+          ! grep -q '_lab/sites/v1/create-project' "$RUNNER_TEMP/sites-routes.json"
+          ! grep -q '_lab/sites/v3/create-project' "$RUNNER_TEMP/sites-routes.json"
+          rm -f "$RUNNER_TEMP/sites-routes.json"
       - name: Standard Laravel tests with synthetic HTTP disabled
         working-directory: apps/sites
         run: php artisan test --no-ansi
