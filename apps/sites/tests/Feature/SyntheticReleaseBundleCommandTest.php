@@ -67,7 +67,7 @@ final class SyntheticReleaseBundleCommandTest extends TestCase
         self::assertTrue(\Imagine\Sites\Production\SyntheticReleaseBundle::verifyExactBundle(
             $files,$release,$matched[1]
         ));
-        $files['release-manifest.json'].="\\n";
+        $files['release-manifest.json'].="\n";
         self::assertFalse(\Imagine\Sites\Production\SyntheticReleaseBundle::verifyExactBundle(
             $files,$release,$matched[1]
         ));
