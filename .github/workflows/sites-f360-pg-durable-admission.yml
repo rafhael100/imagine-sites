@@ -1,0 +1,140 @@
+name: Sites F1-360 PostgreSQL18 transactional ingress and outbox - disposable CI only
+on:
+  pull_request:
+    paths:
+      - 'tests/f360-pg-durable-admission-outbox.php'
+      - 'tests/fixtures/f360-pg-durable-admission.sql'
+      - 'tests/f361-pg-outbox-worker.php'
+      - 'tests/f362-pinned-portal-to-pg-outbox.php'
+      - 'tests/f363-pg-durable-nonce.php'
+      - 'tests/f364-transactional-signed-ingress-adapter.php'
+      - 'src/Persistence/LabTransactionalSignedIngressV1.php'
+      - 'tests/fixtures/f363-pg-durable-nonce.sql'
+      - 'tests/fixtures/f361-pg-outbox-worker.sql'
+      - '.github/workflows/sites-f360-pg-durable-admission.yml'
+      - 'docs/SITES-F1-360-PG-ATOMIC-INGRESS-LAB.md'
+permissions:
+  contents: read
+jobs:
+  pg18-transactional-ingress:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: f360-fictional-admin-disposable-only
+          POSTGRES_DB: sites_f360_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sites_f360_lab"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      APP_ENV: testing
+      GITHUB_ACTIONS: 'true'
+      SITES_F360_PG_LAB: '1'
+      SITES_F361_OUTBOX_LAB: '1'
+      SITES_F362_CROSS_STACK_LAB: '1'
+      SITES_F363_NONCE_LAB: '1'
+      SITES_F364_BRIDGE_LAB: '1'
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: sites_f360_lab
+      DB_USERNAME: postgres
+      DB_PASSWORD: f360-fictional-admin-disposable-only
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: rafhael100/imagine-sites
+          ref: 21732e9558b730e38a6845adb593d29f309ff6a9
+          path: sites-signed-candidate
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: rafhael100/imagine-portal
+          ref: bf1b2794de4d6000f120ffa2b1e6dd557f34c35e
+          path: portal-candidate
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          extensions: pdo,pdo_pgsql
+          coverage: none
+      - name: PHP syntax and PG18 extension
+        run: |
+          set -euo pipefail
+          php -l tests/f360-pg-durable-admission-outbox.php
+          php -l tests/f361-pg-outbox-worker.php
+          php -l tests/f362-pinned-portal-to-pg-outbox.php
+          php -l tests/f363-pg-durable-nonce.php
+          php -l src/Persistence/LabTransactionalSignedIngressV1.php
+          php -l tests/f364-transactional-signed-ingress-adapter.php
+          php -r 'if (!extension_loaded("pdo_pgsql")) exit(1);'
+      - name: Fail closed without explicit opt-in
+        run: |
+          set -euo pipefail
+          if SITES_F360_PG_LAB=0 php tests/f360-pg-durable-admission-outbox.php; then
+            echo 'Unsafe: disposable DB fixture ran without lab opt-in'
+            exit 1
+          fi
+          if GITHUB_ACTIONS=false php tests/f360-pg-durable-admission-outbox.php; then
+            echo 'Unsafe: fixture ran outside its CI provenance gate'
+            exit 1
+          fi
+      - name: Real PostgreSQL18 atomic admission, outbox and negative cases
+        run: |
+          set -euo pipefail
+          php tests/f360-pg-durable-admission-outbox.php
+      - name: Verify worker simulation cannot run without lab provenance
+        run: |
+          set -euo pipefail
+          if SITES_F361_OUTBOX_LAB=0 php tests/f361-pg-outbox-worker.php; then
+            echo 'Unsafe: dispatcher fixture ran without its opt-in'
+            exit 1
+          fi
+      - name: PG18 outbox worker leasing, retry and exact-token ACK
+        run: |
+          set -euo pipefail
+          php tests/f361-pg-outbox-worker.php
+      - name: Verify exact read-only pinned Portal and Sites candidate sources
+        run: |
+          set -euo pipefail
+          test "$(git -C sites-signed-candidate rev-parse HEAD)" = 21732e9558b730e38a6845adb593d29f309ff6a9
+          test "$(git -C portal-candidate rev-parse HEAD)" = bf1b2794de4d6000f120ffa2b1e6dd557f34c35e
+      - name: Real pinned Portal signed order into PostgreSQL18 atomic outbox
+        run: |
+          set -euo pipefail
+          SITES_F362_PORTAL_PATH="$GITHUB_WORKSPACE/portal-candidate" SITES_F362_SITES_PATH="$GITHUB_WORKSPACE/sites-signed-candidate" php tests/f362-pinned-portal-to-pg-outbox.php
+      - name: Prove replay-nonce fixture is disabled without explicit lab flag
+        run: |
+          set -euo pipefail
+          if SITES_F363_NONCE_LAB=0 php tests/f363-pg-durable-nonce.php; then
+            echo 'Unsafe: durable nonce fixture ran without lab opt-in'
+            exit 1
+          fi
+      - name: Signed Portal command with SQL-backed replay fence in same transaction
+        run: |
+          set -euo pipefail
+          SITES_F362_PORTAL_PATH="$GITHUB_WORKSPACE/portal-candidate" SITES_F362_SITES_PATH="$GITHUB_WORKSPACE/sites-signed-candidate" php tests/f363-pg-durable-nonce.php
+      - name: Reusable signed and transactional ingress adapter negative and happy paths
+        run: |
+          set -euo pipefail
+          SITES_F362_PORTAL_PATH="$GITHUB_WORKSPACE/portal-candidate" SITES_F362_SITES_PATH="$GITHUB_WORKSPACE/sites-signed-candidate" php tests/f364-transactional-signed-ingress-adapter.php
+      - name: Scope limitation
+        if: always()
+        run: |
+          echo 'F1-360 uses disposable PostgreSQL18 + fictional SQL credentials in public CI.'
+          echo 'No Portal IAM, external revocation, commercial payment, VPS, production database, Cloudflare or deployment.'

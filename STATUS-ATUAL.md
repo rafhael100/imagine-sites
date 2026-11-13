@@ -20,6 +20,13 @@
 - [PR #54](https://github.com/rafhael100/imagine-sites/pull/54) — F1-37, comando Laravel CLI de teste gera Onepage/Landing fictícias, pacote privado e proposta Portal com digest exato, sem aceitação nem publicação. CI PHP 8.3/8.4, Laravel, bundle e safety guard PASS; merge em `dev` (`a8d26fc`).
 - [SITES-HOMOLOGATION-ENTRY](docs/SITES-HOMOLOGATION-ENTRY-2026-11-09.md) — matriz de entrada e bloqueadores com issues #33–#38.
 
+## 13/11/2026 — persistência em banco descartável, sem integração operacional
+
+- [PR #444](https://github.com/rafhael100/imagine-sites/pull/444) — F1-360: admissão SQL ligada a tenant autenticado, idempotência, transação atômica com outbox e rollback; F1-361: worker SQL restrito, lease, reentrega e ACK por token; F1-362: código candidato do Portal e do Sites com provas assinadas chega ao PostgreSQL real, negando tenant divergente. **CI PostgreSQL18 PHP8.3/8.4 PASS** [run #43512452420](https://github.com/rafhael100/imagine-sites/actions/runs/43512452420). Todos em banco efêmero.
+- F1-363: nonce de replay persistente entre workers, na mesma transação da admissão/outbox, **CI PostgreSQL18 PHP8.3/8.4 PASS** [run #43513143395](https://github.com/rafhael100/imagine-sites/actions/runs/43513143395).
+- **F1-364** — novo componente LabTransactionalSignedIngressV1 de laboratório encapsula verificação de assinatura e atestação, nonce durável e admissão/outbox na mesma transação, com COMMIT/ROLLBACK controlado. Testes de duas contratações, replay, conflito entre tenant assinado e login SQL, falha de outbox e bloqueio por flag/nested transaction: **CI PostgreSQL18 PHP8.3/8.4 PASS** [run #43514102206](https://github.com/rafhael100/imagine-sites/actions/runs/43514102206). Não é endpoint operacional.
+- A F1-362 apenas utiliza código candidato pinado do Portal e do PR #443; nenhum serviço HTTP real, pagamento, credencial operacional, fonte independente de revogação, backup/restore ou ambiente homologado foi ativado. PR #444 segue **DRAFT/NO-GO**, com main/dev/VPS intactos, 10/10 gates ainda falsos.
+
 **Ainda não há ambiente operacional Sites publicado.** P0/RF-PEND/RV-CT/AppSec/LGPD, contratos financeiros, identidade, Cloudflare/DNS, banco produtivo, geração real por IA/n8n, captação/CRM fisicamente redundante e backups/restore continuam não homologados.
 
 **Gate exclusivo do responsável:** conexão autorizada de ambiente Leaseweb + Cloudflare e domínio técnico de teste, com gestão segura de credenciais/quotas, antes de qualquer homologação real. Não inserir credenciais no GitHub público ou neste chat.
