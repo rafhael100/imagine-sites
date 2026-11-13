@@ -1,0 +1,33 @@
+name: Sites F1-186 CI workflow concurrency controls
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/synthetic-php.yml'
+      - '.github/workflows/sites-laravel-f1-03.yml'
+      - '.github/workflows/sites-f1-41-offline-review-gallery.yml'
+      - '.github/workflows/sites-f1-83-real-lab-compose.yml'
+      - '.github/workflows/sites-f1-174-edited-private-bundle.yml'
+      - '.github/workflows/sites-f1-184-private-layout-package.yml'
+      - '.github/workflows/sites-f1-185-canonical-bundle.yml'
+      - '.github/workflows/sites-f1-186-ci-concurrency.yml'
+      - 'ci/f186_ci_workflow_controls.py'
+permissions:
+  contents: read
+concurrency:
+  group: F1-186-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  workflow-policy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate seven real CI policies and negative mutations
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ci/f186_ci_workflow_controls.py
+          python3 ci/f186_ci_workflow_controls.py
+      - name: Boundary
+        run: echo "CI controls only. No release, external CRM or deploy."

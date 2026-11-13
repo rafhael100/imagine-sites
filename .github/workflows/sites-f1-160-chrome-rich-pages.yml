@@ -1,0 +1,53 @@
+name: Sites F1-160 Chromium responsive QA for FAQ and highlights
+on:
+  pull_request:
+    paths:
+      - 'src/Production/StaticSiteRenderer.php'
+      - 'tests/f160-private-rich-gallery.php'
+      - 'ci/f160_rich_cdp.py'
+      - '.github/workflows/sites-f1-160-chrome-rich-pages.yml'
+permissions:
+  contents: read
+jobs:
+  browser-qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      APP_ENV: testing
+      SITES_F160_CHROME_LAB: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring,dom
+          tools: none
+          coverage: none
+      - name: Lint using existing standard-library CDP implementation
+        run: |
+          set -euo pipefail
+          php -l tests/f160-private-rich-gallery.php
+          php -l src/Production/StaticSiteRenderer.php
+          python3 -m py_compile ci/f160_rich_cdp.py ci/f43_cdp.py ci/f44_contrast.py
+      - name: Generate 18 inert fictional HTML variants in private temp
+        run: |
+          set -euo pipefail
+          php tests/f160-private-rich-gallery.php
+          test -f /tmp/sites-f160-rich-gallery/gallery-manifest.json
+      - name: Chromium CDP inspection at 320px, 390px and 1365px
+        run: |
+          set -euo pipefail
+          browser=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
+          if test -z "$browser"; then
+            echo "Preinstalled Chrome unavailable. Do not download provider software."
+            exit 1
+          fi
+          "$browser" --version
+          python3 ci/f160_rich_cdp.py /tmp/sites-f160-rich-gallery "$browser"
+      - name: Destroy fictional gallery and traces without upload
+        if: always()
+        run: |
+          rm -rf /tmp/sites-f160-rich-gallery
+          echo "No screenshots, networking to customers, deploy, CRM, VPS or paid providers."
