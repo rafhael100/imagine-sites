@@ -102,6 +102,17 @@ $crossZone=Window::inspect($deadline,$recentBackoff,
 f279($crossZone->reasonCode==='STALE_PROVIDER_REPLY_BEFORE_LATEST_ATTEMPT',
     'stale reply remains denied in alternate timezone');
 
+// F1-321: the T0 used to calculate backoff must match the T0 used
+// to calculate the retry window even when both imply the same due date.
+$secondOrigin=new LeadDeadline($plus($t0,60));
+$foreign=Window::inspect($secondOrigin,$retry,Response::assess(429),
+    $plus($t0,120),$plus($t0,300));
+f279($retry->originalT0->getTimestamp()===$t0->getTimestamp() &&
+    $foreign->reasonCode==='RETRY_PLAN_ORIGINAL_T0_MISMATCH' &&
+    !$foreign->timeElapsed && $foreign->nextConsiderationAt===null &&
+    !$foreign->mayDispatchToCrm(),
+    'a backoff plan cannot be reused under a different original T0');
+
 $rejectRetry=Backoff::assess($deadline,$plus($t0,200),1,$t0,false);
 $rejected=Window::inspect($deadline,$rejectRetry,$response,$observed,$plus($t0,3600));
 f279($rejected->reasonCode==='RETRY_HISTORY_NOT_VERIFIED',

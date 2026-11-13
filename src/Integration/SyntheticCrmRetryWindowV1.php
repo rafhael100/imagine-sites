@@ -37,6 +37,13 @@ final readonly class SyntheticCrmRetryWindowV1
         $utc = new DateTimeZone('UTC');
         $observed = $providerResponseObservedAt->setTimezone($utc);
         $current = $now->setTimezone($utc);
+        // F1-321: the retry plan and the independent window must come
+        // from the SAME original first-persisted T0, not just matching due.
+        if ($retry->originalT0->getTimestamp()!==
+                $originalDeadline->t0->getTimestamp()) {
+            return new self('RETRY_PLAN_ORIGINAL_T0_MISMATCH',null,false,
+                $originalDeadline->t0);
+        }
         if ($observed < $originalDeadline->t0 ||
             $observed > $current ||
             $current < $originalDeadline->t0) {
