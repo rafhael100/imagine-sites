@@ -1,5 +1,16 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## F1-322–325 — domínio principal sem www e consistência SEO/redirecionamento — 13/11/2026
+
+- **F1-322 / PR #397** (`7c2a339f1d80ede646aada9e6e421b68defd1621`): a política offline de domínio base rejeita prefixos reservados dos apps Imagine (incluindo `agents`, `performance`, `universidade`) e sufixos públicos óbvios (`com.br`, `co.uk` etc.). O controle é conservador e NÃO substitui uma Public Suffix List atualizada ou prova de titularidade. **5/5 fluxos retornados success.**
+- **F1-323 / PR #398** (`312862e8e77b420445856490750d180cbbad06ab`): sitemap canônico F1-289 exige origem independente fixada pela configuração do projeto; recusa proposta que tente falsificar conjuntamente `canonicalOrigin` e alias `www`. `mayServe=false` e `indexable=false`. **5/5 fluxos retornados success.**
+- **F1-324 / PR #399** (`7aa3f333fb4472c948e06f742aabfc9422592e64`): simulador de redirecionamento HTTPS `www`→apex F1-288 exige destino independente fixado pelo projeto. Recusa destino forjado, inclusive se o alias for alterado coerentemente; `mayExecute=false`. **5/5 fluxos retornados success.**
+- **F1-325 / PR #400** (`49575a384f280f9eecea5b72c6bdc87c11f3fd04`): teste de integração offline cruza política F1-287, sitemap F1-289 e redirecionamento F1-288; cobre domínios base brasileiros/internacionais, remoção de queries, fontes/domínios forjados, campanhas isoladas e `www` legado mantido sem migração. CI matricial PHP 8.3/8.4 nas duas políticas. Verificação completa de workflows do SHA e do candidato integrado ainda necessária.
+- **Contrato alterado:** as funções `SyntheticSeoCanonicalMapV1::draft` e `SyntheticCanonicalRedirectReviewV1::inspect` exigem agora uma origem canônica/destino fixados em configuração **independente**. Chamadores reais futuros NÃO podem preenchê-los com `Host`, URL de requisição, entrada de IA ou com o mesmo array não confiável que desejam inspecionar. Não há DNS, ownership, redirect público, sitemap servido ou aprovação de cliente implícitos.
+- **Próxima integração:** candidato draft em base `dev`, com F1-302–325 acumulados. Exigir CI integral no SHA, inventário diff F1-240, seis pacotes F1-241 e revisão AppSec/UX/Portal/CRM independente. `config/operational-readiness.json`: dez gates `false`, estado `BLOCKED`; proteção `dev/main` #281 e OP01–OP05 #33–#38 pendentes. Sem merge, deploy, DNS, Cloudflare/VPS, formulários públicos, dados de clientes ou custos.
+
+---
+
 ## F1-321 — origem temporal do backoff de CRM vinculada ao T0 — 13/11/2026
 
 - **F1-321 / PR #395**, head `f5acef3f3bb0d5c98ce7ae55a20012bb3c57806b`: o plano sintético F1-277 registra o `originalT0` UTC; a janela F1-279 nega reaproveitar esse plano com um T0 de outro registro, mesmo se timestamps subsequentes parecerem válidos. Teste negativo de troca do T0. No preflight F1-319, dois planos coerentes com T0 diferentes podem chegar ao mesmo horário previsto: o comparador F1-320 ainda precisa negar a mistura. `mayDispatchToCrm=false` inalterado.
