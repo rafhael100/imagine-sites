@@ -1,0 +1,58 @@
+name: Sites F1-211 verify saved social card against four private review files
+on:
+  pull_request:
+    paths:
+      - 'src/Production/SyntheticPrivateSocialCardReadbackV1.php'
+      - 'apps/sites/routes/console.php'
+      - 'tests/f211-private-social-card-readback.php'
+      - 'apps/sites/tests/Feature/SyntheticPrivateSocialCardReadbackTest.php'
+      - '.github/workflows/sites-f1-211-private-social-readback.yml'
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  verified-social-bundle:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 17
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    env:
+      APP_ENV: testing
+      SITES_F205_VISUAL_PACKAGE: '1'
+      SITES_F211_SOCIAL_READBACK: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring,dom,xml,curl,pdo,pdo_pgsql
+          tools: composer:v2
+          coverage: none
+      - name: Syntax and canonical private-byte readback
+        run: |
+          set -euo pipefail
+          php -l src/Production/SyntheticPrivateSocialCardReadbackV1.php
+          php -l apps/sites/routes/console.php
+          php -l tests/f211-private-social-card-readback.php
+          php -l apps/sites/tests/Feature/SyntheticPrivateSocialCardReadbackTest.php
+          php tests/f211-private-social-card-readback.php
+      - name: Install locked Laravel test dependencies
+        working-directory: apps/sites
+        run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
+      - name: Verify disk persistence and negative cases
+        working-directory: apps/sites
+        run: |
+          set -euo pipefail
+          php artisan test --filter='(SyntheticPrivateSocialCardReadbackTest|SyntheticCompositeVisualPrivateBundleTest|SyntheticSocialCardInspectionTest)' --no-ansi
+      - name: Remove all ephemeral synthetic bundles
+        if: always()
+        working-directory: apps/sites
+        run: |
+          rm -rf storage/app/private/sites-f1-205-*
+          echo "No real client, remote media, Portal auth, public sharing, CRM or deploy."

@@ -1,0 +1,46 @@
+name: Sites F1-181 combined section order and navigation review
+on:
+  pull_request:
+    paths:
+      - 'apps/sites/routes/web.php'
+      - 'apps/sites/resources/views/labs/review.blade.php'
+      - 'apps/sites/tests/Feature/SyntheticCombinedLayoutReviewTest.php'
+      - '.github/workflows/sites-f1-181-combined-review.yml'
+permissions:
+  contents: read
+jobs:
+  combined-review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring,dom,xml,curl,pdo,pdo_pgsql
+          tools: composer:v2
+          coverage: none
+      - name: Lint combined Laravel review and tests
+        run: |
+          set -euo pipefail
+          php -l apps/sites/routes/web.php
+          php -l apps/sites/tests/Feature/SyntheticCombinedLayoutReviewTest.php
+      - name: Install locked in-process dependencies
+        working-directory: apps/sites
+        run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
+      - name: Verify all combined layouts and earlier routes
+        working-directory: apps/sites
+        env:
+          APP_ENV: testing
+        run: |
+          set -euo pipefail
+          php artisan test --filter='(SyntheticCombinedLayoutReviewTest|SyntheticAnchorNavigationReviewTest|SyntheticSectionOrderReviewTest|SyntheticRichReviewUiTest)' --no-ansi
+      - name: Scope
+        if: always()
+        run: echo "No client editor, public path, CRM integration, publish or automatic approval."

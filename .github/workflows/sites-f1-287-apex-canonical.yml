@@ -1,0 +1,32 @@
+name: Sites F1-287 apex-only canonical proposal (offline)
+on:
+  pull_request:
+    paths:
+      - 'src/Domain/SyntheticCanonicalOriginPlanV1.php'
+      - 'tests/f287-apex-canonical-policy.php'
+      - '.github/workflows/sites-f1-287-apex-canonical.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  canonical-proposal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          coverage: none
+      - name: Syntax and pure offline host-policy tests
+        run: |
+          php -l src/Domain/SyntheticCanonicalOriginPlanV1.php
+          php -l tests/f287-apex-canonical-policy.php
+          php tests/f287-apex-canonical-policy.php
