@@ -272,7 +272,7 @@ def self_test(ignore: str, dockerfile: str) -> None:
         lambda s: s["services"]["sites-lab-tests"]["depends_on"]["sites-lab-db"].update({"condition": "service_started"}),
         lambda s: s["services"]["sites-lab-tests"]["depends_on"]["sites-lab-db"].update({"required": False}),
         lambda s: s["services"]["sites-lab-tests"]["depends_on"].update({"host-db": {"condition": "service_healthy"}}),
-        lambda s: s["services"]["sites-lab-db"].update({"depends_on": {"sites-lab-tests": {"condition": "service_started"}}),
+        lambda s: s["services"]["sites-lab-db"].update({"depends_on": {"sites-lab-tests": {"condition": "service_started"}}}),
         lambda s: s["services"]["sites-lab-db"].update({"profiles": ["prod"]}),
         lambda s: s["services"]["sites-lab-tests"].update({"pid": "host"}),
         lambda s: s["services"]["sites-lab-tests"].update({"ipc": "host"}),
