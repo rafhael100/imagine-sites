@@ -27,6 +27,7 @@ final class SyntheticLabCachedRouteFenceTest extends TestCase
 
     protected function tearDown(): void
     {
+        putenv('SITES_SYNTHETIC_V3_INTAKE');
         putenv('SITES_SYNTHETIC_HTTP');
         parent::tearDown();
     }
@@ -57,6 +58,7 @@ final class SyntheticLabCachedRouteFenceTest extends TestCase
         // the new GLOBAL request-time gate makes this a hard 404.
         $this->postJson(self::PATH,[])->assertNotFound();
         self::assertSame([404,0],$this->directFence('/_lab/sites/v1/review'));
+        self::assertSame([404,0],$this->directFence('/_lab/sites/v3/create-project'));
     }
 
     public function test_reused_route_is_denied_after_application_changes_to_production():void
@@ -94,9 +96,30 @@ final class SyntheticLabCachedRouteFenceTest extends TestCase
             '/_lab/sites/v1','/_lab/sites/v1/',
             '/_lab/sites/v1/create-project',
             '/_lab/sites/v1/seo-copy-review',
-            '/_lab/sites/v1/arbitrary-new-route'
+            '/_lab/sites/v1/arbitrary-new-route',
+            '/_lab/sites/v3','/_lab/sites/v3/',
+            '/_lab/sites/v3/create-project',
+            '/_lab/sites/v3/arbitrary-new-route'
         ] as $url) {
             self::assertSame([404,0],$this->directFence($url));
+        }
+    }
+
+    public function test_v3_cached_lab_cannot_escape_prod_runtime_or_flag_revocation():void
+    {
+        putenv('SITES_SYNTHETIC_V3_INTAKE=1');
+        $url='/_lab/sites/v3/create-project';
+        $this->postJson($url,[])->assertStatus(403);
+        putenv('SITES_SYNTHETIC_HTTP');
+        $this->postJson($url,[])->assertNotFound();
+        self::assertSame([404,0],$this->directFence($url));
+        putenv('SITES_SYNTHETIC_HTTP=1');
+        $previous=$this->app['env'];
+        $this->app['env']='production';
+        try {
+            $this->postJson($url,[])->assertNotFound();
+        } finally {
+            $this->app['env']=$previous;
         }
     }
 
@@ -106,6 +129,7 @@ final class SyntheticLabCachedRouteFenceTest extends TestCase
         self::assertSame([218,1],$this->directFence('/api/sites'));
         self::assertSame([218,1],$this->directFence('/_lab/sites/v2/example'));
         self::assertSame([218,1],$this->directFence(self::PATH));
+        self::assertSame([218,1],$this->directFence('/_lab/sites/v3/create-project'));
         // The request-time boundary does not grant project acceptance:
         // the route independently returns 403 by default.
         $this->postJson(self::PATH,[])->assertStatus(403);
