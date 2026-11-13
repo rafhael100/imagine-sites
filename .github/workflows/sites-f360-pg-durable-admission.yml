@@ -146,10 +146,9 @@ jobs:
           set -euo pipefail
           export SITES_F362_PORTAL_PATH="$GITHUB_WORKSPACE/portal-candidate"
           export SITES_F362_SITES_PATH="$GITHUB_WORKSPACE/sites-signed-candidate"
-          if SITES_F365_HTTP_LAB=0 php tests/fixtures/f365-loopback-worker.php <<< '{}'; then
-            # No admission occurs, even if the worker reports a generic refusal.
-            echo 'F1-365 denied without opt-in (worker is never a standalone API)'
-          fi
+          denied="$(SITES_F365_HTTP_LAB=0 php tests/fixtures/f365-loopback-worker.php <<< '{}')"
+          test "$denied" = '{"kind":"denied"}'
+          echo 'F1-365 worker denied without explicit lab opt-in'
           php -S 127.0.0.1:18965 -t tests/fixtures tests/fixtures/f365-loopback-router.php > "$RUNNER_TEMP/f365-http.log" 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
