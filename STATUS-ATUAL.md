@@ -44,6 +44,11 @@
 - [PR #449](https://github.com/rafhael100/imagine-sites/pull/449), **F1-369**: HTTP Portal fictício confirma registro e perde a resposta antes do ACK do Sites; GitHub Actions usa `pg_dump` e `pg_restore` PostgreSQL 18 em **terceiro contêiner**, para o banco do receptor fictício. Desliga o contêiner original e valida reentrega idempotente, MAC do recibo, novo token lease, conflito de digest, ACK final e nenhuma duplicação.
 - **CI PostgreSQL18 PHP8.3/8.4 PASS** [#43529184768](https://github.com/rafhael100/imagine-sites/actions/runs/43529184768), com dados sintéticos. **Não é disaster recovery operacional:** backups e instâncias no mesmo runner efêmero, sem backup externo, RPO/RTO, fonte real de contratos, IAM, TLS ou revogação independente. PRs #444→#445→#446→#448→#449 permanecem DRAFT/NO-GO, sem merge/deploy/VPS/DNS; gates BLOCKED.
 
+## 13/11/2026 — TLS mútuo entre processos fictícios, sem credenciais operacionais
+
+- [PR #450](https://github.com/rafhael100/imagine-sites/pull/450) — **F1-370**: proxy Nginx mTLS em loopback, CA/servidor/cliente de teste gerados e eliminados no job, clientes sem cert/cert inválido/hostname errado recusados; código candidato do Portal envia Onepage e Landing Page assinados por HTTPS validado ao Sites e PostgreSQL18. **CI PHP8.3/8.4 PASS** [#43530125094](https://github.com/rafhael100/imagine-sites/actions/runs/43530125094). Nenhuma CA, chave ou identidade operacional configurada.
+- **F1-369** backup/restauração em terceiro PG18 CI continua aprovado [#43529184768](https://github.com/rafhael100/imagine-sites/actions/runs/43529184768). PRs empilhados #444→#445→#446→#448→#449→#450 permanecem DRAFT/NO-GO. `dev/main`, VPS, Cloudflare, DNS e dados de clientes intactos. Gating operacional 10/10 ainda BLOCKED.
+
 **Ainda não há ambiente operacional Sites publicado.** P0/RF-PEND/RV-CT/AppSec/LGPD, contratos financeiros, identidade, Cloudflare/DNS, banco produtivo, geração real por IA/n8n, captação/CRM fisicamente redundante e backups/restore continuam não homologados.
 
 **Gate exclusivo do responsável:** conexão autorizada de ambiente Leaseweb + Cloudflare e domínio técnico de teste, com gestão segura de credenciais/quotas, antes de qualquer homologação real. Não inserir credenciais no GitHub público ou neste chat.
