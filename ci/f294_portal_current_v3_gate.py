@@ -55,6 +55,17 @@ def inspect_current(current:Path)->dict:
     issuer=current/REL/ISSUER
     found=expected.is_file() and not expected.is_symlink()
     present_issuer=issuer.is_file() and not issuer.is_symlink()
+    # Do not mistake an empty stub or a copied class name for a usable
+    # producer. This is only a source-code diagnostic, never an authorization.
+    signer_source = expected.read_text(encoding="utf-8") if found else ""
+    issuer_source = issuer.read_text(encoding="utf-8") if present_issuer else ""
+    signer_shape = (
+        "class SyntheticSitesCommercialEpochSignedEnvelopeSigner" in signer_source
+        and "commercialEpoch" in signer_source
+        and "hash_hmac(" in signer_source
+    )
+    issuer_shape = "issueCommercialEpochSigned(" in issuer_source
+    candidate_shape = found and present_issuer and signer_shape and issuer_shape
     # The official release review must independently establish provenance,
     # authority and trusted transport even when source files exist.
     return {
@@ -63,10 +74,13 @@ def inspect_current(current:Path)->dict:
         "historicalCandidateRef":HISTORICAL_SHA,
         "currentExpectedV3SignerPresent":found,
         "currentExpectedIssuerPresent":present_issuer,
+        "currentSignerShapePresent":signer_shape,
+        "currentIssuerMethodPresent":issuer_shape,
+        "currentProducerCandidateShapePresent":candidate_shape,
         "historicalCandidateV3SignerVerified":True,
         "capabilityDiagnostic":(
             "BLOCKED_UNREVIEWED_CURRENT_V3_IMPLEMENTATION"
-            if found and present_issuer else
+            if candidate_shape else
             "BLOCKED_CURRENT_V3_NOT_ESTABLISHED"
         ),
         "portalCurrentV3Operational":False,
@@ -95,12 +109,24 @@ def self_test()->None:
                 "issuer missing must deny")
         (d/ISSUER).write_text("synthetic candidate",encoding="utf-8")
         r=inspect_current(root)
-        require(r["capabilityDiagnostic"]=="BLOCKED_UNREVIEWED_CURRENT_V3_IMPLEMENTATION",
-                "presence alone must not authorize")
+        require(r["capabilityDiagnostic"]=="BLOCKED_CURRENT_V3_NOT_ESTABLISHED",
+                "stub files must not count as a producer")
+        require(r["currentProducerCandidateShapePresent"] is False,
+                "file presence is not source shape")
+        (d/SIGNER).write_text(
+            "class SyntheticSitesCommercialEpochSignedEnvelopeSigner "
+            "{ /* commercialEpoch */ hash_hmac( /* synthetic */ ); }",
+            encoding="utf-8"
+        )
+        (d/ISSUER).write_text("issueCommercialEpochSigned(", encoding="utf-8")
+        r=inspect_current(root)
+        require(r["currentProducerCandidateShapePresent"] is True and
+                r["capabilityDiagnostic"]=="BLOCKED_UNREVIEWED_CURRENT_V3_IMPLEMENTATION",
+                "candidate shape must still be blocked")
         require(r["releaseAuthorized"] is False and
                 r["sitesMayCreateRealProject"] is False,
                 "source presence is not a trust decision")
-    print("PASS F1-294: missing/partial/present Portal signer always NO-GO")
+    print("PASS F1-294: missing/stub/candidate Portal signer always NO-GO")
 
 def main()->None:
     parser=argparse.ArgumentParser()
