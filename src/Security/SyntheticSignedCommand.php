@@ -45,11 +45,15 @@ final class SyntheticSignedCommand
         return $unsigned;
     }
 
-    public static function verify(
+    /**
+     * F1-128: authenticate HMAC, command, TTL and nonce *shape* only.
+     * This deliberately NEVER calls a ReplayStore or reserves a nonce.
+     * Must not grant admission or replace verify() for final intake.
+     */
+    public static function verifySignature(
         array $envelope,
         string $secret,
         int $now,
-        ?ReplayStore $replayStore = null,
     ): SiteProjectCommand {
         self::requireStrongSyntheticKey($secret);
 
@@ -85,11 +89,24 @@ final class SyntheticSignedCommand
             throw new DomainException('Invalid command signature.');
         }
 
+        return SiteProjectCommand::fromArray($payload);
+    }
+
+    /** Consume nonce only after successful signature and semantic checks. */
+    public static function verify(
+        array $envelope,
+        string $secret,
+        int $now,
+        ?ReplayStore $replayStore = null,
+    ): SiteProjectCommand {
+        $command = self::verifySignature($envelope, $secret, $now);
         $replayStore ??= new DenyingReplayStore();
-        if (!$replayStore->rememberOnce($envelope['issuer'], $envelope['nonce'], $envelope['expiresAt'])) {
+        if (!$replayStore->rememberOnce(
+            $envelope['issuer'], $envelope['nonce'], $envelope['expiresAt']
+        )) {
             throw new DomainException('Untrusted or replayed command nonce.');
         }
-        return SiteProjectCommand::fromArray($payload);
+        return $command;
     }
 
     /** @return array<string, string|int> */

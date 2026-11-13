@@ -51,6 +51,47 @@ final readonly class SiteProjectCommand
         return new self(...$payload);
     }
 
+    /**
+     * F1-152: exact offline candidate JSON shape with Portal F133 semantics.
+     *
+     * This only eliminates ambiguous serialization (duplicate keys, reordered
+     * fields, escaped keys, whitespace). It is NEVER service authentication,
+     * Portal authorization, contract eligibility or approval to create a site.
+     */
+    public static function fromCanonicalJson(string $raw): self
+    {
+        if ($raw === '' || strlen($raw) > 4096) {
+            throw new InvalidArgumentException('Invalid candidate JSON size.');
+        }
+        try {
+            $decoded = json_decode($raw, false, 16, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            throw new InvalidArgumentException('Invalid candidate JSON syntax.');
+        }
+        if (!$decoded instanceof \stdClass) {
+            throw new InvalidArgumentException('Candidate command must be an object.');
+        }
+        $expected = [
+            'schemaVersion','operationId','tenantRef','orderRef',
+            'contractRef','contractRevision','productCode','idempotencyKey',
+        ];
+        $fields = get_object_vars($decoded);
+        if (array_keys($fields) !== $expected) {
+            throw new InvalidArgumentException('Unknown or noncanonical command fields.');
+        }
+        try {
+            $reencoded = json_encode($decoded, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            throw new InvalidArgumentException('Invalid canonical candidate JSON.');
+        }
+        if (!hash_equals($reencoded, $raw)) {
+            throw new InvalidArgumentException('Noncanonical JSON wire representation.');
+        }
+
+        // Reuse the established typed/semantic candidate checks.
+        return self::fromArray($fields);
+    }
+
     public function semanticFingerprint(): string
     {
         return hash('sha256', json_encode([

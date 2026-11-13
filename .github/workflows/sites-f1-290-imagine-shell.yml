@@ -1,0 +1,44 @@
+name: Sites F1-290 original Imagine staff UI (offline)
+on:
+  pull_request:
+    paths:
+      - 'apps/sites/resources/views/labs/review.blade.php'
+      - 'apps/sites/resources/views/labs/imagine-shell.blade.php'
+      - 'apps/sites/public/assets/logo-imagine.png'
+      - 'apps/sites/routes/web.php'
+      - 'apps/sites/tests/Feature/SyntheticImagineShellIdentityTest.php'
+      - 'tests/f290-imagine-shell-contract.php'
+      - '.github/workflows/sites-f1-290-imagine-shell.yml'
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  original-shell-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          coverage: none
+      - name: Validate pure offline brand and CSP contract
+        run: |
+          php -l tests/f290-imagine-shell-contract.php
+          php -l apps/sites/tests/Feature/SyntheticImagineShellIdentityTest.php
+          php tests/f290-imagine-shell-contract.php
+      - name: Enforce no production or customer page change
+        run: |
+          test -f config/operational-readiness.json
+          grep -q '"status": "BLOCKED"' config/operational-readiness.json
+          grep -q '"non_operational": true' config/operational-readiness.json
