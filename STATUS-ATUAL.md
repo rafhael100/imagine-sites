@@ -1,5 +1,15 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## F1-302–304 — endurecimento do pacote privado e candidato integrado — 13/11/2026
+
+- **F1-302 / PR #371**, SHA `caec5eb156fd4ecb339c8353bfa5e00ab837f1ec`: proteção contra caminhos NUL, testes de arquivos não regulares e dados binários nos limites do leitor privado; **5/5 workflows success** nesse SHA.
+- **F1-303 / PR #372**, SHA `e08211c10522ff83a300275f03b18c8df0098474`: lock revalida inode/size/link após `flock`, exige 0600, recusa conteúdo no lock, hardlink, path NUL. **5/5 workflows success** no próprio SHA.
+- **F1-304 / PR #373**, SHA `7d1cf9fdc2076a6d919d275a2647dfa125ec46d9`: limites in-memory de HTML (150000) e manifesto (8192) alinhados ao readback F1-301; testes negativos F1-75. Validar a totalidade do CI no SHA exato antes da revisão.
+- **Integração de revisão F1-304:** sobre #370, incorpora F1-302–304 e exige novo inventário de diff integral F1-240, seis pacotes F1-241, CI no SHA atual e revisão qualificada. PRs draft empilhados permanecem sem merge.
+- **NO-GO:** `dev` e `main` sem alteração; gates `config/operational-readiness.json` 10/10 `false`; proteção de branches #281, OP01–OP05 #33–#38 e homologação real abertas. Nenhum deploy, aprovação do cliente, CDN, Portal/CRM operacional, PII, segredo ou custo.
+
+---
+
 ## Continuação F1-300–301 — lock concorrente e readback fixado por inode — 13/11/2026
 
 - **F1-300 / PR #368**, SHA `99af0e38da977899f095efcde29da611ed2e8d55`: bloqueio `flock` compartilhado entre escritor e verificador de Onepage/Landing, separado por produto, não bloqueante, sem sobrescrita; **21/21 workflows success** no SHA próprio.
