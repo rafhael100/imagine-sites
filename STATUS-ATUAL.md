@@ -1,5 +1,17 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## Continuação F1-295–297 — segurança Portal v3 e pacotes privados — 12/11/2026
+
+- **F1-295 / PR #362**, commit `98f9fe51bc05ece3b922ee554e39f0175901fabd`: diagnóstico fail-closed distingue stubs e indicadores sintáticos do emissor Portal v3. Testes do commit: **5/5 workflows success**; a inspeção do código não demonstra autorização, transporte ou identidade S2S.
+- **F1-296 / PR #363**, commit `6e4b56a95a7e0d3731b1b5e38bf900de10d50ac2`: verificação do SHA-256 do pacote inteiro contra digest externo fixado e readback dos arquivos privados do CLI antes de confirmar sucesso. Após corrigir a expectativa de um teste Laravel, **19/19 workflows success** no próprio commit. Não há origem autenticada para o digest no laboratório.
+- **F1-297 / PR #364**, commit `4a5079c739cf27a6aa559d86c802fc2c733d816b`: staging temporário e renomeação única de diretório privado após verificação integral, sem sobrescrever pacote existente. **18/18 workflows success** no próprio commit; um novo commit documental exige checks do seu SHA.
+- PRs **empilhados em draft**, sem merge em `dev`/`main` e sem deploy. O resultado dos testes não é certificação nem revisão independente de código.
+- Verificação REST desta rodada: `dev` SHA `71b8ffe51139d0e70ed32591b07f295fb7bf5fe3` e `main` SHA `e95c481176f48c28ade1db0a5bcd2777fe7dcb3e`, ambos `protected:false` (issue #281). A conexão não consegue aplicar a proteção administrativa.
+- **OP01–OP05 #33–#38 não homologados**: IAM Portal v3 atual, PostgreSQL e revogação externos, Cloudflare com observador independente, CRM redundante/T0 e ações AI Agents/aceite do cliente. `config/operational-readiness.json` permanece `BLOCKED`, `non_operational=true`, dez gates `false`.
+- Próximos passos reais: proteção de branches por administrador GitHub, aprovação independente por competência, integração HTTPS com identidades **de homologação** no Portal/Sites, infra técnica e evidências de qualidade, segurança, privacidade e rollback. Não inferir go-live a partir de CI.
+
+---
+
 ## Continuação F1-294 — diagnosticar emissor v3 Portal atual, fail-closed — 12/11/2026
 
 - Auditoria de dois SHAs reais e públicos do Portal: `47514f4eac64a3d7ab0a0924cc890fb5a124d8b8` (fast-track vigente consultado) e `8d1e20bc5c39dc4106b549c5e979351b5c766615` (emissor v3 histórico). A versão vigente não contém o caminho esperado do emissor histórico; **paridade no commit antigo não comprova integração operacional corrente**.
