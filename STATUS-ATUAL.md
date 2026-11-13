@@ -1,5 +1,16 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## F1-317–320 — consistência temporal e de identidade nas retentativas sintéticas CRM — 13/11/2026
+
+- **F1-317 / PR #390**, SHA `b51bb09bef5fd6e66721085be591d1c248ab7b4a`: impedir reutilização de HTTP 429/`Retry-After` observado antes da tentativa mais recente; retentativa T0 fixa de 432h, fusos UTC. **6/6 workflows success** do SHA de origem.
+- **F1-318 / PR #391**, SHA corrigido `aa71172e35552c905ce499b430658bdd3bcf6261`: vincular observação de resposta HTTP ao número da tentativa 1–64 e ao seu horário, negar replay de tentativa distinta, 202/409, clock futuro e expiry; nenhuma autorização de CRM. **7/7 workflows success** no SHA corrigido.
+- **F1-319 / PR #392**, SHA `c73e6d1506a4b792e635d6707df8742814946558`: compor diagnóstico de sequência e janela com comparação do escopo original (tenant/site/submission/binding/form/destino imutáveis) e duas leituras do vínculo; nega mudanças antes de consultar origem. **6/6 workflows success** do SHA de origem.
+- **F1-320 / PR #393**, SHA `700105da920c113c0b350d9b8353821f4123d921`: carimbar `originalT0` UTC nas evidências de janela e tentativa; impedir combinação de estados de T0 diferentes, **mesmo quando o horário de retry coincide**. Teste adversarial em CI; o resultado do próprio SHA e do candidato integrado deve ser revisado.
+- **Limites fundamentais:** todos os identificadores de tentativa, horários e vinculações permanecem *alegações sintéticas* de laboratório, não assinaturas, autorização de serviço, CAS durável de mais de um banco, comprovante CRM, retenção LGPD ou proteção de dados reais. A integração OP04 (issue #36), identidade Portal OP01 (#33), PG/restore OP02 (#34), infraestrutura OP03/OP05 (#35–#38), isolamento físico, cliente e AppSec permanecem exigidos. `mayDispatchToCrm`, `mayPersistPayload`, `mayAcknowledgeVisitor` e `mayConfirmDelivery` retornam `false`.
+- **Candidato integrado:** branch dedicada e PR *draft* em base `dev`, sem merge/deploy. Revalidar workflow original, inventário diff F1-240, pacotes F1-241, regressões CRM e testes Laravel e PG18 no SHA consolidado. `config/operational-readiness.json` permanece `BLOCKED`, dez gates `false`; branch protection/revisão independente #281 em aberto. Nenhum cliente, CRM público, Cloudflare, VPS, API real, credencial, DNS, despesa ou publicação.
+
+---
+
 ## F1-313–316 — painel interno Imagine: QA completo, navegação responsiva e provas Chromium — 13/11/2026
 
 - **F1-313 / PR #385:** revisões administrativas Laravel mostram todas as dez verificações estruturais (antes exibiam sete), incluindo seções rotuladas, nomes dos links e FAQ semântica; cada item tem status textual legível e região QA com título acessível. Atualizados os contratos editoriais Laravel e o teste Chrome F1-43 que ainda esperavam sete itens.
