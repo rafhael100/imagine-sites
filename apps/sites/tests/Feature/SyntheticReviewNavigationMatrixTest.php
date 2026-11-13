@@ -88,7 +88,15 @@ final class SyntheticReviewNavigationMatrixTest extends TestCase
                 self::assertSame(hash('sha256',$inner),$m[1],
                     'Displayed SHA must match the precise unescaped iframe bytes.');
                 self::assertSame(1,$xp->query('//*[@id="artifact-digest"]')->length);
-                self::assertSame(7,$xp->query('//ul[contains(concat(" ",normalize-space(@class)," ")," qa-list ")]/li')->length);
+                $qaRows=$xp->query('//ul[contains(concat(" ",normalize-space(@class)," ")," qa-list ")]/li');
+                self::assertSame(10,$qaRows->length,
+                    'The staff checklist must show all ten existing F1-39 checks');
+                self::assertSame(10,$xp->query('//ul[contains(concat(" ",normalize-space(@class)," ")," qa-list ")]/li/strong[@class="qa-state" and normalize-space(text())="Conforme"]')->length);
+                self::assertSame(1,$xp->query('//*[@id="qa"][@aria-labelledby="qa-heading"]/h3[@id="qa-heading"]')->length);
+                foreach (['Títulos e nomes das seções','Links com nomes acessíveis',
+                    'FAQ com estrutura semântica'] as $label) {
+                    self::assertStringContainsString($label,$html);
+                }
                 self::assertStringContainsString('Não registrado',$html);
                 self::assertStringContainsString('Aprovação, publicação e entrega desabilitadas',$html);
                 self::assertStringContainsString('class="browser '.$device.'"',$html);
