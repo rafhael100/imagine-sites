@@ -42,6 +42,33 @@ checkF24(SyntheticReleaseBundle::verifyFiles($bundle->files,$manifest),
     'exact artifact digest, identity, meta and offline flag are verified');
 checkF24(strlen($bundle->bundleDigest)===64,
     'bundle has deterministic SHA-256 digest');
+checkF24(SyntheticReleaseBundle::verifyExactBundle(
+    $bundle->files,$manifest,$bundle->bundleDigest
+), 'external pinned complete-bundle digest verifies exactly');
+checkF24(!SyntheticReleaseBundle::verifyExactBundle(
+    $bundle->files,$manifest,str_repeat('0',64)
+), 'wrong independent bundle pin is rejected');
+foreach (['', 'not-a-digest', strtoupper($bundle->bundleDigest),
+    substr($bundle->bundleDigest,0,63)] as $invalidPin) {
+    checkF24(!SyntheticReleaseBundle::verifyExactBundle(
+        $bundle->files,$manifest,$invalidPin
+    ), 'invalid external digest representation is refused');
+}
+$extraFile=$bundle->files;
+$extraFile['extra.html']='not a release file';
+checkF24(!SyntheticReleaseBundle::verifyExactBundle(
+    $extraFile,$manifest,$bundle->bundleDigest
+), 'unlisted file cannot hide inside a valid digest pin');
+$reversed=array_reverse($bundle->files,true);
+checkF24(!SyntheticReleaseBundle::verifyExactBundle(
+    $reversed,$manifest,$bundle->bundleDigest
+), 'file ordering is part of exact private package grammar');
+$mutatedManifest=$bundle->files;
+$mutatedManifest['release-manifest.json'].="\\n";
+checkF24(!SyntheticReleaseBundle::verifyExactBundle(
+    $mutatedManifest,$manifest,$bundle->bundleDigest
+), 'even whitespace appended to manifest invalidates package');
+
 checkF24($bundle->bundleDigest===(new SyntheticReleaseBundle($manifest,$artifact))->bundleDigest,
     'bundle reproducible regardless of wall-clock time');
 $meta=json_decode($bundle->files['release-manifest.json'],true,16,JSON_THROW_ON_ERROR);
