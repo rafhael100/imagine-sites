@@ -1,0 +1,11 @@
+# F1-339 — geometria da experiência Imagine no painel Sites
+
+**Escopo:** apenas shell do laboratório interno Imagine Sites, nunca HTML ou CSS dos sites finais dos clientes. Sem publicação, credenciais, dados reais ou aprovação operacional.
+
+A interface interna de revisão já utiliza a logomarca PNG original e as cores da versão Node do Imagine Portal. Esta etapa completa o alinhamento aos tokens de navegação/ritmo de leitura do [Experience System do Portal](https://github.com/rafhael100/imagine-portal/blob/design/imagine-node-original-visual-v1-2026-11-12/design-system/experience-system.md): largura máxima do conteúdo 1380 px, menu lateral desktop 240 px, ritmo de espaçamento 4/8/12/16/24/32/48, cantos dos painéis de 14 px, navegação de 10 px e sombra discreta. O fundo cinza claro, cartões brancos, laranja de destaque e contraste de texto escuro permanecem iguais ao Design System original.
+
+**Implementação:** o parcial `apps/sites/resources/views/labs/imagine-shell.blade.php` define aliases locais fiéis ao arquivo `design-system/tokens.css` do Portal, sem criar dependência de rede entre backends. Ajusta a largura do conteúdo e a coluna lateral apenas em desktop (`min-width:941px`), sem quebrar a estrutura já existente em tablet/celular. Menus continuam com indicação `aria-current`, alvos de toque ≥44 px e foco visível. Nenhuma ação falsa foi adicionada.
+
+**Verificação:** `tests/f290-imagine-shell-contract.php` valida todos os tokens e a separação em relação ao renderer de cliente; `ci/f291_imagine_shell_browser.py` confere em Chromium real, nos tamanhos 1365/820/390/320, os cantos, largura máxima de conteúdo, largura do menu lateral no desktop, logomarca, cores, ausência de overflow e alvos de navegação. O workflow F1-291 mantém capturas fictícias por sete dias para revisão visual.
+
+**Ainda pendente para concluir a issue #351:** aprovação humana das capturas comparativas e aplicação tela por tela nos fluxos operacionais reais de briefing, revisão, aprovação, publicação e histórico. Uma tela de laboratório com bom CSS não comprova navegação real, acessibilidade plena, permissões, prova de aceite ou homologação. Status de produção segue BLOCKED, dez gates falsos; #281 e OP01–OP05 sem aceite.

@@ -1,0 +1,76 @@
+name: Sites F1-291 actual Chromium original staff visual QA (offline)
+on:
+  pull_request:
+    paths:
+      - 'apps/sites/resources/views/labs/review.blade.php'
+      - 'apps/sites/resources/views/labs/imagine-shell.blade.php'
+      - 'apps/sites/public/assets/logo-imagine.png'
+      - 'apps/sites/tests/Feature/SyntheticImagineShellBrowserExportTest.php'
+      - 'ci/f291_imagine_shell_browser.py'
+      - '.github/workflows/sites-f1-291-imagine-shell-browser.yml'
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  four-private-responsive-screenshots:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      GITHUB_ACTIONS: 'true'
+      SITES_F291_BROWSER_EXPORT: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          extensions: mbstring,xml,dom,curl
+          coverage: none
+      - name: Verify syntax and locked offline Laravel dependencies
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ci/f291_imagine_shell_browser.py ci/f43_cdp.py
+          php -l apps/sites/tests/Feature/SyntheticImagineShellBrowserExportTest.php
+          cd apps/sites
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts
+      - name: Export four fictional in-process Laravel review pages
+        working-directory: apps/sites
+        run: |
+          set -euo pipefail
+          php artisan test --no-ansi --filter SyntheticImagineShellBrowserExportTest
+          dir=storage/app/private/f291-imagine-shell
+          test -s "$dir/manifest.json"
+          test "$(find "$dir" -maxdepth 1 -type f | wc -l)" = 5
+      - name: Validate real Chromium viewport, logo and administrative contrasts
+        run: |
+          set -euo pipefail
+          browser=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
+          test -n "$browser"
+          python3 ci/f291_imagine_shell_browser.py "$browser"
+          dir=apps/sites/storage/app/private/f291-imagine-screenshots
+          test -s "$dir/report.json"
+          test "$(find "$dir" -maxdepth 1 -type f | wc -l)" = 5
+          grep -Fq '"publishable": false' "$dir/report.json"
+          grep -Fq '"containsClientData": false' "$dir/report.json"
+      - name: Upload fictional design QA screenshots for short-lived review
+        uses: actions/upload-artifact@v4
+        with:
+          name: imagine-sites-original-brand-four-screens
+          path: apps/sites/storage/app/private/f291-imagine-screenshots/
+          retention-days: 7
+          if-no-files-found: error
+      - name: Erase ephemeral screenshots and HTML
+        if: always()
+        run: |
+          rm -rf apps/sites/storage/app/private/f291-imagine-shell
+          rm -rf apps/sites/storage/app/private/f291-imagine-screenshots
+      - name: Non-operational scope
+        if: always()
+        run: echo 'No site, client, network, public HTTP, Cloudflare, DNS, deployment, or payment.'

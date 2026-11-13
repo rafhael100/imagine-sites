@@ -1,0 +1,9 @@
+# F1-183 — Acesso por teclado ao revisor quando a prévia usa iframe sandbox
+
+O workflow histórico F1-41 apresentou uma falha intermitente no Chrome 156 (PHP 8.4) ao atravessar o iframe sandbox com Tab: o leitor do CDP detectou quatro links iniciais e depois relatou apenas BODY repetidas vezes, sem confirmar o link final. A observação não prova que usuários reais sofram travamento, mas o teste não conseguia certificar a passagem de foco pelo iframe.
+
+A interface privada passa a oferecer um link visível **“Pular a prévia incorporada”** imediatamente antes da área de iframe. Ele aponta exclusivamente para o fragmento interno #apos-previa, um alvo depois do iframe com tabindex=-1, seguido pelo link existente “Ver identidade da versão”. A prévia continua sandbox="", tabindex=0, somente leitura, noindex e sem scripts; a alternativa permite ignorar completamente o conteúdo incorporado pelo teclado, sem criar formulário ou URL externa.
+
+O teste CDP F1-43 agora inicia de maneira determinística no primeiro link, usa Tab nos quatro seletores e no novo skip link, aciona Enter, verifica o fragmento de destino e usa Tab para alcançar o link final. Não presume mais que document.activeElement no documento externo possa observar todo o foco *dentro* de iframe sandbox. O teste continua checando quebra do layout, sem overflow, contraste e headers. A exportação offline F1-41 passa a garantir que o skip link aparece antes do iframe e o alvo depois.
+
+Esta medida facilita o uso do revisor fictício, mas não é auditoria WCAG completa nem prova de navegação de todos os controles internos da prévia. Os testes continuam em GitHub Actions, sem HTTP público, dados pessoais, CRM, deploy ou main. A falha original foi observada na [execução 43018953060](https://github.com/rafhael100/imagine-sites/actions/runs/43018953060).

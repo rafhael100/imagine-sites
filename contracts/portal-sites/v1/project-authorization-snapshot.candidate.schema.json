@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Imagine Sites candidate Portal project authorization snapshot v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "boundCommand",
+    "authorizationRevision",
+    "status",
+    "checkedAt",
+    "validUntil"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "sites.portal-project-authorization.v1"
+    },
+    "boundCommand": {
+      "$ref": "./create-project.schema.json"
+    },
+    "authorizationRevision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "status": {
+      "enum": [
+        "eligible",
+        "suspended",
+        "revoked"
+      ]
+    },
+    "checkedAt": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Unix seconds: record checked time; never authoritative without authenticated Portal origin."
+    },
+    "validUntil": {
+      "type": "integer",
+      "minimum": 2,
+      "description": "Unix seconds; code enforces validUntil > checkedAt and at most 30s lifetime."
+    }
+  },
+  "description": "Offline candidate schema only. Shape/epoch/status checks do not authenticate issuer, resource or client, prove acceptance, or permit publishing."
+}

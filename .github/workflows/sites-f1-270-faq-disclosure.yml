@@ -1,0 +1,46 @@
+name: Sites F1-270 native semantic FAQ disclosure (offline)
+on:
+  pull_request:
+    paths:
+      - 'src/Production/SiteBrief.php'
+      - 'src/Production/StaticSiteRenderer.php'
+      - 'src/Production/InertPreviewAudit.php'
+      - 'src/Production/SyntheticPreviewQaReport.php'
+      - 'src/Production/SyntheticStructuredDraftAssembly.php'
+      - 'src/Production/Synthetic*RevisionPlan.php'
+      - 'src/Production/SyntheticEditorialPatchV1.php'
+      - 'tests/f270-faq-native-disclosure.php'
+      - '.github/workflows/sites-f1-270-faq-disclosure.yml'
+permissions:
+  contents: read
+jobs:
+  native-faq-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 13
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring,dom,xml
+          tools: none
+          coverage: none
+      - name: Audit native FAQ byte integrity and review invalidation
+        run: |
+          set -euo pipefail
+          php -l src/Production/SiteBrief.php
+          php -l src/Production/StaticSiteRenderer.php
+          php -l src/Production/SyntheticPreviewQaReport.php
+          php -l tests/f270-faq-native-disclosure.php
+          php tests/f157-static-faq-content.php
+          php tests/f270-faq-native-disclosure.php
+          php tests/f27-offline-preview-audit.php
+      - name: Scope
+        if: always()
+        run: echo 'Only fictional local FAQ without JS, forms, clients, CRM, publication or remote assets.'
