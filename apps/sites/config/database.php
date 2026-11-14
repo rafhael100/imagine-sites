@@ -97,6 +97,9 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
+            // CI-only F1-379 verifies PG18 peer certificate against a temporary CA.
+            // Staging cannot be considered ready without a real trusted CA and IAM.
+            'sslrootcert' => env('DB_SSLROOTCERT'),
         ],
 
         'sqlsrv' => [
