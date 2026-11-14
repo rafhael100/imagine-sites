@@ -15,6 +15,8 @@ on:
       - 'tests/f368-lost-response-restart-recovery.php'
       - 'tests/f369-pg18-receipt-backup-restore.php'
       - 'tests/f370-stale-restore-parity-audit.php'
+      - 'tests/f371-atomic-receipt-evidence.php'
+      - 'tests/fixtures/f371-sites-portal-receipt-evidence.sql'
       - 'tests/fixtures/f367-portal-receipt-db.sql'
       - 'tests/fixtures/f367-durable-portal-router.php'
       - 'tests/fixtures/f366-portal-receipt-router.php'
@@ -89,6 +91,7 @@ jobs:
       SITES_F368_RECOVERY_LAB: '1'
       SITES_F369_RESTORE_LAB: '1'
       SITES_F370_STALE_AUDIT_LAB: '1'
+      SITES_F371_RECEIPT_EVIDENCE_LAB: '1'
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: '5432'
@@ -136,6 +139,7 @@ jobs:
           php -l tests/f368-lost-response-restart-recovery.php
           php -l tests/f369-pg18-receipt-backup-restore.php
           php -l tests/f370-stale-restore-parity-audit.php
+          php -l tests/f371-atomic-receipt-evidence.php
           php -l tests/fixtures/f367-durable-portal-router.php
           php -r 'if (!extension_loaded("curl")) exit(1);'
           php -r 'if (!extension_loaded("pdo_pgsql")) exit(1);'
@@ -364,6 +368,26 @@ jobs:
         if: always()
         run: |
           rm -f "$RUNNER_TEMP/f370-stale.dump"
+      - name: F1-371 persist receipt MAC atomically with Sites outbox ACK
+        run: |
+          set -euo pipefail
+          if SITES_F371_RECEIPT_EVIDENCE_LAB=0 php tests/f371-atomic-receipt-evidence.php; then
+            echo 'Unsafe: evidence fixture ran without explicit CI-only flag'
+            exit 1
+          fi
+          SITES_F369_RESTORED_RECEIVER_LAB=1 php -S 127.0.0.1:18968 -t tests/fixtures tests/fixtures/f367-durable-portal-router.php > "$RUNNER_TEMP/f371-receiver.log" 2>&1 &
+          receiver_pid=$!
+          trap 'kill "$receiver_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 30); do
+            if curl --noproxy '*' -fsS --output /dev/null http://127.0.0.1:18968/health; then
+              ready=1
+              break
+            fi
+            sleep 0.3
+          done
+          test "$ready" = 1
+          php tests/f371-atomic-receipt-evidence.php
       - name: Scope limitation
         if: always()
         run: |
