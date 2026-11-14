@@ -69,6 +69,10 @@ foreach(['onepage','landing_page'] as $product) {
     $id='f377-'.$product;
     $wire=f377Sign(f377Command($id,$product),'nonce-'.$id.'-first');
     [$status,$data]=f377Post(['siteRef'=>'site-'.$id,'signed'=>$wire]);
+    if($status!==202) {
+        fwrite(STDERR,'F1-377 HTTP status='.$status.
+            ', safe error category='.(string)($data['error']??'no_error_key')."\n");
+    }
     f377Check($status===202 && ($data['status']??null)==='queued' &&
         ($data['operationRef']??null)==='idem-'.$id &&
         ($data['publishable']??null)===false &&
