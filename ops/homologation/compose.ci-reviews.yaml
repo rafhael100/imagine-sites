@@ -1,0 +1,9 @@
+# F1-381: disposable CI-only read projection; no production service.
+# Overlay on base + PG18 + CI HTTP + Portal orders before initial DB creation.
+services:
+  sites-php:
+    environment:
+      SITES_F381_REVIEW_LAB: ${SITES_F381_REVIEW_LAB:?F1-381 CI review gate required}
+  sites-db:
+    volumes:
+      - ../../tests/fixtures/f381-tenant-review-read.sql:/docker-entrypoint-initdb.d/040-f381.sql:ro
