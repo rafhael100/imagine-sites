@@ -7,6 +7,8 @@ on:
       - '.github/workflows/sites-f1-373-staging-container.yml'
       - 'apps/sites/app/**'
       - 'apps/sites/routes/**'
+      - 'apps/sites/app/Support/**'
+      - 'apps/sites/tests/Feature/HomologationReadinessTest.php'
       - 'apps/sites/bootstrap/**'
       - 'apps/sites/composer.json'
       - 'apps/sites/composer.lock'
@@ -65,6 +67,25 @@ jobs:
           docker compose -f ops/homologation/compose.yaml exec -T sites-php php -r 'if(getenv("APP_ENV")!=="staging" || getenv("APP_DEBUG")!=="false" || getenv("DB_DATABASE")!=="imagine_sites_unprovisioned" || getenv("SITES_SYNTHETIC_HTTP")==="1")exit(1);'
           # Expected result is a liveness-only container, NOT operational readiness.
           echo "F1-373 PASS: isolated, loopback-only Laravel health. NO-GO: DB/Portal/IAM/payment unconfigured."
+      - name: F1-374 read-only staging readiness remains NO-GO
+        run: |
+          set -euo pipefail
+          if report="$(docker compose -f ops/homologation/compose.yaml exec -T sites-php php artisan sites:homologation-preflight)"; then
+            echo "Unsafe: diagnostic returned success while real gates are absent"
+            exit 1
+          fi
+          printf '%s' "$report" | php -r '
+            $r=json_decode(stream_get_contents(STDIN),true,32,JSON_THROW_ON_ERROR);
+            if(($r["schemaVersion"]??null)!=="sites.homologation.preflight.v1" ||
+               ($r["status"]??null)!=="blocked" ||
+               ($r["can_accept_real_orders"]??null)!==false ||
+               ($r["can_publish"]??null)!==false ||
+               ($r["database_probe_attempted"]??null)!==false ||
+               ($r["checks"]["staging_environment"]["result"]??null)!=="verified" ||
+               ($r["checks"]["postgres18_identity"]["result"]??null)!=="blocked" ||
+               ($r["checks"]["app_key_shape"]["result"]??null)!=="blocked")exit(1);
+          '
+          ! printf '%s' "$report" | grep -q "AAAAAAAAAAAAAAAA"
       - name: Remove ephemeral containers and volumes
         if: always()
         run: docker compose -f ops/homologation/compose.yaml down --volumes --remove-orphans
