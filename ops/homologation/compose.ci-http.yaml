@@ -1,0 +1,12 @@
+# F1-377: only for local GitHub Actions CI HTTP-to-PostgreSQL proof.
+# Must be overlaid AFTER compose.yaml and compose.ci-pg18.yaml.
+# Changes APP_ENV to testing ONLY for a disposable runner; using this
+# overlay on Leaseweb/Cloudflare/customer environments is forbidden.
+services:
+  sites-php:
+    environment:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      GITHUB_ACTIONS: 'true'
+      SITES_F377_CI_HTTP_LAB: ${SITES_F377_CI_HTTP_LAB:?CI-only HTTP opt-in required}
+      SITES_F377_CI_HTTP_KEY: 'F375-FICTIONAL-PORTAL-SIGNING-KEY-ONLY-FOR-CI'
