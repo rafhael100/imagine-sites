@@ -34,7 +34,7 @@ final class HomologationReadiness
         $check('staging_environment', $staging,
             $staging ? 'staging_only' : 'not_staging');
 
-        $debugOff = $runtime['debug'] === false;
+        $debugOff = ($runtime['debug'] ?? null) === false;
         $check('debug_disabled', $debugOff,
             $debugOff ? 'debug_disabled' : 'debug_must_be_false');
 
