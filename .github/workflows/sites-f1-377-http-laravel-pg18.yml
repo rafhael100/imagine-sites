@@ -5,6 +5,7 @@ on:
       - feature/sites-f1-378-portal-pinned-http-candidate-2026-11-13
       - feature/sites-f1-380-portal-pg-orders-http-2026-11-13
       - feature/sites-f1-381-admitted-project-review-preview-2026-11-13
+      - feature/sites-f1-382-durable-editorial-review-2026-11-13
   pull_request:
     paths:
       - 'apps/sites/routes/web.php'
@@ -15,6 +16,9 @@ on:
       - 'tests/f380-rolebound-portal-pg-to-sites-http.php'
       - 'tests/f381-write-private-review-artifacts.php'
       - 'tests/fixtures/f381-tenant-review-read.sql'
+      - 'tests/f382-run-role-separated-review.php'
+      - 'tests/fixtures/f382-durable-editorial-review.sql'
+      - 'docs/SITES-F1-382-DURABLE-EDITORIAL-REVIEW.md'
       - 'apps/sites/app/Labs/LaravelAdmittedPreviewLab.php'
       - 'apps/sites/routes/console.php'
       - 'docs/SITES-F1-381-ADMITTED-VISUAL-REVIEWS.md'
@@ -33,6 +37,7 @@ jobs:
       SITES_F377_CI_HTTP_LAB: '1'
       SITES_F380_PORTAL_DB_LAB: '1'
       SITES_F381_REVIEW_LAB: '1'
+      SITES_F382_REVIEW_LAB: '1'
       APP_ENV: testing
       SITES_STAGING_APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
     services:
@@ -81,6 +86,7 @@ jobs:
           php -l tests/f378-pinned-portal-http-to-sites.php
           php -l tests/f380-rolebound-portal-pg-to-sites-http.php
           php -l tests/f381-write-private-review-artifacts.php
+          php -l tests/f382-run-role-separated-review.php
           php -l apps/sites/app/Labs/LaravelAdmittedPreviewLab.php
           php -l apps/sites/routes/console.php
           test "$(git -C portal-purchase rev-parse HEAD)" = 516dc99c24961e58ec769464c9dd862bf7ac8eda
@@ -90,12 +96,13 @@ jobs:
           ci=ops/homologation/compose.ci-http.yaml
           orders=ops/homologation/compose.ci-portal-orders.yaml
           reviews=ops/homologation/compose.ci-reviews.yaml
-          if SITES_F377_CI_HTTP_LAB= docker compose -f "$base" -f "$db" -f "$ci" -f "$orders" -f "$reviews" config --quiet; then
+          editorial=ops/homologation/compose.ci-editorial.yaml
+          if SITES_F377_CI_HTTP_LAB= docker compose -f "$base" -f "$db" -f "$ci" -f "$orders" -f "$reviews" -f "$editorial" config --quiet; then
             echo 'Unsafe: CI HTTP overlay accepted missing opt-in'
             exit 1
           fi
-          docker compose -f "$base" -f "$db" -f "$ci" -f "$orders" -f "$reviews" config --quiet
-          docker compose -f "$base" -f "$db" -f "$ci" -f "$orders" -f "$reviews" config --format json |
+          docker compose -f "$base" -f "$db" -f "$ci" -f "$orders" -f "$reviews" -f "$editorial" config --quiet
+          docker compose -f "$base" -f "$db" -f "$ci" -f "$orders" -f "$reviews" -f "$editorial" config --format json |
             php -r '
               $c=json_decode(stream_get_contents(STDIN),true,64,JSON_THROW_ON_ERROR);
               $s=$c["services"]??[];
@@ -116,12 +123,14 @@ jobs:
             -f ops/homologation/compose.ci-pg18.yaml \
             -f ops/homologation/compose.ci-http.yaml \
             -f ops/homologation/compose.ci-portal-orders.yaml \
-            -f ops/homologation/compose.ci-reviews.yaml up -d --build; then
+            -f ops/homologation/compose.ci-reviews.yaml \
+            -f ops/homologation/compose.ci-editorial.yaml up -d --build; then
             docker compose -f ops/homologation/compose.yaml \
               -f ops/homologation/compose.ci-pg18.yaml \
               -f ops/homologation/compose.ci-http.yaml \
             -f ops/homologation/compose.ci-portal-orders.yaml \
-            -f ops/homologation/compose.ci-reviews.yaml logs --tail=90
+            -f ops/homologation/compose.ci-reviews.yaml \
+            -f ops/homologation/compose.ci-editorial.yaml logs --tail=90
             exit 1
           fi
       - name: Verify actual HTTP route is 404 when CI HTTP opt-in is false
@@ -150,6 +159,7 @@ jobs:
             -f ops/homologation/compose.ci-http.yaml \
             -f ops/homologation/compose.ci-portal-orders.yaml \
             -f ops/homologation/compose.ci-reviews.yaml \
+            -f ops/homologation/compose.ci-editorial.yaml \
             up -d --no-deps --force-recreate sites-php
           for i in $(seq 1 20); do
             if curl --noproxy '*' -fsS --output /dev/null http://127.0.0.1:18081/up; then
@@ -170,7 +180,8 @@ jobs:
               -f ops/homologation/compose.ci-pg18.yaml \
               -f ops/homologation/compose.ci-http.yaml \
             -f ops/homologation/compose.ci-portal-orders.yaml \
-            -f ops/homologation/compose.ci-reviews.yaml logs --tail=70
+            -f ops/homologation/compose.ci-reviews.yaml \
+            -f ops/homologation/compose.ci-editorial.yaml logs --tail=70
             exit 1
           fi
       - name: Actual pinned Portal encoder and signer to Sites HTTP and PG18
@@ -204,6 +215,7 @@ jobs:
               -f ops/homologation/compose.ci-http.yaml \
             -f ops/homologation/compose.ci-portal-orders.yaml \
             -f ops/homologation/compose.ci-reviews.yaml \
+            -f ops/homologation/compose.ci-editorial.yaml \
               exec -T sites-db psql -X -U postgres -d sites_f360_lab -tA -v ON_ERROR_STOP=1 -c "$1" | tr -d '\r\n'
           }
           test "$(query "SELECT count(*) FROM sites_f360.admissions WHERE operation_ref LIKE 'idem-f377-%'")" = 3
@@ -226,7 +238,8 @@ jobs:
             -f ops/homologation/compose.ci-pg18.yaml \
             -f ops/homologation/compose.ci-http.yaml \
             -f ops/homologation/compose.ci-portal-orders.yaml \
-            -f ops/homologation/compose.ci-reviews.yaml exec -T sites-php php -r '
+            -f ops/homologation/compose.ci-reviews.yaml \
+            -f ops/homologation/compose.ci-editorial.yaml exec -T sites-php php -r '
               $dsn="pgsql:host=sites-db;port=5432;dbname=sites_f360_lab";
               $opts=[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION];
               $b=new PDO($dsn,"sites_f360_b","f360-fictional-tenant-b-only",$opts);
@@ -250,6 +263,7 @@ jobs:
             -f ops/homologation/compose.ci-http.yaml \
             -f ops/homologation/compose.ci-portal-orders.yaml \
             -f ops/homologation/compose.ci-reviews.yaml \
+            -f ops/homologation/compose.ci-editorial.yaml \
             exec -T sites-php php artisan sites:admitted-review-fixture \
             > "$RUNNER_TEMP/f381-private.json"; then
             echo 'F1-381: HTML preview artifact builder failed (not publishable)'
@@ -264,6 +278,33 @@ jobs:
           test -s "$RUNNER_TEMP/f381-previews/manifest.json"
           ! grep -Eiq 'tenant_ref|portal_purchase_rehearsal|password|sensitive|customerid' "$RUNNER_TEMP/f381-previews/manifest.json"
           rm -f -- "$RUNNER_TEMP/f381-private.json"
+      - name: F1-382 persist separate editor and reviewer decisions with DB CAS
+        run: |
+          set -euo pipefail
+          docker compose -f ops/homologation/compose.yaml \
+            -f ops/homologation/compose.ci-pg18.yaml \
+            -f ops/homologation/compose.ci-http.yaml \
+            -f ops/homologation/compose.ci-portal-orders.yaml \
+            -f ops/homologation/compose.ci-reviews.yaml \
+            -f ops/homologation/compose.ci-editorial.yaml \
+            exec -T sites-php php /run/f382-review-fixture.php \
+            < "$RUNNER_TEMP/f381-previews/manifest.json" \
+            > "$RUNNER_TEMP/f381-previews/editorial-review-evidence.json"
+          php -r '
+            $p=getenv("RUNNER_TEMP")."/f381-previews/editorial-review-evidence.json";
+            $r=json_decode(file_get_contents($p),true,16,JSON_THROW_ON_ERROR);
+            if(($r["schemaVersion"]??"")!=="sites.ci.editorial-review-evidence.v1" ||
+               ($r["releaseGate"]??"")!=="NO_GO" ||
+               ($r["canPublish"]??null)!==false ||
+               ($r["clientAcceptanceVerified"]??null)!==false ||
+               ($r["auditEvents"]??null)!==9 ||
+               count($r["reviews"]??[])!==2)exit(1);
+            foreach($r["reviews"] as $s)if(
+              ($s["state"]??"")!=="awaiting_portal_acceptance" ||
+              ($s["publishable"]??null)!==false ||
+              ($s["clientAccepted"]??null)!==false)exit(1);
+          '
+          echo 'F1-382 PASS: separate restricted SQL roles, CAS revisions and immutable review audit; no client acceptance or publication.'
       - name: Upload only wholly-fictional navigable review previews
         uses: actions/upload-artifact@v4
         with:
@@ -278,4 +319,5 @@ jobs:
             -f ops/homologation/compose.ci-pg18.yaml \
             -f ops/homologation/compose.ci-http.yaml \
             -f ops/homologation/compose.ci-portal-orders.yaml \
-            -f ops/homologation/compose.ci-reviews.yaml down --volumes --remove-orphans
+            -f ops/homologation/compose.ci-reviews.yaml \
+            -f ops/homologation/compose.ci-editorial.yaml down --volumes --remove-orphans

@@ -1,0 +1,11 @@
+# F1-382 CI-only extension over all earlier disposable Compose overlays.
+# Never deploy SQL identities or editorial approval fixture into Leaseweb.
+services:
+  sites-php:
+    environment:
+      SITES_F382_REVIEW_LAB: ${SITES_F382_REVIEW_LAB:?CI-only review state machine requires explicit opt-in}
+    volumes:
+      - ../../tests/f382-run-role-separated-review.php:/run/f382-review-fixture.php:ro
+  sites-db:
+    volumes:
+      - ../../tests/fixtures/f382-durable-editorial-review.sql:/docker-entrypoint-initdb.d/050-f382.sql:ro
