@@ -1,0 +1,6 @@
+# Only on disposable GitHub Actions test runner, never Leaseweb/staging.
+# Does not grant production authority; reveals *only* fictional SQL purchase shape.
+services:
+  sites-php:
+    environment:
+      SITES_F380_PORTAL_DB_LAB: ${SITES_F380_PORTAL_DB_LAB:?CI-only Portal purchase lab opt-in required}
