@@ -47,7 +47,9 @@ if (PHP_SAPI==='fpm-fcgi' &&
             }
             $status=(new \App\Labs\LaravelSignedAdmissionLab(
                 \Illuminate\Support\Facades\DB::connection('pgsql'),
-                new \App\Labs\CIHttpPortalAuthority(),
+                getenv('SITES_F381_PURCHASE_HTTP_LAB')==='1'
+                    ? new \App\Labs\CIHttpPortalPurchaseAuthority()
+                    : new \App\Labs\CIHttpPortalAuthority(),
             ))->admit(
                 $body['signed'],$body['siteRef'],
                 'F375-FICTIONAL-PORTAL-SIGNING-KEY-ONLY-FOR-CI',time()
