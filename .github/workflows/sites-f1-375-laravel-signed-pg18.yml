@@ -1,0 +1,86 @@
+name: Sites F1-375 Laravel 13 signed admission on real disposable PostgreSQL18
+on:
+  pull_request:
+    paths:
+      - 'apps/sites/app/Labs/LaravelSignedAdmissionLab.php'
+      - 'apps/sites/tests/Feature/LaravelSignedAdmissionPgTest.php'
+      - 'tests/fixtures/f360-pg-durable-admission.sql'
+      - 'tests/fixtures/f361-pg-outbox-worker.sql'
+      - 'tests/fixtures/f363-pg-durable-nonce.sql'
+      - '.github/workflows/sites-f1-375-laravel-signed-pg18.yml'
+      - 'docs/SITES-F1-375-LARAVEL-SIGNED-POSTGRES.md'
+permissions:
+  contents: read
+jobs:
+  laravel-pg18-admission:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: f360-fictional-admin-disposable-only
+          POSTGRES_DB: sites_f360_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sites_f360_lab"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      APP_ENV: testing
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: sites_f360_lab
+      DB_USERNAME: sites_f360_b
+      DB_PASSWORD: f360-fictional-tenant-b-only
+      SITES_F375_LARAVEL_PG_LAB: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer:v2
+          extensions: mbstring,xml,dom,curl,pdo,pdo_pgsql
+          coverage: none
+      - name: Establish F1-360/361/363 disposable PostgreSQL18 function boundaries
+        run: |
+          set -euo pipefail
+          docker run --rm --network host -v "$PWD:/work:ro" \
+            -e PGPASSWORD=f360-fictional-admin-disposable-only \
+            postgres:18 sh -ec '
+              export PGHOST=127.0.0.1 PGPORT=5432 PGUSER=postgres PGDATABASE=sites_f360_lab
+              psql -X -v ON_ERROR_STOP=1 -f /work/tests/fixtures/f360-pg-durable-admission.sql
+              psql -X -v ON_ERROR_STOP=1 -f /work/tests/fixtures/f361-pg-outbox-worker.sql
+              psql -X -v ON_ERROR_STOP=1 -f /work/tests/fixtures/f363-pg-durable-nonce.sql
+            '
+      - name: Install existing locked Laravel13 dependencies
+        working-directory: apps/sites
+        run: |
+          set -euo pipefail
+          composer validate --strict
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts
+      - name: Syntax and default HTTP route protection
+        run: |
+          set -euo pipefail
+          php -l apps/sites/app/Labs/LaravelSignedAdmissionLab.php
+          php -l apps/sites/tests/Feature/LaravelSignedAdmissionPgTest.php
+          cd apps/sites
+          ! php artisan route:list --json | grep -q '_lab/sites/v1/create-project'
+          ! php artisan route:list --json | grep -q 'admit-project'
+      - name: Real Laravel transaction, tenant-bound SQL, durable nonces, rollback
+        working-directory: apps/sites
+        run: php artisan test --filter=LaravelSignedAdmissionPgTest --no-ansi
+      - name: CI-only gate notice
+        if: always()
+        run: |
+          echo 'F1-375 does not create an HTTP route, authorize orders, call official Portal, migrate prod or deploy. Database/keys/users are disposable fiction.'
