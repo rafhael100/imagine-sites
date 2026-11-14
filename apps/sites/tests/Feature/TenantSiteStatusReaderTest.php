@@ -85,7 +85,10 @@ final class TenantSiteStatusReaderTest extends TestCase
         foreach ([
             'sites_f384_a','sites_f384_b','postgres',
         ] as $role) {
-            DB::disconnect('f384_reader_'.$role);
+            $connection='f384_reader_'.$role;
+            if (config('database.connections.'.$connection)!==null) {
+                DB::disconnect($connection);
+            }
         }
         parent::tearDown();
     }
