@@ -40,6 +40,11 @@ $boundModel=(int)$db->query(
      WHERE table_schema='sites_core' AND table_name='db_login_bindings'"
 )->fetchColumn()===1;
 if ($boundModel) $names[]='db_login_bindings';
+$editorialModel=(int)$db->query(
+    "SELECT count(*) FROM information_schema.tables
+     WHERE table_schema='sites_core' AND table_name='editorial_operator_bindings'"
+)->fetchColumn()===1;
+if ($editorialModel) $names[]='editorial_operator_bindings';
 $state=$db->query(
     "SELECT c.relname AS tablename,
             c.relrowsecurity AS rowsecurity,
@@ -65,13 +70,21 @@ $policyRows=$db->query(
       WHERE schemaname='sites_core'"
 )->fetchAll(PDO::FETCH_ASSOC);
 if ($boundModel) {
-    f383Check(count($policyRows)===3,
-        'only three read-only security-definer policies expected');
+    f383Check(count($policyRows)===($editorialModel?7:3),
+        'only reviewed internal read/edit-definer policies expected');
     foreach($policyRows as $policy) {
-        f383Check($policy['policyname']==='f384_internal_reader' &&
+        $readerOnly=$policy['policyname']==='f384_internal_reader' &&
             $policy['cmd']==='SELECT' &&
-            str_contains((string)$policy['roles'],'sites_core_read_definer'),
-            'only narrow NOLOGIN internal read policy permitted');
+            str_contains((string)$policy['roles'],'sites_core_read_definer');
+        $editorialOnly=$editorialModel &&
+            in_array($policy['policyname'],[
+                'f385_editorial_reader','f385_editorial_writer',
+            ],true) &&
+            in_array($policy['cmd'],['SELECT','INSERT'],true) &&
+            str_contains((string)$policy['roles'],'sites_core_edit_definer');
+        f383Check(($readerOnly || $editorialOnly) &&
+            !str_contains(strtolower((string)$policy['roles']),'public'),
+            'only narrow NOLOGIN internal read/editorial policy permitted');
     }
 } else {
     f383Check(count($policyRows)===0,
