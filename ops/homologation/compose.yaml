@@ -57,9 +57,12 @@ services:
     cap_drop:
       - ALL
     networks:
+      - sites-local-edge
       - sites-internal
     restart: "no"
 
 networks:
+  sites-local-edge:
+    driver: bridge
   sites-internal:
     internal: true
