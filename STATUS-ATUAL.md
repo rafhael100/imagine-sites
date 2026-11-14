@@ -44,6 +44,13 @@
 - [PR #449](https://github.com/rafhael100/imagine-sites/pull/449), **F1-369**: HTTP Portal fictício confirma registro e perde a resposta antes do ACK do Sites; GitHub Actions usa `pg_dump` e `pg_restore` PostgreSQL 18 em **terceiro contêiner**, para o banco do receptor fictício. Desliga o contêiner original e valida reentrega idempotente, MAC do recibo, novo token lease, conflito de digest, ACK final e nenhuma duplicação.
 - **CI PostgreSQL18 PHP8.3/8.4 PASS** [#43529184768](https://github.com/rafhael100/imagine-sites/actions/runs/43529184768), com dados sintéticos. **Não é disaster recovery operacional:** backups e instâncias no mesmo runner efêmero, sem backup externo, RPO/RTO, fonte real de contratos, IAM, TLS ou revogação independente. PRs #444→#445→#446→#448→#449 permanecem DRAFT/NO-GO, sem merge/deploy/VPS/DNS; gates BLOCKED.
 
+## 13/11/2026 — restauração e evidência de recibos, sem homologação real
+
+- [PR #449](https://github.com/rafhael100/imagine-sites/pull/449): F1-369 `pg_dump` + `pg_restore` verdadeiros em três PostgreSQL18 descartáveis; preserva recibo após resposta HTTP perdida, reinicia receptor na base restaurada e impede duplicação. **PHP8.3/8.4 PASS** [#43529522002](https://github.com/rafhael100/imagine-sites/actions/runs/43529522002).
+- [PR #451](https://github.com/rafhael100/imagine-sites/pull/451): F1-370 bloqueia backup antigo mesmo sendo restaurável, detectando recibos faltantes, digest adulterado ou registro extra. **PHP8.3/8.4 PASS** [#43531366968](https://github.com/rafhael100/imagine-sites/actions/runs/43531366968).
+- [PR #452](https://github.com/rafhael100/imagine-sites/pull/452): F1-371 grava o MAC de recibo validado pelo worker e a confirmação SQL em uma transação, permitindo detectar a perda do recibo no Portal com evidência do banco Sites. **PHP8.3/8.4 PASS** [#43531839196](https://github.com/rafhael100/imagine-sites/actions/runs/43531839196). SQL não autentica o recibo sozinho; MAC validado no worker de CI e chaves fictícias.
+- **NO-GO**: PRs permanecem empilhados em DRAFT, sem merges ou deploy. Backups estão no mesmo GitHub runner, não na Leaseweb; IAM, contratos/pagamentos, TLS/vault, revogação externa, LGPD/AppSec, RPO/RTO e evidência independente operacional permanecem bloqueados.
+
 **Ainda não há ambiente operacional Sites publicado.** P0/RF-PEND/RV-CT/AppSec/LGPD, contratos financeiros, identidade, Cloudflare/DNS, banco produtivo, geração real por IA/n8n, captação/CRM fisicamente redundante e backups/restore continuam não homologados.
 
 **Gate exclusivo do responsável:** conexão autorizada de ambiente Leaseweb + Cloudflare e domínio técnico de teste, com gestão segura de credenciais/quotas, antes de qualquer homologação real. Não inserir credenciais no GitHub público ou neste chat.
