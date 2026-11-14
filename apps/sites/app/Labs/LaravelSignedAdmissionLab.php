@@ -20,7 +20,8 @@ use RuntimeException;
  * Signature verification is NOT an official contract/payment authorization.
  * The Portal authority gateway defaults to DENY and cannot be bypassed by
  * injecting a client-supplied tenant hint: SQL binds the tenant to session_user.
- * Never instantiate this service from an HTTP route or a production worker.
+ * F1-377 permits ONLY a tightly gated PHP-FPM route inside disposable
+ * GitHub CI. Never instantiate from a staging or production HTTP route.
  */
 final readonly class LaravelSignedAdmissionLab
 {
@@ -108,11 +109,18 @@ final readonly class LaravelSignedAdmissionLab
 
     private function assertDisposableSession():void
     {
-        if (PHP_SAPI!=='cli' || !app()->environment('testing') ||
+        $ciCli = PHP_SAPI==='cli' &&
+            getenv('SITES_F375_LARAVEL_PG_LAB')==='1' &&
+            getenv('DB_HOST')==='127.0.0.1';
+        $ciHttp = PHP_SAPI==='fpm-fcgi' &&
+            getenv('SITES_F377_CI_HTTP_LAB')==='1' &&
+            getenv('SITES_F377_CI_HTTP_KEY')===
+              'F375-FICTIONAL-PORTAL-SIGNING-KEY-ONLY-FOR-CI' &&
+            getenv('DB_HOST')==='sites-db';
+        if (!app()->environment('testing') ||
             getenv('GITHUB_ACTIONS')!=='true' ||
-            getenv('SITES_F375_LARAVEL_PG_LAB')!=='1' ||
+            (!$ciCli && !$ciHttp) ||
             getenv('DB_CONNECTION')!=='pgsql' ||
-            getenv('DB_HOST')!=='127.0.0.1' ||
             getenv('DB_PORT')!=='5432' ||
             getenv('DB_USERNAME')!=='sites_f360_b') {
             throw new DomainException('F1-375: no disposable CI lab authority.');
