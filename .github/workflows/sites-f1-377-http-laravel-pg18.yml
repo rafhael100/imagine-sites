@@ -1,0 +1,134 @@
+name: Sites F1-377 CI signed HTTP ingress through Laravel/Nginx to private PG18
+on:
+  pull_request:
+    paths:
+      - 'apps/sites/routes/web.php'
+      - 'apps/sites/bootstrap/app.php'
+      - 'apps/sites/app/Labs/**'
+      - 'tests/f377-http-laravel-pg18-ci.php'
+      - 'ops/homologation/**'
+      - '.github/workflows/sites-f1-377-http-laravel-pg18.yml'
+      - 'docs/SITES-F1-377-REAL-HTTP-ADMISSION-LAB.md'
+permissions:
+  contents: read
+jobs:
+  signed-http-pg18:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 24
+    env:
+      SITES_F376_CI_LAB: '1'
+      SITES_F377_CI_HTTP_LAB: '1'
+      SITES_STAGING_APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: none
+          extensions: curl
+          coverage: none
+      - name: PHP syntax and CI-only config gates
+        run: |
+          set -euo pipefail
+          php -l apps/sites/routes/web.php
+          php -l apps/sites/app/Labs/LaravelSignedAdmissionLab.php
+          php -l apps/sites/app/Labs/CIHttpPortalAuthority.php
+          php -l tests/f377-http-laravel-pg18-ci.php
+          base=ops/homologation/compose.yaml
+          db=ops/homologation/compose.ci-pg18.yaml
+          ci=ops/homologation/compose.ci-http.yaml
+          if SITES_F377_CI_HTTP_LAB= docker compose -f "$base" -f "$db" -f "$ci" config --quiet; then
+            echo 'Unsafe: CI HTTP overlay accepted missing opt-in'
+            exit 1
+          fi
+          docker compose -f "$base" -f "$db" -f "$ci" config --quiet
+          docker compose -f "$base" -f "$db" -f "$ci" config --format json |
+            php -r '
+              $c=json_decode(stream_get_contents(STDIN),true,64,JSON_THROW_ON_ERROR);
+              $s=$c["services"]??[];
+              if(isset($s["sites-db"]["ports"]) || isset($s["sites-php"]["ports"]))exit(1);
+              if(($s["sites-proxy"]["ports"][0]["host_ip"]??"")!=="127.0.0.1")exit(1);
+              if(($s["sites-php"]["environment"]["APP_ENV"]??"")!=="testing")exit(1);
+              if(($c["networks"]["sites-internal"]["internal"]??null)!==true)exit(1);
+            '
+      - name: Start private PostgreSQL18 and PHP FPM with CI HTTP gate CLOSED
+        run: |
+          set -euo pipefail
+          if ! SITES_F377_CI_HTTP_LAB=0 docker compose \
+            -f ops/homologation/compose.yaml \
+            -f ops/homologation/compose.ci-pg18.yaml \
+            -f ops/homologation/compose.ci-http.yaml up -d --build; then
+            docker compose -f ops/homologation/compose.yaml \
+              -f ops/homologation/compose.ci-pg18.yaml \
+              -f ops/homologation/compose.ci-http.yaml logs --tail=90
+            exit 1
+          fi
+      - name: Verify actual HTTP route is 404 when CI HTTP opt-in is false
+        run: |
+          set -euo pipefail
+          ready=0
+          for i in $(seq 1 40); do
+            if curl --noproxy '*' -fsS --output /dev/null http://127.0.0.1:18081/up; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          test "$ready" = 1
+          test "$(curl --noproxy '*' -sS -o /dev/null -w '%{http_code}' \
+            -X POST -H 'Content-Type: application/json' \
+            --data '{}' http://127.0.0.1:18081/_ci/sites/v1/admit)" = 404
+          test "$(curl --noproxy '*' -sS -o /dev/null -w '%{http_code}' \
+            -X POST http://127.0.0.1:18081/_lab/sites/v1/create-project)" = 404
+      - name: Activate isolated CI-only PHP-FPM route without exposing ports
+        run: |
+          set -euo pipefail
+          SITES_F377_CI_HTTP_LAB=1 docker compose \
+            -f ops/homologation/compose.yaml \
+            -f ops/homologation/compose.ci-pg18.yaml \
+            -f ops/homologation/compose.ci-http.yaml \
+            up -d --no-deps --force-recreate sites-php
+          for i in $(seq 1 20); do
+            if curl --noproxy '*' -fsS --output /dev/null http://127.0.0.1:18081/up; then
+              exit 0
+            fi
+            sleep 1
+          done
+          exit 1
+      - name: Signed Onepage and Landing HTTP POST across Nginx FPM and real PG18
+        run: |
+          set -euo pipefail
+          if SITES_F377_CI_HTTP_LAB=0 php tests/f377-http-laravel-pg18-ci.php; then
+            echo 'Unsafe: CI-only HTTP client ran without gate'
+            exit 1
+          fi
+          if ! php tests/f377-http-laravel-pg18-ci.php; then
+            docker compose -f ops/homologation/compose.yaml \
+              -f ops/homologation/compose.ci-pg18.yaml \
+              -f ops/homologation/compose.ci-http.yaml logs --tail=70
+            exit 1
+          fi
+      - name: Independently assert durable PG18 tenant/outbox/nonce results
+        run: |
+          set -euo pipefail
+          query() {
+            docker compose -f ops/homologation/compose.yaml \
+              -f ops/homologation/compose.ci-pg18.yaml \
+              -f ops/homologation/compose.ci-http.yaml \
+              exec -T sites-db psql -X -U postgres -d sites_f360_lab -tA -v ON_ERROR_STOP=1 -c "$1" | tr -d '\r\n'
+          }
+          test "$(query "SELECT count(*) FROM sites_f360.admissions WHERE operation_ref LIKE 'idem-f377-%'")" = 3
+          test "$(query "SELECT count(*) FROM sites_f360.outbox WHERE operation_ref LIKE 'idem-f377-%'")" = 3
+          test "$(query "SELECT count(*) FROM sites_f360.replay_nonces WHERE nonce LIKE 'nonce-f377-%'")" = 5
+          test "$(query "SELECT count(*) FROM sites_f360.admissions WHERE operation_ref='failoutbox-f360'")" = 0
+          test "$(query "SELECT count(*) FROM sites_f360.outbox WHERE operation_ref='failoutbox-f360'")" = 0
+          test "$(query "SELECT count(*) FROM sites_f360.admissions WHERE tenant_ref='tenant-f360-a'")" = 0
+          echo 'F1-377 PASS: three atomic projects and outbox events, five durable nonces, no cross-tenant or failed outbox rows.'
+      - name: Always destroy fictional database and HTTP containers
+        if: always()
+        run: |
+          docker compose -f ops/homologation/compose.yaml \
+            -f ops/homologation/compose.ci-pg18.yaml \
+            -f ops/homologation/compose.ci-http.yaml down --volumes --remove-orphans
