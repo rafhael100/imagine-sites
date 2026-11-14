@@ -36,9 +36,12 @@ $names=[
     'replay_nonces','editorial_revisions','site_outbox',
 ];
 $state=$db->query(
-    "SELECT tablename,rowsecurity,forcerowsecurity
-       FROM pg_tables
-      WHERE schemaname='sites_core'"
+    "SELECT c.relname AS tablename,
+            c.relrowsecurity AS rowsecurity,
+            c.relforcerowsecurity AS forcerowsecurity
+       FROM pg_class c
+       JOIN pg_namespace n ON n.oid=c.relnamespace
+      WHERE n.nspname='sites_core' AND c.relkind='r'"
 )->fetchAll(PDO::FETCH_ASSOC);
 f383Check(count($state)===count($names),
     'exact six core tables after reversible Laravel migration');
