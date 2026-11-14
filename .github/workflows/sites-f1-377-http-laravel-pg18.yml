@@ -4,6 +4,7 @@ on:
     branches:
       - feature/sites-f1-378-portal-pinned-http-candidate-2026-11-13
       - feature/sites-f1-380-portal-pg-orders-http-2026-11-13
+      - feature/sites-f1-381-admitted-project-review-preview-2026-11-13
   pull_request:
     paths:
       - 'apps/sites/routes/web.php'
@@ -12,6 +13,11 @@ on:
       - 'tests/f377-http-laravel-pg18-ci.php'
       - 'tests/f378-pinned-portal-http-to-sites.php'
       - 'tests/f380-rolebound-portal-pg-to-sites-http.php'
+      - 'tests/f381-write-private-review-artifacts.php'
+      - 'tests/fixtures/f381-tenant-review-read.sql'
+      - 'apps/sites/app/Labs/LaravelAdmittedPreviewLab.php'
+      - 'apps/sites/routes/console.php'
+      - 'docs/SITES-F1-381-ADMITTED-VISUAL-REVIEWS.md'
       - 'docs/SITES-F1-378-PORTAL-PINNED-HTTP.md'
       - 'ops/homologation/**'
       - '.github/workflows/sites-f1-377-http-laravel-pg18.yml'
@@ -26,6 +32,7 @@ jobs:
       SITES_F376_CI_LAB: '1'
       SITES_F377_CI_HTTP_LAB: '1'
       SITES_F380_PORTAL_DB_LAB: '1'
+      SITES_F381_REVIEW_LAB: '1'
       APP_ENV: testing
       SITES_STAGING_APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
     services:
@@ -73,18 +80,22 @@ jobs:
           php -l tests/f377-http-laravel-pg18-ci.php
           php -l tests/f378-pinned-portal-http-to-sites.php
           php -l tests/f380-rolebound-portal-pg-to-sites-http.php
+          php -l tests/f381-write-private-review-artifacts.php
+          php -l apps/sites/app/Labs/LaravelAdmittedPreviewLab.php
+          php -l apps/sites/routes/console.php
           test "$(git -C portal-purchase rev-parse HEAD)" = 516dc99c24961e58ec769464c9dd862bf7ac8eda
           test "$(git -C portal-candidate rev-parse HEAD)" = bf1b2794de4d6000f120ffa2b1e6dd557f34c35e
           base=ops/homologation/compose.yaml
           db=ops/homologation/compose.ci-pg18.yaml
           ci=ops/homologation/compose.ci-http.yaml
           orders=ops/homologation/compose.ci-portal-orders.yaml
-          if SITES_F377_CI_HTTP_LAB= docker compose -f "$base" -f "$db" -f "$ci" -f "$orders" config --quiet; then
+          reviews=ops/homologation/compose.ci-reviews.yaml
+          if SITES_F377_CI_HTTP_LAB= docker compose -f "$base" -f "$db" -f "$ci" -f "$orders" -f "$reviews" config --quiet; then
             echo 'Unsafe: CI HTTP overlay accepted missing opt-in'
             exit 1
           fi
-          docker compose -f "$base" -f "$db" -f "$ci" -f "$orders" config --quiet
-          docker compose -f "$base" -f "$db" -f "$ci" -f "$orders" config --format json |
+          docker compose -f "$base" -f "$db" -f "$ci" -f "$orders" -f "$reviews" config --quiet
+          docker compose -f "$base" -f "$db" -f "$ci" -f "$orders" -f "$reviews" config --format json |
             php -r '
               $c=json_decode(stream_get_contents(STDIN),true,64,JSON_THROW_ON_ERROR);
               $s=$c["services"]??[];
@@ -104,11 +115,13 @@ jobs:
             -f ops/homologation/compose.yaml \
             -f ops/homologation/compose.ci-pg18.yaml \
             -f ops/homologation/compose.ci-http.yaml \
-            -f ops/homologation/compose.ci-portal-orders.yaml up -d --build; then
+            -f ops/homologation/compose.ci-portal-orders.yaml \
+            -f ops/homologation/compose.ci-reviews.yaml up -d --build; then
             docker compose -f ops/homologation/compose.yaml \
               -f ops/homologation/compose.ci-pg18.yaml \
               -f ops/homologation/compose.ci-http.yaml \
-            -f ops/homologation/compose.ci-portal-orders.yaml logs --tail=90
+            -f ops/homologation/compose.ci-portal-orders.yaml \
+            -f ops/homologation/compose.ci-reviews.yaml logs --tail=90
             exit 1
           fi
       - name: Verify actual HTTP route is 404 when CI HTTP opt-in is false
@@ -136,6 +149,7 @@ jobs:
             -f ops/homologation/compose.ci-pg18.yaml \
             -f ops/homologation/compose.ci-http.yaml \
             -f ops/homologation/compose.ci-portal-orders.yaml \
+            -f ops/homologation/compose.ci-reviews.yaml \
             up -d --no-deps --force-recreate sites-php
           for i in $(seq 1 20); do
             if curl --noproxy '*' -fsS --output /dev/null http://127.0.0.1:18081/up; then
@@ -155,7 +169,8 @@ jobs:
             docker compose -f ops/homologation/compose.yaml \
               -f ops/homologation/compose.ci-pg18.yaml \
               -f ops/homologation/compose.ci-http.yaml \
-            -f ops/homologation/compose.ci-portal-orders.yaml logs --tail=70
+            -f ops/homologation/compose.ci-portal-orders.yaml \
+            -f ops/homologation/compose.ci-reviews.yaml logs --tail=70
             exit 1
           fi
       - name: Actual pinned Portal encoder and signer to Sites HTTP and PG18
@@ -188,6 +203,7 @@ jobs:
               -f ops/homologation/compose.ci-pg18.yaml \
               -f ops/homologation/compose.ci-http.yaml \
             -f ops/homologation/compose.ci-portal-orders.yaml \
+            -f ops/homologation/compose.ci-reviews.yaml \
               exec -T sites-db psql -X -U postgres -d sites_f360_lab -tA -v ON_ERROR_STOP=1 -c "$1" | tr -d '\r\n'
           }
           test "$(query "SELECT count(*) FROM sites_f360.admissions WHERE operation_ref LIKE 'idem-f377-%'")" = 3
@@ -203,10 +219,63 @@ jobs:
           test "$(query "SELECT count(*) FROM sites_f360.outbox WHERE operation_ref LIKE 'idem-f380-%'")" = 2
           test "$(query "SELECT count(*) FROM sites_f360.replay_nonces WHERE nonce LIKE 'nonce-f380-%'")" = 4
           echo 'F1-377 PASS: three atomic projects and outbox events, five durable nonces, no cross-tenant or failed outbox rows.'
+      - name: F1-381 ensure DB-review projection respects authenticated tenant roles
+        run: |
+          set -euo pipefail
+          docker compose -f ops/homologation/compose.yaml \
+            -f ops/homologation/compose.ci-pg18.yaml \
+            -f ops/homologation/compose.ci-http.yaml \
+            -f ops/homologation/compose.ci-portal-orders.yaml \
+            -f ops/homologation/compose.ci-reviews.yaml exec -T sites-php php -r '
+              $dsn="pgsql:host=sites-db;port=5432;dbname=sites_f360_lab";
+              $opts=[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION];
+              $b=new PDO($dsn,"sites_f360_b","f360-fictional-tenant-b-only",$opts);
+              $a=new PDO($dsn,"sites_f360_a","f360-fictional-tenant-a-only",$opts);
+              $query="SELECT * FROM sites_f360.list_own_review_candidates()";
+              $rs=$b->query($query)->fetchAll(PDO::FETCH_ASSOC);
+              if(count($rs)!==2 ||
+                 count($a->query($query)->fetchAll(PDO::FETCH_ASSOC))!==0)exit(1);
+              $products=array_column($rs,"product_code");sort($products);
+              if($products!==["landing_page","onepage"])exit(2);
+              try{$b->query("SELECT * FROM sites_f360.admissions");exit(3);}
+              catch(PDOException $e){if($e->getCode()!=="42501")exit(4);}
+              echo "F1-381 PASS: two restricted Site reviews for tenant B, zero for A, no direct admissions SELECT.";
+            '
+      - name: F1-381 build private inert HTML previews from admitted Site rows
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/f381-previews"
+          if ! docker compose -f ops/homologation/compose.yaml \
+            -f ops/homologation/compose.ci-pg18.yaml \
+            -f ops/homologation/compose.ci-http.yaml \
+            -f ops/homologation/compose.ci-portal-orders.yaml \
+            -f ops/homologation/compose.ci-reviews.yaml \
+            exec -T sites-php php artisan sites:admitted-review-fixture \
+            > "$RUNNER_TEMP/f381-private.json"; then
+            echo 'F1-381: HTML preview artifact builder failed (not publishable)'
+            exit 1
+          fi
+          SITES_F381_BUNDLE_FILE="$RUNNER_TEMP/f381-private.json" \
+          SITES_F381_REVIEW_DIR="$RUNNER_TEMP/f381-previews" \
+          php tests/f381-write-private-review-artifacts.php
+          test -s "$RUNNER_TEMP/f381-previews/index.html"
+          test -s "$RUNNER_TEMP/f381-previews/preview-onepage.html"
+          test -s "$RUNNER_TEMP/f381-previews/preview-landing-page.html"
+          test -s "$RUNNER_TEMP/f381-previews/manifest.json"
+          ! grep -Eiq 'tenant_ref|portal_purchase_rehearsal|password|sensitive|customerid' "$RUNNER_TEMP/f381-previews/manifest.json"
+          rm -f -- "$RUNNER_TEMP/f381-private.json"
+      - name: Upload only wholly-fictional navigable review previews
+        uses: actions/upload-artifact@v4
+        with:
+          name: imagine-sites-f381-navigable-review-fixtures
+          path: ${{ runner.temp }}/f381-previews/
+          retention-days: 7
+          if-no-files-found: error
       - name: Always destroy fictional database and HTTP containers
         if: always()
         run: |
           docker compose -f ops/homologation/compose.yaml \
             -f ops/homologation/compose.ci-pg18.yaml \
             -f ops/homologation/compose.ci-http.yaml \
-            -f ops/homologation/compose.ci-portal-orders.yaml down --volumes --remove-orphans
+            -f ops/homologation/compose.ci-portal-orders.yaml \
+            -f ops/homologation/compose.ci-reviews.yaml down --volumes --remove-orphans

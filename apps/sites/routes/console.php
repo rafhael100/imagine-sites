@@ -299,3 +299,25 @@ Artisan::command('sites:homologation-preflight', function (): int {
     // Intentionally NEVER changes any release gate to green.
     return Command::FAILURE;
 })->purpose('Read-only NO-GO staging preflight with sanitized verification findings');
+
+
+/**
+ * F1-381: read-only operator artifact bundle from PG18 admitted fictional
+ * projects. Emits JSON only to the caller's private CI stdout. It never
+ * writes to public storage or allows a client's approval.
+ */
+Artisan::command('sites:admitted-review-fixture', function (): int {
+    try {
+        $bundle=(new \App\Labs\LaravelAdmittedPreviewLab(
+            \Illuminate\Support\Facades\DB::connection('pgsql')
+        ))->build();
+        $this->line(json_encode(
+            $bundle,
+            JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE
+        ));
+        return Command::SUCCESS;
+    } catch (\Throwable) {
+        $this->error('F1-381: review fixture unavailable; no public output.');
+        return Command::FAILURE;
+    }
+})->purpose('Emit a private CI-only visual review bundle; never publish or accept clients');
