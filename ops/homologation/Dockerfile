@@ -29,6 +29,7 @@ COPY --from=php-build /usr/local/etc/php/conf.d/ /usr/local/etc/php/conf.d/
 COPY --from=php-build --chown=www-data:www-data /opt/imagine/apps/sites /opt/imagine/apps/sites
 COPY --from=php-build --chown=www-data:www-data /opt/imagine/src /opt/imagine/src
 COPY ops/homologation/php.ini /usr/local/etc/php/conf.d/99-sites-homologation.ini
+COPY ops/homologation/php-fpm-pool.conf /usr/local/etc/php-fpm.d/99-sites-env.conf
 WORKDIR /opt/imagine/apps/sites
 RUN set -eux; \
     mkdir -p storage/app/private storage/framework/cache/data storage/framework/sessions \
@@ -42,4 +43,5 @@ FROM nginx:stable-alpine AS sites-proxy
 COPY ops/homologation/nginx.conf /etc/nginx/conf.d/default.conf
 COPY apps/sites/public /opt/imagine/apps/sites/public
 EXPOSE 8080
+USER nginx
 CMD ["nginx", "-g", "daemon off;"]
