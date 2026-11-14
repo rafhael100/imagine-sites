@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - feature/sites-f1-378-portal-pinned-http-candidate-2026-11-13
+      - feature/sites-f1-380-portal-pg-orders-http-2026-11-13
   pull_request:
     paths:
       - 'apps/sites/routes/web.php'
@@ -10,6 +11,7 @@ on:
       - 'apps/sites/app/Labs/**'
       - 'tests/f377-http-laravel-pg18-ci.php'
       - 'tests/f378-pinned-portal-http-to-sites.php'
+      - 'tests/f380-rolebound-portal-pg-to-sites-http.php'
       - 'docs/SITES-F1-378-PORTAL-PINNED-HTTP.md'
       - 'ops/homologation/**'
       - '.github/workflows/sites-f1-377-http-laravel-pg18.yml'
@@ -23,7 +25,23 @@ jobs:
     env:
       SITES_F376_CI_LAB: '1'
       SITES_F377_CI_HTTP_LAB: '1'
+      SITES_F380_PORTAL_DB_LAB: '1'
+      APP_ENV: testing
       SITES_STAGING_APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+    services:
+      portal_purchase_pg:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-ci-only
+          POSTGRES_DB: portal_purchase_rehearsal
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d portal_purchase_rehearsal"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
     steps:
       - uses: actions/checkout@v4
         with:
@@ -34,11 +52,17 @@ jobs:
           ref: bf1b2794de4d6000f120ffa2b1e6dd557f34c35e
           path: portal-candidate
           persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: rafhael100/imagine-portal
+          ref: 516dc99c24961e58ec769464c9dd862bf7ac8eda
+          path: portal-purchase
+          persist-credentials: false
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
           tools: none
-          extensions: curl
+          extensions: curl,pdo_pgsql
           coverage: none
       - name: PHP syntax and CI-only config gates
         run: |
@@ -48,16 +72,19 @@ jobs:
           php -l apps/sites/app/Labs/CIHttpPortalAuthority.php
           php -l tests/f377-http-laravel-pg18-ci.php
           php -l tests/f378-pinned-portal-http-to-sites.php
+          php -l tests/f380-rolebound-portal-pg-to-sites-http.php
+          test "$(git -C portal-purchase rev-parse HEAD)" = 516dc99c24961e58ec769464c9dd862bf7ac8eda
           test "$(git -C portal-candidate rev-parse HEAD)" = bf1b2794de4d6000f120ffa2b1e6dd557f34c35e
           base=ops/homologation/compose.yaml
           db=ops/homologation/compose.ci-pg18.yaml
           ci=ops/homologation/compose.ci-http.yaml
-          if SITES_F377_CI_HTTP_LAB= docker compose -f "$base" -f "$db" -f "$ci" config --quiet; then
+          orders=ops/homologation/compose.ci-portal-orders.yaml
+          if SITES_F377_CI_HTTP_LAB= docker compose -f "$base" -f "$db" -f "$ci" -f "$orders" config --quiet; then
             echo 'Unsafe: CI HTTP overlay accepted missing opt-in'
             exit 1
           fi
-          docker compose -f "$base" -f "$db" -f "$ci" config --quiet
-          docker compose -f "$base" -f "$db" -f "$ci" config --format json |
+          docker compose -f "$base" -f "$db" -f "$ci" -f "$orders" config --quiet
+          docker compose -f "$base" -f "$db" -f "$ci" -f "$orders" config --format json |
             php -r '
               $c=json_decode(stream_get_contents(STDIN),true,64,JSON_THROW_ON_ERROR);
               $s=$c["services"]??[];
@@ -66,16 +93,22 @@ jobs:
               if(($s["sites-php"]["environment"]["APP_ENV"]??"")!=="testing")exit(1);
               if(($c["networks"]["sites-internal"]["internal"]??null)!==true)exit(1);
             '
+      - name: Initialize real Portal candidate persisted purchase schema, RLS, and roles
+        run: |
+          set -euo pipefail
+          php portal-purchase/apps/portal/tools/test_persisted_purchase.php
       - name: Start private PostgreSQL18 and PHP FPM with CI HTTP gate CLOSED
         run: |
           set -euo pipefail
           if ! SITES_F377_CI_HTTP_LAB=0 docker compose \
             -f ops/homologation/compose.yaml \
             -f ops/homologation/compose.ci-pg18.yaml \
-            -f ops/homologation/compose.ci-http.yaml up -d --build; then
+            -f ops/homologation/compose.ci-http.yaml \
+            -f ops/homologation/compose.ci-portal-orders.yaml up -d --build; then
             docker compose -f ops/homologation/compose.yaml \
               -f ops/homologation/compose.ci-pg18.yaml \
-              -f ops/homologation/compose.ci-http.yaml logs --tail=90
+              -f ops/homologation/compose.ci-http.yaml \
+            -f ops/homologation/compose.ci-portal-orders.yaml logs --tail=90
             exit 1
           fi
       - name: Verify actual HTTP route is 404 when CI HTTP opt-in is false
@@ -102,6 +135,7 @@ jobs:
             -f ops/homologation/compose.yaml \
             -f ops/homologation/compose.ci-pg18.yaml \
             -f ops/homologation/compose.ci-http.yaml \
+            -f ops/homologation/compose.ci-portal-orders.yaml \
             up -d --no-deps --force-recreate sites-php
           for i in $(seq 1 20); do
             if curl --noproxy '*' -fsS --output /dev/null http://127.0.0.1:18081/up; then
@@ -120,7 +154,8 @@ jobs:
           if ! php tests/f377-http-laravel-pg18-ci.php; then
             docker compose -f ops/homologation/compose.yaml \
               -f ops/homologation/compose.ci-pg18.yaml \
-              -f ops/homologation/compose.ci-http.yaml logs --tail=70
+              -f ops/homologation/compose.ci-http.yaml \
+            -f ops/homologation/compose.ci-portal-orders.yaml logs --tail=70
             exit 1
           fi
       - name: Actual pinned Portal encoder and signer to Sites HTTP and PG18
@@ -134,6 +169,17 @@ jobs:
             exit 1
           fi
           php tests/f378-pinned-portal-http-to-sites.php
+      - name: Portal restricted SQL purchase rows to signed Sites HTTP and private PG18
+        env:
+          SITES_F380_PORTAL_PURCHASE_PATH: ${{ github.workspace }}/portal-purchase
+          SITES_F380_PORTAL_SIGNER_PATH: ${{ github.workspace }}/portal-candidate
+        run: |
+          set -euo pipefail
+          if SITES_F380_PORTAL_DB_LAB=0 php tests/f380-rolebound-portal-pg-to-sites-http.php; then
+            echo 'Unsafe: portal-purchase bridge not explicitly scoped to CI'
+            exit 1
+          fi
+          php tests/f380-rolebound-portal-pg-to-sites-http.php
       - name: Independently assert durable PG18 tenant/outbox/nonce results
         run: |
           set -euo pipefail
@@ -141,6 +187,7 @@ jobs:
             docker compose -f ops/homologation/compose.yaml \
               -f ops/homologation/compose.ci-pg18.yaml \
               -f ops/homologation/compose.ci-http.yaml \
+            -f ops/homologation/compose.ci-portal-orders.yaml \
               exec -T sites-db psql -X -U postgres -d sites_f360_lab -tA -v ON_ERROR_STOP=1 -c "$1" | tr -d '\r\n'
           }
           test "$(query "SELECT count(*) FROM sites_f360.admissions WHERE operation_ref LIKE 'idem-f377-%'")" = 3
@@ -152,10 +199,14 @@ jobs:
           test "$(query "SELECT count(*) FROM sites_f360.admissions WHERE operation_ref LIKE 'idem-f378-%'")" = 2
           test "$(query "SELECT count(*) FROM sites_f360.outbox WHERE operation_ref LIKE 'idem-f378-%'")" = 2
           test "$(query "SELECT count(*) FROM sites_f360.replay_nonces WHERE nonce LIKE 'nonce-f378-%'")" = 4
+          test "$(query "SELECT count(*) FROM sites_f360.admissions WHERE operation_ref LIKE 'idem-f380-%'")" = 2
+          test "$(query "SELECT count(*) FROM sites_f360.outbox WHERE operation_ref LIKE 'idem-f380-%'")" = 2
+          test "$(query "SELECT count(*) FROM sites_f360.replay_nonces WHERE nonce LIKE 'nonce-f380-%'")" = 4
           echo 'F1-377 PASS: three atomic projects and outbox events, five durable nonces, no cross-tenant or failed outbox rows.'
       - name: Always destroy fictional database and HTTP containers
         if: always()
         run: |
           docker compose -f ops/homologation/compose.yaml \
             -f ops/homologation/compose.ci-pg18.yaml \
-            -f ops/homologation/compose.ci-http.yaml down --volumes --remove-orphans
+            -f ops/homologation/compose.ci-http.yaml \
+            -f ops/homologation/compose.ci-portal-orders.yaml down --volumes --remove-orphans
