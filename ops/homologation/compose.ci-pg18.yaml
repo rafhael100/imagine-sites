@@ -1,0 +1,43 @@
+# F1-376: GitHub Actions TEST-ONLY override. Never deploy this overlay.
+# A fictional isolated PostgreSQL18 database is initialized from the exact
+# F1-360/361/363 laboratory schemas. No host ports or persistent backup.
+# Requires an explicit opt-in for schema initialization.
+services:
+  sites-php:
+    environment:
+      DB_CONNECTION: pgsql
+      DB_HOST: sites-db
+      DB_PORT: '5432'
+      DB_DATABASE: sites_f360_lab
+      DB_USERNAME: sites_f360_b
+      DB_PASSWORD: f360-fictional-tenant-b-only
+      DB_SSLMODE: prefer
+    depends_on:
+      sites-db:
+        condition: service_healthy
+
+  sites-db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: f360-fictional-admin-disposable-only
+      POSTGRES_DB: sites_f360_lab
+      # Compose refuses to parse this overlay without explicit CI opt-in.
+      CI_ONLY_SCHEMA_OPT_IN: ${SITES_F376_CI_LAB:?F1-376 is a disposable CI fixture only}
+    volumes:
+      - ../../tests/fixtures/f360-pg-durable-admission.sql:/docker-entrypoint-initdb.d/010-f360.sql:ro
+      - ../../tests/fixtures/f361-pg-outbox-worker.sql:/docker-entrypoint-initdb.d/020-f361.sql:ro
+      - ../../tests/fixtures/f363-pg-durable-nonce.sql:/docker-entrypoint-initdb.d/030-f363.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d sites_f360_lab']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    networks:
+      - sites-internal
+    # Official postgres image initializes an ephemeral data directory as
+    # root and must chown it before dropping to the postgres user. Its
+    # bootstrap capabilities are confined to this CI-only container.
+    security_opt:
+      - no-new-privileges:true
+    restart: 'no'

@@ -1,0 +1,131 @@
+name: Sites F1-376 Laravel container and private PostgreSQL18 CI-only network
+on:
+  pull_request:
+    paths:
+      - 'ops/homologation/**'
+      - '.github/workflows/sites-f1-376-container-pg18.yml'
+      - 'apps/sites/app/Support/HomologationReadiness.php'
+      - 'apps/sites/routes/console.php'
+      - 'tests/fixtures/f360-pg-durable-admission.sql'
+      - 'tests/fixtures/f361-pg-outbox-worker.sql'
+      - 'tests/fixtures/f363-pg-durable-nonce.sql'
+      - 'docs/SITES-F1-376-PRIVATE-POSTGRES-DOCKER.md'
+permissions:
+  contents: read
+jobs:
+  private-db-bridge:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 24
+    env:
+      SITES_F376_CI_LAB: '1'
+      # Public synthetic CI key: must never be used outside this runner.
+      SITES_STAGING_APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Fail-closed overlay and verify no DB or PHP host port
+        run: |
+          set -euo pipefail
+          base=ops/homologation/compose.yaml
+          overlay=ops/homologation/compose.ci-pg18.yaml
+          if SITES_F376_CI_LAB= docker compose -f "$base" -f "$overlay" config --quiet; then
+            echo 'Unsafe: overlay accepted missing CI-only opt-in'
+            exit 1
+          fi
+          docker compose -f "$base" -f "$overlay" config --quiet
+          docker compose -f "$base" -f "$overlay" config --format json |
+            php -r '
+              $c=json_decode(stream_get_contents(STDIN),true,64,JSON_THROW_ON_ERROR);
+              $s=$c["services"]??[];
+              $expected=["sites-db","sites-php","sites-proxy"];
+              $names=array_keys($s);sort($names);
+              if($names!==$expected)exit(1);
+              if(isset($s["sites-db"]["ports"]) || isset($s["sites-php"]["ports"]))exit(1);
+              if(($c["networks"]["sites-internal"]["internal"]??false)!==true)exit(1);
+              if(($s["sites-php"]["environment"]["DB_HOST"]??"")!=="sites-db")exit(1);
+              $ports=$s["sites-proxy"]["ports"]??[];
+              if(count($ports)!==1 || ($ports[0]["host_ip"]??"")!=="127.0.0.1")exit(1);
+            '
+      - name: Build and start separate Laravel, Nginx and PostgreSQL18 containers
+        run: |
+          set -euo pipefail
+          if ! docker compose -f ops/homologation/compose.yaml \
+            -f ops/homologation/compose.ci-pg18.yaml up -d --build; then
+            docker compose -f ops/homologation/compose.yaml \
+              -f ops/homologation/compose.ci-pg18.yaml logs --tail=90
+            exit 1
+          fi
+      - name: Confirm PHP-FPM and Nginx HTTP route are alive on localhost
+        run: |
+          set -euo pipefail
+          ready=0
+          for i in $(seq 1 40); do
+            if curl --noproxy '*' -fsS -o /dev/null http://127.0.0.1:18081/up; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          test "$ready" = 1
+          test "$(curl --noproxy '*' -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18081/up)" = 200
+          test "$(curl --noproxy '*' -sS -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:18081/_lab/sites/v1/create-project)" = 404
+      - name: Prove PHP runtime reaches independent restricted PG18 login
+        run: |
+          set -euo pipefail
+          docker compose -f ops/homologation/compose.yaml -f ops/homologation/compose.ci-pg18.yaml \
+            exec -T sites-php php -r '
+              $db=new PDO(
+                "pgsql:host=".getenv("DB_HOST").";port=5432;dbname=".getenv("DB_DATABASE"),
+                getenv("DB_USERNAME"),getenv("DB_PASSWORD"),
+                [PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]
+              );
+              $row=$db->query(
+                "SELECT current_database() AS db,session_user AS login,current_setting("
+                .chr(39)."server_version_num".chr(39).")::integer AS version"
+              )->fetch(PDO::FETCH_ASSOC);
+              if($row["db"]!=="sites_f360_lab" ||
+                 $row["login"]!=="sites_f360_b" ||
+                 (int)$row["version"]<180000 || (int)$row["version"]>=190000)exit(1);
+              try{
+                $db->query("SELECT * FROM sites_f360.admissions");
+                exit(2);
+              }catch(PDOException $e){if($e->getCode()!=="42501")exit(3);}
+              try{
+                $db->query("SELECT sites_f360.admit_project("
+                  .chr(39)."tenant-f360-a".chr(39).","
+                  .chr(39)."idem-f376-illegal".chr(39).","
+                  .chr(39)."site-f376-illegal".chr(39).","
+                  .chr(39)."contract-f376-illegal".chr(39).","
+                  .chr(39)."onepage".chr(39).",1,"
+                  .chr(39).str_repeat("a",64).chr(39).")");
+                exit(4);
+              }catch(PDOException $e){if($e->getCode()!=="42501")exit(5);}
+              echo "F1-376 PASS: PHP authenticated by PG18 as restricted tenant b, cross-tenant and raw SELECT denied.";
+            '
+      - name: F1-374 preflight reads PG18 identity but STILL denies production readiness
+        run: |
+          set -euo pipefail
+          set +e
+          report="$(docker compose -f ops/homologation/compose.yaml -f ops/homologation/compose.ci-pg18.yaml exec -T sites-php php artisan sites:homologation-preflight)"
+          result=$?
+          set -e
+          test "$result" -eq 1
+          printf '%s' "$report" | php -r '
+            $r=json_decode(stream_get_contents(STDIN),true,64,JSON_THROW_ON_ERROR);
+            if(($r["status"]??null)!=="blocked" ||
+               ($r["database_probe_attempted"]??null)!==true ||
+               ($r["checks"]["postgres18_identity"]["result"]??null)!=="verified" ||
+               ($r["checks"]["postgres_least_privilege"]["result"]??null)!=="verified" ||
+               ($r["checks"]["postgres_tls"]["result"]??null)!=="blocked" ||
+               ($r["checks"]["portal_service_identity"]["result"]??null)!=="blocked" ||
+               ($r["can_accept_real_orders"]??null)!==false ||
+               ($r["can_publish"]??null)!==false)exit(1);
+          '
+          ! printf '%s' "$report" | grep -q 'f360-fictional'
+          echo 'F1-376 PASS: real private PostgreSQL login verified; TLS/contracts/release remain NO-GO.'
+      - name: Always remove ephemeral services and data volumes
+        if: always()
+        run: |
+          docker compose -f ops/homologation/compose.yaml \
+            -f ops/homologation/compose.ci-pg18.yaml down --volumes --remove-orphans
