@@ -5,6 +5,8 @@ on:
       - 'apps/sites/routes/web.php'
       - 'apps/sites/app/Labs/**'
       - 'tests/f377-http-laravel-pg18-ci.php'
+      - 'tests/f378-pinned-portal-http-to-sites.php'
+      - 'docs/SITES-F1-378-PORTAL-PINNED-HTTP.md'
       - 'ops/homologation/**'
       - '.github/workflows/sites-f1-377-http-laravel-pg18.yml'
       - 'docs/SITES-F1-377-REAL-HTTP-ADMISSION-LAB.md'
@@ -22,6 +24,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: rafhael100/imagine-portal
+          ref: bf1b2794de4d6000f120ffa2b1e6dd557f34c35e
+          path: portal-candidate
+          persist-credentials: false
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
@@ -35,6 +43,8 @@ jobs:
           php -l apps/sites/app/Labs/LaravelSignedAdmissionLab.php
           php -l apps/sites/app/Labs/CIHttpPortalAuthority.php
           php -l tests/f377-http-laravel-pg18-ci.php
+          php -l tests/f378-pinned-portal-http-to-sites.php
+          test "$(git -C portal-candidate rev-parse HEAD)" = bf1b2794de4d6000f120ffa2b1e6dd557f34c35e
           base=ops/homologation/compose.yaml
           db=ops/homologation/compose.ci-pg18.yaml
           ci=ops/homologation/compose.ci-http.yaml
@@ -104,6 +114,17 @@ jobs:
             exit 1
           fi
           php tests/f377-http-laravel-pg18-ci.php
+      - name: Actual pinned Portal encoder and signer to Sites HTTP and PG18
+        env:
+          SITES_F378_PINNED_PORTAL_LAB: '1'
+        run: |
+          set -euo pipefail
+          export SITES_F378_PORTAL_PATH="$GITHUB_WORKSPACE/portal-candidate"
+          if SITES_F378_PINNED_PORTAL_LAB=0 php tests/f378-pinned-portal-http-to-sites.php; then
+            echo 'Unsafe: pinned Portal client admitted without CI-only opt-in'
+            exit 1
+          fi
+          php tests/f378-pinned-portal-http-to-sites.php
       - name: Independently assert durable PG18 tenant/outbox/nonce results
         run: |
           set -euo pipefail
@@ -119,6 +140,9 @@ jobs:
           test "$(query "SELECT count(*) FROM sites_f360.admissions WHERE operation_ref='failoutbox-f360'")" = 0
           test "$(query "SELECT count(*) FROM sites_f360.outbox WHERE operation_ref='failoutbox-f360'")" = 0
           test "$(query "SELECT count(*) FROM sites_f360.admissions WHERE tenant_ref='tenant-f360-a'")" = 0
+          test "$(query "SELECT count(*) FROM sites_f360.admissions WHERE operation_ref LIKE 'idem-f378-%'")" = 2
+          test "$(query "SELECT count(*) FROM sites_f360.outbox WHERE operation_ref LIKE 'idem-f378-%'")" = 2
+          test "$(query "SELECT count(*) FROM sites_f360.replay_nonces WHERE nonce LIKE 'nonce-f378-%'")" = 4
           echo 'F1-377 PASS: three atomic projects and outbox events, five durable nonces, no cross-tenant or failed outbox rows.'
       - name: Always destroy fictional database and HTTP containers
         if: always()
