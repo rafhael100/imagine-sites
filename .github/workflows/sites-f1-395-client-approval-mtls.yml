@@ -1,0 +1,100 @@
+name: Sites F1-395 Portal Client Acceptance mTLS e2e CI (NO DEPLOY)
+on:
+  push:
+    branches:
+      - feature/sites-f1-395-client-approval-mtls-2026-11-14
+  pull_request:
+    paths:
+      - 'src/Publication/PortalClientApprovalMtlsHttpSource.php'
+      - 'tests/f395-*'
+      - 'tests/fixtures/f395-*'
+      - '.github/workflows/sites-f1-395-client-approval-mtls.yml'
+      - 'docs/SITES-F1-395-CLIENT-APPROVAL-MTLS.md'
+permissions:
+  contents: read
+jobs:
+  acceptance-mtls-to-sites:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    env:
+      SITES_F388_MTLS_LAB: '1'
+      SITES_F395_MTLS_LAB: '1'
+      F388_FIXTURE_DIR: /tmp/f388-fixture
+      F395_PORTAL_CHECKOUT: ./portal-candidate
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: rafhael100/imagine-portal
+          ref: 10fc419e73236fc8c42acb0eb361114c8e67d03b
+          path: portal-candidate
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          extensions: curl,sodium
+          coverage: none
+      - name: Validate pinned original Portal issuer and local source
+        run: |
+          set -euo pipefail
+          test "$(git -C portal-candidate rev-parse HEAD)" = 10fc419e73236fc8c42acb0eb361114c8e67d03b
+          php -l src/Publication/PortalClientApprovalMtlsHttpSource.php
+          php -l tests/f395-generate-pinned-portal-acceptance.php
+          php -l tests/f395-portal-client-approval-mtls.php
+          python3 -m py_compile tests/fixtures/f395-portal-approval-mtls-server.py
+      - name: Prepare ephemeral CA and mTLS client/server identities
+        run: bash tests/f388-prepare-mtls-certs.sh
+      - name: Issue short-lived fake acceptance with pinned Portal code
+        run: php tests/f395-generate-pinned-portal-acceptance.php
+      - name: Start strictly local HTTPS server with required client certificate
+        run: |
+          set -euo pipefail
+          python3 tests/fixtures/f395-portal-approval-mtls-server.py \
+            --ca "$F388_FIXTURE_DIR/ca.crt" \
+            --server-cert "$F388_FIXTURE_DIR/server.crt" \
+            --server-key "$F388_FIXTURE_DIR/server.key" \
+            --fixture-dir "$F388_FIXTURE_DIR" \
+            > /tmp/f395-server.log 2>&1 &
+          echo "$!" > /tmp/f395-server.pid
+          ready=0
+          for i in $(seq 1 40); do
+            status="$(curl --noproxy '*' --silent --max-time 2 \
+              --cacert "$F388_FIXTURE_DIR/ca.crt" \
+              --cert "$F388_FIXTURE_DIR/client.crt" \
+              --key "$F388_FIXTURE_DIR/client.key" \
+              -o /dev/null -w '%{http_code}' \
+              https://localhost:18444/internal/sites/v1/approvals/resolve || true)"
+            if [ "$status" = 501 ]; then ready=1; break; fi
+            sleep 0.5
+          done
+          test "$ready" = 1
+      - name: Exercise genuine Portal issuer over authenticated HTTPS and independent Sites checks
+        run: |
+          set -euo pipefail
+          if SITES_F395_MTLS_LAB=0 php tests/f395-portal-client-approval-mtls.php; then
+            echo "Unsafe: synthetic client acceptance executed without CI guard" >&2
+            exit 1
+          fi
+          php tests/f395-portal-client-approval-mtls.php
+      - name: Prove no production registration or public route exists
+        run: |
+          set -euo pipefail
+          ! grep -R -n 'PortalClientApprovalMtlsHttpSource' apps/sites/app/Providers apps/sites/routes
+          ! grep -R -n 'SignedPortalClientApprovalGate' apps/sites/app/Providers apps/sites/routes
+          grep -q 'new DenyingPortalAuthorityGateway()' src/Application/PublicationPreflightService.php
+          echo 'No live IAM, consent, PSP, domain or Cloudflare publisher: NO-GO.'
+      - name: Destroy ephemeral certificates, receipts and listener
+        if: always()
+        run: |
+          if [ -f /tmp/f395-server.pid ]; then
+            kill "$(cat /tmp/f395-server.pid)" 2>/dev/null || true
+          fi
+          rm -rf -- /tmp/f388-fixture
+          rm -f -- /tmp/f395-server.pid /tmp/f395-server.log
