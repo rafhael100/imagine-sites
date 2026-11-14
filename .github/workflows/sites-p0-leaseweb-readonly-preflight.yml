@@ -1,0 +1,76 @@
+name: Sites P0 Leaseweb read-only staging entry audit (NO DEPLOY)
+on:
+  pull_request:
+    paths:
+      - 'ops/homologation/leaseweb-readonly-preflight.py'
+      - 'tests/test_leaseweb_readonly_preflight.py'
+      - 'docs/SITES-P0-LEASEWEB-HOST-READINESS.md'
+      - 'config/operational-readiness.json'
+      - 'ops/homologation/compose.yaml'
+      - '.github/workflows/sites-p0-leaseweb-readonly-preflight.yml'
+  push:
+    branches:
+      - feature/sites-p0-leaseweb-readonly-preflight-2026-11-14
+permissions:
+  contents: read
+jobs:
+  staging-entry-readonly:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      # Canary must never occur in stdout or artifact. No operational key.
+      SITES_STAGING_APP_KEY: CANARY_NEVER_USE_OR_PRINT
+      DB_PASSWORD: CANARY_DB_SECRET_NEVER_PRINT
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Python syntax and negative/adversarial staging tests
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ops/homologation/leaseweb-readonly-preflight.py
+          python3 -m py_compile tests/test_leaseweb_readonly_preflight.py
+          python3 tests/test_leaseweb_readonly_preflight.py
+      - name: Inspect ephemeral GitHub host/Compose strictly read-only
+        run: |
+          set -euo pipefail
+          set +e
+          output="$(python3 ops/homologation/leaseweb-readonly-preflight.py --probe-host)"
+          status="$?"
+          set -e
+          if [ "$status" -ne 1 ]; then
+            echo "Unsafe: readiness script returned GO or crashed with unexpected exit" >&2
+            exit 1
+          fi
+          printf '%s' "$output" | python3 -c '
+          import json, sys
+          data=json.load(sys.stdin)
+          assert data["schemaVersion"]=="sites.leaseweb.readonly-preflight.v1"
+          assert data["status"]=="blocked"
+          assert data["can_deploy"] is False
+          assert data["can_publish"] is False
+          assert data["can_accept_real_orders"] is False
+          checks=data["checks"]
+          for name in ("policy_default_deny","service_inventory",
+                       "loopback_only","php_isolation","staging_configuration",
+                       "network_separation","ubuntu_24_04",
+                       "docker_compose_readable","docker_daemon_readable"):
+              assert checks[name]["result"]=="verified", name
+          for name in ("portal_s2s_mtls_and_iam","asaas_settlement",
+                       "customer_acceptance","independent_revocation",
+                       "pg18_rls_backup_restore","cloudflare_publish_and_rollback",
+                       "explicit_go_live_authorization"):
+              assert checks[name]["result"]=="blocked",name
+          print("NO-GO verified: staging structure and host prerequisites pass; all release gates blocked")
+          '
+          if printf '%s' "$output" | grep -E -q 'CANARY_NEVER_USE_OR_PRINT|CANARY_DB_SECRET_NEVER_PRINT|DB_PASSWORD|APP_KEY'; then
+            echo "Unsafe: preflight leaked secret metadata" >&2
+            exit 1
+          fi
+      - name: Assert no deployment triggers, external access or production enabling
+        run: |
+          set -euo pipefail
+          ! grep -E -n '(^| )ssh |docker compose up|docker compose down|kubectl apply|wrangler deploy|git push' ops/homologation/leaseweb-readonly-preflight.py
+          grep -q '"status": "BLOCKED"' config/operational-readiness.json
+          grep -q '"non_operational": true' config/operational-readiness.json
+          echo 'Evidence is local structural audit only, without VPS, Cloudflare or clients.'
