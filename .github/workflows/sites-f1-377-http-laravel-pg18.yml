@@ -113,7 +113,12 @@ jobs:
             echo 'Unsafe: CI-only HTTP client ran without gate'
             exit 1
           fi
-          php tests/f377-http-laravel-pg18-ci.php
+          if ! php tests/f377-http-laravel-pg18-ci.php; then
+            docker compose -f ops/homologation/compose.yaml \
+              -f ops/homologation/compose.ci-pg18.yaml \
+              -f ops/homologation/compose.ci-http.yaml logs --tail=70
+            exit 1
+          fi
       - name: Actual pinned Portal encoder and signer to Sites HTTP and PG18
         env:
           SITES_F378_PINNED_PORTAL_LAB: '1'
