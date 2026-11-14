@@ -1,0 +1,70 @@
+name: Sites F1-373 Laravel staging containers - localhost CI only
+on:
+  pull_request:
+    paths:
+      - 'ops/homologation/**'
+      - '.dockerignore'
+      - '.github/workflows/sites-f1-373-staging-container.yml'
+      - 'apps/sites/app/**'
+      - 'apps/sites/routes/**'
+      - 'apps/sites/bootstrap/**'
+      - 'apps/sites/composer.json'
+      - 'apps/sites/composer.lock'
+permissions:
+  contents: read
+jobs:
+  local-only-rehearsal:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      # Public synthetic CI key. Never deploy this example value.
+      SITES_STAGING_APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate staging-only Compose and expected service set
+        run: |
+          set -euo pipefail
+          docker compose -f ops/homologation/compose.yaml config --quiet
+          test "$(docker compose -f ops/homologation/compose.yaml config --services | sort)" = "$(printf 'sites-php\nsites-proxy' | sort)"
+          ! grep -R -E '(0\\.0\\.0\\.0:|\*:[0-9]+:)' ops/homologation/compose.yaml
+          test "$(grep -c '127.0.0.1:18081:8080' ops/homologation/compose.yaml)" = 1
+          ! grep -R -E 'SITES_SYNTHETIC_HTTP:|SITES_F36[0-9]_PG_LAB:' ops/homologation/compose.yaml
+      - name: Build isolated PHP-FPM and Nginx images and start
+        run: |
+          set -euo pipefail
+          docker compose -f ops/homologation/compose.yaml up -d --build
+      - name: Check local health without enabling synthetic ingress
+        run: |
+          set -euo pipefail
+          ready=0
+          for i in $(seq 1 45); do
+            if curl --noproxy '*' -fsS --output /dev/null http://127.0.0.1:18081/up; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" != 1 ]; then
+            docker compose -f ops/homologation/compose.yaml logs --tail=60
+            exit 1
+          fi
+          test "$(curl --noproxy '*' -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18081/up)" = 200
+          test "$(curl --noproxy '*' -sS -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:18081/_lab/sites/v1/create-project)" = 404
+          test "$(curl --noproxy '*' -sS -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:18081/v1/lab/sites/admit)" = 404
+          test "$(curl --noproxy '*' -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18081/api/sites/v1/create-project)" = 404
+          test "$(curl --noproxy '*' -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18081/index.php)" = 404
+          test "$(curl --noproxy '*' -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:18081/.env)" = 404
+          curl --noproxy '*' -fsSI http://127.0.0.1:18081/up | grep -qi 'x-robots-tag: noindex, nofollow'
+      - name: Verify runtime is staging and no protected API registered
+        run: |
+          set -euo pipefail
+          docker compose -f ops/homologation/compose.yaml exec -T sites-php php artisan route:list --json > "$RUNNER_TEMP/f373-routes.json"
+          php -r '$routes=json_decode(file_get_contents($argv[1]),true,512,JSON_THROW_ON_ERROR); $uris=array_column($routes,"uri"); if(in_array("_lab/sites/v1/create-project",$uris,true) || in_array("v1/lab/sites/admit",$uris,true)) exit(1); if(!in_array("up",$uris,true)) exit(1);' "$RUNNER_TEMP/f373-routes.json"
+          docker compose -f ops/homologation/compose.yaml exec -T sites-php php -r 'if(getenv("APP_ENV")!=="staging" || getenv("APP_DEBUG")!=="false" || getenv("DB_DATABASE")!=="imagine_sites_unprovisioned" || getenv("SITES_SYNTHETIC_HTTP")==="1")exit(1);'
+          # Expected result is a liveness-only container, NOT operational readiness.
+          echo "F1-373 PASS: isolated, loopback-only Laravel health. NO-GO: DB/Portal/IAM/payment unconfigured."
+      - name: Remove ephemeral containers and volumes
+        if: always()
+        run: docker compose -f ops/homologation/compose.yaml down --volumes --remove-orphans

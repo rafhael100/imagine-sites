@@ -1,0 +1,68 @@
+# F1-373: localhost-only staging image rehearsal. No Portal, CRM, DB or public ingress.
+name: imagine-sites-staging
+services:
+  sites-php:
+    build:
+      context: ../..
+      dockerfile: ops/homologation/Dockerfile
+      target: sites-php
+    image: imagine-sites-staging-php:local
+    environment:
+      APP_NAME: "Imagine Sites Engine"
+      APP_ENV: staging
+      APP_DEBUG: "false"
+      APP_KEY: ${SITES_STAGING_APP_KEY:?Provide a staging-only APP_KEY outside git}
+      APP_URL: "http://127.0.0.1:18081"
+      LOG_CHANNEL: stderr
+      LOG_LEVEL: warning
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: log
+      DB_CONNECTION: pgsql
+      DB_HOST: "sites-database-not-provisioned"
+      DB_PORT: "5432"
+      DB_DATABASE: "imagine_sites_unprovisioned"
+      DB_USERNAME: "sites_unprovisioned"
+      DB_PASSWORD: ""
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+      - /opt/imagine/apps/sites/storage/framework/views:uid=33,gid=33,mode=0700
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - sites-internal
+    restart: "no"
+
+  sites-proxy:
+    build:
+      context: ../..
+      dockerfile: ops/homologation/Dockerfile
+      target: sites-proxy
+    image: imagine-sites-staging-proxy:local
+    depends_on:
+      - sites-php
+    ports:
+      - "127.0.0.1:18081:8080"
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+      - /var/cache/nginx:mode=1777
+      - /var/run:mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - sites-local-edge
+      - sites-internal
+    restart: "no"
+
+networks:
+  sites-local-edge:
+    driver: bridge
+  sites-internal:
+    internal: true
