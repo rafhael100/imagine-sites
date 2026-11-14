@@ -1,0 +1,57 @@
+name: Sites F1-386 Portal Ed25519 proof + independent PSP settlement/revocation gate
+on:
+  push:
+    branches:
+      - feature/sites-f1-386-independent-portal-settlement-proof-2026-11-14
+  pull_request:
+    paths:
+      - 'src/Integration/IndependentPortalCommercialGateway.php'
+      - 'src/Integration/PortalEligibilityProofSource.php'
+      - 'src/Integration/IndependentSettlementWitness.php'
+      - 'src/Integration/IndependentRevocationWitness.php'
+      - 'tests/f386-independent-commercial-gate.php'
+      - '.github/workflows/sites-f1-386-independent-commercial-gate.yml'
+      - 'docs/SITES-F1-386-INDEPENDENT-COMMERCIAL-AUTHORITY.md'
+permissions:
+  contents: read
+jobs:
+  independent-commercial-gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    env:
+      GITHUB_ACTIONS: 'true'
+      SITES_F386_PROOF_LAB: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          extensions: sodium
+          coverage: none
+      - name: Verify schema, source and detached Ed25519 signatures
+        run: |
+          set -euo pipefail
+          php -l src/Integration/IndependentPortalCommercialGateway.php
+          php -l src/Integration/PortalEligibilityProofSource.php
+          php -l src/Integration/IndependentSettlementWitness.php
+          php -l src/Integration/IndependentRevocationWitness.php
+          php -l tests/f386-independent-commercial-gate.php
+          php -r 'if (!extension_loaded("sodium")) exit(1);'
+          if SITES_F386_PROOF_LAB=0 php tests/f386-independent-commercial-gate.php; then
+            echo 'Unsafe: fictional proof lab ran without CI gate'
+            exit 1
+          fi
+          php tests/f386-independent-commercial-gate.php
+      - name: Confirm default HTTP and payment integration stay unavailable
+        run: |
+          set -euo pipefail
+          grep -q 'new DenyingPortalProjectAuthorityGateway()' src/Integration/SiteProjectAdmission.php
+          ! grep -R -n 'IndependentPortalCommercialGateway' apps/sites/app/Providers apps/sites/routes
+          echo 'No real provider bound, no customer/payment route registered; release remains NO-GO.'
