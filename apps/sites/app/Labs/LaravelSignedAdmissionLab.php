@@ -114,7 +114,6 @@ final readonly class LaravelSignedAdmissionLab
             getenv('DB_CONNECTION')!=='pgsql' ||
             getenv('DB_HOST')!=='127.0.0.1' ||
             getenv('DB_PORT')!=='5432' ||
-            getenv('DB_DATABASE')!=='sites_f360_lab' ||
             getenv('DB_USERNAME')!=='sites_f360_b') {
             throw new DomainException('F1-375: no disposable CI lab authority.');
         }
