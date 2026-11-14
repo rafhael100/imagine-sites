@@ -1,0 +1,62 @@
+name: Sites F1-396 dual commercial and explicit client approval evidence CI (NO DEPLOY)
+on:
+  pull_request:
+    paths:
+      - 'src/Publication/SiteCommercialReleaseBinding.php'
+      - 'src/Publication/SiteCurrentCommercialReleaseBindingSource.php'
+      - 'src/Publication/DenyingSitesCommercialReleaseBindingSource.php'
+      - 'src/Publication/SiteDualProofEvidenceCheck.php'
+      - 'tests/f396-dual-release-evidence-gate.php'
+      - '.github/workflows/sites-f1-396-dual-release-evidence.yml'
+      - 'docs/SITES-P0-F396-DUAL-RELEASE-EVIDENCE.md'
+permissions:
+  contents: read
+jobs:
+  original-independent-proof-gates:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    env:
+      SITES_F396_DUAL_RELEASE_CI: '1'
+      SITES_F391_APPROVAL_LAB: '1'
+    steps:
+      - name: Checkout exact Sites PR SHA
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: PHP and sodium
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: sodium
+          tools: none
+          coverage: none
+      - name: Lint all original Sites proof gates and cross-binding source
+        run: |
+          set -euo pipefail
+          for name in SiteCommercialReleaseBinding SiteCurrentCommercialReleaseBindingSource DenyingSitesCommercialReleaseBindingSource SiteDualProofEvidenceCheck SignedPortalClientApprovalGate; do
+            php -l "src/Publication/${name}.php"
+          done
+          php -l src/Integration/IndependentPortalCommercialGateway.php
+          php -l tests/f396-dual-release-evidence-gate.php
+      - name: Fail-closed cross-order, digest, PSP, revocation and acceptance tests
+        run: |
+          set -euo pipefail
+          if SITES_F396_DUAL_RELEASE_CI=0 php tests/f396-dual-release-evidence-gate.php; then
+            echo 'Unsafe F396 test ran outside disposable fixture scope' >&2
+            exit 1
+          fi
+          php tests/f396-dual-release-evidence-gate.php
+          echo 'PASS Sites F396 evidence-only independent commercial/client witness + binding checks. No deploy.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Verify dual proof evidence remains unregistered
+        run: |
+          set -euo pipefail
+          if grep -R -n 'SiteDualProofEvidenceCheck' apps/sites/app/Providers apps/sites/routes 2>/dev/null; then
+            echo 'NO-GO: publication evidence unexpectedly registered in public runtime' >&2
+            exit 1
+          fi
+          echo 'PASS no HTTP route, provider binding, public publish or PSP listener' >> "$GITHUB_STEP_SUMMARY"
