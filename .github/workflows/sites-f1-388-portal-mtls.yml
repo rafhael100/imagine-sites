@@ -1,0 +1,131 @@
+name: Sites F1-388 real mTLS Portal-proof transport (CI-only loopback)
+on:
+  push:
+    branches:
+      - feature/sites-f1-388-portal-mtls-proof-transport-2026-11-14
+  pull_request:
+    paths:
+      - 'src/Integration/PortalProofMtlsHttpSource.php'
+      - 'tests/f388-*'
+      - 'tests/fixtures/f388-*'
+      - '.github/workflows/sites-f1-388-portal-mtls.yml'
+      - 'docs/SITES-F1-388-MTLS-PORTAL-PROOF.md'
+permissions:
+  contents: read
+jobs:
+  portal-mtls-to-sites:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    env:
+      SITES_F388_MTLS_LAB: '1'
+      F388_FIXTURE_DIR: ${{ runner.temp }}/f388-fixture
+      F388_PORTAL_CHECKOUT: ${{ github.workspace }}/portal-candidate
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout exact Portal F1-387 source issuer without mutable branch
+        uses: actions/checkout@v4
+        with:
+          repository: rafhael100/imagine-portal
+          ref: 45778e950316874bdf227da7839caabebbd12e11
+          path: portal-candidate
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          extensions: sodium,curl
+          coverage: none
+      - name: Syntax and cross-repository source provenance
+        run: |
+          set -euo pipefail
+          test "$(git -C portal-candidate rev-parse HEAD)" = 45778e950316874bdf227da7839caabebbd12e11
+          php -l src/Integration/PortalProofMtlsHttpSource.php
+          php -l tests/f388-generate-pinned-portal-proof.php
+          php -l tests/f388-mtls-proof-to-sites.php
+          python3 -m py_compile tests/fixtures/f388-fake-portal-mtls-server.py
+          php -r 'if (!extension_loaded("curl") || !extension_loaded("sodium"))exit(1);'
+      - name: Generate one-run CA and mutually authenticated TLS identities
+        run: |
+          set -euo pipefail
+          umask 077
+          install -d -m 0700 "$F388_FIXTURE_DIR"
+          cd "$F388_FIXTURE_DIR"
+          openssl req -new -x509 -sha256 -newkey rsa:2048 -nodes -days 1 \
+            -keyout ca.key -out ca.crt -subj '/CN=F388 Ephemeral CI CA' \
+            -addext 'basicConstraints=critical,CA:TRUE' >/dev/null 2>&1
+          openssl req -new -sha256 -newkey rsa:2048 -nodes \
+            -keyout server.key -out server.csr -subj '/CN=localhost' >/dev/null 2>&1
+          printf 'subjectAltName=DNS:localhost\nextendedKeyUsage=serverAuth\n' > server.ext
+          openssl x509 -req -sha256 -days 1 -in server.csr -CA ca.crt \
+            -CAkey ca.key -CAcreateserial -extfile server.ext \
+            -out server.crt >/dev/null 2>&1
+          openssl req -new -sha256 -newkey rsa:2048 -nodes \
+            -keyout client.key -out client.csr -subj '/CN=imagine-sites-ci' >/dev/null 2>&1
+          printf 'extendedKeyUsage=clientAuth\n' > client.ext
+          openssl x509 -req -sha256 -days 1 -in client.csr -CA ca.crt \
+            -CAkey ca.key -CAcreateserial -extfile client.ext \
+            -out client.crt >/dev/null 2>&1
+          openssl req -new -x509 -sha256 -newkey rsa:2048 -nodes -days 1 \
+            -keyout wrong-ca.key -out wrong-ca.crt \
+            -subj '/CN=Untrusted F388 CA' \
+            -addext 'basicConstraints=critical,CA:TRUE' >/dev/null 2>&1
+          openssl req -new -sha256 -newkey rsa:2048 -nodes \
+            -keyout wrong-client.key -out wrong-client.csr \
+            -subj '/CN=untrusted-client' >/dev/null 2>&1
+          openssl x509 -req -sha256 -days 1 -in wrong-client.csr \
+            -CA wrong-ca.crt -CAkey wrong-ca.key -CAcreateserial \
+            -extfile client.ext -out wrong-client.crt >/dev/null 2>&1
+          chmod 0600 *.key
+          chmod 0644 *.crt
+          openssl verify -CAfile ca.crt server.crt client.crt
+      - name: Emit fiction-only Ed25519 proof using pinned Portal issuer
+        run: php tests/f388-generate-pinned-portal-proof.php
+      - name: Start localhost-only HTTPS test server requiring client certificates
+        run: |
+          set -euo pipefail
+          python3 tests/fixtures/f388-fake-portal-mtls-server.py \
+            --ca "$F388_FIXTURE_DIR/ca.crt" \
+            --server-cert "$F388_FIXTURE_DIR/server.crt" \
+            --server-key "$F388_FIXTURE_DIR/server.key" \
+            --fixture-dir "$F388_FIXTURE_DIR" \
+            > "$RUNNER_TEMP/f388-server.log" 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/f388-server.pid"
+          ready=0
+          for i in $(seq 1 40); do
+            code="$(curl --noproxy '*' --silent --max-time 2 \
+              --cacert "$F388_FIXTURE_DIR/ca.crt" \
+              --cert "$F388_FIXTURE_DIR/client.crt" \
+              --key "$F388_FIXTURE_DIR/client.key" \
+              -o /dev/null -w '%{http_code}' \
+              https://localhost:18443/internal/sites/v1/entitlements/resolve || true)"
+            if [ "$code" = 501 ]; then ready=1; break; fi
+            sleep 1
+          done
+          test "$ready" = 1
+      - name: mTLS Portal issuer to Sites Ed25519 plus independent PSP/revocation
+        run: |
+          set -euo pipefail
+          if SITES_F388_MTLS_LAB=0 php tests/f388-mtls-proof-to-sites.php; then
+            echo 'Unsafe: mTLS lab accepted missing explicit GitHub CI flag'
+            exit 1
+          fi
+          php tests/f388-mtls-proof-to-sites.php
+      - name: Verify no public route or live binding of internal mTLS client
+        run: |
+          set -euo pipefail
+          ! grep -R -n 'PortalProofMtlsHttpSource' apps/sites/app/Providers apps/sites/routes
+          echo 'mTLS loopback proof validated; Portal IAM, PSP real settlement and publication still NO-GO.'
+      - name: Always destroy ephemeral HTTPS server, CA and client secrets
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/f388-server.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/f388-server.pid")" 2>/dev/null || true
+          fi
+          rm -rf -- "$F388_FIXTURE_DIR"
+          rm -f -- "$RUNNER_TEMP/f388-server.pid" "$RUNNER_TEMP/f388-server.log"
