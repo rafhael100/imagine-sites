@@ -50,8 +50,12 @@ jobs:
       - name: Build and start separate Laravel, Nginx and PostgreSQL18 containers
         run: |
           set -euo pipefail
-          docker compose -f ops/homologation/compose.yaml \
-            -f ops/homologation/compose.ci-pg18.yaml up -d --build
+          if ! docker compose -f ops/homologation/compose.yaml \
+            -f ops/homologation/compose.ci-pg18.yaml up -d --build; then
+            docker compose -f ops/homologation/compose.yaml \
+              -f ops/homologation/compose.ci-pg18.yaml logs --tail=90
+            exit 1
+          fi
       - name: Confirm PHP-FPM and Nginx HTTP route are alive on localhost
         run: |
           set -euo pipefail
