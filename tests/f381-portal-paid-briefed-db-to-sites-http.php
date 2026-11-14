@@ -179,7 +179,30 @@ f381Check($storeA->organization()==='test-org-a' &&
 foreach($eligible as $item) {
     $id=$item['id'];
     $suffix=substr($id,5);
-    f381Check(is_array($source->findAuthorizedSiteOrder($id)),
+    $eligibleProof=$source->findAuthorizedSiteOrder($id);
+    if (!is_array($eligibleProof) && !$eligibleProof instanceof SiteContractSnapshot) {
+        // Record booleans only. Never print order ID, database credentials,
+        // payload, company, username or real customer data.
+        $diagnostics=$dbA->prepare(
+            "SELECT payment='approved' AS paid,
+                    briefing IS NOT NULL AS briefed,
+                    briefing->>'business'= ? AS expected_business,
+                    jsonb_typeof(briefing)='object' AS valid_json_object,
+                    tenant='test-org-a' AS owned
+               FROM purchase_rehearsal.orders WHERE id=?"
+        );
+        $diagnostics->execute([F381_FAKE_BUSINESS,$id]);
+        $row=$diagnostics->fetch(PDO::FETCH_ASSOC);
+        $flags=is_array($row)?array_map(
+            static fn($x):bool=>in_array($x,[true,'t',1,'1'],true),
+            $row
+        ):null;
+        fwrite(STDERR,'F1-381 synthetic denied flags: '.json_encode(
+            ['found'=>is_array($row),'checks'=>$flags],
+            JSON_THROW_ON_ERROR
+        )."\\n");
+    }
+    f381Check($eligibleProof instanceof SiteContractSnapshot,
         'paid and briefed synthetic Portal PG18 Site contract visible');
     $wire=f381Wire($encoder,$id,$suffix,'nonce-f381-'.$suffix.'-first');
     [$code,$reply]=f381Http($wire,'site-f381-'.$suffix);
