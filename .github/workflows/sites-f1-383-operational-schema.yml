@@ -4,6 +4,7 @@ on:
     branches:
       - feature/sites-f1-383-versioned-pg-operational-schema-2026-11-13
       - feature/sites-f1-384-tenant-safe-read-model-2026-11-14
+      - feature/sites-f1-385-editorial-revision-api-2026-11-14
   pull_request:
     paths:
       - 'apps/sites/database/migrations/**'
@@ -11,6 +12,10 @@ on:
       - 'tests/f384-tenant-safe-operational-reader.php'
       - 'apps/sites/app/ReadModels/TenantSiteStatusReader.php'
       - 'apps/sites/tests/Feature/TenantSiteStatusReaderTest.php'
+      - 'tests/f385-operational-editorial-revisions.php'
+      - 'apps/sites/app/Editorial/EditorialRevisionWriter.php'
+      - 'apps/sites/tests/Feature/EditorialRevisionWriterTest.php'
+      - 'docs/SITES-F1-385-OPERATIONAL-EDITORIAL.md'
       - '.github/workflows/sites-f1-383-operational-schema.yml'
       - 'docs/SITES-F1-383-VERSIONED-PG18-CORE-SCHEMA.md'
 permissions:
@@ -43,6 +48,7 @@ jobs:
       GITHUB_ACTIONS: 'true'
       SITES_F383_PG_MIGRATION_LAB: '1'
       SITES_F384_READER_LAB: '1'
+      SITES_F385_EDITORIAL_LAB: '1'
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: '5432'
@@ -68,6 +74,10 @@ jobs:
           php -l tests/f384-tenant-safe-operational-reader.php
           php -l apps/sites/app/ReadModels/TenantSiteStatusReader.php
           php -l apps/sites/tests/Feature/TenantSiteStatusReaderTest.php
+          php -l apps/sites/database/migrations/2026_11_14_000003_add_editorial_revision_api.php
+          php -l tests/f385-operational-editorial-revisions.php
+          php -l apps/sites/app/Editorial/EditorialRevisionWriter.php
+          php -l apps/sites/tests/Feature/EditorialRevisionWriterTest.php
       - name: Install locked Laravel dependencies
         working-directory: apps/sites
         run: |
@@ -99,6 +109,17 @@ jobs:
       - name: F1-384 validate Laravel status reader with real restricted PG18 roles
         working-directory: apps/sites
         run: php artisan test --filter=TenantSiteStatusReaderTest --no-ansi
+      - name: F1-385 verify SQL editor/reviewer duties and durable revision CAS
+        run: |
+          set -euo pipefail
+          if SITES_F385_EDITORIAL_LAB=0 php tests/f385-operational-editorial-revisions.php; then
+            echo 'Unsafe: editorial fixture ran without explicit CI-only flag'
+            exit 1
+          fi
+          php tests/f385-operational-editorial-revisions.php
+      - name: F1-385 run Laravel editorial writer integration against PG18
+        working-directory: apps/sites
+        run: php artisan test --filter=EditorialRevisionWriterTest --no-ansi
       - name: Prove Laravel migration rollback on isolated empty database
         working-directory: apps/sites
         run: |

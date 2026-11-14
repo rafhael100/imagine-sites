@@ -177,13 +177,16 @@ $policies=$db->query(
        FROM pg_policies
       WHERE schemaname='sites_core'"
 )->fetchAll(PDO::FETCH_ASSOC);
-f384check(count($policies)===3,'only three narrowly scoped internal reader policies exist');
-foreach($policies as $policy) {
-    f384check($policy['policyname']==='f384_internal_reader' &&
-        $policy['cmd']==='SELECT' &&
+$readerPolicies=array_values(array_filter($policies,
+    static fn(array $row):bool=>$row['policyname']==='f384_internal_reader'
+));
+f384check(count($readerPolicies)===3,
+    'three narrowly scoped F1-384 read policies survive added migrations');
+foreach($readerPolicies as $policy) {
+    f384check($policy['cmd']==='SELECT' &&
         str_contains($policy['roles'],'sites_core_read_definer') &&
-        !str_contains($policy['roles'],'public'),
-        'policy restricted to NOLOGIN definer, never application role or PUBLIC');
+        !str_contains(strtolower($policy['roles']),'public'),
+        'F1-384 policies restricted to NOLOGIN definer, never PUBLIC');
 }
 echo "$checks F1-384 authenticated PostgreSQL read-only tenant RLS assertions passed.\n";
 echo "NO-GO: DBAs provisioned only synthetic logins; Portal user IAM, API authentication and publication remain unimplemented.\n";
