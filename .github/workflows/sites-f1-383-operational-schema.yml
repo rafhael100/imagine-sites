@@ -18,6 +18,8 @@ on:
       - 'docs/SITES-F1-385-OPERATIONAL-EDITORIAL.md'
       - '.github/workflows/sites-f1-383-operational-schema.yml'
       - 'docs/SITES-F1-383-VERSIONED-PG18-CORE-SCHEMA.md'
+      - 'docs/SITES-P0-HTTP-SETTLEMENT-RECONCILIATION.md'
+      - '.github/workflows/sites-f1-381-purchase-http-pg18.yml'
 permissions:
   contents: read
 jobs:
