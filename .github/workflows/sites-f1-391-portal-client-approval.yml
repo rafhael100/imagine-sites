@@ -1,0 +1,57 @@
+name: Sites F1-391 Signed Portal Client Acceptance CI (NO DEPLOY)
+on:
+  push:
+    branches:
+      - feature/sites-f1-391-portal-client-approval-receipt-2026-11-14
+  pull_request:
+    paths:
+      - 'src/Publication/PortalClientApprovalReceiptSource.php'
+      - 'src/Publication/IndependentClientApprovalWitness.php'
+      - 'src/Publication/SignedPortalClientApprovalGate.php'
+      - 'tests/f391-portal-client-approval.php'
+      - 'docs/SITES-F1-391-CLIENT-APPROVAL.md'
+      - '.github/workflows/sites-f1-391-portal-client-approval.yml'
+permissions:
+  contents: read
+jobs:
+  signed-client-acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    env:
+      SITES_F391_APPROVAL_LAB: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          extensions: sodium
+          coverage: none
+      - name: Lint isolated code and proof
+        run: |
+          set -euo pipefail
+          php -l src/Publication/PortalClientApprovalReceiptSource.php
+          php -l src/Publication/IndependentClientApprovalWitness.php
+          php -l src/Publication/SignedPortalClientApprovalGate.php
+          php -l tests/f391-portal-client-approval.php
+          php -r 'if (!extension_loaded("sodium")) exit(1);'
+      - name: Verify explicit CI guard and adversarial proof cases
+        run: |
+          set -euo pipefail
+          if SITES_F391_APPROVAL_LAB=0 php tests/f391-portal-client-approval.php; then
+            echo "Unsafe: fixture ran outside explicit CI guard" >&2
+            exit 1
+          fi
+          php tests/f391-portal-client-approval.php
+      - name: Assert real publication is not wired from signed consent
+        run: |
+          set -euo pipefail
+          ! grep -R -n 'SignedPortalClientApprovalGate' apps/sites/app/Providers apps/sites/routes
+          grep -q 'new DenyingPortalAuthorityGateway()' src/Application/PublicationPreflightService.php
+          echo 'No production adapter, controller, customer IAM or publisher: NO-GO.'
