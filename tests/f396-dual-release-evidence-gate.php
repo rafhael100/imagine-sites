@@ -235,11 +235,14 @@ check396(!$dual->verifyEvidence($command,$crossSiteManifest,5)->allowed,
     'different Site under same tenant cannot borrow another release');
 check396(!$dual->verifyEvidence($command,$manifest,4)->allowed,
     'an outdated editorial revision cannot reuse an earlier acceptance');
-$acceptanceSource->proof=sign396(
-    $acceptancePayload+['no'=>false],$acceptanceSecret
-);
+$unexpected=$acceptancePayload;
+$unexpected['unexpectedFlag']=true;
+$acceptanceSource->proof=sign396($unexpected,$acceptanceSecret);
+check396(!$dual->verifyEvidence($command,$manifest,5)->allowed,
+    'extra signed acceptance fields do not bypass strict original Site schema');
+$acceptanceSource->proof=sign396($acceptancePayload,$acceptanceSecret);
 check396($dual->verifyEvidence($command,$manifest,5)->allowed,
-    'original acceptance proof works when source remains unchanged');
+    'original exact canonical acceptance proof works when source remains unchanged');
 $bad=$acceptancePayload;
 $bad['artifactDigest']=hash('sha256','changed-html');
 $acceptanceSource->proof=sign396($bad,$acceptanceSecret);
