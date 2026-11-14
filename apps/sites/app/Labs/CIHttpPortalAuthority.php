@@ -20,11 +20,20 @@ final class CIHttpPortalAuthority implements PortalProjectAuthorityGateway
 {
     public function verify(SiteProjectCommand $command): PolicyDecision
     {
+        $f377 = $command->orderRef==='order-f377' &&
+            $command->contractRef==='contract-f377';
+        // F1-380 compatibility only: the *sender* consults a real RLS
+        // protected fictional Portal purchase table. Receiver still does
+        // NOT independently verify payment. No public environment uses it.
+        $f380 = getenv('SITES_F380_PORTAL_DB_LAB')==='1' &&
+            preg_match('/\\ATEST-[a-f0-9]{32}\\z/D',$command->orderRef)===1 &&
+            $command->contractRef ===
+                'contract-f380-'.substr($command->orderRef,5) &&
+            str_starts_with($command->operationId,'operation-f380-') &&
+            str_starts_with($command->idempotencyKey,'idem-f380-');
         $allowed = in_array(
             $command->tenantRef,['tenant-f360-a','tenant-f360-b'],true
-        ) && $command->orderRef==='order-f377' &&
-            $command->contractRef==='contract-f377' &&
-            $command->contractRevision===1;
+        ) && ($f377 || $f380) && $command->contractRevision===1;
         return new PolicyDecision($allowed,
             $allowed ? [] : ['fictional_ci_contract_denied']);
     }
