@@ -35,8 +35,9 @@ services:
       retries: 20
     networks:
       - sites-internal
+    # Official postgres image initializes an ephemeral data directory as
+    # root and must chown it before dropping to the postgres user. Its
+    # bootstrap capabilities are confined to this CI-only container.
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
     restart: 'no'
