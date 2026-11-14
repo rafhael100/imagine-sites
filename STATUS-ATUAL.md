@@ -51,6 +51,11 @@
 - [PR #452](https://github.com/rafhael100/imagine-sites/pull/452): F1-371 grava o MAC de recibo validado pelo worker e a confirmação SQL em uma transação, permitindo detectar a perda do recibo no Portal com evidência do banco Sites. **PHP8.3/8.4 PASS** [#43531839196](https://github.com/rafhael100/imagine-sites/actions/runs/43531839196). SQL não autentica o recibo sozinho; MAC validado no worker de CI e chaves fictícias.
 - **NO-GO**: PRs permanecem empilhados em DRAFT, sem merges ou deploy. Backups estão no mesmo GitHub runner, não na Leaseweb; IAM, contratos/pagamentos, TLS/vault, revogação externa, LGPD/AppSec, RPO/RTO e evidência independente operacional permanecem bloqueados.
 
+## 13/11/2026 — validação criptográfica dos recibos no próprio PostgreSQL
+
+- [PR #453](https://github.com/rafhael100/imagine-sites/pull/453), F1-372: `pgcrypto` verifica o HMAC do recibo Portal fictício dentro do PostgreSQL18 antes do ACK e da gravação de evidência. Chave verificadora só na tabela privada da fixture; worker SQL não tem SELECT. Permissões de ACK antigo sem verificação foram revogadas na role de CI. Provas de MAC falso, SHA adulterado, replay e tentativa de bypass. **PHP8.3/8.4 e os quatro workflows PASS** [run #43532504039](https://github.com/rafhael100/imagine-sites/actions/runs/43532504039).
+- **Limite:** chave HMAC é fictícia/pública no GitHub e o código usa somente bancos descartáveis e HTTP em loopback. Não é segurança operacional; faltam serviço Portal autenticado, segregação de chaves/vault, TLS, pagamento e contratos oficiais, AppSec, LGPD, banco externo e governança de deploy. PRs permanecem DRAFT/NO-GO; main/dev/VPS/DNS intocados.
+
 **Ainda não há ambiente operacional Sites publicado.** P0/RF-PEND/RV-CT/AppSec/LGPD, contratos financeiros, identidade, Cloudflare/DNS, banco produtivo, geração real por IA/n8n, captação/CRM fisicamente redundante e backups/restore continuam não homologados.
 
 **Gate exclusivo do responsável:** conexão autorizada de ambiente Leaseweb + Cloudflare e domínio técnico de teste, com gestão segura de credenciais/quotas, antes de qualquer homologação real. Não inserir credenciais no GitHub público ou neste chat.
