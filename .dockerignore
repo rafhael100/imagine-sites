@@ -1,0 +1,20 @@
+# Restrict Docker build context used by ops/homologation.
+.git
+**/.git
+**/.env
+**/.env.*
+!**/.env.example
+**/vendor
+**/node_modules
+**/storage/logs
+**/storage/framework/cache
+**/storage/framework/sessions
+**/storage/framework/views
+**/*.pem
+**/*.p12
+**/*.pfx
+**/*.key
+**/*.sqlite
+**/*.sqlite3
+**/*.db
+**/*.log
