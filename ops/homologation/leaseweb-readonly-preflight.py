@@ -19,6 +19,18 @@ from typing import Any
 
 EXPECTED_KEY = "base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 REQUIRED_SERVICES = {"sites-php", "sites-proxy"}
+REQUIRED_RELEASE_GATES = frozenset({
+    "signed_off_operational_contracts",
+    "trusted_portal_identity_and_revocation",
+    "separate_production_database_rls_backups",
+    "real_ai_generation_scoped_and_homologated",
+    "independent_verified_publication",
+    "physical_dual_capture_crm_confirmed",
+    "customer_approval_evidence_immutable",
+    "privacy_security_and_cost_review",
+    "client_domain_consent_and_certificates",
+    "release_go_live_authorization",
+})
 NEVER_RELEASE = {
     "leaseweb_access_and_isolation": "operator_leaseweb_access_not_verified",
     "portal_s2s_mtls_and_iam": "portal_s2s_identity_not_operationally_verified",
@@ -52,7 +64,7 @@ def release_policy_ok(path: Path) -> bool:
             and raw.get("status") == "BLOCKED"
             and raw.get("non_operational") is True
             and isinstance(gates, dict)
-            and len(gates) == 10
+            and set(gates) == REQUIRED_RELEASE_GATES
             and all(value is False for value in gates.values())
         )
     except (OSError, UnicodeError, ValueError, TypeError, AttributeError):
