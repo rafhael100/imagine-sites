@@ -153,9 +153,9 @@ $nonce->execute(['imagine-portal','nonce-ci-one',$a]);
 f383Check(f383Failed(static fn()=> $nonce->execute(
     ['imagine-portal','nonce-ci-one',$b]
 ),'23505'),'nonce globally unique across company boundaries');
-f383Check($db->query(
+f383Check((int)$db->query(
     "SELECT count(*) FROM sites_core.site_projects WHERE publishable=false"
-)->fetchColumn()==='1',
+)->fetchColumn()===1,
     'inert dummy project persists for schema validation');
 echo "$checks F1-383 irreversible authority gates and versioned PG18 schema assertions passed.\n";
 echo "NO-GO: no RLS service policy, official Portal IAM, PSP or publishing function installed.\n";
