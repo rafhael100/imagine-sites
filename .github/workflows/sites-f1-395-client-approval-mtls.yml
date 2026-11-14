@@ -32,7 +32,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: rafhael100/imagine-portal
-          ref: 10fc419e73236fc8c42acb0eb361114c8e67d03b
+          ref: 1cc47d4d2a78d900541aa2c1c04a5aa3dd4d4ba9
           path: portal-candidate
           persist-credentials: false
       - uses: shivammathur/setup-php@v2
@@ -44,14 +44,15 @@ jobs:
       - name: Validate pinned original Portal issuer and local source
         run: |
           set -euo pipefail
-          test "$(git -C portal-candidate rev-parse HEAD)" = 10fc419e73236fc8c42acb0eb361114c8e67d03b
+          test "$(git -C portal-candidate rev-parse HEAD)" = 1cc47d4d2a78d900541aa2c1c04a5aa3dd4d4ba9
           php -l src/Publication/PortalClientApprovalMtlsHttpSource.php
+          php -l portal-candidate/apps/portal/app/Domain/SitesIntegration/PortalSitesClientAcceptanceResolver.php
           php -l tests/f395-generate-pinned-portal-acceptance.php
           php -l tests/f395-portal-client-approval-mtls.php
           python3 -m py_compile tests/fixtures/f395-portal-approval-mtls-server.py
       - name: Prepare ephemeral CA and mTLS client/server identities
         run: bash tests/f388-prepare-mtls-certs.sh
-      - name: Issue short-lived fake acceptance with pinned Portal code
+      - name: Issue short-lived acceptance through genuine Portal F1-396 resolver and F1-394 issuer
         run: php tests/f395-generate-pinned-portal-acceptance.php
       - name: Start strictly local HTTPS server with required client certificate
         run: |

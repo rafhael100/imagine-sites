@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-/** Real pinned Portal F1-394 issuer with ephemeral fictional consent; CI only. */
+/** Actual pinned Portal F1-396 private resolver + F1-394 issuer with fake S2S identity and consent; CI only. */
 if(PHP_SAPI!=='cli' || getenv('GITHUB_ACTIONS')!=='true' ||
    getenv('SITES_F395_MTLS_LAB')!=='1') {
     fwrite(STDERR,"F1-395 fixture runs only in disposable CI.\n");
@@ -27,6 +27,8 @@ spl_autoload_register(static function(string $class)use($portal):void {
 use App\Domain\SitesIntegration\PortalCurrentClientAcceptanceSource;
 use App\Domain\SitesIntegration\PortalClientAcceptanceSnapshot;
 use App\Domain\SitesIntegration\PortalEd25519ClientAcceptanceIssuer;
+use App\Domain\SitesIntegration\PortalSitesClientAcceptanceResolver;
+use App\Domain\SitesIntegration\PortalVerifiedSitesServiceIdentity;
 
 final class F395FakeConsentSource implements PortalCurrentClientAcceptanceSource
 {
@@ -43,12 +45,25 @@ final class F395FakeConsentSource implements PortalCurrentClientAcceptanceSource
         );
     }
 }
+final class F397VerifiedService implements PortalVerifiedSitesServiceIdentity
+{
+    public function isVerifiedSitesService():bool {return true;}
+}
 $keypair=sodium_crypto_sign_keypair();
 $secret=sodium_crypto_sign_secretkey($keypair);
 $public=bin2hex(sodium_crypto_sign_publickey($keypair));
-$proof=(new PortalEd25519ClientAcceptanceIssuer(
-    new F395FakeConsentSource()
-))->issue('site-f395','release-f395',5,time(),$secret,60);
+$request=[
+    'schemaVersion'=>'sites.portal-client-approval-fetch.v1',
+    'tenantRef'=>'tenant-f395',
+    'siteRef'=>'site-f395',
+    'releaseRef'=>'release-f395',
+    'artifactDigest'=>hash('sha256','F395 FICTIONAL APPROVED HTML'),
+    'editorialRevision'=>5,
+];
+$proof=(new PortalSitesClientAcceptanceResolver(
+    new F397VerifiedService(),
+    new PortalEd25519ClientAcceptanceIssuer(new F395FakeConsentSource())
+))->resolve($request,time(),$secret);
 sodium_memzero($secret);
 if (
     file_put_contents($dir.'/proof.json',
@@ -60,4 +75,4 @@ if (
 ) {
     throw new RuntimeException('Cannot prepare F1-395 ephemeral receipt.');
 }
-echo "Pinned Portal F1-394 issuer emitted ephemeral fake acceptance receipt.\n";
+echo "Pinned Portal F1-396 resolver and F1-394 issuer emitted ephemeral fake receipt.\n";

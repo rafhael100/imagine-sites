@@ -2,6 +2,16 @@
 
 **Escopo:** candidato de transporte do Imagine Sites para comprovante atual de consentimento do cliente emitido pelo Imagine Portal. Não autoriza publicação. Sem endpoint público, provider Laravel, credenciais reais ou chamadas à Cloudflare.
 
+## F1-397 — verificação com resolvedor privado ORIGINAL do Portal
+
+A PR incremental F1-397 substitui somente o *emissor de teste isolado* da F1-395 por chamada real ao `PortalSitesClientAcceptanceResolver` da [Portal PR #758](https://github.com/rafhael100/imagine-portal/pull/758), **SHA fixada `1cc47d4d2a78d900541aa2c1c04a5aa3dd4d4ba9`**. A cadeia testada se torna:
+
+`consulta canônica do Sites → resolvedor privado F1-396 com identidade S2S FICTÍCIA → emissor F1-394 → HTTPS local com certificado mTLS → cliente Sites F1-395 → verificador Ed25519 F1-391 → testemunha independente FICTÍCIA`.
+
+O servidor de teste Python continua sendo apenas um encaminhador de resposta pré-gerada em ambiente efêmero, **não** o Portal Laravel real; portanto a CI comprova compatibilidade de payload e validações mas não disponibiliza API, mTLS de infraestrutura nem IAM/consentimento reais. O resolvedor é chamado com um objeto de identidade aprovado exclusivamente dentro do fixture isolado; jamais deve virar principal em produção.
+
+A matriz PHP 8.3/8.4 confirma SHA do Portal, sintaxe do resolvedor original, geração canônica, cenários de rede e revogação. PR DRAFT/NO-GO, sem merge ou deploy.
+
 ## Fluxo validado em CI
 
 1. O código original do [Portal F1-394, PR #749](https://github.com/rafhael100/imagine-portal/pull/749), congelado em SHA `10fc419e73236fc8c42acb0eb361114c8e67d03b`, emite um recibo Ed25519 **fictício** a partir de uma fonte de consentimento com MFA **simulado** e aceite expresso sintético.
