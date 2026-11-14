@@ -97,14 +97,15 @@ class LeasewebReadOnlyPreflightTests(unittest.TestCase):
                 "schema": "imagine-sites.production-readiness.v1",
                 "status": "BLOCKED",
                 "non_operational": True,
-                "gates": {f"gate_{i}": False for i in range(10)},
+                "gates": {key: False for key in APP.REQUIRED_RELEASE_GATES},
             }
             file.write_text(json.dumps(state), encoding="utf-8")
             self.assertTrue(APP.release_policy_ok(file))
             for changed in (
                 {"status": "READY"},
                 {"non_operational": False},
-                {"gates": dict(state["gates"], gate_1=True)},
+                {"gates": dict(state["gates"], release_go_live_authorization=True)},
+                {"gates": {**{k: v for k, v in state["gates"].items() if k != "release_go_live_authorization"}, "fake_authorization": False}},
             ):
                 revision = dict(state)
                 revision.update(changed)
