@@ -17,7 +17,9 @@ COPY apps/sites/artisan ./artisan
 COPY src /opt/imagine/src
 RUN composer install --no-dev --no-interaction --no-ansi --no-progress \
     --prefer-dist --no-scripts --optimize-autoloader && \
-    composer check-platform-reqs --no-dev
+    composer check-platform-reqs --no-dev && \
+    php artisan package:discover --ansi && \
+    php artisan route:list --json > /tmp/f373-build-routes.json
 
 FROM php:8.3-fpm-bookworm AS sites-php
 RUN set -eux; \
