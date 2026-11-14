@@ -6,9 +6,12 @@ services:
     environment:
       DB_SSLMODE: verify-full
       DB_SSLROOTCERT: /run/pg-ca/ca.crt
+      PGSSLROOTCERT: /run/pg-ca/ca.crt
+      PGSSLMODE: verify-full
       SITES_F379_TLS_LAB: ${SITES_F379_TLS_LAB:?Explicit disposable CI TLS opt-in required}
     volumes:
       - ${SITES_F379_TLS_DIR:?Temporary CI TLS path required}/ca.crt:/run/pg-ca/ca.crt:ro
+      - ${SITES_F379_TLS_DIR:?Temporary CI TLS path required}/wrong-ca.crt:/run/pg-ca/wrong-ca.crt:ro
   sites-db:
     command:
       - postgres
