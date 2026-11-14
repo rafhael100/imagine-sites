@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'apps/sites/routes/web.php'
+      - 'apps/sites/bootstrap/app.php'
       - 'apps/sites/app/Labs/**'
       - 'tests/f377-http-laravel-pg18-ci.php'
       - 'tests/f378-pinned-portal-http-to-sites.php'
