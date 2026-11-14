@@ -1,5 +1,8 @@
 name: Sites F1-377 CI signed HTTP ingress through Laravel/Nginx to private PG18
 on:
+  push:
+    branches:
+      - feature/sites-f1-378-portal-pinned-http-candidate-2026-11-13
   pull_request:
     paths:
       - 'apps/sites/routes/web.php'
