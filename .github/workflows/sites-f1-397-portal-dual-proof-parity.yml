@@ -1,0 +1,66 @@
+name: Sites F1-397 pinned Portal F395 to real Sites dual proof gate (NO DEPLOY)
+on:
+  pull_request:
+    paths:
+      - 'tests/f397-portal-bundle-original-sites-dual.php'
+      - '.github/workflows/sites-f1-397-portal-dual-proof-parity.yml'
+      - 'docs/SITES-P0-F397-PORTAL-SITES-PAIRED-RELEASE.md'
+permissions:
+  contents: read
+jobs:
+  real-portal-and-sites-proof-pair:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    env:
+      PORTAL_F395_RELEASE_CI: '1'
+      SITES_F391_APPROVAL_LAB: '1'
+      SITES_F397_CROSS_REPO_CI: '1'
+      F397_PORTAL_SOURCE: ./portal-candidate
+      F395_SITES_CHECKOUT: .
+    steps:
+      - name: Checkout exact reviewed Sites HEAD
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Checkout original Portal F395 issuer from green PR 756 SHA
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: rafhael100/imagine-portal
+          ref: b444d0c1ecd315770555f9e8a51ee595bbfa5b4e
+          path: portal-candidate
+          persist-credentials: false
+      - name: PHP sodium
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: sodium
+          tools: none
+          coverage: none
+      - name: Verify exact Portal source and syntax of original source pair
+        run: |
+          set -euo pipefail
+          test "$(git -C portal-candidate rev-parse HEAD)" = b444d0c1ecd315770555f9e8a51ee595bbfa5b4e
+          php -l portal-candidate/tests/f395-portal-sites-cross-proof-release.php
+          php -l src/Publication/SiteDualProofEvidenceCheck.php
+          php -l tests/f397-portal-bundle-original-sites-dual.php
+      - name: Run real Portal issuance through both independent Sites verifiers
+        run: |
+          set -euo pipefail
+          if SITES_F397_CROSS_REPO_CI=0 php tests/f397-portal-bundle-original-sites-dual.php; then
+            echo 'Unsafe: cross-repo fixture ran without verified disposable CI scope' >&2
+            exit 1
+          fi
+          php tests/f397-portal-bundle-original-sites-dual.php
+          echo 'PASS real Portal F395 issued separate proofs; Sites F386/F391/F396 independently verified them and fail-closed on cross-order/revocation. No publish.' >> "$GITHUB_STEP_SUMMARY"
+      - name: No provider/route deployed from this test
+        run: |
+          set -euo pipefail
+          if grep -R -n 'SiteDualProofEvidenceCheck' apps/sites/app/Providers apps/sites/routes 2>/dev/null; then
+            echo 'NO-GO: dual evidence check unexpectedly registered for real publication' >&2
+            exit 1
+          fi
