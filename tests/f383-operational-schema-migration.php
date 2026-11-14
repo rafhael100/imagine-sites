@@ -35,6 +35,11 @@ $names=[
     'tenant_accounts','contract_refs','site_projects',
     'replay_nonces','editorial_revisions','site_outbox',
 ];
+$boundModel=(int)$db->query(
+    "SELECT count(*) FROM information_schema.tables
+     WHERE table_schema='sites_core' AND table_name='db_login_bindings'"
+)->fetchColumn()===1;
+if ($boundModel) $names[]='db_login_bindings';
 $state=$db->query(
     "SELECT c.relname AS tablename,
             c.relrowsecurity AS rowsecurity,
@@ -55,9 +60,23 @@ foreach ($state as $row) {
 sort($seen);
 $expected=$names;sort($expected);
 f383Check($seen===$expected,'exact table names, no unexpected public data');
-f383Check((int)$db->query(
-    "SELECT count(*) FROM pg_policies WHERE schemaname='sites_core'"
-)->fetchColumn()===0,'zero RLS policies until authenticated tenant binding is reviewed');
+$policyRows=$db->query(
+    "SELECT tablename,policyname,roles,cmd FROM pg_policies
+      WHERE schemaname='sites_core'"
+)->fetchAll(PDO::FETCH_ASSOC);
+if ($boundModel) {
+    f383Check(count($policyRows)===3,
+        'only three read-only security-definer policies expected');
+    foreach($policyRows as $policy) {
+        f383Check($policy['policyname']==='f384_internal_reader' &&
+            $policy['cmd']==='SELECT' &&
+            str_contains((string)$policy['roles'],'sites_core_read_definer'),
+            'only narrow NOLOGIN internal read policy permitted');
+    }
+} else {
+    f383Check(count($policyRows)===0,
+        'foundational schema must not grant any tenant RLS policy');
+}
 
 $db->exec(
     "CREATE ROLE sites_f383_untrusted LOGIN NOINHERIT NOSUPERUSER

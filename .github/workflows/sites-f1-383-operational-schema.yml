@@ -3,10 +3,14 @@ on:
   push:
     branches:
       - feature/sites-f1-383-versioned-pg-operational-schema-2026-11-13
+      - feature/sites-f1-384-tenant-safe-read-model-2026-11-14
   pull_request:
     paths:
       - 'apps/sites/database/migrations/**'
       - 'tests/f383-operational-schema-migration.php'
+      - 'tests/f384-tenant-safe-operational-reader.php'
+      - 'apps/sites/app/ReadModels/TenantSiteStatusReader.php'
+      - 'apps/sites/tests/Feature/TenantSiteStatusReaderTest.php'
       - '.github/workflows/sites-f1-383-operational-schema.yml'
       - 'docs/SITES-F1-383-VERSIONED-PG18-CORE-SCHEMA.md'
 permissions:
@@ -38,6 +42,7 @@ jobs:
       APP_DEBUG: 'false'
       GITHUB_ACTIONS: 'true'
       SITES_F383_PG_MIGRATION_LAB: '1'
+      SITES_F384_READER_LAB: '1'
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: '5432'
@@ -59,6 +64,10 @@ jobs:
           set -euo pipefail
           php -l apps/sites/database/migrations/2026_11_14_000001_create_sites_core_foundation.php
           php -l tests/f383-operational-schema-migration.php
+          php -l apps/sites/database/migrations/2026_11_14_000002_add_tenant_bound_read_api.php
+          php -l tests/f384-tenant-safe-operational-reader.php
+          php -l apps/sites/app/ReadModels/TenantSiteStatusReader.php
+          php -l apps/sites/tests/Feature/TenantSiteStatusReaderTest.php
       - name: Install locked Laravel dependencies
         working-directory: apps/sites
         run: |
@@ -79,11 +88,23 @@ jobs:
             exit 1
           fi
           php tests/f383-operational-schema-migration.php
+      - name: F1-384 verify role-bound SQL tenant status isolation and revocation
+        run: |
+          set -euo pipefail
+          if SITES_F384_READER_LAB=0 php tests/f384-tenant-safe-operational-reader.php; then
+            echo 'Unsafe: F1-384 fixture ran without GitHub CI opt-in'
+            exit 1
+          fi
+          php tests/f384-tenant-safe-operational-reader.php
+      - name: F1-384 validate Laravel status reader with real restricted PG18 roles
+        working-directory: apps/sites
+        run: php artisan test --filter=TenantSiteStatusReaderTest --no-ansi
       - name: Prove Laravel migration rollback on isolated empty database
         working-directory: apps/sites
         run: |
           set -euo pipefail
-          php artisan migrate:rollback --step=1 --force --no-ansi
+          # The same migration batch now includes the additive read-only F1-384.
+          php artisan migrate:rollback --batch=1 --force --no-ansi
           php -r '
             $db=new PDO("pgsql:host=127.0.0.1;dbname=sites_f383_lab",
               "postgres","f383-fictional-admin-only");
