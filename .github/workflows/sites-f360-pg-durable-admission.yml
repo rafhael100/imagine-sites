@@ -14,6 +14,7 @@ on:
       - 'tests/f367-dual-postgres-portal-receipt.php'
       - 'tests/f368-lost-response-restart-recovery.php'
       - 'tests/f369-pg18-receipt-backup-restore.php'
+      - 'tests/f370-stale-restore-parity-audit.php'
       - 'tests/fixtures/f367-portal-receipt-db.sql'
       - 'tests/fixtures/f367-durable-portal-router.php'
       - 'tests/fixtures/f366-portal-receipt-router.php'
@@ -87,6 +88,7 @@ jobs:
       SITES_F367_PORTAL_DB_LAB: '1'
       SITES_F368_RECOVERY_LAB: '1'
       SITES_F369_RESTORE_LAB: '1'
+      SITES_F370_STALE_AUDIT_LAB: '1'
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: '5432'
@@ -133,6 +135,7 @@ jobs:
           php -l tests/f367-dual-postgres-portal-receipt.php
           php -l tests/f368-lost-response-restart-recovery.php
           php -l tests/f369-pg18-receipt-backup-restore.php
+          php -l tests/f370-stale-restore-parity-audit.php
           php -l tests/fixtures/f367-durable-portal-router.php
           php -r 'if (!extension_loaded("curl")) exit(1);'
           php -r 'if (!extension_loaded("pdo_pgsql")) exit(1);'
@@ -271,6 +274,31 @@ jobs:
           server_pid=''
           start_receiver
           php tests/f368-lost-response-restart-recovery.php recover-after-restart
+      - name: F1-370 prepare deliberately stale Portal PG18 backup before newest event
+        run: |
+          set -euo pipefail
+          # Preserve the earlier three-receipt image before F1-369 commits
+          # the fourth receipt; this is intentionally NOT a valid recovery.
+          docker run --rm --network host -v "$RUNNER_TEMP:/backup" \
+            -e PGPASSWORD=f367-fictional-portal-db-only \
+            postgres:18 pg_dump -h 127.0.0.1 -p 5433 -U postgres \
+            --no-owner --no-acl -Fc -d portal_f367_lab -f /backup/f370-stale.dump
+          test -s "$RUNNER_TEMP/f370-stale.dump"
+          docker run --rm --network host \
+            -e PGPASSWORD=f369-fictional-restore-db-only postgres:18 \
+            psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5434 -U postgres \
+            -d postgres -c 'CREATE DATABASE portal_f370_stale_lab'
+          docker run --rm --network host -v "$RUNNER_TEMP:/backup:ro" \
+            -e PGPASSWORD=f369-fictional-restore-db-only postgres:18 \
+            pg_restore -h 127.0.0.1 -p 5434 -U postgres \
+            --exit-on-error --single-transaction --no-owner --no-acl \
+            -d portal_f370_stale_lab /backup/f370-stale.dump
+          # Still only three committed receipts when archived.
+          docker run --rm --network host \
+            -e PGPASSWORD=f369-fictional-restore-db-only postgres:18 \
+            psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 5434 -U postgres \
+            -d portal_f370_stale_lab -tA \
+            -c 'SELECT count(*) FROM portal_f367.receipts' | grep -qx '3'
       - name: F1-369 restore PG18 receipt on third isolated container after lost response
         run: |
           set -euo pipefail
@@ -324,6 +352,18 @@ jobs:
           done
           php tests/f369-pg18-receipt-backup-restore.php recover-restored
           rm -f "$RUNNER_TEMP/f369-portal.dump"
+      - name: F1-370 block stale or altered Portal backups against Sites delivered outbox
+        run: |
+          set -euo pipefail
+          if SITES_F370_STALE_AUDIT_LAB=0 php tests/f370-stale-restore-parity-audit.php; then
+            echo 'Unsafe: backup audit executed without its CI-only gate'
+            exit 1
+          fi
+          php tests/f370-stale-restore-parity-audit.php
+      - name: F1-370 cleanup synthetic stale snapshot
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP/f370-stale.dump"
       - name: Scope limitation
         if: always()
         run: |
