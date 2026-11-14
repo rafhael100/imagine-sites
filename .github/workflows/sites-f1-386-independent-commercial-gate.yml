@@ -12,6 +12,8 @@ on:
       - 'tests/f386-independent-commercial-gate.php'
       - '.github/workflows/sites-f1-386-independent-commercial-gate.yml'
       - 'docs/SITES-F1-386-INDEPENDENT-COMMERCIAL-AUTHORITY.md'
+      - 'docs/SITES-P0-HTTP-SETTLEMENT-RECONCILIATION.md'
+      - '.github/workflows/sites-f1-381-purchase-http-pg18.yml'
 permissions:
   contents: read
 jobs:

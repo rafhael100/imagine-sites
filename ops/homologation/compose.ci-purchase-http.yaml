@@ -1,0 +1,7 @@
+# F1-381: additive ONLY to the disposable F1-377 HTTP fixture.
+# Switches to a synthetic purchase-shape verifier AFTER F1-380 passes.
+# The real Portal purchase source still checks mock payment + briefing in PG18.
+services:
+  sites-php:
+    environment:
+      SITES_F381_PURCHASE_HTTP_LAB: ${SITES_F381_PURCHASE_HTTP_LAB:?CI-only synthetic purchase opt-in required}
