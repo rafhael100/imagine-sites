@@ -19,12 +19,13 @@ jobs:
     env:
       SITES_F376_CI_LAB: '1'
       SITES_F379_TLS_LAB: '1'
-      SITES_F379_TLS_DIR: ${{ runner.temp }}/f379-pg-tls
       SITES_STAGING_APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Set private ephemeral runner path for TLS fixture
+        run: echo "SITES_F379_TLS_DIR=$RUNNER_TEMP/f379-pg-tls" >> "$GITHUB_ENV"
       - name: Create one-run fictional TLS issuer, server cert and wrong CA
         run: |
           set -euo pipefail
