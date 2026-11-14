@@ -230,3 +230,72 @@ Artisan::command('sites:review-fixture {product=onepage}', function (): int {
     $this->line('Portal official client acceptance: false; publishable: false.');
     return Command::SUCCESS;
 })->purpose('Generate a non-operational, private, fictional Laravel review handoff');
+
+
+/**
+ * F1-374: read-only staging preflight. This always returns NO-GO until
+ * verified commercial, IAM, backup and AppSec gates are implemented and
+ * reviewed independently. It never mutates the database or changes routes.
+ */
+Artisan::command('sites:homologation-preflight', function (): int {
+    if (PHP_SAPI !== 'cli') {
+        $this->error('Homologation preflight is CLI-only.');
+        return Command::FAILURE;
+    }
+
+    $connection = config('database.connections.pgsql', []);
+    $environmentVariables = getenv();
+    $unsafeFlags = false;
+    if (is_array($environmentVariables)) {
+        foreach ($environmentVariables as $name=>$value) {
+            if (is_string($name) && is_string($value) &&
+                preg_match('/\ASITES_(?:SYNTHETIC_[A-Z0-9_]*|F[0-9]+_[A-Z0-9_]*LAB)\z/D',$name) &&
+                $value === '1') {
+                $unsafeFlags = true;
+                break;
+            }
+        }
+    }
+
+    $runtime = [
+        'environment'=>(string) config('app.env'),
+        'debug'=>(bool) config('app.debug'),
+        'app_key'=>config('app.key'),
+        'app_url'=>config('app.url'),
+        'synthetic_flags_disabled'=>!$unsafeFlags,
+        'db_driver'=>config('database.default'),
+        'db_host'=>$connection['host'] ?? null,
+        'db_name'=>$connection['database'] ?? null,
+    ];
+
+    $probe = static function (): array {
+        $database=\Illuminate\Support\Facades\DB::connection('pgsql');
+        $details=$database->selectOne(
+            "SELECT current_database() AS db_name,
+                    current_setting('server_version_num')::integer AS pg_version"
+        );
+        $privileges=$database->selectOne(
+            'SELECT rolsuper,rolcreatedb,rolcreaterole
+               FROM pg_roles WHERE rolname=current_user'
+        );
+        $ssl=$database->selectOne(
+            'SELECT ssl FROM pg_stat_ssl WHERE pid=pg_backend_pid()'
+        );
+        $boolean=static fn (mixed $v): bool =>
+            in_array($v,[true,1,'1','t','true'],true);
+        return [
+            'db_name'=>$details->db_name ?? null,
+            'pg_version'=>(int)($details->pg_version ?? 0),
+            'is_superuser'=>$boolean($privileges->rolsuper ?? null),
+            'can_create_db'=>$boolean($privileges->rolcreatedb ?? null),
+            'can_create_role'=>$boolean($privileges->rolcreaterole ?? null),
+            'tls'=>$boolean($ssl->ssl ?? null),
+        ];
+    };
+    $report=\App\Support\HomologationReadiness::inspect($runtime,$probe);
+    $this->line(json_encode(
+        $report,JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES
+    ));
+    // Intentionally NEVER changes any release gate to green.
+    return Command::FAILURE;
+})->purpose('Read-only NO-GO staging preflight with sanitized verification findings');
