@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
-use RuntimeException;
 
 /**
  * F1-383: REVIEW-ONLY candidate for a real PostgreSQL18 schema.
