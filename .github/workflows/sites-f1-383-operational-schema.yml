@@ -83,7 +83,8 @@ jobs:
         working-directory: apps/sites
         run: |
           set -euo pipefail
-          php artisan migrate:rollback --step=1 --force --no-ansi
+          # The same migration batch now includes the additive read-only F1-384.
+          php artisan migrate:rollback --batch=1 --force --no-ansi
           php -r '
             $db=new PDO("pgsql:host=127.0.0.1;dbname=sites_f383_lab",
               "postgres","f383-fictional-admin-only");
