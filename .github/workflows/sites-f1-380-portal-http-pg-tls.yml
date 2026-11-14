@@ -1,0 +1,230 @@
+name: Sites F1-380 pinned Portal HTTP to private Laravel PostgreSQL18 TLS (CI only)
+on:
+  push:
+    branches:
+      - feature/sites-f1-380-portal-http-pg18-tls-2026-11-13
+  pull_request:
+    paths:
+      - 'ops/homologation/compose.ci-tls.yaml'
+      - 'ops/homologation/ci-pg_hba.conf'
+      - 'apps/sites/config/database.php'
+      - '.github/workflows/sites-f1-380-portal-http-pg-tls.yml'
+      - 'tests/f377-http-laravel-pg18-ci.php'
+      - 'tests/f378-pinned-portal-http-to-sites.php'
+      - 'apps/sites/routes/web.php'
+      - 'apps/sites/bootstrap/app.php'
+      - 'docs/SITES-F1-379-POSTGRES-VERIFIED-TLS-LAB.md'
+permissions:
+  contents: read
+jobs:
+  portal-http-pg-tls-e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 28
+    env:
+      SITES_F376_CI_LAB: '1'
+      SITES_F379_TLS_LAB: '1'
+      SITES_F377_CI_HTTP_LAB: '1'
+      SITES_STAGING_APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: rafhael100/imagine-portal
+          ref: bf1b2794de4d6000f120ffa2b1e6dd557f34c35e
+          path: portal-candidate
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: none
+          extensions: curl
+          coverage: none
+      - name: Set private ephemeral runner path for TLS fixture
+        run: echo "SITES_F379_TLS_DIR=$RUNNER_TEMP/f379-pg-tls" >> "$GITHUB_ENV"
+      - name: Create one-run fictional TLS issuer, server cert and wrong CA
+        run: |
+          set -euo pipefail
+          umask 077
+          install -d -m 0755 "$SITES_F379_TLS_DIR"
+          cd "$SITES_F379_TLS_DIR"
+          openssl req -new -x509 -sha256 -newkey rsa:2048 -nodes -days 1 \
+            -keyout ca.key -out ca.crt \
+            -subj '/CN=Imagine CI ephemeral CA' \
+            -addext 'basicConstraints=critical,CA:TRUE' >/dev/null 2>&1
+          openssl req -new -sha256 -newkey rsa:2048 -nodes \
+            -keyout server.key -out server.csr \
+            -subj '/CN=sites-db' >/dev/null 2>&1
+          printf 'subjectAltName=DNS:sites-db\nextendedKeyUsage=serverAuth\n' > server.ext
+          openssl x509 -req -sha256 -days 1 -in server.csr \
+            -CA ca.crt -CAkey ca.key -CAcreateserial \
+            -extfile server.ext -out server.crt >/dev/null 2>&1
+          openssl req -new -x509 -sha256 -newkey rsa:2048 -nodes -days 1 \
+            -keyout wrong-ca.key -out wrong-ca.crt \
+            -subj '/CN=Invalid CI-only Root' \
+            -addext 'basicConstraints=critical,CA:TRUE' >/dev/null 2>&1
+          openssl verify -CAfile ca.crt server.crt
+          chmod 0644 ca.crt server.crt wrong-ca.crt
+          chmod 0600 server.key ca.key wrong-ca.key
+          pg_uid="$(docker run --rm postgres:18 id -u postgres)"
+          test -n "$pg_uid"
+          sudo chown "$pg_uid:$pg_uid" server.key
+          test "$(stat -c %a server.key)" = 600
+          # CA keys NEVER enter a container, repository, workflow artifact or log.
+      - name: Enforce lab-only Compose config, private ports and verify-full client
+        run: |
+          set -euo pipefail
+          base=ops/homologation/compose.yaml
+          pg=ops/homologation/compose.ci-pg18.yaml
+          tls=ops/homologation/compose.ci-tls.yaml
+          if SITES_F379_TLS_LAB= docker compose -f "$base" -f "$pg" -f "$tls" config --quiet; then
+            echo 'Unsafe: verified TLS overlay accepted missing opt-in'
+            exit 1
+          fi
+          docker compose -f "$base" -f "$pg" -f "$tls" config --quiet
+          docker compose -f "$base" -f "$pg" -f "$tls" config --format json |
+            php -r '
+              $c=json_decode(stream_get_contents(STDIN),true,64,JSON_THROW_ON_ERROR);
+              $s=$c["services"]??[];
+              $names=array_keys($s); sort($names);
+              if($names!==["sites-db","sites-php","sites-proxy"])exit(1);
+              if(isset($s["sites-db"]["ports"]) || isset($s["sites-php"]["ports"]))exit(1);
+              if(($s["sites-proxy"]["ports"][0]["host_ip"]??"")!=="127.0.0.1")exit(1);
+              if(($s["sites-php"]["environment"]["DB_SSLMODE"]??"")!=="verify-full")exit(1);
+              if(($s["sites-php"]["environment"]["PGSSLROOTCERT"]??"")!=="/run/pg-ca/ca.crt")exit(1);
+              if(($c["networks"]["sites-internal"]["internal"]??null)!==true)exit(1);
+            '
+      - name: Build and start Laravel, Nginx and SSL-only isolated PG18
+        run: |
+          set -euo pipefail
+          if ! docker compose -f ops/homologation/compose.yaml \
+            -f ops/homologation/compose.ci-pg18.yaml \
+            -f ops/homologation/compose.ci-tls.yaml up -d --build; then
+            docker compose -f ops/homologation/compose.yaml \
+              -f ops/homologation/compose.ci-pg18.yaml \
+              -f ops/homologation/compose.ci-tls.yaml logs --tail=60
+            exit 1
+          fi
+      - name: Prove SSL verify-full, reject incorrect CA and plain TCP
+        run: |
+          set -euo pipefail
+          docker compose -f ops/homologation/compose.yaml \
+            -f ops/homologation/compose.ci-pg18.yaml \
+            -f ops/homologation/compose.ci-tls.yaml exec -T sites-php php -r '
+              $base="pgsql:host=sites-db;port=5432;dbname=sites_f360_lab;";
+              $user=getenv("DB_USERNAME");
+              $pass=getenv("DB_PASSWORD");
+              $opt=[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION];
+              $good=new PDO($base."sslmode=verify-full;sslrootcert=/run/pg-ca/ca.crt",$user,$pass,$opt);
+              $query=$good->query("SELECT current_database(),session_user,
+                (SELECT ssl FROM pg_stat_ssl WHERE pid=pg_backend_pid()),
+                current_setting(".chr(39)."server_version_num".chr(39).")::integer");
+              $row=$query->fetch(PDO::FETCH_NUM);
+              if($row[0]!=="sites_f360_lab" || $row[1]!=="sites_f360_b" ||
+                 !in_array($row[2],[true,"t",1,"1"],true) ||
+                 (int)$row[3]<180000 || (int)$row[3]>=190000)exit(1);
+              foreach([
+                $base."sslmode=verify-full;sslrootcert=/run/pg-ca/wrong-ca.crt",
+                $base."sslmode=disable",
+              ] as $bad) {
+                try {new PDO($bad,$user,$pass,$opt);exit(2);}
+                catch(PDOException) { /* Must fail without logging DSN or secrets */ }
+              }
+              echo "F1-379 PASS: PG18 TLS verification + wrong CA and plaintext refused.";
+            '
+      - name: Laravel staging preflight detects real encrypted PG session, still NO-GO
+        run: |
+          set -euo pipefail
+          set +e
+          report="$(docker compose -f ops/homologation/compose.yaml \
+            -f ops/homologation/compose.ci-pg18.yaml \
+            -f ops/homologation/compose.ci-tls.yaml exec -T sites-php \
+            php artisan sites:homologation-preflight)"
+          exit_code=$?
+          set -e
+          test "$exit_code" -eq 1
+          printf '%s' "$report" | php -r '
+            $r=json_decode(stream_get_contents(STDIN),true,64,JSON_THROW_ON_ERROR);
+            if(($r["status"]??null)!=="blocked" ||
+               ($r["database_probe_attempted"]??null)!==true ||
+               ($r["checks"]["postgres18_identity"]["result"]??null)!=="verified" ||
+               ($r["checks"]["postgres_least_privilege"]["result"]??null)!=="verified" ||
+               ($r["checks"]["postgres_tls"]["result"]??null)!=="verified" ||
+               ($r["checks"]["commercial_contract"]["result"]??null)!=="blocked" ||
+               ($r["checks"]["portal_service_identity"]["result"]??null)!=="blocked" ||
+               ($r["can_accept_real_orders"]??null)!==false ||
+               ($r["can_publish"]??null)!==false)exit(1);
+          '
+          ! printf '%s' "$report" | grep -q 'fictional-'
+          test "$(curl --noproxy '*' -sS -o /dev/null -w '%{http_code}' \
+            http://127.0.0.1:18081/up)" = 200
+          test "$(curl --noproxy '*' -sS -o /dev/null -w '%{http_code}' -X POST \
+            http://127.0.0.1:18081/_ci/sites/v1/admit)" = 404
+          echo 'F1-379 PASS: transport encrypted; commercial/IAM/release remain NO-GO.'
+      - name: Activate CI-only HTTP route with TLS-backed database while keeping public route closed by default
+        run: |
+          set -euo pipefail
+          test "$(git -C portal-candidate rev-parse HEAD)" = bf1b2794de4d6000f120ffa2b1e6dd557f34c35e
+          SITES_F377_CI_HTTP_LAB=1 docker compose \
+            -f ops/homologation/compose.yaml \
+            -f ops/homologation/compose.ci-pg18.yaml \
+            -f ops/homologation/compose.ci-tls.yaml \
+            -f ops/homologation/compose.ci-http.yaml \
+            up -d --no-deps --force-recreate sites-php
+          ready=0
+          for i in $(seq 1 30); do
+            if curl --noproxy '*' -fsS --output /dev/null http://127.0.0.1:18081/up; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          test "$ready" = 1
+          test "$(curl --noproxy '*' -sS -o /dev/null -w '%{http_code}' -X POST \
+            http://127.0.0.1:18081/_lab/sites/v1/create-project)" = 404
+      - name: Prove actual CI signed HTTP and pinned Portal source across verified PG18 TLS
+        env:
+          SITES_F378_PINNED_PORTAL_LAB: '1'
+        run: |
+          set -euo pipefail
+          export SITES_F378_PORTAL_PATH="$GITHUB_WORKSPACE/portal-candidate"
+          php -l tests/f377-http-laravel-pg18-ci.php
+          php -l tests/f378-pinned-portal-http-to-sites.php
+          if ! php tests/f377-http-laravel-pg18-ci.php; then
+            docker compose -f ops/homologation/compose.yaml \
+              -f ops/homologation/compose.ci-pg18.yaml \
+              -f ops/homologation/compose.ci-tls.yaml \
+              -f ops/homologation/compose.ci-http.yaml logs --tail=65
+            exit 1
+          fi
+          php tests/f378-pinned-portal-http-to-sites.php
+      - name: Assert both Portal/Sites HTTP paths left only expected records on SSL-only PG18
+        run: |
+          set -euo pipefail
+          query() {
+            docker compose -f ops/homologation/compose.yaml \
+              -f ops/homologation/compose.ci-pg18.yaml \
+              -f ops/homologation/compose.ci-tls.yaml \
+              -f ops/homologation/compose.ci-http.yaml \
+              exec -T sites-db psql -X -U postgres -d sites_f360_lab -tA -v ON_ERROR_STOP=1 \
+              -c "$1" | tr -d '\r\n'
+          }
+          test "$(query "SELECT count(*) FROM sites_f360.admissions")" = 5
+          test "$(query "SELECT count(*) FROM sites_f360.outbox")" = 5
+          test "$(query "SELECT count(*) FROM sites_f360.replay_nonces")" = 9
+          test "$(query "SELECT count(*) FROM sites_f360.admissions WHERE tenant_ref='tenant-f360-a'")" = 0
+          test "$(query "SELECT count(*) FROM sites_f360.outbox WHERE operation_ref='failoutbox-f360'")" = 0
+          test "$(query "SELECT count(*) FROM sites_f360.outbox o
+            LEFT JOIN sites_f360.admissions a
+            ON o.tenant_ref=a.tenant_ref AND o.operation_ref=a.operation_ref
+            WHERE a.tenant_ref IS NULL")" = 0
+          echo 'F1-380 PASS: pinned Portal HTTP Laravel PG18 over verified TLS: 5 admissions, 5 outbox, 9 nonces; zero cross-tenant.'
+      - name: Tear down disposable containers and remove short-lived CA/key files
+        if: always()
+        run: |
+          docker compose -f ops/homologation/compose.yaml \
+            -f ops/homologation/compose.ci-pg18.yaml \
+            -f ops/homologation/compose.ci-tls.yaml \
+            -f ops/homologation/compose.ci-http.yaml down --volumes --remove-orphans || true
+          sudo rm -rf -- "$SITES_F379_TLS_DIR"
