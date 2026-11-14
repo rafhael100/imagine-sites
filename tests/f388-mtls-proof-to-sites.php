@@ -94,6 +94,41 @@ f388Check(f388Denied(static fn()=>new PortalProofMtlsHttpSource(
     F388_URI,'localhost',$ca,'/missing-client.crt',$key
 )),'missing mTLS certificate rejects adapter initialization');
 
+// F1-390: reject malformed endpoints and local credential indirections before I/O.
+foreach ([
+    'https://user:password@localhost:18443/internal/sites/v1/entitlements/resolve',
+    'https://localhost:18443/internal/sites/v1/entitlements/resolve#fragment',
+    'https://localhost:18443/internal/sites/v1/entitlements/resolve/extra',
+    'https://localhost:18444/internal/sites/v1/entitlements/resolve',
+] as $unsafeEndpoint) {
+    f388Check(f388Denied(static fn()=>new PortalProofMtlsHttpSource(
+        $unsafeEndpoint,'localhost',$ca,$cert,$key
+    )),'untrusted endpoint form denied before HTTPS request');
+}
+f388Check(f388Denied(static fn()=>new PortalProofMtlsHttpSource(
+    F388_URI,'localhost',$ca,$cert,$key,499
+)),'sub-minimum timeout denied');
+$linkedCa=$dir.'/ca-symlink.crt';
+if (file_exists($linkedCa) || is_link($linkedCa)) unlink($linkedCa);
+if (!symlink($ca,$linkedCa)) throw new RuntimeException('Cannot create CI symlink.');
+try {
+    f388Check(f388Denied(static fn()=>new PortalProofMtlsHttpSource(
+        F388_URI,'localhost',$linkedCa,$cert,$key
+    )),'symlinked CA rejected before network');
+} finally {
+    unlink($linkedCa);
+}
+$linkedKey=$dir.'/key-symlink.key';
+if (file_exists($linkedKey) || is_link($linkedKey)) unlink($linkedKey);
+if (!symlink($key,$linkedKey)) throw new RuntimeException('Cannot create CI key link.');
+try {
+    f388Check(f388Denied(static fn()=>new PortalProofMtlsHttpSource(
+        F388_URI,'localhost',$ca,$cert,$linkedKey
+    )),'symlinked client private key rejected before network');
+} finally {
+    unlink($linkedKey);
+}
+
 $source=new PortalProofMtlsHttpSource(F388_URI,'localhost',$ca,$cert,$key,3000);
 $settlement=new F388FakePsp();
 $revocation=new F388FakeEpoch();
