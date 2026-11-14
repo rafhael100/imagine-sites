@@ -1,5 +1,15 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 13/11/2026 — integração da compra à prévia e fundação operacional (em PRs DRAFT)
+
+- [PR #462](https://github.com/rafhael100/imagine-sites/pull/462), **F1-380** — pedidos fictícios persistidos pelo código original do Portal em PostgreSQL18 com FORCE RLS seguem por assinatura e HTTP local até o Laravel Sites em outro PostgreSQL18. Só Onepage/Landing completos entram; Performance, pendente, briefing ausente e empresa cruzada recusados. [CI #43543919610](https://github.com/rafhael100/imagine-sites/actions/runs/43543919610) **PASS**. PSP e contrato reais ausentes.
+- [PR #464](https://github.com/rafhael100/imagine-sites/pull/464), **F1-381** — dois projetos admitidos alimentam `StructuredCopyCandidate` e `StaticSiteRenderer`; cria prévias Onepage/Landing com painel visual Imagine e manifesto de integridade, sob leitura SQL vinculada à empresa. [CI #43544718914](https://github.com/rafhael100/imagine-sites/actions/runs/43544718914) **8/8 workflows PASS**, pacote fictício nos artifacts por sete dias. Não há IA real, cliente ou publicação.
+- [PR #465](https://github.com/rafhael100/imagine-sites/pull/465), **F1-382** — editor e revisor com logins SQL separados; revisão por versão/digest e 9 eventos auditáveis no PostgreSQL; ambas as prévias aguardam aceite do Portal, que não pode ser simulado como publicação. [CI #43545334803](https://github.com/rafhael100/imagine-sites/actions/runs/43545334803) **PASS**. Estado de cliente e publicação permanece falso em constraints.
+- [PR #466](https://github.com/rafhael100/imagine-sites/pull/466), **F1-383** — primeira migration Laravel13 com 6 tabelas `sites_core` (empresa, contrato, projeto, nonce, revisão, outbox), FORCE RLS **sem políticas permissivas**, autoridade/pagamento/aceite/publicação travados em falso. [CI #43546094018](https://github.com/rafhael100/imagine-sites/actions/runs/43546094018) **PHP8.3/8.4 PASS**, incluindo migração, testes SQL adversariais e rollback em banco efêmero. Não aplicar diretamente à VPS sem revisão DBA/AppSec.
+- **Bloqueios P0 reais para terminar:** (1) identidade Portal↔Sites autenticada e prova oficial de contrato+pagamento PSP; (2) origem independente de revogação e aceite do cliente em versão/digest exatos; (3) migração/role/RLS operacional revisados, segredos no vault, TLS real e backups externos com restore; (4) pipeline de produção real da prévia para publicação/rollback, DNS/Cloudflare e monitoramento; (5) AppSec/LGPD e validação ponta a ponta na Leaseweb com autorização explícita. Todos seguem **NO-GO**.
+- **Nenhum merge nesta cadeia #462/#464/#465/#466, nenhum deploy ou gasto externo.** As contas, pagamento e dados são fictícios nos testes. Não confundir workflows verdes com homologação operacional.
+
+
 **09/11/2026 — integração de desenvolvimento e entrega de critérios de homologação.**
 
 - `dev` consolidou F1-01..22 via PRs #24–#29, mantendo `main` intacta.
