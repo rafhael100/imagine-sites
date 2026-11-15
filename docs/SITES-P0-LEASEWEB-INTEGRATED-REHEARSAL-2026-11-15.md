@@ -34,7 +34,7 @@ A porta NÃO foi alterada, liberada ou considerada reservada. Próxima implanta�
 
 `run-private-domain-rehearsal.py --php-image imagine-crm-private-journey:<SHA>` pode executar somente `tests/run.php`, com uma imagem PHP **já existente**, tag SHA exata, `--pull=never`, usuário33, filesystem/source read-only, rede none, sem portas/socket/segredos e limites CPU/memória/PIDs. O código original de domínio não requer simular ambiente CI. Nenhuma flag `GITHUB_ACTIONS` é inventada na VPS; ensaios mTLS/PSP guardados para CI permanecem no GitHub.
 
-O executor não usa o banco, volumes ou a aplicação CRM; só reaproveita o binário PHP da imagem local. Compara IDs dos contêineres existentes antes/depois e não retém contêiner. Isso não comprova contrato, gateway, consentimento, RLS, PostgreSQL18, TLS S2S, restore ou publicação na VPS. Resultado real da execução será registrado após conferência; nunca presumido.
+O executor não usa o banco, volumes ou a aplicação CRM; só reaproveita o binário PHP da imagem local. Compara IDs dos contêineres existentes antes/depois e não retém contêiner. Isso não comprova contrato, gateway, consentimento, RLS, PostgreSQL18, TLS S2S, restore ou publicação na VPS. Execução confirmada na revisão `d899b3402cc32bc5155841ed30309e607a73d651`: **32 asserções PASS na VPS**, com contêiner removido e inventário anterior/posterior igual. Sem flags CI, rede, DB ou migrações.
 
 ## Domínio, TLS, recuperação e pendências
 
@@ -43,3 +43,11 @@ Nenhuma entrada DNS/Cloudflare, listener operacional ou rota pública foi criada
 A homologação funcional completa permanece bloqueada por: conflito de porta, banco/roles Sites PG18 não provisionados, origem oficial de pagamento/aceite/revogação, S2S autenticado/vault, consentimento humano, backup externo+restore, publisher/rollback e gates AppSec/LGPD. Nenhum resultado verde libera esses requisitos.
 
 DRAFT / NO-MERGE / NO-PRODUCTION-DEPLOY / NO-CHARGE / NO-PUBLISH. Issue38 permanece aberta.
+
+## Evidências executadas após implementação
+
+- Fonte executada na VPS: `d899b3402cc32bc5155841ed30309e607a73d651`. Diagnóstico de impacto confirmou conflito18081, zero binds públicos de DB no inventário observado, imagens oficiais PostgreSQL16/18 presentes (isso não comprova banco Sites), 8 CPUs e aproximadamente273GiB livres. Metadados de backup: varredura limitada a500 entradas, truncada; arquivo mais recente observado com cerca18,6h. Conteúdo não lido, restore **não comprovado por essa inspeção**.
+- Executor privado: `PRIVATE VPS DOMAIN PASS: 32 assertions`; imagem PHP em cache, rede none, source read-only, nenhum volume de aplicativo/segredo/banco. Contêineres existentes preservados no intervalo observado.
+- [CI integração atual Portal759/Sites](https://github.com/rafhael100/imagine-sites/actions/runs/43774939689): PHP8.3 e8.4 aprovados; em cada versão31 checks do resolvedor privado,19 do gate duplo Sites,23 do par financeiro/editorial Portal,13 de vínculo cruzado,32 de domínio e28 de mTLS. São146 asserções PHP por versão, **todas com fontes de negócio sintéticas**. Mais14 testes Python e negativas de execução insegura.
+- [Regressão HTTP Laravel+PG18](https://github.com/rafhael100/imagine-sites/actions/runs/43774939626), [ponte privada de bancos](https://github.com/rafhael100/imagine-sites/actions/runs/43774939560), [ensaio de contêiner localhost](https://github.com/rafhael100/imagine-sites/actions/runs/43774939568), Laravel8.3/8.4, domínio e F1-21: todos os15 checks recuperados na mesma SHA aprovados. Não houve falha remanescente nessa revisão.
+- Nenhuma homologação funcional completa foi declarada: os nove gates originais e os bloqueios observados continuam fechados. A próxima prioridade é um plano de porta/rede/banco próprio, depois identidades S2S, Sandbox Asaas, aceite humano e fonte de revogação, restore independente e autorização específica de publisher/rollback.

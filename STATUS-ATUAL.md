@@ -4,8 +4,8 @@
 
 - Console já autenticado permitiu diagnóstico somente leitura; SSH não está configurado no executor. Ubuntu24.04.5, Docker/Compose e recursos observados. Preflight PR478 executado na VPS manteve `blocked` e nove gates operacionais fechados.
 - Conflito real: porta127.0.0.1:18081 prevista para Sites já pertence ao CRM. Nenhum serviço alterado. Novo diagnóstico consulta binds/listeners e metadados de backup sem ler segredos ou conteúdo.
-- 14 testes Python locais e guarda F1-21 executados com sucesso. Nova workflow cruza Portal PR759 pinado com Sites F395/F396/F397 em PHP8.3/8.4; resultados GitHub ainda precisam ser conferidos na HEAD.
-- Executor privado opcional de domínio usa imagem PHP local, rede none/source read-only e compara contêineres antes/depois, sem falsificar CI ou habilitar gateways. Execução deve ser comprovada, nunca presumida.
+- 14 testes Python locais e guarda F1-21 executados com sucesso. Nova workflow cruza Portal PR759 pinado com Sites F395/F396/F397 em PHP8.3/8.4; resultado da revisão `d899b3402cc32bc5155841ed30309e607a73d651`: 15/15 checks recuperados aprovados. CI pareada#43774939689 validou146 asserções PHP por versão8.3/8.4 e14 testes Python; HTTP Laravel+PG18, bridge e contêiner também passaram.
+- Executor privado opcional de domínio usa imagem PHP local, rede none/source read-only e compara contêineres antes/depois, sem falsificar CI ou habilitar gateways. Execução real na VPS comprovou32 asserções de domínio, sem rede/DB/migração; inventário dos contêineres existentes antes/depois igual. Isso não comprova homologação funcional completa.
 - Matriz funcional e bloqueios: `docs/SITES-P0-LEASEWEB-INTEGRATED-REHEARSAL-2026-11-15.md`. Sem merge, produção, cobrança, DNS ou publicação.
 
 ## 14/11/2026 — contrato Portal↔Sites assinado e mTLS real em laboratório (PRs DRAFT)
