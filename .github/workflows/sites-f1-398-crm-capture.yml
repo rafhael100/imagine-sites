@@ -1,0 +1,39 @@
+name: Sites F1-398 CRM intake envelope compatibility (CI only)
+on:
+  pull_request:
+    paths:
+      - 'src/Integration/SyntheticCrmCaptureEnvelope.php'
+      - 'tests/f398-crm-capture-envelope.php'
+      - '.github/workflows/sites-f1-398-crm-capture.yml'
+      - 'docs/SITES-F398-CRM-LEAD-INTEROP.md'
+permissions:
+  contents: read
+jobs:
+  synthetic-envelope:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    env:
+      SITES_F398_CRM_CAPTURE_CI: '1'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+          coverage: none
+      - name: Run isolated synthetic envelope checks
+        run: |
+          set -euo pipefail
+          test "$GITHUB_ACTIONS" = true
+          test "$GITHUB_REPOSITORY" = rafhael100/imagine-sites
+          php -l src/Integration/SyntheticCrmCaptureEnvelope.php
+          php -l tests/f398-crm-capture-envelope.php
+          php tests/f398-crm-capture-envelope.php
+      - name: Report no-go
+        run: echo 'Only CI envelope compatibility, no CRM endpoint, persistent binding, consent, identity, deploy or provisioning.' >> "$GITHUB_STEP_SUMMARY"
