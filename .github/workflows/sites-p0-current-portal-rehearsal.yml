@@ -1,0 +1,99 @@
+name: Sites P0 current Portal paired rehearsal and host impact (NO DEPLOY)
+on:
+  pull_request:
+    paths:
+      - 'ops/homologation/leaseweb-host-impact.py'
+      - 'ops/homologation/run-private-domain-rehearsal.py'
+      - 'tests/test_leaseweb_host_impact.py'
+      - 'tests/f399-generate-current-portal-acceptance.php'
+      - '.github/workflows/sites-p0-current-portal-rehearsal.yml'
+      - 'docs/SITES-P0-LEASEWEB-INTEGRATED-REHEARSAL-2026-11-15.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  paired-current-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    env:
+      PORTAL_F395_RELEASE_CI: '1'
+      PORTAL_F396_RESOLVER_CI: '1'
+      SITES_F391_APPROVAL_LAB: '1'
+      SITES_F396_DUAL_RELEASE_CI: '1'
+      SITES_F397_CROSS_REPO_CI: '1'
+      SITES_F388_MTLS_LAB: '1'
+      SITES_F395_MTLS_LAB: '1'
+      F397_PORTAL_SOURCE: ./portal-candidate
+      F395_SITES_CHECKOUT: .
+      F395_PORTAL_CHECKOUT: ./portal-candidate
+      F388_FIXTURE_DIR: /tmp/f388-fixture
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: rafhael100/imagine-portal
+          ref: 975bb83a1937906b5b0bf33036410f99a553394f
+          path: portal-candidate
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: curl,sodium
+          tools: none
+          coverage: none
+      - name: Exact current Portal pin and read-only inventory adversarial tests
+        run: |
+          set -euo pipefail
+          test "$(git -C portal-candidate rev-parse HEAD)" = 975bb83a1937906b5b0bf33036410f99a553394f
+          python3 -m unittest discover -s tests -p 'test_leaseweb*.py'
+          python3 -m py_compile ops/homologation/run-private-domain-rehearsal.py
+          php -l tests/f399-generate-current-portal-acceptance.php
+          if python3 ops/homologation/run-private-domain-rehearsal.py --php-image invalid; then exit 1; fi
+          if python3 ops/homologation/leaseweb-host-impact.py > /tmp/sites-host-impact.json; then exit 1; fi
+          python3 -c 'import json; r=json.load(open("/tmp/sites-host-impact.json")); assert r["status"]=="blocked" and r["can_deploy"] is False and r["can_publish"] is False'
+      - name: Original Portal private resolver and both independent Sites gates
+        run: |
+          set -euo pipefail
+          php portal-candidate/tests/f396-private-client-acceptance-resolver.php
+          php tests/f396-dual-release-evidence-gate.php
+          php tests/f397-portal-bundle-original-sites-dual.php
+          php tests/run.php
+      - name: Ephemeral mTLS and actual current Portal resolver fixture
+        run: |
+          set -euo pipefail
+          bash tests/f388-prepare-mtls-certs.sh
+          php tests/f399-generate-current-portal-acceptance.php
+          python3 tests/fixtures/f395-portal-approval-mtls-server.py \
+            --ca "$F388_FIXTURE_DIR/ca.crt" --server-cert "$F388_FIXTURE_DIR/server.crt" \
+            --server-key "$F388_FIXTURE_DIR/server.key" --fixture-dir "$F388_FIXTURE_DIR" \
+            > /tmp/sites-current-mtls.log 2>&1 &
+          echo "$!" > /tmp/sites-current-mtls.pid
+          ready=0
+          for i in $(seq 1 40); do
+            status="$(curl --noproxy '*' --silent --max-time 2 --cacert "$F388_FIXTURE_DIR/ca.crt" \
+              --cert "$F388_FIXTURE_DIR/client.crt" --key "$F388_FIXTURE_DIR/client.key" \
+              -o /dev/null -w '%{http_code}' https://localhost:18444/internal/sites/v1/approvals/resolve || true)"
+            if [ "$status" = 501 ]; then ready=1; break; fi
+            sleep 0.5
+          done
+          test "$ready" = 1
+          php tests/f395-portal-client-approval-mtls.php
+      - name: Preserve absence of operational publication bindings
+        run: |
+          set -euo pipefail
+          ! grep -R -n -E 'SiteDualProofEvidenceCheck|PortalClientApprovalMtlsHttpSource' apps/sites/routes apps/sites/app/Providers
+          grep -q 'new DenyingPortalAuthorityGateway()' src/Application/PublicationPreflightService.php
+          echo 'Current Portal source, mTLS transport and independent proofs tested with synthetic authorities; no PSP or customer, NO-GO.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Remove only disposable listener and certificates
+        if: always()
+        run: |
+          if [ -f /tmp/sites-current-mtls.pid ]; then kill "$(cat /tmp/sites-current-mtls.pid)" 2>/dev/null || true; fi
+          rm -rf /tmp/f388-fixture
+          rm -f /tmp/sites-current-mtls.pid /tmp/sites-current-mtls.log /tmp/sites-host-impact.json
