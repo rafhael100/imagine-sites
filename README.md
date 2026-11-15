@@ -1,5 +1,7 @@
 # Imagine Sites Engine
 
+> **Diretriz transversal (15/11/2026):** a Imagine passa a adotar **Visitas → Leads → Clientes** como assinatura estratégica. [Aplicação neste projeto](docs/METODOLOGIA-IMAGINE-VISITAS-LEADS-CLIENTES-2026-11-15.md). Somente documentação nesta PR; não modifica os gates de implementação ou produção.
+
 Motor independente de criação, versionamento, publicação e acompanhamento técnico de Onepages e Landing Pages produzidas e gerenciadas pela Imagine, integrado ao Imagine Portal.
 
 > Estado: repositório recém-inicializado. Nenhum componente está homologado para produção; não há deploy, DNS, credenciais, dados reais ou integrações operacionais autorizadas.
