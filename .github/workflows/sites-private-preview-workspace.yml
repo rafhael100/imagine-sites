@@ -28,12 +28,15 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: pdo_pgsql, mbstring
+          extensions: pdo_pgsql, mbstring, dom, xml
+          tools: composer:v2
           coverage: none
       - name: New private draft persistence and independent editorial principal
         run: |
           mkdir -p "$SITES_PREVIEW_EVIDENCE_DIR"
           php tests/private-preview-workspace.php
+          composer install --working-dir=apps/sites --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+          php tests/private-preview-rollback.php
       - name: Authenticated UI-only browser demonstration from persisted HTML
         run: |
           set -euo pipefail
