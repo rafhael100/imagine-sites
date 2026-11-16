@@ -113,6 +113,9 @@ jobs:
           test "$(docker compose -f ops/staging/compose.yaml exec -T db sh -c \
             'PGPASSWORD="$(cat /run/secrets/owner_password)" psql -U sites_bootstrap -d sites_restore_ci -Atc "SELECT bool_and(c.relrowsecurity AND c.relforcerowsecurity) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='"'"'sites_core'"'"' AND c.relkind='"'"'r'"'"'"')" = t
           echo 'PASS: isolated staging infrastructure only; no operational Portal, Asaas, acceptance, publication or VPS proof.'
+      - name: Inspect startup failure of credential-free CI ingress
+        if: failure()
+        run: docker compose -f ops/staging/compose.yaml logs --no-color --tail=30 proxy
       - name: Remove only disposable CI project and ephemeral secrets
         if: always()
         run: |
