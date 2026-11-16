@@ -12,7 +12,7 @@ jobs:
     env:
       SITES_STAGING_PORT: '18097'
       SITES_PRIVATE_URL: https://localhost:18097
-      SITES_SECRETS_DIR: ${{ runner.temp }}/sites-private-secrets
+      SITES_SECRETS_DIR: /tmp/imagine-sites-private-ci-secrets
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
