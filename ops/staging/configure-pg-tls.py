@@ -6,9 +6,11 @@ import argparse,datetime,json,os,pathlib,subprocess,sys
 REPO=pathlib.Path(__file__).resolve().parents[2]
 class TLS:
  def __init__(self,secrets,envfile=None):
-  self.secrets=pathlib.Path(secrets).resolve()
+  original=pathlib.Path(secrets)
+  if original.is_symlink():raise RuntimeError('Secret path symlink denied')
+  self.secrets=original.resolve()
   ci=os.environ.get('CI')=='true'
-  if (not ci and str(self.secrets)!='/srv/imagine/sites-p0-private/secrets') or (ci and not str(self.secrets).startswith('/tmp/')):raise RuntimeError('Scope denied')
+  if (not ci and (os.geteuid()!=0 or str(self.secrets)!='/srv/imagine/sites-p0-private/secrets')) or (ci and not str(self.secrets).startswith('/tmp/')):raise RuntimeError('Scope denied')
   if not self.secrets.is_dir() or self.secrets.is_symlink():raise RuntimeError('Secret directory required')
   self.compose=['docker','compose']+(['--env-file',str(envfile)] if envfile else [])+['-f',str(REPO/'ops/staging/compose.yaml')]
  def run(self,args,input=None,allow_failure=False,env=None):
@@ -36,6 +38,7 @@ class TLS:
   ids=self.run(self.compose+['ps','-q','db']).stdout.decode().split()
   if len(ids)!=1:raise RuntimeError('Existing database required')
   self.db=ids[0]
+  before=self.run(['docker','inspect','--format','{{.Id}}|{{.State.StartedAt}}|{{.RestartCount}}',self.db]).stdout
   meta=json.loads(self.run(['docker','inspect','--format','{{json .Config.Labels}}',self.db]).stdout)
   if meta.get('com.docker.compose.project')!='imagine-sites-p0-staging' or meta.get('com.docker.compose.service')!='db':raise RuntimeError('Database scope mismatch')
   settings=self.owner("SELECT name||'|'||context FROM pg_settings WHERE name IN ('ssl','ssl_cert_file','ssl_key_file') ORDER BY name").stdout.decode().splitlines()
@@ -78,6 +81,7 @@ class TLS:
   if not wronghost.returncode or b'does not match host name' not in wronghost.stderr:raise RuntimeError('Hostname negative not proven')
   if not wrongca.returncode or b'certificate verify failed' not in wrongca.stderr:raise RuntimeError('CA negative not proven')
   if not plain.returncode or b'no encryption' not in plain.stderr:raise RuntimeError('Plaintext denial not proven')
+  if before!=self.run(['docker','inspect','--format','{{.Id}}|{{.State.StartedAt}}|{{.RestartCount}}',self.db]).stdout:raise RuntimeError('Database changed during TLS reload')
   return {'database_container_preserved':True,'tls_reload_only':True,'verify_full_trusted':True,'hostname_mismatch_denied':True,'untrusted_ca_denied':True,'plaintext_tcp_denied':True,'minimum_tls':'TLSv1.2','can_accept_orders':False,'can_publish':False}
  def dsn(self,host='localhost',ca='ca.pem'):
   return 'host='+host+' hostaddr=127.0.0.1 dbname=sites_staging sslmode=verify-full sslrootcert='+self.certdir+'/'+ca

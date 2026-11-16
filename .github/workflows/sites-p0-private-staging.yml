@@ -68,7 +68,7 @@ jobs:
           set -euo pipefail
           docker compose -f ops/staging/compose.yaml up -d --wait app proxy
           docker compose -f ops/staging/compose.yaml exec -T app php verify-runtime.php
-          docker compose -f ops/staging/compose.yaml cp "$SITES_SECRETS_DIR/server-ca.pem" app:/tmp/sites-untrusted-ca.pem
+          docker compose -f ops/staging/compose.yaml exec -T app sh -c 'cat > /tmp/sites-untrusted-ca.pem' < "$SITES_SECRETS_DIR/server-ca.pem"
           docker compose -f ops/staging/compose.yaml exec -T app php verify-database-tls.php
           for attempt in $(seq 1 20); do
             status="$(curl --connect-timeout 2 --max-time 4 --cacert "$SITES_SECRETS_DIR/server-ca.pem" -sS -o /dev/null -w '%{http_code}' https://localhost:18097/ || true)"
@@ -82,6 +82,8 @@ jobs:
           for path in .env index.php _ci/sites/v1/admit _lab/sites/v1/create-project _private/health api/sites/v1/create-project; do
             test "$(curl --connect-timeout 2 --max-time 5 --cacert "$SITES_SECRETS_DIR/server-ca.pem" --user "ci-reviewer:$access_password" -sS -o /dev/null -w '%{http_code}' "https://localhost:18097/$path")" = 404
           done
+          python3 ops/staging/refresh-existing-app-tls.py snapshot --root /tmp/sites-existing-upgrade-ci
+          python3 ops/staging/refresh-existing-app-tls.py refresh --root /tmp/sites-existing-upgrade-ci
           docker compose -f ops/staging/compose.yaml exec -T proxy nginx -t
       - name: Verify private mTLS identity without operational authority
         run: |
