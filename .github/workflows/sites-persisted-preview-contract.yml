@@ -30,9 +30,26 @@ jobs:
           coverage: none
       - name: Install local disposable PostgreSQL tooling
         run: |
+          set -euo pipefail
+          . /etc/os-release
+          test "$ID" = ubuntu
+          test "$VERSION_CODENAME" = noble
+          # Official PGDG repository; verify its published key before trusting packages.
+          # https://www.postgresql.org/download/linux/ubuntu/
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            -o "$RUNNER_TEMP/sites485-pgdg.asc"
+          fingerprint=$(gpg --batch --show-keys --with-colons "$RUNNER_TEMP/sites485-pgdg.asc" | awk -F: '$1 == "fpr" {print $10; exit}')
+          test "$fingerprint" = B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8
+          sudo install -m 0644 "$RUNNER_TEMP/sites485-pgdg.asc" /usr/share/keyrings/sites485-pgdg.asc
+          echo 'deb [signed-by=/usr/share/keyrings/sites485-pgdg.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main' | sudo tee /etc/apt/sources.list.d/sites485-pgdg.list > /dev/null
+          # Install binaries only: the harness owns the sole new cluster and private socket.
+          sudo install -d /etc/postgresql-common
+          echo 'create_main_cluster = false' | sudo tee -a /etc/postgresql-common/createcluster.conf > /dev/null
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends postgresql-18
-          /usr/lib/postgresql/18/bin/initdb --version
+          /usr/lib/postgresql/18/bin/initdb --version | grep -E '^initdb \(PostgreSQL\) 18[.]'
+          dpkg-query -W -f='${Package} ${Version}\n' postgresql-18
       - name: Locked application dependencies without scripts or plugins
         run: composer install --working-dir=apps/sites --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
       - name: Validate syntax and existing domain contracts
