@@ -25,8 +25,9 @@ services:
       DB_DATABASE: sites_staging
       DB_USERNAME: sites_runtime
       SITES_DB_PASSWORD_FILE: /run/secrets/runtime_password
-      DB_SSLMODE: prefer
-    secrets: [app_key, runtime_password]
+      DB_SSLMODE: verify-full
+      DB_SSLROOTCERT: /run/secrets/database_ca
+    secrets: [app_key, runtime_password, database_ca]
     read_only: true
     tmpfs:
       - /tmp:mode=1777
@@ -109,3 +110,5 @@ secrets:
   access_passwords: {file: '${SITES_SECRETS_DIR:?external-secret-directory-required}/access.htpasswd'}
   portal_client_ca: {file: '${SITES_SECRETS_DIR:?external-secret-directory-required}/portal-ca.pem'}
   portal_identities: {file: '${SITES_SECRETS_DIR:?external-secret-directory-required}/portal-identities.map'}
+
+  database_ca: {file: '${SITES_SECRETS_DIR:?external-secret-directory-required}/database-ca.pem'}

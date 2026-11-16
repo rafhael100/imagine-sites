@@ -18,6 +18,7 @@ COPY apps/sites/artisan ./artisan
 COPY apps/sites/database ./database
 COPY ops/staging/provision-runtime.php ./provision-runtime.php
 COPY ops/staging/verify-runtime.php ./verify-runtime.php
+COPY ops/staging/verify-database-tls.php ./verify-database-tls.php
 COPY src /opt/imagine/src
 RUN composer install --no-dev --no-interaction --no-ansi --no-progress \
     --prefer-dist --no-scripts --optimize-autoloader && \
