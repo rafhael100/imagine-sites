@@ -59,10 +59,11 @@ services:
       - '${PREVIEW_CI_MATERIAL}/access_passwords:/run/secrets/access_passwords:ro'
       - '${PREVIEW_CI_MATERIAL}/ca.pem:/run/secrets/portal_client_ca:ro'
       - '${PREVIEW_CI_MATERIAL}/portal_identities:/run/secrets/portal_identities:ro'
-    networks: [private]
+    networks: [private, ingress]
     ports: ['127.0.0.1:18496:8443']
     depends_on: [app]
     mem_limit: 128m
 networks:
   private: {internal: true}
+  ingress: {}
 # Ephemeral CI only. This is NOT a VPS deployment overlay. No production credentials or volumes.
