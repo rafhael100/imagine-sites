@@ -1,5 +1,11 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 16/11/2026 — staging privado REAL na Leaseweb (PR482 DRAFT)
+
+O usuário reconectou o console. Sites Laravel/Nginx/PostgreSQL18 iniciados no projeto exclusivo imagine-sites-p0-staging, bind127.0.0.1:18090, quatro redes e volume próprios. Runtime SQL mínimo/FORCE RLS e HTTPS200/401/404 verificados. Os50 contêineres anteriores mantiveram estado/início/reinícios. Backup cifrado+HMAC e restore em banco novo preservaram oito tabelas FORCE RLS. Código04c6a29,13 check runs success (incluem duplicados push/PR).
+
+Somente painel técnico privado e /up; sem URL pública/túnel liberado ou fluxo de compra operacional. Preflight real segue blocked: TLS PostgreSQL verify-full, identidade Portal, Asaas Sandbox, aceite humano, revogação, backup externo e publicação/rollback pendentes. Sem produção, DNS, cobrança ou merge. Relatório: docs/SITES-P0-PRIVATE-STAGING-2026-11-16.md. Notas anteriores de ausência de acesso descrevem o estado ANTES da reconexão.
+
 ## 15/11/2026 — diagnóstico real Leaseweb e ensaio integrado atual (DRAFT)
 
 - Console já autenticado permitiu diagnóstico somente leitura; SSH não está configurado no executor. Ubuntu24.04.5, Docker/Compose e recursos observados. Preflight PR478 executado na VPS manteve `blocked` e nove gates operacionais fechados.

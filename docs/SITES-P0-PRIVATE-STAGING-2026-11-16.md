@@ -2,7 +2,37 @@
 
 DRAFT / NO-MERGE / NO-PRODUCTION-DEPLOY / NO-CHARGE / NO-PUBLISH.
 
-## Estado comprovado desta rodada
+## Estado atual — execução REAL na Leaseweb, 16/11/2026 04:34–04:37 UTC
+
+Após o usuário reconectar o console autorizado, o acesso noVNC root funcionou. Este resultado substitui o bloqueio de console relatado no histórico abaixo. SSH continua ausente no executor.
+
+- Inventário fresco: 50 contêineres preexistentes, 15 redes, 43 volumes; 8 vCPU, aproximadamente 22 GiB de RAM disponível, 273 GiB livres e carga baixa. A porta **127.0.0.1:18090 estava livre** e foi escolhida. CRM18081 e todos os demais serviços preservados.
+- Projeto **imagine-sites-p0-staging efetivamente iniciado**: Laravel/PHP-FPM e PostgreSQL18 healthy; Nginx running. Apenas o proxy publica **127.0.0.1:18090→8443**. PostgreSQL/FPM e listener mTLS9443 não possuem bind público.
+- Redes próprias ingress, web_private, db_private, s2s_private; volume database próprio, prefixados pelo projeto. App sem rota externa; recursos limitados. Build PHP limitado a dois jobs após inventário. Imagens PHP/Nginx/Composer com bases pinadas; postgres18 ainda usa tag, pinagem de digest permanece requisito para release reproduzível.
+- Arquivos privados exclusivos em /srv/imagine/sites-p0-private (root0700), sem reutilizar credenciais de outros projetos. APP_ENV=staging/debug=false. Chaves privadas CA não montadas. Nenhum principal/certificado cliente Portal emitido ou inscrito: mapa mTLS permanece negador.
+- Migrations001/002/003 aplicadas somente ao novo banco sites_staging. Runtime sem superuser/BYPASSRLS/DDL e sem vínculo de empresa; FORCE RLS e negativas de leitura/DDL comprovadas pelo verificador dentro do app.
+- HTTPS com CA/hostname verificados: painel e /up200 com acesso nominal; sem autenticação401; rotas privadas e criação de projeto404 no ingresso de navegador. Nenhum bypass de certificado utilizado.
+- Comparação de IDs, running, StartedAt e RestartCount dos **50 contêineres anteriores: inalterados**, tanto após startup quanto após restore.
+- Backup real cifrado AES256-CBC/PBKDF2 com HMAC-SHA256 separado, autenticado antes da decifragem. Restaurado no novo banco sites_restore_verification, acesso público revogado: **oito tabelas FORCE RLS preservadas**. Backup local; cópia externa, retenção/RPO/RTO e recuperação de dados de negócio/revogação ainda não homologados. Não houve DROP nem limpeza destrutiva.
+- Preflight original leaseweb-readonly-preflight.py --probe-host manteve blocked. Laravel sites:homologation-preflight também executado no app real: database_probe_attempted=true, PostgreSQL18/menor privilégio verificados, status=blocked, can_publish=false e can_accept_real_orders=false. URL técnica confiável, TLS PostgreSQL (prefer não é verify-full), IAM Portal, contrato/pagamento, revogação, backup externo, aceite e publisher continuam bloqueados.
+
+### Evidências e versões
+
+Código hospedado no worktree /srv/imagine/sites-staging-prep-20261116 em **04c6a29b428c5a9d388c0144511156a29fb6218a**. Imagens app/proxy construídas de a6877bbaf254f03410ec142a3556c5c5aa0f8eb7; alterações seguintes apenas adicionam/corrigem wrappers host. Startup registrado às04:34:55 UTC com wrapper c3364e94ceb57158bb680653beda0e888c747e97; restore às04:36:15 UTC com04c6a29. Os13 check runs recuperados de04c6a29 passaram (push/PR duplicados, não13 suítes distintas), incluindo [infraestrutura CI43804983643](https://github.com/rafhael100/imagine-sites/actions/runs/43804983643).
+
+Evidências sanitizadas persistem no diretório privado evidence: host-start.json, backup-restore.json e laravel-readiness.json. Segredos, tokens de console e dumps não foram publicados. A inspeção inicial do JSON Laravel por python falhou por aspas na digitação no console; leitura direta do arquivo confirmou o resultado bloqueado, sem repetir migrações ou alterar gates. O wrapper recebeu stdin=DEVNULL para evitar suspensão por entrada de terminal em execução em background; startup retomado em foreground concluiu com êxito.
+
+### Acesso pelo navegador e próximos gates
+
+O endpoint técnico existe somente no loopback da VPS. **Não existe URL pública nova nem fluxo de compra/aceite navegável liberado.** Abrir localhost no computador do cliente não acessa a VPS. É necessário um túnel SSH/VPN já autorizado, confiança na CA privada e entrega segura da credencial nominal; nenhum desses acessos externos foi criado nesta rodada. Não ignorar alertas de certificado, publicar o listener ou compartilhar senhas no chat/GitHub.
+
+Próxima sequência: acesso privado confiável → TLS PostgreSQL verify-full → identidade Portal S2S e autorização por empresa → Asaas Sandbox e fonte independente de liquidação → contrato e aceite humano da versão exata → revogação independente → prévia/editorial/publisher e rollback. Os adaptadores sintéticos do laboratório não foram promovidos. Sem dados de cliente, cobrança, produção, DNS, merge ou publicação de sites.
+
+### Operação dos scripts
+
+prepare-private-host.py exige root e diretório novo; gera somente recursos Sites e rejeita colisões. host-operation.py start revalida inventário/porta imediatamente antes de iniciar, aplica schema só no banco novo e verifica isolamento. host-operation.py restore cria banco de verificação novo e não sobrescreve banco existente. Esses comandos não são receitas para repetir cegamente no ambiente já criado: preservar evidências/volumes, inspecionar estado e não recriar segredos/roles. Política de rollback abaixo continua obrigatória.
+
+## Histórico da preparação anterior (superado pela execução abaixo)
 
 Base Sites481: b7908e37328d645e40e3377cfd4796abe38c0844, DRAFT não merged. Portal759:975bb83a1937906b5b0bf33036410f99a553394f, DRAFT não merged. Preservados o Compose antigo e os projetos CRM/Portal/Performance. Nenhum arquivo desses outros repositórios foi alterado por esta preparação.
 
@@ -68,7 +98,7 @@ Navegador, após futura implantação privada autorizada: somente painel técnic
 Testes novos verificam resolução de conflitos/default-deny e a composição de infraestrutura (não repetem como novidade as provas sintéticas de negócio já aprovadas). CI constrói stack próprio descartável, migra core, verifica runtime/RLS, HTTPS/acesso adicional, mTLS/identidade e restore. Resultados e SHAs serão registrados na PR e na issue38. Todos os gates de operação continuam pendentes até execução/evidência no ambiente apropriado.
 
 
-## Resultado executado — 16/11/2026
+## Resultado anterior no CI — 16/11/2026
 
 Código funcional verificado: **e4647169948448db90fdb11a4118c71dd20dfb99**. Os13 check runs recuperados concluíram success (incluem push e pull_request; não são13 suítes distintas).
 
