@@ -1,0 +1,40 @@
+name: Sites private persisted preview workspace
+on:
+  push:
+    branches: ['feature/sites-private-preview-workspace-2026-11-16']
+permissions:
+  contents: read
+jobs:
+  preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: synthetic-preview-ci
+          POSTGRES_DB: sites_preview_ci
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U postgres -d sites_preview_ci" --health-interval 5s --health-timeout 3s --health-retries 12
+    env:
+      CI: 'true'
+      SITES_PRIVATE_PREVIEW_PG_CI: '1'
+      PGPASSWORD: synthetic-preview-ci
+      SITES_PREVIEW_EVIDENCE_DIR: /tmp/sites-preview-evidence
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with: {persist-credentials: false}
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql, mbstring
+          coverage: none
+      - name: New private draft persistence and independent editorial principal
+        run: |
+          mkdir -p "$SITES_PREVIEW_EVIDENCE_DIR"
+          php tests/private-preview-workspace.php
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: sites-private-demo-only-preview
+          path: /tmp/sites-preview-evidence
+          retention-days: 7
