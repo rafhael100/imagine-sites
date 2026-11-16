@@ -18,3 +18,8 @@
 **/*.sqlite3
 **/*.db
 **/*.log
+
+**/*.htpasswd
+**/*.dump
+**/*.enc
+**/secrets

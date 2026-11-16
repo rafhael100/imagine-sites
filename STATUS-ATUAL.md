@@ -103,3 +103,8 @@
 **Gate exclusivo do responsável:** conexão autorizada de ambiente Leaseweb + Cloudflare e domínio técnico de teste, com gestão segura de credenciais/quotas, antes de qualquer homologação real. Não inserir credenciais no GitHub público ou neste chat.
 
 `config/operational-readiness.json` continua com gates BLOCKED. `AGI-11-RB01` DESABILITADO; sem promoção de `dev` para `main`, deploy, DNS de cliente ou dados reais.
+
+
+## P0 — 16/11/2026: stack privado preparado, VPS inacessível nesta continuação
+
+A partir da PR481/b7908e3, novo Compose `ops/staging/compose.yaml` de projeto exclusivo `imagine-sites-p0-staging`, porta obrigatória indicada por inventário fresco, redes/volume/banco próprios, runtime SQL mínimo, segredo via file mount e ingressos HTTPS/mTLS separados. O inventário rejeita18081 do CRM, binds Docker inclusive parados, listeners, colisões e recursos insuficientes. A console autenticada foi encerrada e SSH não está configurado no executor: nenhuma porta foi declarada livre, nenhum serviço iniciado ou banco criado na VPS. Asaas Sandbox, identidade/aceite/revogação operacionais e publisher seguem NO-GO. Evidências/requisitos: `docs/SITES-P0-PRIVATE-STAGING-2026-11-16.md`.
