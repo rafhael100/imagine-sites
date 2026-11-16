@@ -14,6 +14,8 @@ COPY apps/sites/bootstrap ./bootstrap
 COPY apps/sites/config ./config
 COPY apps/sites/public ./public
 COPY apps/sites/routes ./routes
+COPY apps/sites/resources ./resources
+COPY contracts /opt/imagine/contracts
 COPY apps/sites/artisan ./artisan
 COPY apps/sites/database ./database
 COPY ops/staging/provision-runtime.php ./provision-runtime.php
@@ -35,6 +37,7 @@ COPY --from=php-build /usr/local/lib/php/extensions/ /usr/local/lib/php/extensio
 COPY --from=php-build /usr/local/etc/php/conf.d/ /usr/local/etc/php/conf.d/
 COPY --from=php-build --chown=www-data:www-data /opt/imagine/apps/sites /opt/imagine/apps/sites
 COPY --from=php-build --chown=www-data:www-data /opt/imagine/src /opt/imagine/src
+COPY --from=php-build --chown=www-data:www-data /opt/imagine/contracts /opt/imagine/contracts
 COPY ops/homologation/php.ini /usr/local/etc/php/conf.d/99-sites-homologation.ini
 COPY ops/homologation/php-fpm-pool.conf /usr/local/etc/php-fpm.d/99-sites-env.conf
 WORKDIR /opt/imagine/apps/sites

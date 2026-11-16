@@ -1,0 +1,27 @@
+# Candidate only — authenticated persisted demonstration UI
+
+NOT INSTALLED. Keep existing imagine-sites-p0-staging containers/networks/volumes/certificates/127.0.0.1:18090 intact until the gates below are individually evidenced and approved. No automated deploy, no Compose up/down, no migration here.
+
+## Security / DBA review required before migration
+
+Independent reviewer must inspect private-preview/001-workspace.sql, migration000004, PrivatePreviewWorkspace, PreviewPrincipal, HTTP controller, routes, template and nginx candidate; attach exact SHA, findings and approval. Author self-review and CI are not independent approval. Verify owner/runtime separation, FORCE RLS, grants and SECURITY DEFINER ownership/search_path, immutable history, cross-company and revocation tests, SQL principal independence and HTTP trust boundary. Existing review #485 concerns evidence verification, not this UI deployment.
+
+## Proposed controlled application, subject to approval
+
+1. Read-only inventory of current stack IDs/images/networks/ports/volumes/migrations; record expected base SHA and image digest privately. No rebuild or recreation now. Existing active schema/roles remain untouched by this candidate.
+2. Before any schema change: take a consistent encrypted Sites-only backup with existing tools, verify authenticity before decryption; restore into an isolated Sites-owned destination, verify row counts/hash/roles/RLS/TLS. Document custodian, retention, RPO/RTO and external copy. Historical local eight-table restore does not prove current full recovery. Do not reuse CRM/Portal credentials or data.
+3. Review additive migration000004 and perform dry rehearsal against restored isolated copy. Read runtime checks before bootstrapping grants. No dropping/replacing existing schema. Existing data is never a rollback target for destructive down().
+4. Named administrators must supply their own existing/approved private access using the secure custody procedure. Deploy-owned `/run/secrets/preview_principals` file (0400/0600, readable only by app user) schema SITES_DEMO_PRINCIPALS_V1 maps exact Nginx REMOTE_USER to a distinct SQL LOGIN, company UUID, sql_password, expires_at integer, revoked false. No concrete user/certificate/credential or operational order authority is created by this repository. Each human must have a separate SQL principal; map and immutable SQL login attribution are part of the audit evidence.
+5. SQL principals need own scoped sites_preview.principals grant. Runtime minimal USAGE schema; SELECT projects/versions/reviews/audit; INSERT projects/versions for author only; EXECUTE can_access and review_version for authorized reviewer; no principals write, mutation, owner/BYPASSRLS/superuser or shared runtime account. Database grants enforce authority independently of browser fields.
+6. Candidate config: APP_ENV=staging, APP_DEBUG=false, SITES_PRIVATE_PREVIEW_ENABLED=true only after gates; encrypted cookie session with SESSION_DRIVER=cookie, SESSION_SECURE_COOKIE=true, SESSION_HTTP_ONLY=true, SESSION_SAME_SITE=strict, app key from existing custody. All requests re-read nominal mapping expiry/revocation and DB grants; cookie contains no database authorization. No local/testing public bypass.
+7. Review candidate nginx.conf separately. It preserves existing root/health and mTLS default-deny and adds only /_preview behind existing nominal Basic auth+TLS; REMOTE_USER and authenticated marker are server FastCGI params, never X-* user headers. Private PHP-FPM remains unexposed. No new host listener/DNS/public tunnel. CA/hostname validated, never ignore certificate warning.
+8. Image candidate adds resources and existing contracts required by migration; no build/pull/replace on VPS before release plan approval. Exact selective update/reload strategy must preserve this environment; not an instruction to recreate it.
+9. After approval, verify desktop/mobile: create two product types, briefing, persisted renderer output, version digest, new version, previous immutable version, different editorial reviewer, own-review/cross-company/revocation denied. Keep purpose demonstration_only; no payment/contract/acceptance checkbox fabricated.
+
+## Rollback plan (reviewable; not executed)
+
+Disable preview feature and remove only new /_preview proxy exposure, validate config and reload under authorized procedure. Restore previous pinned app image/config only if selectively approved; preserve original network, listener, certificates, DB and all volumes. Keep additive schema and audit/history intact. Migration down() refuses populated namespace; NEVER use migrate:rollback, DROP ... CASCADE or volume deletion on populated staging. If restoring data is necessary, restore into a new isolated Sites-owned database, compare evidence and obtain explicit cutover approval; do not overwrite the existing database. Verify old root/up and all other products' IDs/start counts/health unchanged. Record rollback operator and times. These steps are a proposal, not proof of rollback execution.
+
+## Safe access after approved installation
+
+Private VPN/SSH tunnel already authorized to VPS loopback18090, hostname matching the existing certificate and CA trust, nominal credential delivered by secure channel. Open `https://<approved-certificate-hostname>:<forwarded-port>/_preview`. This placeholder is not an installed URL. Opening localhost on the user's computer without a tunnel does not reach the VPS. No credentials, console session URL or key should enter GitHub/chat.

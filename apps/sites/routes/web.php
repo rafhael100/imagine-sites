@@ -12,6 +12,15 @@ use Imagine\Sites\Security\DenyingReplayStore;
 use Imagine\Sites\Security\ReplayStore;
 use Imagine\Sites\Security\SyntheticSignedCommand;
 
+// Demonstration UI only. Secure nominal principal and SQL grants are checked on EVERY request.
+if (config('private_preview.enabled')===true && app()->environment('staging')) {
+    Route::get('/_preview', [\App\Http\Controllers\PrivatePreviewController::class,'handle']);
+    Route::post('/_preview/projects', [\App\Http\Controllers\PrivatePreviewController::class,'handle']);
+    Route::match(['get','post'],'/_preview/projects/{project}',[\App\Http\Controllers\PrivatePreviewController::class,'handle'])->whereUuid('project');
+    Route::get('/_preview/projects/{project}/versions/{revision}/{action}',[\App\Http\Controllers\PrivatePreviewController::class,'handle'])->whereUuid('project')->whereNumber('revision')->where('action','html');
+    Route::post('/_preview/projects/{project}/versions/{revision}/{action}',[\App\Http\Controllers\PrivatePreviewController::class,'handle'])->whereUuid('project')->whereNumber('revision')->where('action','review');
+}
+
 /**
  * F1-377: one real HTTP request through Nginx and PHP-FPM in the disposable
  * GitHub Actions CI network, with fictional key and SQL roles. Never
