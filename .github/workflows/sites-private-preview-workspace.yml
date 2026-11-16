@@ -31,12 +31,31 @@ jobs:
           extensions: pdo_pgsql, mbstring, dom, xml
           tools: composer:v2
           coverage: none
+      - name: Observe exact disposable service identity without changing the database
+        run: |
+          set -euo pipefail
+          addr=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' '${{ job.services.postgres.id }}')
+          cluster=$(docker exec '${{ job.services.postgres.id }}' psql -U postgres -d sites_preview_ci -Atc 'SELECT system_identifier FROM pg_control_system()')
+          test -n "$addr"
+          test -n "$cluster"
+          echo "SITES_PREVIEW_EXPECTED_DB_ADDR=$addr" >> "$GITHUB_ENV"
+          echo "SITES_PREVIEW_EXPECTED_CLUSTER=$cluster" >> "$GITHUB_ENV"
       - name: New private draft persistence and independent editorial principal
         run: |
+          set -euo pipefail
           mkdir -p "$SITES_PREVIEW_EVIDENCE_DIR"
+          if SITES_PREVIEW_EXPECTED_CLUSTER=0 php tests/private-preview-workspace.php > "$RUNNER_TEMP/preview-invalid-target.log" 2>&1; then
+            echo 'Invalid SQL destination was accepted' >&2; exit 1
+          fi
+          grep -q PREVIEW_DISPOSABLE_DATABASE_DENIED "$RUNNER_TEMP/preview-invalid-target.log"
           php tests/private-preview-workspace.php
           composer install --working-dir=apps/sites --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
-          php tests/private-preview-rollback.php
+          if SITES_PREVIEW_EXPECTED_CLUSTER=0 php tests/private-preview-rollback.php > "$RUNNER_TEMP/preview-invalid-rollback.log" 2>&1; then
+            echo 'Standalone verifier did not fail the process' >&2; exit 1
+          fi
+          grep -q PREVIEW_ROLLBACK_VERIFIER_FAILED "$RUNNER_TEMP/preview-invalid-rollback.log"
+          php tests/private-preview-rollback.php | tee "$RUNNER_TEMP/preview-rollback-result.log"
+          grep -q '^OK:' "$RUNNER_TEMP/preview-rollback-result.log"
       - name: Authenticated UI-only browser demonstration from persisted HTML
         run: |
           set -euo pipefail
