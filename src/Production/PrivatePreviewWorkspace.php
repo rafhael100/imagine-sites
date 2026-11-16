@@ -9,7 +9,7 @@ final class PrivatePreviewWorkspace {
  public function __construct(private PDO $db){}
  private function runtime():void {
   if($this->db->inTransaction())throw new RuntimeException('Preview requires own transaction');
-  $p=$this->db->query("SELECT r.rolsuper OR r.rolbypassrls OR r.rolcreatedb OR r.rolcreaterole OR r.rolreplication OR current_user<>session_user OR bool_or(pg_has_role(current_user,c.relowner,'MEMBER')) AS unsafe FROM pg_roles r CROSS JOIN pg_class c WHERE r.rolname=current_user AND c.oid IN ('sites_preview.projects'::regclass,'sites_preview.versions'::regclass,'sites_preview.principals'::regclass) GROUP BY r.oid,r.rolsuper,r.rolbypassrls,r.rolcreatedb,r.rolcreaterole,r.rolreplication")->fetch(PDO::FETCH_ASSOC);
+  $p=$this->db->query("SELECT r.rolsuper OR r.rolbypassrls OR r.rolcreatedb OR r.rolcreaterole OR r.rolreplication OR current_user<>session_user OR bool_or(pg_has_role(current_user,c.relowner,'MEMBER')) OR bool_or(CASE WHEN c.relname='principals' THEN has_table_privilege(current_user,c.oid,'INSERT,UPDATE,DELETE,TRUNCATE') ELSE NOT(c.relrowsecurity AND c.relforcerowsecurity) END) AS unsafe FROM pg_roles r CROSS JOIN pg_class c WHERE r.rolname=current_user AND c.oid IN ('sites_preview.projects'::regclass,'sites_preview.versions'::regclass,'sites_preview.principals'::regclass) GROUP BY r.oid,r.rolsuper,r.rolbypassrls,r.rolcreatedb,r.rolcreaterole,r.rolreplication")->fetch(PDO::FETCH_ASSOC);
   if(!$p||$p['unsafe'])throw new RuntimeException('Preview runtime denied');
  }
  public function createDemonstration(string $project,string $company,SiteBrief $brief):array {

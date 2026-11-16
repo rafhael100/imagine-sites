@@ -17,14 +17,14 @@ REVOKE ALL ON FUNCTION sites_preview.can_access(uuid,text) FROM PUBLIC;
 CREATE TABLE sites_preview.projects (
  id uuid PRIMARY KEY, company_id uuid NOT NULL, product text NOT NULL CHECK(product IN ('onepage','landing_page')),
  purpose text NOT NULL DEFAULT 'demonstration_only' CHECK(purpose='demonstration_only'),
- created_by name NOT NULL DEFAULT session_user CHECK(created_by=session_user), created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ created_by name NOT NULL DEFAULT session_user, created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
  UNIQUE(id,company_id)
 );
 CREATE TABLE sites_preview.versions (
  project_id uuid NOT NULL, company_id uuid NOT NULL, revision integer NOT NULL CHECK(revision>0),
  brief jsonb NOT NULL CHECK(pg_column_size(brief)<=16384), html text NOT NULL CHECK(octet_length(html)<=150000),
  sha256 text NOT NULL CHECK(sha256 ~ '^[a-f0-9]{64}$' AND sha256=encode(pg_catalog.sha256(convert_to(html,'UTF8')),'hex')),
- author name NOT NULL DEFAULT session_user CHECK(author=session_user), created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ author name NOT NULL DEFAULT session_user, created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
  PRIMARY KEY(project_id,revision),UNIQUE(project_id,company_id,revision,sha256),
  FOREIGN KEY(project_id,company_id) REFERENCES sites_preview.projects(id,company_id)
 );
@@ -39,6 +39,14 @@ CREATE TABLE sites_preview.audit (
  actor name NOT NULL,event text NOT NULL,at timestamptz NOT NULL DEFAULT clock_timestamp()
 );
 REVOKE ALL ON ALL TABLES IN SCHEMA sites_preview FROM PUBLIC;
+CREATE FUNCTION sites_preview.check_writer_identity() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF (TG_TABLE_NAME='projects' AND to_jsonb(NEW)->>'created_by'<>session_user::text)
+ OR (TG_TABLE_NAME='versions' AND to_jsonb(NEW)->>'author'<>session_user::text) THEN RAISE EXCEPTION 'Preview writer identity denied'; END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER project_identity BEFORE INSERT ON sites_preview.projects FOR EACH ROW EXECUTE FUNCTION sites_preview.check_writer_identity();
+CREATE TRIGGER version_identity BEFORE INSERT ON sites_preview.versions FOR EACH ROW EXECUTE FUNCTION sites_preview.check_writer_identity();
 CREATE FUNCTION sites_preview.immutable() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN RAISE EXCEPTION 'Preview history is append-only'; END $$;
 CREATE FUNCTION sites_preview.record_change() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER
