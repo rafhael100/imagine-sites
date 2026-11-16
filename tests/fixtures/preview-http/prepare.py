@@ -12,7 +12,7 @@ passwords={n:secrets.token_hex(24) for n in ['author','editor','other']};dbpw=se
 (p/'db-password').write_text(dbpw);(p/'app_key').write_text('base64:'+base64.b64encode(secrets.token_bytes(32)).decode())
 principals={}
 for n in passwords:
- principals[n]={'company_id':('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' if n=='other' else 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),'sql_login':'sites_preview_'+n,'sql_password':dbpw,'expires_at':int(__import__('time').time())+3600,'revoked':False}
+ principals[n]={'company_id':('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' if n=='other' else 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),'sql_login':'sites_preview_'+n,'sql_password':secrets.token_hex(24),'expires_at':int(__import__('time').time())+3600,'revoked':False}
 (p/'preview_principals').write_text(json.dumps({'schema':'SITES_DEMO_PRINCIPALS_V1','principals':principals}))
 (p/'browser.json').write_text(json.dumps(passwords))
 lines=[]

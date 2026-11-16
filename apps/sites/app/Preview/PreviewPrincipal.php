@@ -17,7 +17,10 @@ final readonly class PreviewPrincipal {
   if($path!=='/run/secrets/preview_principals'||is_link($path)||!is_file($path)||!is_readable($path)||filesize($path)>16384||!in_array(fileperms($path)&0777,[0400,0600],true))throw new RuntimeException('Preview access unavailable');
   $data=json_decode(file_get_contents($path),true,12,JSON_THROW_ON_ERROR);
   if(($data['schema']??null)!=='SITES_DEMO_PRINCIPALS_V1')throw new RuntimeException('Preview access unavailable');
-  $p=$data['principals'][$name]??null;
+  $all=$data['principals']??null;
+  if(!is_array($all)||count($all)>32)throw new RuntimeException('Preview access unavailable');
+  $logins=[];foreach($all as $entry){if(!is_array($entry)||!is_string($entry['sql_login']??null)||in_array($entry['sql_login'],$logins,true))throw new RuntimeException('Preview principal reuse denied');$logins[]=$entry['sql_login'];}
+  $p=$all[$name]??null;
   if(!is_array($p)||!is_int($p['expires_at']??null)||$p['expires_at']<=time()||($p['revoked']??true)!==false||
    !is_string($p['company_id']??null)||!preg_match('/\A[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\z/D',$p['company_id'])||
    !is_string($p['sql_login']??null)||!preg_match('/\Asites_preview_[a-z0-9_]{1,48}\z/D',$p['sql_login'])||
