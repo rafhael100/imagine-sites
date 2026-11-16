@@ -24,7 +24,9 @@ trap cleanup EXIT
 "$PG_BIN/pg_ctl" -D "$lab/data" -l "$lab/postgres.log" -o "-k $lab/socket -p 55439 -c listen_addresses=''" -w start
 # A mismatched expected identity must fail, then the correct read-only check must
 # still observe an absent namespace, proving the failure occurred before DDL.
-if PREVIEW_CONTRACT_CLUSTER=0 "$PHP_BIN" "$repo/tests/persisted-preview-evidence-contract.php" > "$lab/denied.log" 2>&1; then
+wrong_cluster=1
+[[ "$PREVIEW_CONTRACT_CLUSTER" != "$wrong_cluster" ]] || wrong_cluster=2
+if PREVIEW_CONTRACT_CLUSTER="$wrong_cluster" "$PHP_BIN" "$repo/tests/persisted-preview-evidence-contract.php" > "$lab/denied.log" 2>&1; then
   echo 'Incorrect cluster identity was accepted' >&2; exit 1
 fi
 grep -q 'Disposable SQL identity mismatch' "$lab/denied.log"
