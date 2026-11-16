@@ -1,0 +1,76 @@
+{
+  "base": "4b324c63b9450df780cc5be583a02113118aeb14",
+  "tested_code": "ed9bac73ba291fc509bf4b5365451ea1a31032b6",
+  "files": [
+    {
+      "path": ".github/workflows/sites-private-preview-http.yml",
+      "bytes": 4227,
+      "sha256": "153147e7f944bf4984032b5f75892511e638487c9aa33865de6f183c73fdd501"
+    },
+    {
+      "path": "apps/sites/app/Http/Controllers/PrivatePreviewController.php",
+      "bytes": 4409,
+      "sha256": "f9d5bd591588015547b64de425bbaaca66b1fcdcea421353c8400a2b3d039d57"
+    },
+    {
+      "path": "apps/sites/app/Preview/PreviewPrincipal.php",
+      "bytes": 3794,
+      "sha256": "4ef7df5e37c617511c64644e0b70897733ab702bdf13e8452d80f41ddbcd2608"
+    },
+    {
+      "path": "apps/sites/config/private_preview.php",
+      "bytes": 211,
+      "sha256": "eef7903cf4ba2d620af0f35d9aaa05548b7897d29d35233bbaa8ff0655e2ce24"
+    },
+    {
+      "path": "apps/sites/resources/views/preview/workspace.blade.php",
+      "bytes": 5975,
+      "sha256": "42828c0575cf7c05630083ed5e131c0607125b36961cf1eb5ce1ad85354c4d92"
+    },
+    {
+      "path": "apps/sites/routes/web.php",
+      "bytes": 6393,
+      "sha256": "b871200d31ca9f0b0bd5bedb68978386d15541b34b89f2f5316681b6e3739007"
+    },
+    {
+      "path": "ops/preview-candidate/README.md",
+      "bytes": 5513,
+      "sha256": "7b0024dcb988855cca9fa14b2cdf7163212809205cf955914a74ff202308f1df"
+    },
+    {
+      "path": "ops/preview-candidate/nginx.conf",
+      "bytes": 2044,
+      "sha256": "04ea888f531dad202cbe9b5ffb08f16b3d5278b62094b9343bb1e4cc914e3107"
+    },
+    {
+      "path": "ops/staging/Dockerfile",
+      "bytes": 2981,
+      "sha256": "eab16dc3ce7fc450621b28d7149ca2ba2f0879a0b0521bf4e0f2b6ae12fcdbc7"
+    },
+    {
+      "path": "src/Production/PrivatePreviewWorkspace.php",
+      "bytes": 5217,
+      "sha256": "4d0efa9c6f71551215b9c871fb16db0e07b48396603cac530abc2a26e1911a46"
+    },
+    {
+      "path": "tests/fixtures/preview-http/bootstrap.php",
+      "bytes": 2283,
+      "sha256": "7334bc4c5feaebea436cdbe72fc85248d46f4f1308799e57ae560e15c8827dfa"
+    },
+    {
+      "path": "tests/fixtures/preview-http/browser.cjs",
+      "bytes": 6654,
+      "sha256": "5a0379cb1fc58bedf210a7f3f24d34a2efeaa2c08ed6c362e7b214aa65f138fc"
+    },
+    {
+      "path": "tests/fixtures/preview-http/compose.yaml",
+      "bytes": 2699,
+      "sha256": "b6c760ac8bf1be8400be97f8a7784d907fee7ee9a73d25940057bda4bfb0c1fb"
+    },
+    {
+      "path": "tests/fixtures/preview-http/prepare.py",
+      "bytes": 2331,
+      "sha256": "94480c87c58768db6106fb2973180bad04db4f031ae31eb0f877f944527ca63c"
+    }
+  ]
+}

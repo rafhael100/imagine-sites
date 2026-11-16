@@ -7,6 +7,7 @@ use Throwable;
 /** Persisted demonstration workspace; NEVER an operational order/provisioning authority. */
 final class PrivatePreviewWorkspace {
  public function __construct(private PDO $db){}
+ public function assertSafeRuntime():void { $this->runtime(); }
  private function runtime():void {
   if($this->db->inTransaction()||$this->db->query('SHOW transaction_isolation')->fetchColumn()!=='read committed')throw new RuntimeException('Preview requires independent current transaction');
   $p=$this->db->query("SELECT r.rolsuper OR r.rolbypassrls OR r.rolcreatedb OR r.rolcreaterole OR r.rolreplication OR current_user<>session_user OR bool_or(pg_has_role(current_user,c.relowner,'MEMBER')) OR bool_or(CASE WHEN c.relname='principals' THEN has_table_privilege(current_user,c.oid,'INSERT,UPDATE,DELETE,TRUNCATE') ELSE NOT(c.relrowsecurity AND c.relforcerowsecurity) END) AS unsafe FROM pg_roles r CROSS JOIN pg_class c WHERE r.rolname=current_user AND c.oid IN ('sites_preview.projects'::regclass,'sites_preview.versions'::regclass,'sites_preview.principals'::regclass,'sites_preview.reviews'::regclass,'sites_preview.audit'::regclass) GROUP BY r.oid,r.rolsuper,r.rolbypassrls,r.rolcreatedb,r.rolcreaterole,r.rolreplication")->fetch(PDO::FETCH_ASSOC);
