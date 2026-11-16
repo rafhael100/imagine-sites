@@ -5,8 +5,8 @@ foreach(['SiteBrief','ReleaseArtifact','StaticSiteRenderer','PrivatePreviewWorks
 use Imagine\Sites\Production\PrivatePreviewWorkspace as W;
 use Imagine\Sites\Production\SiteBrief as B;
 $dsn='pgsql:host=127.0.0.1;port=5432;dbname=sites_preview_ci';$owner=new PDO($dsn,'postgres',getenv('PGPASSWORD'),[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
-$actual=$owner->query("SELECT current_database() AS db,session_user AS login,inet_server_addr()::text AS addr,inet_server_port() AS port,(SELECT system_identifier::text FROM pg_control_system()) AS cluster")->fetch(PDO::FETCH_ASSOC);
-if(!$actual||$actual['db']!=='sites_preview_ci'||$actual['login']!=='postgres'||$actual['addr']!==getenv('SITES_PREVIEW_EXPECTED_DB_ADDR')||(int)$actual['port']!==5432||$actual['cluster']!==getenv('SITES_PREVIEW_EXPECTED_CLUSTER')){fwrite(STDERR,"PREVIEW_DISPOSABLE_DATABASE_DENIED\n");exit(2);}
+$actual=$owner->query("SELECT current_database() AS db,session_user AS login,host(inet_server_addr()) AS addr,inet_server_port() AS port,(SELECT system_identifier::text FROM pg_control_system()) AS cluster")->fetch(PDO::FETCH_ASSOC);
+if(!$actual||$actual['db']!=='sites_preview_ci'||$actual['login']!=='postgres'||$actual['addr']!==getenv('SITES_PREVIEW_EXPECTED_DB_ADDR')||(int)$actual['port']!==5432||$actual['cluster']!==getenv('SITES_PREVIEW_EXPECTED_CLUSTER')){fwrite(STDERR,"PREVIEW_DISPOSABLE_DATABASE_DENIED ".json_encode(['db'=>$actual['db']==='sites_preview_ci','login'=>$actual['login']==='postgres','address'=>$actual['addr']===getenv('SITES_PREVIEW_EXPECTED_DB_ADDR'),'port'=>(int)$actual['port']===5432,'cluster'=>$actual['cluster']===getenv('SITES_PREVIEW_EXPECTED_CLUSTER')])."\n");exit(2);}
 $owner->exec(file_get_contents(__DIR__.'/../contracts/private-preview/001-workspace.sql'));
 $company='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';$other='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';$pw=bin2hex(random_bytes(32));
 foreach(['preview_author','preview_editor','preview_other'] as $role){
