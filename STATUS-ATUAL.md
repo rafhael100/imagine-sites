@@ -1,5 +1,9 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 16/11/2026 — PostgreSQL verify-full REAL na Leaseweb, ambiente preservado (PR483 DRAFT)
+
+Fonte dd91486352bdc45b68e1b6289546759cc36360f5, CI11 check runs success incluindo43810046212. Em09:07–09:08 Brasília, TLS foi ativado por SIGHUP no PostgreSQL18 existente, sem restart; CA/hostname corretos verificados e CA/hostname errados/plaintext recusados. App Sites passou a verify-full com a mesma imagem;52 outros contêineres, banco, proxy, volumes/redes e porta127.0.0.1:18090 preservados. HTTPS privado200 com acesso/401 sem acesso. Preflight real postgres_tls=verified, global blocked. Nenhum pedido/PSP/prévia operacional liberado. Relatório: docs/SITES-P0-EXISTING-TLS-2026-11-16.md. Portal901 prepara ledger Sandbox nativo, sem ativação ou credenciais; não é conciliação real.
+
 ## 16/11/2026 — staging privado REAL na Leaseweb (PR482 DRAFT)
 
 O usuário reconectou o console. Sites Laravel/Nginx/PostgreSQL18 iniciados no projeto exclusivo imagine-sites-p0-staging, bind127.0.0.1:18090, quatro redes e volume próprios. Runtime SQL mínimo/FORCE RLS e HTTPS200/401/404 verificados. Os50 contêineres anteriores mantiveram estado/início/reinícios. Backup cifrado+HMAC e restore em banco novo preservaram oito tabelas FORCE RLS. Código04c6a29,13 check runs success (incluem duplicados push/PR).
