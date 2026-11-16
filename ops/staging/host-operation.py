@@ -8,7 +8,8 @@ REPO=pathlib.Path(__file__).resolve().parents[2]
 COMPOSE=['docker','compose','--env-file',str(ROOT/'settings.env'),'-f',str(REPO/'ops/staging/compose.yaml')]
 E=ROOT/'evidence'
 def run(args,input=None):
- r=subprocess.run(args,input=input,stdout=subprocess.PIPE,stderr=subprocess.PIPE,check=False)
+ options={'input':input} if input is not None else {'stdin':subprocess.DEVNULL}
+ r=subprocess.run(args,stdout=subprocess.PIPE,stderr=subprocess.PIPE,check=False,**options)
  if r.returncode:raise RuntimeError('Operation failed; preserve isolated state for review')
  return r.stdout
 
@@ -57,7 +58,7 @@ def restore():
  backup=E/'sites-initial-backup.enc'
  with open(backup,'xb') as out:
   os.chmod(backup,0o400)
-  dump=subprocess.Popen(db('pg_dump -U sites_bootstrap -d sites_staging -Fc'),stdout=subprocess.PIPE,stderr=subprocess.DEVNULL)
+  dump=subprocess.Popen(db('pg_dump -U sites_bootstrap -d sites_staging -Fc'),stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL)
   encrypt=subprocess.Popen(['openssl','enc','-aes-256-cbc','-pbkdf2','-salt','-pass','file:'+str(ROOT/'backup-encryption-key')],stdin=dump.stdout,stdout=out,stderr=subprocess.DEVNULL)
   dump.stdout.close();enc=encrypt.wait();src=dump.wait()
   if enc or src:raise RuntimeError('Backup failed')
@@ -67,7 +68,7 @@ def restore():
  if not hmac.compare_digest(mac,hmac.new(key,backup.read_bytes(),hashlib.sha256).hexdigest()):raise RuntimeError('Backup integrity failed')
  run(db('createdb -U sites_bootstrap sites_restore_verification'))
  run(db('psql -U sites_bootstrap -d sites_staging -v ON_ERROR_STOP=1 -c "REVOKE ALL ON DATABASE sites_restore_verification FROM PUBLIC"'))
- decrypt=subprocess.Popen(['openssl','enc','-d','-aes-256-cbc','-pbkdf2','-pass','file:'+str(ROOT/'backup-encryption-key'),'-in',str(backup)],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL)
+ decrypt=subprocess.Popen(['openssl','enc','-d','-aes-256-cbc','-pbkdf2','-pass','file:'+str(ROOT/'backup-encryption-key'),'-in',str(backup)],stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL)
  restored=subprocess.Popen(db('pg_restore -U sites_bootstrap -d sites_restore_verification --exit-on-error'),stdin=decrypt.stdout,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
  decrypt.stdout.close();dst=restored.wait();dec=decrypt.wait()
  if dst or dec:raise RuntimeError('Restore failed; no destructive cleanup')
