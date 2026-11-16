@@ -29,9 +29,11 @@ def start():
  settings=(ROOT/'settings.env').read_text().splitlines()
  if inv.get('recommended_loopback_port')!=18090 or inv.get('blockers') or 'SITES_STAGING_PORT=18090' not in settings:raise RuntimeError('Fresh port plan mismatch')
  if any(line.strip() and not line.lstrip().startswith('#') for line in (ROOT/'secrets/portal-identities.map').read_text().splitlines()):raise RuntimeError('Portal principal requires separate review')
+ run([sys.executable,str(REPO/'ops/staging/configure-pg-tls.py'),'prepare','--secrets-dir',str(ROOT/'secrets'),'--env-file',str(ROOT/'settings.env')])
  run(COMPOSE+['config','--quiet'])
  # No implicit build/pull: images must have been explicitly reviewed/built first.
  run(COMPOSE+['up','-d','--wait','--pull','never','db'])
+ run([sys.executable,str(REPO/'ops/staging/configure-pg-tls.py'),'enable','--secrets-dir',str(ROOT/'secrets'),'--env-file',str(ROOT/'settings.env')])
  owner=['run','--rm','--no-deps','--pull','never','--user','0:0','-v',str(ROOT/'secrets/owner-password')+':/run/secrets/migration_owner:ro','-e','DB_USERNAME=sites_bootstrap','-e','SITES_DB_PASSWORD_FILE=/run/secrets/migration_owner']
  run(COMPOSE+owner+['app','php','artisan','migrate','--force','--no-interaction'])
  run(COMPOSE+owner+['-e','SITES_NEW_DATABASE_PROVISION=new-isolated-sites-database','app','php','provision-runtime.php'])
