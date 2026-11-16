@@ -1,0 +1,48 @@
+name: Sites persisted preview evidence contract (draft only)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['feature/sites-private-preview-workspace-2026-11-16']
+    paths:
+      - 'tests/persisted-preview-evidence-contract.php'
+      - 'tests/run-persisted-preview-contract.sh'
+      - '.github/workflows/sites-persisted-preview-contract.yml'
+permissions:
+  contents: read
+jobs:
+  persisted-contract:
+    if: >-
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.head.ref == 'test/persisted-preview-evidence-contract-2026-11-16'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql, mbstring, sodium, dom, xml
+          tools: composer:v2
+          coverage: none
+      - name: Install local disposable PostgreSQL tooling
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends postgresql-18
+          /usr/lib/postgresql/18/bin/initdb --version
+      - name: Locked application dependencies without scripts or plugins
+        run: composer install --working-dir=apps/sites --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+      - name: Validate syntax and existing domain contracts
+        run: |
+          php -l tests/persisted-preview-evidence-contract.php
+          bash -n tests/run-persisted-preview-contract.sh
+          php tests/run.php
+      - name: Fresh local PG18 with effective Laravel and SQL identity guards
+        env:
+          PG_BIN: /usr/lib/postgresql/18/bin
+        run: |
+          export PHP_BIN="$(command -v php)"
+          bash tests/run-persisted-preview-contract.sh

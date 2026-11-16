@@ -120,3 +120,10 @@ Somente painel técnico privado e /up; sem URL pública/túnel liberado ou fluxo
 A partir da PR481/b7908e3, novo Compose `ops/staging/compose.yaml` de projeto exclusivo `imagine-sites-p0-staging`, porta obrigatória indicada por inventário fresco, redes/volume/banco próprios, runtime SQL mínimo, segredo via file mount e ingressos HTTPS/mTLS separados. O inventário rejeita18081 do CRM, binds Docker inclusive parados, listeners, colisões e recursos insuficientes. A console autenticada foi encerrada e SSH não está configurado no executor: nenhuma porta foi declarada livre, nenhum serviço iniciado ou banco criado na VPS. Asaas Sandbox, identidade/aceite/revogação operacionais e publisher seguem NO-GO. Evidências/requisitos: `docs/SITES-P0-PRIVATE-STAGING-2026-11-16.md`.
 
 Evidência da PR482: SHAfuncional e4647169948448db90fdb11a4118c71dd20dfb99,13 check runs success; CI43801276171 aprovou stack próprio HTTPS/mTLS/PG18/RLS e restore apenas no runner. Sete testes de inventário e dois de MountedSecret aprovados. Execução real na VPS continua bloqueada por console encerrada/SSH ausente; não há porta livre comprovada nem URL nova.
+
+
+## 2026-11-16 — contrato de prévia persistida / gates F396-F397
+
+Branch complementar sobre `7c2eb2ba005557023ba8cbee6869bbb156709cb8`; somente testes e documentação. Lint PHP/Bash e 32 checks de domínio passaram. Novo teste de 22 asserções **não validado em banco**: executor recusou socket Unix do PG18 local antes de conexões/migrations. Sem mock substituto, publicação, compra conciliada ou aceite operacional. [Evidências e execução pendente](docs/PERSISTED-PREVIEW-EVIDENCE-CONTRACT-2026-11-16.md).
+
+Workflow novo exclusivo do draft autorizado posteriormente e preparado. Push HTTPS indisponível sem credencial; patch entregue à coordenação. Nenhum PR/run confirmado para a candidata; 22 casos ainda pendentes de execução.
