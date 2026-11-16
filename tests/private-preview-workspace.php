@@ -31,6 +31,7 @@ $deny(fn()=>$db->exec("UPDATE sites_preview.projects SET purpose='operational_or
 $deny(fn()=>$db->exec('DELETE FROM sites_preview.versions'));
 $deny(fn()=>$db->exec("UPDATE sites_preview.principals SET can_edit=true"));
 $ok((int)$db->query('SELECT count(*) FROM sites_preview.audit')->fetchColumn()===8);
+$db->exec("SET default_transaction_isolation='repeatable read'");$deny(fn()=>$w->view('11111111-1111-4111-8111-111111111111',$company,2));$db->exec("SET default_transaction_isolation='read committed'");$ok($w->view('11111111-1111-4111-8111-111111111111',$company,2)['revision']==2);
 $owner->exec("UPDATE sites_preview.principals SET revoked_at=now() WHERE database_login='preview_author'");$deny(fn()=>$w->view('11111111-1111-4111-8111-111111111111',$company,2));
 $deny(fn()=>(new W($owner))->view('11111111-1111-4111-8111-111111111111',$company,2));
 echo "OK: $n private persisted demonstration, revision, editorial separation, hash and cross-tenant assertions; no order/payment/acceptance authority\n";
