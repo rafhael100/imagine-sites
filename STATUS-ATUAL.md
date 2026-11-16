@@ -108,3 +108,5 @@
 ## P0 — 16/11/2026: stack privado preparado, VPS inacessível nesta continuação
 
 A partir da PR481/b7908e3, novo Compose `ops/staging/compose.yaml` de projeto exclusivo `imagine-sites-p0-staging`, porta obrigatória indicada por inventário fresco, redes/volume/banco próprios, runtime SQL mínimo, segredo via file mount e ingressos HTTPS/mTLS separados. O inventário rejeita18081 do CRM, binds Docker inclusive parados, listeners, colisões e recursos insuficientes. A console autenticada foi encerrada e SSH não está configurado no executor: nenhuma porta foi declarada livre, nenhum serviço iniciado ou banco criado na VPS. Asaas Sandbox, identidade/aceite/revogação operacionais e publisher seguem NO-GO. Evidências/requisitos: `docs/SITES-P0-PRIVATE-STAGING-2026-11-16.md`.
+
+Evidência da PR482: SHAfuncional e4647169948448db90fdb11a4118c71dd20dfb99,13 check runs success; CI43801276171 aprovou stack próprio HTTPS/mTLS/PG18/RLS e restore apenas no runner. Sete testes de inventário e dois de MountedSecret aprovados. Execução real na VPS continua bloqueada por console encerrada/SSH ausente; não há porta livre comprovada nem URL nova.

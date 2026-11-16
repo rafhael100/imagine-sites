@@ -66,3 +66,17 @@ Navegador, após futura implantação privada autorizada: somente painel técnic
 ## Evidências
 
 Testes novos verificam resolução de conflitos/default-deny e a composição de infraestrutura (não repetem como novidade as provas sintéticas de negócio já aprovadas). CI constrói stack próprio descartável, migra core, verifica runtime/RLS, HTTPS/acesso adicional, mTLS/identidade e restore. Resultados e SHAs serão registrados na PR e na issue38. Todos os gates de operação continuam pendentes até execução/evidência no ambiente apropriado.
+
+
+## Resultado executado — 16/11/2026
+
+Código funcional verificado: **e4647169948448db90fdb11a4118c71dd20dfb99**. Os13 check runs recuperados concluíram success (incluem push e pull_request; não são13 suítes distintas).
+
+- Infraestrutura própria: [CI43801276171](https://github.com/rafhael100/imagine-sites/actions/runs/43801276171), build, migrations001/002/003, role runtime, FORCE RLS, negativas de leitura/DDL, HTTPS401 sem acesso nominal e200 com acesso, painel técnico e Laravel/up, rotas privadas/CI bloqueadas404, mTLS privado200 para identidade autorizada e403 para outra identidade da mesma CA, ausência de certificado400, admissão503 mesmo para identidade autorizada. Cifra+restore em banco separado preservaram FORCE RLS. Projeto e segredos descartáveis removidos ao final.
+- Planner:7 testes novos aprovados, cobrindo CRM18081 excluído, binds de contêiner parado/listeners, corrida de bind, colisão de namespace, recursos/metadados ausentes e sigilo de nomes/dados extras.
+- [Laravel PHP8.3/8.4](https://github.com/rafhael100/imagine-sites/actions/runs/43801276149): execução padrão23 testes aprovados/116 assertions e27 skipped; opt-in29 aprovados/128 assertions e21 skipped, por versão. São cenários distintos; não somar como cobertura exclusiva. Os skips mantêm os laboratórios SQL/fixtures que não pertencem a essa suíte desligados. Os dois testes novos MountedSecret foram executados, com10 assertions. Criar .env.example temporário no runner corrigiu os avisos anteriores de arquivo de ambiente ausente; não silenciou falhas de teste.
+- Regressões de segurança/domínio, composição antiga e TLS PG de laboratório aprovadas. Não constituem nova evidência operacional de negócio nem TLS do banco da VPS.
+
+Porta18097 foi usada apenas no runner descartável e não é uma escolha validada na Leaseweb. Redes/volume listados acima estão preparados no Compose, não criados no host contratado nesta rodada. A console autenticada encerrada/SSH ausente continua sendo o bloqueio para inventariar, selecionar porta e iniciar serviços reais. Nenhum gate operacional da issue38 foi fechado.
+
+Falhas corrigidas nesta preparação: contexto runner.temp indisponível no env do job, caminhos temporários de módulos Nginx em raiz read-only, bucket do mapa Nginx pequeno para issuer+serial e descoberta da suíte Unit no PHPUnit. A versão funcional acima passou com as proteções preservadas. O commit posterior acrescenta somente esta evidência documental.
