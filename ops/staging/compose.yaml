@@ -1,0 +1,111 @@
+name: imagine-sites-p0-staging
+# Independent preparation. No external/shared networks, container_name or fixed subnets.
+services:
+  app:
+    build:
+      context: ../..
+      dockerfile: ops/staging/Dockerfile
+      target: sites-php
+    environment:
+      APP_ENV: staging
+      APP_DEBUG: 'false'
+      APP_NAME: Imagine Sites
+      APP_URL: '${SITES_PRIVATE_URL:?private-https-url-required}'
+      APP_KEY: ''
+      SITES_APP_KEY_FILE: /run/secrets/app_key
+      LOG_CHANNEL: stderr
+      LOG_LEVEL: error
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: '5432'
+      DB_DATABASE: sites_staging
+      DB_USERNAME: sites_runtime
+      SITES_DB_PASSWORD_FILE: /run/secrets/runtime_password
+      DB_SSLMODE: prefer
+    secrets: [app_key, runtime_password]
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+      - /opt/imagine/apps/sites/storage/framework/views:uid=33,gid=33,mode=0700
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    networks: [web_private, db_private]
+    mem_limit: 768m
+    cpus: 1.5
+    pids_limit: 128
+    restart: 'no'
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'php', '-r', 'exit(getenv("APP_ENV")==="staging" && is_readable("/run/secrets/app_key") ? 0 : 1);']
+      interval: 20s
+      timeout: 3s
+      retries: 3
+    logging:
+      driver: json-file
+      options: {max-size: 5m, max-file: '2'}
+  proxy:
+    build:
+      context: ../..
+      dockerfile: ops/staging/Dockerfile
+      target: sites-proxy
+    ports:
+      - '127.0.0.1:${SITES_STAGING_PORT:?fresh-inventory-selected-port-required}:8443'
+    secrets: [tls_certificate, tls_key, access_passwords, portal_client_ca, portal_identities]
+    read_only: true
+    tmpfs: ['/tmp:mode=1777']
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    networks: [ingress, web_private, s2s_private]
+    mem_limit: 128m
+    cpus: 0.5
+    pids_limit: 64
+    restart: 'no'
+    depends_on: [app]
+    logging:
+      driver: json-file
+      options: {max-size: 5m, max-file: '2'}
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: sites_bootstrap
+      POSTGRES_DB: sites_staging
+      POSTGRES_PASSWORD_FILE: /run/secrets/owner_password
+      POSTGRES_INITDB_ARGS: '--auth-host=scram-sha-256 --auth-local=scram-sha-256'
+    secrets: [owner_password]
+    volumes: ['database:/var/lib/postgresql']
+    networks: [db_private]
+    security_opt: ['no-new-privileges:true']
+    mem_limit: 1g
+    cpus: 1.5
+    pids_limit: 128
+    restart: 'no'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U sites_bootstrap -d sites_staging']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    logging:
+      driver: json-file
+      options: {max-size: 5m, max-file: '2'}
+networks:
+  ingress: {}
+  web_private: {internal: true}
+  db_private: {internal: true}
+  s2s_private: {internal: true}
+volumes:
+  database: {}
+secrets:
+  app_key: {file: '${SITES_SECRETS_DIR:?external-secret-directory-required}/app-key'}
+  runtime_password: {file: '${SITES_SECRETS_DIR:?external-secret-directory-required}/runtime-password'}
+  owner_password: {file: '${SITES_SECRETS_DIR:?external-secret-directory-required}/owner-password'}
+  tls_certificate: {file: '${SITES_SECRETS_DIR:?external-secret-directory-required}/server.pem'}
+  tls_key: {file: '${SITES_SECRETS_DIR:?external-secret-directory-required}/server.key'}
+  access_passwords: {file: '${SITES_SECRETS_DIR:?external-secret-directory-required}/access.htpasswd'}
+  portal_client_ca: {file: '${SITES_SECRETS_DIR:?external-secret-directory-required}/portal-ca.pem'}
+  portal_identities: {file: '${SITES_SECRETS_DIR:?external-secret-directory-required}/portal-identities.map'}

@@ -1,0 +1,4 @@
+# Coordinates only: no credential, no default/free-port assertion.
+SITES_PRIVATE_URL=https://REPLACE_WITH_PRIVATE_TECHNICAL_HOST
+SITES_STAGING_PORT=REPLACE_WITH_FRESH_INVENTORY_RESULT
+SITES_SECRETS_DIR=/secure/sites-only-vault-mount

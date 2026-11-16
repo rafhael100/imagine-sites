@@ -1,0 +1,9 @@
+.env
+.env.*
+*.key
+*.pem
+*.htpasswd
+*.dump
+*.enc
+secrets/
+inventory*.json

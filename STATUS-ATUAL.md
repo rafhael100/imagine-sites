@@ -1,5 +1,11 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 16/11/2026 — staging privado REAL na Leaseweb (PR482 DRAFT)
+
+O usuário reconectou o console. Sites Laravel/Nginx/PostgreSQL18 iniciados no projeto exclusivo imagine-sites-p0-staging, bind127.0.0.1:18090, quatro redes e volume próprios. Runtime SQL mínimo/FORCE RLS e HTTPS200/401/404 verificados. Os50 contêineres anteriores mantiveram estado/início/reinícios. Backup cifrado+HMAC e restore em banco novo preservaram oito tabelas FORCE RLS. Código04c6a29,13 check runs success (incluem duplicados push/PR).
+
+Somente painel técnico privado e /up; sem URL pública/túnel liberado ou fluxo de compra operacional. Preflight real segue blocked: TLS PostgreSQL verify-full, identidade Portal, Asaas Sandbox, aceite humano, revogação, backup externo e publicação/rollback pendentes. Sem produção, DNS, cobrança ou merge. Relatório: docs/SITES-P0-PRIVATE-STAGING-2026-11-16.md. Notas anteriores de ausência de acesso descrevem o estado ANTES da reconexão.
+
 ## 15/11/2026 — diagnóstico real Leaseweb e ensaio integrado atual (DRAFT)
 
 - Console já autenticado permitiu diagnóstico somente leitura; SSH não está configurado no executor. Ubuntu24.04.5, Docker/Compose e recursos observados. Preflight PR478 executado na VPS manteve `blocked` e nove gates operacionais fechados.
@@ -103,3 +109,10 @@
 **Gate exclusivo do responsável:** conexão autorizada de ambiente Leaseweb + Cloudflare e domínio técnico de teste, com gestão segura de credenciais/quotas, antes de qualquer homologação real. Não inserir credenciais no GitHub público ou neste chat.
 
 `config/operational-readiness.json` continua com gates BLOCKED. `AGI-11-RB01` DESABILITADO; sem promoção de `dev` para `main`, deploy, DNS de cliente ou dados reais.
+
+
+## P0 — 16/11/2026: stack privado preparado, VPS inacessível nesta continuação
+
+A partir da PR481/b7908e3, novo Compose `ops/staging/compose.yaml` de projeto exclusivo `imagine-sites-p0-staging`, porta obrigatória indicada por inventário fresco, redes/volume/banco próprios, runtime SQL mínimo, segredo via file mount e ingressos HTTPS/mTLS separados. O inventário rejeita18081 do CRM, binds Docker inclusive parados, listeners, colisões e recursos insuficientes. A console autenticada foi encerrada e SSH não está configurado no executor: nenhuma porta foi declarada livre, nenhum serviço iniciado ou banco criado na VPS. Asaas Sandbox, identidade/aceite/revogação operacionais e publisher seguem NO-GO. Evidências/requisitos: `docs/SITES-P0-PRIVATE-STAGING-2026-11-16.md`.
+
+Evidência da PR482: SHAfuncional e4647169948448db90fdb11a4118c71dd20dfb99,13 check runs success; CI43801276171 aprovou stack próprio HTTPS/mTLS/PG18/RLS e restore apenas no runner. Sete testes de inventário e dois de MountedSecret aprovados. Execução real na VPS continua bloqueada por console encerrada/SSH ausente; não há porta livre comprovada nem URL nova.
