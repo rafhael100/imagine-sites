@@ -39,8 +39,8 @@ jobs:
           set -euo pipefail
           umask 077
           python3 - <<'PYCODE'
-          import json,os,secrets,pathlib
-          pathlib.Path(os.environ['SITES_PREVIEW_CI_VAULT']).write_text(json.dumps({'user':'synthetic-ci-reviewer','password':secrets.token_hex(32)}))
+          import json,os,pathlib
+          pathlib.Path(os.environ['SITES_PREVIEW_CI_VAULT']).write_text(json.dumps({'user':'synthetic-ci-reviewer','password':os.urandom(32).hex()}))
           PYCODE
           python3 tests/fixtures/private-preview-server.py > "$RUNNER_TEMP/preview-server.log" 2>&1 &
           pid=$!
