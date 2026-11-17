@@ -1,5 +1,13 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 17/11/2026 — continuidade da prévia privada: fila editorial e correções (candidato DRAFT)
+
+Base de continuidade: PR #488, `ef1a8ba888c8862108b9329e0301764dbcbe8ddb`. Recuperação já comprovada nessa PR não foi duplicada. Branch `feature/sites-preview-validation-2026-11-17` acrescenta fila da versão corrente por empresa/digest, tratamento de briefing inválido sem perda de campos, conflito HTTP409, produto imutável e ações de tela conforme perfil. O guard de runtime passa a recusar deriva de privilégios, inclusive grants por coluna, PUBLIC/herança, TRUNCATE/TRIGGER, CREATE e escrita direta em revisão/auditoria.
+
+Validação local: PHP8.4 lint, 32 verificações de domínio, 27 renderer, 61 auditoria HTML e 26 structured-copy aprovados; 7 testes novos de briefing/20 assertions aprovados. PostgreSQL local não pôde abrir socket pelo limite do executor: nenhum SQL/HTTP novo é declarado aprovado antes do CI. Workflow isolado novo, somente para o draft desta branch sobre a HEAD exata de #488, reutiliza os laboratórios SQL e HTTP existentes; workflows anteriores intactos. Revisão independente detectou envelope HTTP pequeno para Unicode e a correção mantém teto de32KiB, alinhado ao proxy candidato e aos limites por campo.
+
+A fila informa revisão interna e não autoriza contrato, aceite de cliente ou publicação. Integração Portal/pagamento/registry de vínculos, backup externo e homologação continuam pendentes. VPS, porta18090, main/dev e serviços preservados. Detalhes: `docs/reviews/SITES-PREVIEW-VALIDATION-2026-11-17.md`.
+
 ## 16/11/2026 — PostgreSQL verify-full REAL na Leaseweb, ambiente preservado (PR483 DRAFT)
 
 Fonte dd91486352bdc45b68e1b6289546759cc36360f5, CI11 check runs success incluindo43810046212. Em09:07–09:08 Brasília, TLS foi ativado por SIGHUP no PostgreSQL18 existente, sem restart; CA/hostname corretos verificados e CA/hostname errados/plaintext recusados. App Sites passou a verify-full com a mesma imagem;52 outros contêineres, banco, proxy, volumes/redes e porta127.0.0.1:18090 preservados. HTTPS privado200 com acesso/401 sem acesso. Preflight real postgres_tls=verified, global blocked. Nenhum pedido/PSP/prévia operacional liberado. Relatório: docs/SITES-P0-EXISTING-TLS-2026-11-16.md. Portal901 prepara ledger Sandbox nativo, sem ativação ou credenciais; não é conciliação real.

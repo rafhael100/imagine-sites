@@ -9,7 +9,7 @@ set_exception_handler(static function(Throwable $e):void {
     fwrite(STDERR,'ROLE_CONTRACT_FAILED '.get_class($e).': '.$e->getMessage()."\n");exit(1);
 });
 use Illuminate\Support\Facades\DB;
-use Imagine\Sites\Production\{PrivatePreviewWorkspace,SiteBrief};
+use Imagine\Sites\Production\{PrivatePreviewOverview,PrivatePreviewWorkspace,SiteBrief};
 $dir=getenv('ROLE_CONTRACT_PGDATA');$cluster=getenv('ROLE_CONTRACT_CLUSTER');
 $login=getenv('ROLE_CONTRACT_LOGIN');$passwordFile=getenv('ROLE_CONTRACT_PASSWORD_FILE');
 if(!$dir||!$cluster||!$login||!$passwordFile||!is_dir($dir)||
@@ -109,4 +109,161 @@ foreach($companies as $tenant=>$company) {
     $ok((int)$db->query('SELECT count(*) FROM sites_preview.audit')->fetchColumn()===4,'scoped audit includes create/version/review/revision');
     $ok((int)$db->query('SELECT count(*) FROM sites_preview.reviews WHERE revision=2')->fetchColumn()===0,'revision has no inherited internal review');
 }
+// A correctly provisioned fixture alone does not prove fail-closed behavior after
+// grant drift. Temporarily introduce effective privileges on the disposable
+// cluster and require rejection by the runtime guard before an actual revision.
+// A generic SQL exception is NOT accepted as evidence that the guard rejected it.
+$driftCases=0;
+$driftRole='lab486_a_author';
+$driftWorkspace=$workspaces['a']['author'];
+$original=$driftWorkspace->view($projects['a'],$companies['a'],2);
+$driftBrief=new SiteBrief('onepage','Synthetic company','Uncommitted drift fixture','Must never be written','Read more',['Example']);
+$guardDenied=function(callable $operation,string $label)use($ok):void {
+    try{$operation();}catch(RuntimeException $e){
+        $ok($e->getMessage()==='Preview runtime denied','runtime guard: '.$label);return;
+    }
+    $ok(false,'runtime accepted unsafe privilege: '.$label);
+};
+$drift=function(string $grant,string $revoke,string $label)use($admin,$driftWorkspace,$projects,$companies,$driftBrief,$guardDenied,$original,$ok,&$driftCases):void {
+    $admin->exec($grant);
+    try {
+        $guardDenied(fn()=>$driftWorkspace->revise($projects['a'],$companies['a'],2,$driftBrief),$label);
+        $driftCases++;
+    } finally {$admin->exec($revoke);}
+    // The same authenticated PDO connection sees revocation immediately and
+    // retains access to the unchanged committed version once safe again.
+    $ok($driftWorkspace->view($projects['a'],$companies['a'],2)['sha256']===$original['sha256'],'safe access restored: '.$label);
+};
+foreach(['projects','versions','reviews','audit','principals'] as $table) {
+    foreach(['UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER','MAINTAIN'] as $privilege) {
+        $drift("GRANT $privilege ON sites_preview.$table TO $driftRole",
+            "REVOKE $privilege ON sites_preview.$table FROM $driftRole","$table $privilege");
+    }
+}
+foreach(['principals'=>['SELECT','INSERT'],'reviews'=>['INSERT'],'audit'=>['INSERT']] as $table=>$privileges) {
+    foreach($privileges as $privilege)$drift("GRANT $privilege ON sites_preview.$table TO $driftRole",
+        "REVOKE $privilege ON sites_preview.$table FROM $driftRole","direct $table $privilege");
+}
+foreach([
+    ['versions','UPDATE','brief'],['projects','UPDATE','product'],
+    ['reviews','INSERT','decision'],['audit','INSERT','event'],
+    ['principals','SELECT','database_login'],['principals','INSERT','database_login'],
+    ['versions','REFERENCES','project_id'],
+] as [$table,$privilege,$column]) {
+    $drift("GRANT $privilege ($column) ON sites_preview.$table TO $driftRole",
+        "REVOKE $privilege ($column) ON sites_preview.$table FROM $driftRole","column $table.$column $privilege");
+}
+$drift("GRANT INSERT ON sites_preview.projects TO $driftRole WITH GRANT OPTION",
+    "REVOKE GRANT OPTION FOR INSERT ON sites_preview.projects FROM $driftRole",'table grant delegation');
+$drift("GRANT SELECT (html) ON sites_preview.versions TO $driftRole WITH GRANT OPTION",
+    "REVOKE SELECT (html) ON sites_preview.versions FROM $driftRole",'column grant delegation');
+$drift("GRANT USAGE ON SCHEMA sites_preview TO $driftRole WITH GRANT OPTION",
+    "REVOKE GRANT OPTION FOR USAGE ON SCHEMA sites_preview FROM $driftRole",'schema grant delegation');
+$drift("GRANT EXECUTE ON FUNCTION sites_preview.can_access(uuid,text) TO $driftRole WITH GRANT OPTION",
+    "REVOKE GRANT OPTION FOR EXECUTE ON FUNCTION sites_preview.can_access(uuid,text) FROM $driftRole",'function grant delegation');
+foreach(['USAGE','SELECT','UPDATE'] as $privilege) {
+    $drift("GRANT $privilege ON SEQUENCE sites_preview.audit_id_seq TO $driftRole",
+        "REVOKE $privilege ON SEQUENCE sites_preview.audit_id_seq FROM $driftRole","audit sequence $privilege");
+}
+$drift("GRANT EXECUTE ON FUNCTION sites_preview.record_change() TO $driftRole",
+    "REVOKE EXECUTE ON FUNCTION sites_preview.record_change() FROM $driftRole",'direct audit function access');
+foreach(['sites_preview','public'] as $schema) {
+    $drift("GRANT CREATE ON SCHEMA $schema TO $driftRole",
+        "REVOKE CREATE ON SCHEMA $schema FROM $driftRole","schema $schema CREATE");
+}
+$drift("GRANT CREATE ON DATABASE postgres TO $driftRole",
+    "REVOKE CREATE ON DATABASE postgres FROM $driftRole",'database CREATE');
+$drift('GRANT INSERT ON sites_preview.reviews TO PUBLIC',
+    'REVOKE INSERT ON sites_preview.reviews FROM PUBLIC','PUBLIC review write');
+$admin->exec('CREATE ROLE lab486_acl_delegate NOLOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE NOREPLICATION');
+$admin->exec('GRANT INSERT ON sites_preview.reviews TO lab486_acl_delegate');
+$drift("GRANT lab486_acl_delegate TO $driftRole WITH INHERIT TRUE",
+    "REVOKE lab486_acl_delegate FROM $driftRole",'inherited review write');
+$drift("GRANT lab486_owner TO $driftRole WITH INHERIT FALSE",
+    "REVOKE lab486_owner FROM $driftRole",'owner membership without inheritance');
+foreach(['SUPERUSER'=>'NOSUPERUSER','BYPASSRLS'=>'NOBYPASSRLS','CREATEDB'=>'NOCREATEDB','CREATEROLE'=>'NOCREATEROLE','REPLICATION'=>'NOREPLICATION'] as $unsafe=>$safe) {
+    $drift("ALTER ROLE $driftRole $unsafe","ALTER ROLE $driftRole $safe","role attribute $unsafe");
+}
+$drift('ALTER TABLE sites_preview.versions NO FORCE ROW LEVEL SECURITY',
+    'ALTER TABLE sites_preview.versions FORCE ROW LEVEL SECURITY','FORCE RLS drift');
+$drift('ALTER TABLE sites_preview.versions DISABLE ROW LEVEL SECURITY',
+    'ALTER TABLE sites_preview.versions ENABLE ROW LEVEL SECURITY','RLS drift');
+$admin->exec("GRANT lab486_a_reader TO $driftRole WITH INHERIT FALSE");
+try {
+    $connections['a']['author']->exec('SET ROLE lab486_a_reader');
+    $guardDenied(fn()=>$driftWorkspace->view($projects['a'],$companies['a'],2),'changed current_user');
+    $driftCases++;
+} finally {
+    $connections['a']['author']->exec('RESET ROLE');
+    $admin->exec("REVOKE lab486_a_reader FROM $driftRole");
+}
+$ok($driftWorkspace->view($projects['a'],$companies['a'],2)['sha256']===$original['sha256'],'safe access restored after SET ROLE');
+$ok((int)$admin->query('SELECT count(*) FROM sites_preview.versions')->fetchColumn()===4&&
+    (int)$admin->query('SELECT count(*) FROM sites_preview.audit')->fetchColumn()===8&&
+    (int)$admin->query('SELECT count(*) FROM sites_preview.reviews')->fetchColumn()===2,
+    'all denied drift attempts preserve versions, reviews and audit');
+foreach($connections as $tenant=>$roles)foreach($roles as $profile=>$db) {
+    $ok((int)$workspaces[$tenant][$profile]->view($projects[$tenant],$companies[$tenant],2)['revision']===2,
+        'all legitimate profiles remain available after grant restoration');
+}
+echo "ACL DRIFT OK: $driftCases unsafe runtime configurations refused before revision; grants restored, same connections reusable, committed history unchanged.\n";
+// The editorial queue is scoped to each principal and to the exact newest
+// version. Its reads must not create audit events, versions or reviews.
+$historyDigest=fn()=>$admin->query("SELECT
+ (SELECT md5(string_agg(row_to_json(v)::text,'' ORDER BY project_id,revision)) FROM sites_preview.versions v) AS versions,
+ (SELECT md5(string_agg(row_to_json(r)::text,'' ORDER BY project_id,revision,reviewer)) FROM sites_preview.reviews r) AS reviews,
+ (SELECT md5(string_agg(row_to_json(a)::text,'' ORDER BY id)) FROM sites_preview.audit a) AS audit")->fetch(PDO::FETCH_ASSOC);
+$beforeOverview=$historyDigest();
+$overviews=[];
+foreach($companies as $tenant=>$company) {
+    $queues=[];
+    foreach($profiles as $profile=>$_) {
+        $overviews[$tenant][$profile]=new PrivatePreviewOverview($connections[$tenant][$profile]);
+        $queues[$profile]=$overviews[$tenant][$profile]->projects($company);
+    }
+    $v=$workspaces[$tenant]['reader']->view($projects[$tenant],$company,2);
+    $ok($queues['author']===$queues['reader']&&$queues['reader']===$queues['reviewer']&&
+        count($queues['reader'])===1&&$queues['reader'][0]['id']===$projects[$tenant]&&
+        $queues['reader'][0]['latest_revision']===2&&$queues['reader'][0]['sha256']===$v['sha256']&&
+        $queues['reader'][0]['editorial_status']==='awaiting_review',
+        'overview exact latest revision, no inherited review, same own-company queue for all profiles: '.$tenant);
+}
+$ok($historyDigest()===$beforeOverview,'overview reads leave versions, reviews and audit unchanged');
+$current=$workspaces['a']['reader']->view($projects['a'],$companies['a'],2);
+$workspaces['a']['reviewer']->review($projects['a'],$companies['a'],2,$current['sha256'],'approved_internal');
+$approved=$overviews['a']['reader']->projects($companies['a']);
+$next=$workspaces['a']['author']->revise($projects['a'],$companies['a'],2,
+    new SiteBrief('onepage','Synthetic company','Third queue fixture','Newest revision awaiting editorial review','Read more',['Example']));
+$pending=$overviews['a']['reader']->projects($companies['a']);
+$ok($approved[0]['editorial_status']==='approved_internal'&&$approved[0]['latest_revision']===2&&
+    $approved[0]['sha256']===$current['sha256']&&$pending[0]['latest_revision']===3&&
+    $pending[0]['sha256']===$next['sha256']&&$pending[0]['editorial_status']==='awaiting_review',
+    'overview approval applies only to its exact revision and digest');
+$workspaces['a']['reviewer']->review($projects['a'],$companies['a'],3,$next['sha256'],'approved_internal');
+// A second independent reviewer disagrees on the same immutable version.
+// These temporary grants are confined to the already verified disposable lab.
+$admin->exec("GRANT EXECUTE ON FUNCTION sites_preview.review_version(uuid,uuid,integer,text,text) TO lab486_a_reader");
+$admin->exec("UPDATE sites_preview.principals SET can_review=true WHERE database_login='lab486_a_reader'");
+try {
+    $workspaces['a']['reader']->review($projects['a'],$companies['a'],3,$next['sha256'],'changes_requested');
+    $mixed=$overviews['a']['author']->projects($companies['a']);
+    $ok($mixed[0]['editorial_status']==='changes_requested'&&$mixed[0]['latest_revision']===3&&$mixed[0]['sha256']===$next['sha256'],
+        'changes requested prevails over approval for the same current revision');
+} finally {
+    $admin->exec("UPDATE sites_preview.principals SET can_review=false WHERE database_login='lab486_a_reader'");
+    $admin->exec("REVOKE EXECUTE ON FUNCTION sites_preview.review_version(uuid,uuid,integer,text,text) FROM lab486_a_reader");
+}
+$overviewDenied=function(callable $operation,string $label)use($ok):void {
+    try{$operation();}catch(RuntimeException $e){
+        $ok($e->getMessage()==='Private preview overview unavailable',$label);return;
+    }
+    $ok(false,$label);
+};
+$overviewDenied(fn()=>$overviews['a']['reader']->projects($companies['b']),'overview denies company from another tenant');
+foreach(['revoked_at=now()'=>'revoked','expires_at=now()-interval \'1 minute\''=>'expired'] as $mutation=>$label) {
+    $admin->exec("UPDATE sites_preview.principals SET $mutation WHERE database_login='lab486_a_reader'");
+    try{$overviewDenied(fn()=>$overviews['a']['reader']->projects($companies['a']),'overview denies '.$label.' principal on a reused reader');}
+    finally{$admin->exec("UPDATE sites_preview.principals SET revoked_at=NULL,expires_at=now()+interval '1 hour' WHERE database_login='lab486_a_reader'");}
+}
+echo "OVERVIEW OK: 8 tenant/current-revision/digest/editorial/readonly/revocation assertions; synthetic data only.\n";
 echo "OK: $count synthetic ownership/ACL/RLS/profile assertions; real existing migration, NOLOGIN/NOBYPASSRLS owner, two companies. No operational acceptance or backup evidence.\n";
