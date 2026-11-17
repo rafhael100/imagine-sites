@@ -27,6 +27,27 @@ Apenas um workflow novo: `.github/workflows/sites-preview-validation.yml`. Restr
 
 **Estado antes da primeira execução remota:** CI SQL/HTTP ainda pendente. A inicialização PostgreSQL local foi recusada pelo executor (socket Operation not permitted); não foi contornada. Não há alegação de teste SQL local.
 
+## Resultado confirmado após o CI
+
+[PR #489 — DRAFT](https://github.com/rafhael100/imagine-sites/pull/489). **SHA funcional verificada: `9ad188aa197e43135b5a992de5dfcf00df4cd8aa`.** A documentação posterior registra essa evidência sem alterar o código testado.
+
+| Verificação | Resultado comprovado |
+| --- | --- |
+| PostgreSQL18, papéis, RLS, grants e fila | 250 assertions PASS; inclui63 configurações indevidas recusadas antes de escrever e oito checks de overview |
+| Jornada HTTP/navegador | 33 checks PASS em Nginx/PHP-FPM/PG18 separados; desktop e390px sem overflow no workspace |
+| Novos testes PHP de briefing e renderização | 10 testes,41 assertions PASS |
+| Checks GitHub da HEAD funcional | 13/13 success; inclui matrizes8.3/8.4 e execuções duplicadas push/PR |
+| Revisão visual | Workspace desktop/mobile inspecionados; campos, versões, parecer e ações legíveis |
+
+- [Workflow funcional completo #44190839583](https://github.com/rafhael100/imagine-sites/actions/runs/44190839583).
+- [Job SQL #134419484676](https://github.com/rafhael100/imagine-sites/actions/runs/44190839583/job/134419484676).
+- [Job navegador #134419484163](https://github.com/rafhael100/imagine-sites/actions/runs/44190839583/job/134419484163).
+- Artifact `sites-private-laravel-demo-http`, id14376686334, ZIP SHA256 `0446fd16afe09999c2af153b143bc50ebc426003a0bd9907034a8cd8684895d2`. `result.json` confirma33 checks, `operational=false`, `installed_on_vps=false`. Retenção do artifact até24/11/2026.
+
+A primeira execução HTTP em a067c3d encontrou ParseError no fechamento adjacente de diretivas Blade. O erro foi reproduzido por render real, corrigido e coberto por três testes/21 assertions antes da execução verde. Nenhuma regra de autorização foi afrouxada para fazer o navegador passar.
+
+O workflow novo filtra caminhos de código; registros documentais não repetem os laboratórios SQL/HTTP. A fonte dos resultados é sempre a SHA funcional acima, não uma suposição baseada no último commit documental.
+
 ## Limites para homologação
 
 Os objetos da fixture HTTP ainda pertencem ao dono do laboratório; a fixture de papéis separa owner NOLOGIN/runtime. O guard recusa runtime associado aos owners, mas esta entrega não converte todos os proprietários nem aprova uma instalação operacional.
