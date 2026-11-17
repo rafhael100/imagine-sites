@@ -1,0 +1,142 @@
+# LOCAL REVIEW CANDIDATE ONLY. Not published or authorized to execute.
+# Base: #487 / 3bbc9dda632bd4405fe9cfc99249f55642a992ce.
+name: Sites preview recovery (exclusive draft laboratory)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, converted_to_draft]
+    branches: ['test/sites486-preview-role-contract']
+    paths:
+      - 'tests/preview-recovery*'
+      - 'tests/run-preview-recovery.sh'
+      - 'tests/fixtures/preview-recovery/**'
+      - '.github/workflows/sites-preview-recovery-lab.yml'
+permissions:
+  contents: read
+jobs:
+  preview-recovery:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.base.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'test/sites-preview-recovery-pg-lab-2026-11-17' &&
+      github.event.pull_request.base.ref == 'test/sites486-preview-role-contract' &&
+      github.event.pull_request.base.sha == '3bbc9dda632bd4405fe9cfc99249f55642a992ce'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql, mbstring, posix, dom, xml, xmlreader, xmlwriter, simplexml, fileinfo, curl, zip, intl
+          tools: composer:v2
+          coverage: none
+      - name: Extract authenticated official PG18 tooling without system installation
+        run: |
+          set -euo pipefail
+          . /etc/os-release
+          test "$ID" = ubuntu
+          test "$VERSION_CODENAME" = noble
+          test "$(dpkg --print-architecture)" = amd64
+          tooling=$(mktemp -d "$RUNNER_TEMP/sites487-recovery-pg18-XXXXXXXX")
+          mkdir -p "$tooling/lists/partial" "$tooling/cache/archives/partial" "$tooling/debs" "$tooling/root"
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc -o "$tooling/pgdg.asc"
+          fingerprint=$(gpg --batch --show-keys --with-colons "$tooling/pgdg.asc" | awk -F: '$1 == "fpr" {print $10; exit}')
+          test "$fingerprint" = B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8
+          test -r /usr/share/keyrings/ubuntu-archive-keyring.gpg
+          # All APT indexes/cache/config are local. Normal signature/hash checks remain enabled.
+          # No system APT hooks, package installation, maintainer scripts or global files.
+          cat > "$tooling/apt.conf" <<EOF
+          Dir::Etc::parts "-";
+          Dir::Etc::main "-";
+          Dir::Etc::sourcelist "$tooling/sources.list";
+          Dir::Etc::sourceparts "-";
+          Dir::State::lists "$tooling/lists";
+          Dir::Cache "$tooling/cache";
+          Dir::Log "$tooling";
+          EOF
+          cat > "$tooling/sources.list" <<EOF
+          deb [signed-by=$tooling/pgdg.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://archive.ubuntu.com/ubuntu noble main universe
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://archive.ubuntu.com/ubuntu noble-updates main universe
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://security.ubuntu.com/ubuntu noble-security main universe
+          EOF
+          export APT_CONFIG="$tooling/apt.conf"
+          apt-get --error-on=any update -qq >/dev/null 2>&1 || { echo 'Authenticated package index unavailable'; exit 1; }
+          cd "$tooling/debs"
+          # Other runtime libraries are supplied by the standard Noble runner and checked below.
+          apt-get download postgresql-18 postgresql-client-18 libpq5 liburing2 >/dev/null 2>&1 || { echo 'Authenticated package download failed'; exit 1; }
+          for package in ./*.deb; do
+            dpkg-deb --show "$package"
+            sha256sum "$package"
+            dpkg-deb --extract "$package" "$tooling/root"
+          done
+          pg_bin="$tooling/root/usr/lib/postgresql/18/bin"
+          runtime_lib="$tooling/root/usr/lib/x86_64-linux-gnu"
+          export LD_LIBRARY_PATH="$runtime_lib"
+          for binary in postgres initdb pg_ctl pg_controldata pg_dump pg_restore; do
+            ldd "$pg_bin/$binary" > "$tooling/$binary.ldd"
+            if grep -q 'not found' "$tooling/$binary.ldd"; then
+              echo 'Required local runtime library unavailable; stopping before cluster creation' >&2
+              exit 1
+            fi
+          done
+          "$pg_bin/initdb" --version | grep -E '^initdb \(PostgreSQL\) 18[.]'
+          "$pg_bin/postgres" --version | grep -E '^postgres \(PostgreSQL\) 18[.]'
+          echo "PG_BIN=$pg_bin" >> "$GITHUB_ENV"
+          echo "SITES_PG_RUNTIME_LIB=$runtime_lib" >> "$GITHUB_ENV"
+      - name: Explicit synthetic PHP configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          php_bin=$(readlink -e "$(command -v php)")
+          ext_dir=$(php-config --extension-dir)
+          test "$(readlink -e "$ext_dir")" = "$ext_dir"
+          ini="$RUNNER_TEMP/recovery-lab.ini"
+          printf 'extension_dir=%s\nmemory_limit=512M\n' "$ext_dir" > "$ini"
+          for extension in pdo pdo_pgsql mbstring dom xml xmlreader xmlwriter simplexml tokenizer ctype fileinfo curl zip intl phar posix iconv sodium openssl; do
+            if ! env -i PATH=/usr/bin:/bin PHP_INI_SCAN_DIR= "$php_bin" -n -r 'exit(extension_loaded($argv[1])?0:1);' "$extension"; then
+              test -f "$ext_dir/$extension.so"
+              printf 'extension=%s\n' "$extension" >> "$ini"
+            fi
+          done
+          echo "RECOVERY_PHP_BIN=$php_bin" >> "$GITHUB_ENV"
+          echo "RECOVERY_PHP_INI=$ini" >> "$GITHUB_ENV"
+          echo "RECOVERY_COMPOSER=$(readlink -e "$(command -v composer)")" >> "$GITHUB_ENV"
+      - name: Locked dependencies without plugins, scripts or external credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f apps/sites/composer.lock
+          composer_home=$(mktemp -d "$RUNNER_TEMP/recovery-composer-XXXXXXXX")
+          env -i PATH=/usr/bin:/bin HOME="$composer_home" COMPOSER_HOME="$composer_home" \
+            COMPOSER_CACHE_DIR="$composer_home/cache" PHP_INI_SCAN_DIR= \
+            "$RECOVERY_PHP_BIN" -c "$RECOVERY_PHP_INI" -d auto_prepend_file= -d auto_append_file= \
+            "$RECOVERY_COMPOSER" install --working-dir=apps/sites --no-interaction --no-progress \
+            --prefer-dist --no-scripts --no-plugins --no-dev > /dev/null 2>&1 || { echo 'Locked dependency installation failed'; exit 1; }
+      - name: Offline guards and PHP configuration before cluster creation
+        shell: bash
+        run: |
+          set -euo pipefail
+          env -i PATH=/usr/bin:/bin PHP_INI_SCAN_DIR= "$RECOVERY_PHP_BIN" -c "$RECOVERY_PHP_INI" tests/preview-recovery-offline.php
+          env -i PATH=/usr/bin:/bin PHP_BIN="$RECOVERY_PHP_BIN" PHP_INI="$RECOVERY_PHP_INI" \
+            PG_BIN="$PG_BIN" /bin/bash tests/preview-recovery-cli-offline.sh
+          bash -n tests/run-preview-recovery.sh
+      - name: Disposable namespace recovery with mandatory sanitized evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/recovery-sanitized.log"
+          env -i PATH=/usr/bin:/bin LC_ALL=C SITES_LOCAL_RECOVERY=1 \
+            PHP_BIN="$RECOVERY_PHP_BIN" PHP_INI="$RECOVERY_PHP_INI" PG_BIN="$PG_BIN" \
+            RECOVERY_LIBRARY_PATH="$SITES_PG_RUNTIME_LIB" \
+            /bin/bash --noprofile --norc tests/run-preview-recovery.sh | tee "$evidence"
+          for marker in 'PHP PREFLIGHT OK:' 'NEGATIVE PREFLIGHT OK:' 'PREFLIGHT OK:' 'MANIFEST OK:' 'ARCHIVE SHA256:' 'SCHEMA SHA256:' 'RECOVERY OK:' 'CLEANUP: failures=0;'; do
+            grep -Fq "$marker" "$evidence" || { echo 'Required sanitized evidence absent'; exit 1; }
+          done
+          # No artifact upload: never preserve dump, PGDATA, credentials or raw logs externally.
