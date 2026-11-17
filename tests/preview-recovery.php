@@ -174,9 +174,17 @@ if($db['destination']->query("SELECT to_regnamespace('sites_preview')")->fetchCo
 if($manifest($source)!==$before||$schema('source')!==$ddl||!hash_equals($archiveHash,hash_file('sha256',$archive)))throw new RuntimeException('Snapshot changed');
 // No --clean, --create, --no-owner, --no-acl or --disable-triggers. Preserve exact schema/ACL/owner.
 $command('pg_restore','destination',['--exit-on-error','--single-transaction',$archive]);
-$stage='readback fidelity';
-if($owners($db['destination'])!==$sourceOwners||$acls($db['destination'])!==$sourceAcls)throw new RuntimeException('Restored owner differs');
-if($manifest($db['destination'])!==$before||$schema('destination')!==$ddl||$manifest($source)!==$before)throw new RuntimeException('Restore fidelity mismatch');
+// Sanitized sub-stages distinguish failures without printing rows, DDL or PDO errors.
+$stage='readback destination owners';
+if($owners($db['destination'])!==$sourceOwners)throw new RuntimeException('Restored owner differs');
+$stage='readback destination ACL';
+if($acls($db['destination'])!==$sourceAcls)throw new RuntimeException('Restored ACL differs');
+$stage='readback destination data and sequence';
+if($manifest($db['destination'])!==$before)throw new RuntimeException('Restore fidelity mismatch');
+$stage='readback destination DDL';
+if($schema('destination')!==$ddl)throw new RuntimeException('Restore fidelity mismatch');
+$stage='readback source unchanged';
+if($manifest($source)!==$before)throw new RuntimeException('Restore fidelity mismatch');
 echo 'MANIFEST OK: '.json_encode($before,JSON_THROW_ON_ERROR)."\nARCHIVE SHA256: $archiveHash\nSCHEMA SHA256: ".hash('sha256',$ddl)."\n";
 $stage='restored isolation';
 foreach($companies as $tenant=>$company)foreach($profiles as $profile=>[$edit,$review]){
