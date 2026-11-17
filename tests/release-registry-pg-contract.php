@@ -86,7 +86,8 @@ $connection->transaction(static function():void {
     foreach (['2026_11_14_000001_create_sites_core_foundation',
         '2026_11_14_000002_add_tenant_bound_read_api',
         '2026_11_14_000003_add_editorial_revision_api',
-        '2026_11_17_000005_add_release_registry'] as $name) {
+        '2026_11_17_000005_add_release_registry',
+        '2026_11_17_000006_allow_editorial_reopen'] as $name) {
         (require __DIR__.'/../apps/sites/database/migrations/'.$name.'.php')->up();
     }
 });
@@ -298,10 +299,10 @@ $approvalSource=new class($approvalProof) implements PortalClientApprovalReceipt
     public function fetchCurrentReceipt(ReleaseManifest $manifest,int $revision):?array {return $this->proof;}
 };
 $witness=new class implements IndependentClientApprovalWitness {
-    public bool $current=true;public ?Closure $duringRead=null;
+    public bool $current=true;public int $expectedRevision=3;public ?Closure $duringRead=null;
     public function confirmsCurrent(ReleaseManifest $manifest,int $revision,string $reference,int $epoch):bool {
         if ($this->duringRead!==null) ($this->duringRead)();
-        return $this->current && $reference==='synthetic-registry-acceptance' && $epoch===4 && $revision===3;
+        return $this->current && $reference==='synthetic-registry-acceptance' && $epoch===4 && $revision===$this->expectedRevision;
     }
 };
 $commercial=new IndependentPortalCommercialGateway($proofSource,$settlement,$epoch,bin2hex(sodium_crypto_sign_publickey($keysCommercial)),$now);
@@ -381,6 +382,8 @@ $ok($outcomes===['BOUND 1','CONFLICT'],'exactly one current association won conc
 $s=$admin->prepare('SELECT count(*) FROM sites_core.release_binding_events WHERE site_id=?::uuid');$s->execute([$raceSite]);
 $ok((int)$s->fetchColumn()===1,'conflicting concurrent call appended no extra binding');
 
+require __DIR__.'/fixtures/release-registry/editorial-cycle.php';
+
 $ok((int)$admin->query('SELECT count(*) FROM sites_core.site_projects WHERE authority_verified OR publishable')->fetchColumn()===0,'no project authority or publication flag was enabled');
 $ok((int)$admin->query('SELECT count(*) FROM sites_core.editorial_revisions WHERE client_accepted OR publishable')->fetchColumn()===0,'internal review is never client acceptance');
 $ok((int)$admin->query('SELECT count(*) FROM sites_core.contract_refs WHERE external_payment_verified OR official_entitlement_verified')->fetchColumn()===0,'binding never marks payment or entitlement verified');
@@ -388,7 +391,11 @@ $ok((int)$admin->query('SELECT count(*) FROM sites_core.site_outbox')->fetchColu
 $ok($admin->query("SELECT to_regnamespace('sites_preview')")->fetchColumn()===null,'demonstration preview never used as commercial binding source');
 $beforeRollback=$snapshot();
 $registryMigration=require __DIR__.'/../apps/sites/database/migrations/2026_11_17_000005_add_release_registry.php';
-$reject(fn()=>$registryMigration->down(),'populated registry rollback refused');
+$rollbackRefused=false;
+try {$registryMigration->down();} catch (RuntimeException $error) {
+    $rollbackRefused=$error->getMessage()==='Preserve release registry history; recovery review required';
+}
+$ok($rollbackRefused,'populated registry rollback refused specifically to preserve history');
 $ok($snapshot()===$beforeRollback,'rollback refusal preserved all persisted history');
 echo "OK: $checks persistent release registry assertions; actual core/editorial/migration/PDO/evidence path, synthetic CI only\n";
 echo "BLOCKED: no operational grants, client acceptance, payment, publisher, VPS or deployment.\n";

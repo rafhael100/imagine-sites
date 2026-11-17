@@ -62,3 +62,15 @@ Os testes locais que não dependem de banco incluem renderização real Blade, n
 ## Limites que permanecem operacionais
 
 Permanecem necessários o vínculo Portal real de pedido/contrato, liquidação independente do PSP, custódia S2S e IAM, aceite explícito autenticado do cliente, cópia externa de backup com restauração comprovada e procedimento de instalação/publicação com rollback. Os flags de autoridade, pagamento, aceite e publicação em `sites_core` continuam falsos; o outbox permanece bloqueado. VPS, porta 18090, serviços, volumes, DNS e Cloudflare não são alterados por esta entrega.
+
+## Continuidade: nova rodada editorial após aprovação interna
+
+A primeira implementação deixou visível outra lacuna funcional: a máquina editorial existente não permitia sair de `awaiting_portal_acceptance` para editar novamente. A migration aditiva 000006 acrescenta `reopen`, exclusiva do revisor interno, exigindo a revisão e o digest correntes. A operação preserva a aprovação anterior como histórico e cria um novo `draft`. O editor pode então revisar os bytes, reenviar e obter nova revisão independente.
+
+O writer Laravel valida a ação, os limites de revisão e a resposta exata esperada. A migration compara a função anterior e posterior por digest, preserva OID, proprietário e ACL, e não cria grants. O mesmo lock por projeto serializa transições editoriais e vínculos de release. A retirada da capacidade restaura a função anterior sem apagar revisões.
+
+O ensaio integrado usa esse writer real: recusa reabertura por editor, digest incorreto, revisão antiga e empresa alheia; reabre a revisão 3 como draft4, altera o conteúdo em 5, submete em 6 e aprova internamente em 7. A associação antiga deixa de ser atual assim que existe o novo draft. A nova revisão precisa de artefato e vínculo próprios; o recibo de aceite da versão anterior não passa pelo verificador da nova versão. O controle positivo usa nova prova explicitamente sintética, sem criar aceite real.
+
+Primeiro código, antes dessa continuação: `88cd4cc452c3be44162fa47c4e0a09c6af5969f9`, PR #490. O job SQL `134444068491` do run `44197904708` concluiu com 250 verificações do contrato de prévias, 168 verificações do registro persistente, 26 casos offline de manifesto e PHPUnit 66 testes/199 assertions/27 skips explícitos. Esses resultados pertencem a esse SHA; a continuação recebe nova execução de CI e sua evidência fica registrada na PR.
+
+O job HTTP `134444068998` do mesmo run também concluiu com sucesso: 24 verificações do provisionador e 55 da jornada no navegador. Artefato `14379697800`, `sites-release-readiness-preview-http`, SHA-256 `603d984302745dfcaed402f8cef25d65837f0ee4c8495079f18d7563c1832e0e`, contém somente dados sintéticos. Os dois jobs legados F383 (PHP8.3/8.4) inicialmente recusaram as três novas tabelas por ainda esperarem o inventário anterior; a continuidade atualiza o inventário exato e as políticas conhecidas, mantendo aplicação de todas as migrations e rollback no CI.

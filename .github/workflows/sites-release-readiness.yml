@@ -14,6 +14,7 @@ on:
       - 'tests/release-registry-pg-contract.php'
       - 'tests/run-release-registry-contract.sh'
       - 'tests/private-preview-provisioning-offline.php'
+      - 'tests/fixtures/release-registry/**'
       - 'tests/fixtures/preview-http/**'
 permissions:
   contents: read

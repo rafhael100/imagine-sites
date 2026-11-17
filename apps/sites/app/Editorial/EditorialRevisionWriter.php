@@ -38,10 +38,10 @@ final readonly class EditorialRevisionWriter
             !preg_match('/\A[a-f0-9]{64}\z/D',$sha256) ||
             !in_array(
                 $action,
-                ['register','revise','submit','rework','approve_internal'],
+                ['register','revise','submit','rework','approve_internal','reopen'],
                 true
             ) ||
-            $expectedRevision<0) {
+            $expectedRevision<0 || $expectedRevision>=2147483647) {
             throw new DomainException('Sites editorial operation unavailable.');
         }
 
@@ -56,14 +56,16 @@ final readonly class EditorialRevisionWriter
             // future Laravel HTTP error.
             throw new DomainException('Sites editorial operation unavailable.');
         }
+        $expectedState=match($action) {
+            'submit'=>'internal_review',
+            'approve_internal'=>'awaiting_portal_acceptance',
+            default=>'draft',
+        };
         if (!is_object($result) ||
-            !is_numeric($result->next_revision ?? null) ||
-            (int)$result->next_revision<1 ||
-            !in_array(
-                $result->next_state ?? null,
-                ['draft','internal_review','awaiting_portal_acceptance'],
-                true
-            ) ||
+            (!is_int($result->next_revision ?? null) && !is_string($result->next_revision ?? null)) ||
+            (string)(int)$result->next_revision!==(string)$result->next_revision ||
+            (int)$result->next_revision!==$expectedRevision+1 ||
+            ($result->next_state ?? null)!==$expectedState ||
             ($result->accepted_digest ?? null)!==$sha256) {
             throw new DomainException('Sites editorial response invalid.');
         }

@@ -17,6 +17,10 @@ const {chromium}=require('playwright');const fs=require('fs'),cp=require('child_
  const historyUrl=base+'/_preview/projects/'+historyId;
  const firstQueue=await p.locator('[data-project]').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('data-project')));
  ok(firstQueue.length===50,'queue shows one bounded page from56 synthetic projects');
+ await p.setViewportSize({width:1440,height:1000});await p.screenshot({path:dir+'/queue-desktop.png'});
+ await p.setViewportSize({width:390,height:844});await p.screenshot({path:dir+'/queue-mobile.png'});
+ ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'paginated queue fits mobile viewport');
+ await p.setViewportSize({width:1280,height:720});
  ok(await p.getByText('Histórico sintético versão 60',{exact:true}).isVisible(),'queue identifies project by current brief headline');
  await p.getByRole('link',{name:'Próximos projetos'}).click();
  const secondQueueUrl=p.url();

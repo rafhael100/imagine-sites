@@ -6,6 +6,8 @@ Base de desenvolvimento: PR #489 em `cac9084b4fbb0b2a5cf50ac843e89010fb9a019c`; 
 
 O workflow restrito executa contratos SQL e jornada HTTP descartáveis sobre o HEAD da branch. SHAs, resultados efetivamente executados e artefatos ficam na descrição da PR; este registro de implementação não equivale a evidência operacional. Detalhes e limites: `docs/reviews/SITES-RELEASE-READINESS-2026-11-17.md`.
 
+PR #490 aberta em `88cd4cc452c3be44162fa47c4e0a09c6af5969f9`: primeira execução SQL aprovada no run `44197904708`, com 250 verificações de prévias e 168 do registro persistente. Em continuidade, migration000006 e writer Laravel permitem reabrir revisão aprovada internamente, criar novo draft e exigir nova revisão/associação/aceite da versão exata; não há reutilização automática da aprovação anterior. O ciclo novo é exercitado pelo mesmo ensaio real de banco e pelos verificadores existentes.
+
 Nenhuma demonstração é promovida a pedido real. Registro técnico, liquidação e aceite continuam fontes independentes. Os dez gates operacionais permanecem BLOCKED, sem merge, deploy, alteração de VPS/18090 ou ativação de publisher.
 
 ## 17/11/2026 — PR #489 DRAFT: fila editorial e correções validadas no CI
