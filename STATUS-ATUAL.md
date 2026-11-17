@@ -127,3 +127,11 @@ Evidência da PR482: SHAfuncional e4647169948448db90fdb11a4118c71dd20dfb99,13 ch
 Base `a4db62ac07566fb6b0bd9a27988c2ad4c0622c56`. Novo teste/runner apenas; migration e workflows intactos. Owner NOLOGIN/NOBYPASSRLS e autor/revisor/leitor em duas empresas especificados. Sintaxe e 32 checks de domínio passaram; **SQL novo não executado** por restrição conhecida do executor local. Nenhuma prova de backup/aceite operacional. [Relatório e próxima execução](docs/reviews/SITES486-ROLE-CONTRACT-LAB-2026-11-16.md).
 
 Aprovação posterior verificada: workflow novo `sites-preview-role-contract.yml`, restrito à branch complementar em draft, preparado com extração PG18 autenticada do #485. Sintaxe validada; teste SQL permanece pendente de CI desta branch.
+
+## Candidato local: recuperação do workspace após #487 (17/11/2026)
+
+Base `3bbc9dda632bd4405fe9cfc99249f55642a992ce`. Ensaio separado de dump/restore do namespace `sites_preview`, somente fixtures sintéticas, com dois clusters e guard Laravel/SQL. Novos testes/documentação; nenhuma migration/workflow/produção alterada. 17 comparações offline e sintaxe passaram; PostgreSQL não iniciado por restrição local anterior, execução SQL/restore pendente. Reutilizados, sem repetição, 109 SQL e 32 domínio do #487. Detalhes e comandos em `docs/SITES-PREVIEW-RECOVERY-LAB.md`. Não publicado; NO-GO operacional.
+
+Revisão local fail-closed: 44 casos offline passaram (inclui falhas inesperadas não aceitas, destinos runtime divergentes, DDL/ACL e paths privados). Laravel isolado sem dotenv/cache, reconexão proibida, PDO/owner pinados, builds/ferramentas e cleanup reforçados. Sem SQL/startup/publicação; restore NÃO comprovado.
+
+Revisão local de entrada interna: --clean valida exports e PHP/INI/extensões antes de qualquer cluster. Oito casos CLI e 44 guards offline passaram. Único workflow novo `sites-preview-recovery-lab.yml` preparado SOMENTE LOCALMENTE para revisão, restrito a draft da branch proposta `test/sites-preview-recovery-pg-lab-2026-11-17` sobre #487 SHA3bbc9dd. Não publicado, não executado e sem autorização implícita de execução; workflows preexistentes preservados.
