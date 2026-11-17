@@ -82,7 +82,7 @@ foreach($connections as $tenant=>$roles)foreach($roles as $profile=>$db) {
     $ok($db->query("SELECT has_function_privilege(current_user,'sites_preview.review_version(uuid,uuid,integer,text,text)','EXECUTE')")->fetchColumn()===($profile==='reviewer'),'review entry point only reviewer');
     $ok($db->query("SELECT NOT has_sequence_privilege(current_user,'sites_preview.audit_id_seq','USAGE,SELECT,UPDATE')")->fetchColumn()===true,'audit sequence unavailable directly');
     $ok($db->query("SELECT has_function_privilege(current_user,'sites_preview.can_access(uuid,text)','EXECUTE') AND NOT has_function_privilege(current_user,'sites_preview.record_change()','EXECUTE')")->fetchColumn()===true,'only scoped access check exposed directly');
-    $s=$db->prepare("SELECT sites_preview.can_access(?::uuid,'read') AS r,sites_preview.can_access(?::uuid,'edit') AS e,sites_preview.can_access(?::uuid,'review') AS v");$s->execute([$companies[$tenant]]);$caps=$s->fetch(PDO::FETCH_ASSOC);
+    $s=$db->prepare("SELECT sites_preview.can_access(?::uuid,'read') AS r,sites_preview.can_access(?::uuid,'edit') AS e,sites_preview.can_access(?::uuid,'review') AS v");$s->execute([$companies[$tenant],$companies[$tenant],$companies[$tenant]]);$caps=$s->fetch(PDO::FETCH_ASSOC);
     $ok($caps===['r'=>true,'e'=>$profile==='author','v'=>$profile==='reviewer'],'segregated principal capabilities');
 }
 $projects=['a'=>'11111111-1111-4111-8111-111111111111','b'=>'22222222-2222-4222-8222-222222222222'];
