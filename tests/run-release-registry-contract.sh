@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+set -euo pipefail
+# Own disposable CI cluster only. Never attach to an existing service or target.
+test "${GITHUB_ACTIONS:-}" = true
+test "${SITES_RELEASE_REGISTRY_CI:-}" = 1
+: "${PG_BIN:?Existing authenticated PostgreSQL18 tooling required}"
+: "${PHP_BIN:?PHP with the locked application dependencies required}"
+repo=$(cd "$(dirname "$0")/.." && pwd)
+"$PG_BIN/postgres" --version | grep -E '^postgres \(PostgreSQL\) 18[.]'
+umask 077
+lab=$(mktemp -d /tmp/sites-release-registry-XXXXXXXX)
+export RELEASE_REGISTRY_PGDATA="$lab/data" RELEASE_REGISTRY_PASSWORD_FILE="$lab/password"
+export RELEASE_REGISTRY_LAB_DIR="$lab" RELEASE_REGISTRY_CA_FILE="$lab/tls/ca.pem"
+export RELEASE_REGISTRY_LOGIN="$(id -un)" APP_ENV=testing SITES_RELEASE_PACKAGE_CI=1
+unset DB_URL DB_PASSWORD SITES_DB_PASSWORD_FILE
+command -v openssl > /dev/null
+mkdir -m 0700 "$lab/tls"
+# One-run CA and peer certificate: both existing 127.0.0.1 connections and the
+# real package CLI's localhost hostname are verified, never sslmode=disable.
+openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj '/CN=Sites Registry Disposable CA' \
+  -addext 'basicConstraints=critical,CA:TRUE' -addext 'keyUsage=critical,keyCertSign,cRLSign' \
+  -keyout "$lab/tls/ca.key" -out "$lab/tls/ca.pem" > /dev/null 2>&1
+openssl req -new -newkey rsa:2048 -nodes -subj '/CN=localhost' \
+  -keyout "$lab/tls/server.key" -out "$lab/tls/server.csr" > /dev/null 2>&1
+cat > "$lab/tls/server.ext" <<'CERTIFICATE'
+subjectAltName=DNS:localhost,IP:127.0.0.1
+extendedKeyUsage=serverAuth
+basicConstraints=critical,CA:FALSE
+keyUsage=critical,digitalSignature,keyEncipherment
+CERTIFICATE
+openssl x509 -req -days 1 -in "$lab/tls/server.csr" -CA "$lab/tls/ca.pem" \
+  -CAkey "$lab/tls/ca.key" -CAcreateserial -extfile "$lab/tls/server.ext" \
+  -out "$lab/tls/server.pem" > /dev/null 2>&1
+openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj '/CN=Wrong Disposable CA' \
+  -keyout "$lab/tls/wrong-ca.key" -out "$lab/tls/wrong-ca.pem" > /dev/null 2>&1
+chmod 0600 "$lab/tls/"*.key
+"$PHP_BIN" -r 'file_put_contents(getenv("RELEASE_REGISTRY_PASSWORD_FILE"),bin2hex(random_bytes(32)));'
+"$PG_BIN/initdb" -D "$lab/data" --pwfile="$lab/password" --auth-host=scram-sha-256 --auth-local=reject --no-locale -E UTF8 > "$lab/initdb.log"
+export RELEASE_REGISTRY_CLUSTER
+RELEASE_REGISTRY_CLUSTER=$(LC_ALL=C "$PG_BIN/pg_controldata" "$lab/data" | awk '/Database system identifier:/ {print $NF}')
+[[ "$RELEASE_REGISTRY_CLUSTER" =~ ^[0-9]+$ ]]
+cleanup() {
+  local result=$?
+  trap - EXIT
+  local failed=0
+  if "$PG_BIN/pg_ctl" -D "$lab/data" status > /dev/null 2>&1; then
+    "$PG_BIN/pg_ctl" -D "$lab/data" -m fast -w stop > "$lab/stop.log" 2>&1 || failed=1
+  fi
+  if [[ -f "$lab/cli-paths.json" ]]; then
+    sudo -n env GITHUB_ACTIONS=true SITES_RELEASE_PACKAGE_CI=1 python3 \
+      "$repo/tests/fixtures/release-registry/cli-paths.py" cleanup "$lab" "$(id -u)" "$(id -g)" || failed=1
+  fi
+  if [[ "$failed" != 0 ]]; then echo 'Registry fixture cleanup failed; owned state retained' >&2; exit 1; fi
+  echo "Own disposable release registry cluster inactive; logs: $lab"
+  exit "$result"
+}
+trap cleanup EXIT
+"$PG_BIN/pg_ctl" -D "$lab/data" -l "$lab/postgres.log" \
+  -o "-p 55449 -c listen_addresses=127.0.0.1 -c unix_socket_directories='' -c ssl=on -c ssl_cert_file=$lab/tls/server.pem -c ssl_key_file=$lab/tls/server.key" -w start
+if RELEASE_REGISTRY_CA_FILE="$lab/tls/wrong-ca.pem" "$PHP_BIN" "$repo/tests/release-registry-pg-contract.php" > "$lab/denied-ca.log" 2>&1; then
+  echo 'Untrusted registry CA accepted' >&2; exit 1
+fi
+if ! grep -q '^RELEASE_REGISTRY_FAILED PDOException:' "$lab/denied-ca.log" || ! grep -q 'certificate verify failed' "$lab/denied-ca.log"; then
+  echo 'TLS negative test did not reach certificate verification; private diagnostic withheld' >&2; exit 1
+fi
+echo 'REGISTRY TLS NEGATIVE OK: untrusted CA refused before SQL writes'
+wrong_cluster=1
+if [[ "$RELEASE_REGISTRY_CLUSTER" == "$wrong_cluster" ]]; then wrong_cluster=2; fi
+if RELEASE_REGISTRY_CLUSTER="$wrong_cluster" "$PHP_BIN" "$repo/tests/release-registry-pg-contract.php" > "$lab/denied.log" 2>&1; then
+  echo 'Wrong registry cluster accepted' >&2; exit 1
+fi
+grep -qx 'RELEASE_REGISTRY_FAILED RuntimeException: Disposable SQL identity mismatch' "$lab/denied.log"
+RELEASE_REGISTRY_PREFLIGHT_ONLY=1 "$PHP_BIN" "$repo/tests/release-registry-pg-contract.php" | tee "$lab/preflight.log"
+grep -q '^REGISTRY PREFLIGHT OK:' "$lab/preflight.log"
+sudo -n env GITHUB_ACTIONS=true SITES_RELEASE_PACKAGE_CI=1 python3 \
+  "$repo/tests/fixtures/release-registry/cli-paths.py" prepare "$lab" "$(id -u)" "$(id -g)"
+sudo -n env GITHUB_ACTIONS=true SITES_RELEASE_PACKAGE_CI=1 python3 \
+  "$repo/tests/fixtures/release-registry/cli-paths.py" verify-mismatch "$lab" "$(id -u)" "$(id -g)"
+"$PHP_BIN" "$repo/tests/release-registry-pg-contract.php" | tee "$lab/contract.log"
+grep -q '^OK: [1-9][0-9]* persistent release registry assertions;' "$lab/contract.log"
+grep -q '^TECHNICAL PACKAGE CI PASS: [1-9][0-9]* assertions;' "$lab/contract.log"
+grep -q '^TECHNICAL PACKAGE CLI PASS: [1-9][0-9]* assertions;' "$lab/contract.log"

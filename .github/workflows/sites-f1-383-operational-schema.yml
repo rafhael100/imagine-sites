@@ -108,7 +108,10 @@ jobs:
           php tests/f384-tenant-safe-operational-reader.php
       - name: F1-384 validate Laravel status reader with real restricted PG18 roles
         working-directory: apps/sites
-        run: php artisan test --filter=TenantSiteStatusReaderTest --no-ansi
+        # The default offline phpunit.xml deliberately forces a disconnected DB.
+        # This explicit CI fixture must retain the guarded job DB environment;
+        # a skipped/warning test is not evidence of the restricted SQL adapter.
+        run: php vendor/bin/phpunit --no-configuration --bootstrap vendor/autoload.php --do-not-cache-result --fail-on-skipped --fail-on-warning tests/Feature/TenantSiteStatusReaderTest.php
       - name: F1-385 verify SQL editor/reviewer duties and durable revision CAS
         run: |
           set -euo pipefail
@@ -119,7 +122,7 @@ jobs:
           php tests/f385-operational-editorial-revisions.php
       - name: F1-385 run Laravel editorial writer integration against PG18
         working-directory: apps/sites
-        run: php artisan test --filter=EditorialRevisionWriterTest --no-ansi
+        run: php vendor/bin/phpunit --no-configuration --bootstrap vendor/autoload.php --do-not-cache-result --fail-on-skipped --fail-on-warning tests/Feature/EditorialRevisionWriterTest.php
       - name: Prove Laravel migration rollback on isolated empty database
         working-directory: apps/sites
         run: |

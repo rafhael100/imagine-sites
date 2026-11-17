@@ -1,5 +1,19 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 17/11/2026 — continuidade: registro persistente, provisionador e navegação editorial
+
+Base de desenvolvimento: PR #489 em `cac9084b4fbb0b2a5cf50ac843e89010fb9a019c`; branch DRAFT `feature/sites-release-readiness-2026-11-17`. O candidato acrescenta registro Sites de artefato/pedido/contrato/revisão, leitor PDO independente para o verificador de evidências existente, provisionamento `plan/apply/check` das prévias com owner NOLOGIN e ledger Laravel, fila paginada por formato/parecer e histórico paginado que mantém o briefing atual e não oferece revisões duplicadas.
+
+O workflow restrito executa contratos SQL e jornada HTTP descartáveis sobre o HEAD da branch. SHAs, resultados efetivamente executados e artefatos ficam na descrição da PR; este registro de implementação não equivale a evidência operacional. Detalhes e limites: `docs/reviews/SITES-RELEASE-READINESS-2026-11-17.md`.
+
+PR #490 aberta em `88cd4cc452c3be44162fa47c4e0a09c6af5969f9`: primeira execução SQL aprovada no run `44197904708`, com 250 verificações de prévias e 168 do registro persistente. Em continuidade, migration000006 e writer Laravel permitem reabrir revisão aprovada internamente, criar novo draft e exigir nova revisão/associação/aceite da versão exata; não há reutilização automática da aprovação anterior. O ciclo novo é exercitado pelo mesmo ensaio real de banco e pelos verificadores existentes.
+
+A segunda entrega, `36f10cfc22bd7c10ab82839c53726481104704e4`, passou nos 16 check-runs, incluindo 191 verificações de registro/ciclo editorial e 56 de navegador no run `44199094329`. A próxima peça acrescentada é a preparação privada do pacote técnico: HTML intacto, manifesto da associação corrente e relatório de verificações, sempre sem autorização de publicação/aceite. O CLI usa leitor SQL restrito e TLS verify-full. A correção dos testes dedicados Laravel em `bb75ece9834b521cc1494b46e132a7755223d20f` exige execução sem skips: o run `44200772489` passou em PHP8.3/8.4; em PHP8.4, o leitor executou 3 testes/12 asserções e o escritor 2 testes/12 asserções.
+
+A preparação privada foi confirmada em `5afa3b653061dfcaac176b2204801cd5a619850a`, com os 16 check-runs aprovados. [Run 44201915769](https://github.com/rafhael100/imagine-sites/actions/runs/44201915769): 270 verificações de registry/ciclo/pacote, incluindo 36 da CLI real com TLS; 250 do workspace; 56 de navegador. Artifact `14381821977`, SHA-256 `0d6caf73d43b1e09e73657c6f389b3714e110553c71be1deade99acb9edb9a29`; filtros desktop/mobile revisados. A continuação acrescenta comparação de duas versões no painel editorial e operação `verify` para detectar adulteração ou obsolescência de pacote exportado, sem sobrescrever arquivos. A evidência desses dois recursos será registrada separadamente na PR após sua rodada de CI.
+
+Nenhuma demonstração é promovida a pedido real. Registro técnico, liquidação e aceite continuam fontes independentes. Os dez gates operacionais permanecem BLOCKED, sem merge, deploy, alteração de VPS/18090 ou ativação de publisher.
+
 ## 17/11/2026 — PR #489 DRAFT: fila editorial e correções validadas no CI
 
 Base de continuidade: PR #488, `ef1a8ba888c8862108b9329e0301764dbcbe8ddb`. Recuperação já comprovada nessa PR não foi duplicada. Branch `feature/sites-preview-validation-2026-11-17` acrescenta fila da versão corrente por empresa/digest, tratamento de briefing inválido sem perda de campos, conflito HTTP409, produto imutável e ações de tela conforme perfil. O guard de runtime passa a recusar deriva de privilégios, inclusive grants por coluna, PUBLIC/herança, TRUNCATE/TRIGGER, CREATE e escrita direta em revisão/auditoria.

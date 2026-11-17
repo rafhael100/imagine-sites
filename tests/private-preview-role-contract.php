@@ -9,7 +9,7 @@ set_exception_handler(static function(Throwable $e):void {
     fwrite(STDERR,'ROLE_CONTRACT_FAILED '.get_class($e).': '.$e->getMessage()."\n");exit(1);
 });
 use Illuminate\Support\Facades\DB;
-use Imagine\Sites\Production\{PrivatePreviewOverview,PrivatePreviewWorkspace,SiteBrief};
+use Imagine\Sites\Production\{PrivatePreviewComparison,PrivatePreviewOverview,PrivatePreviewWorkspace,SiteBrief};
 $dir=getenv('ROLE_CONTRACT_PGDATA');$cluster=getenv('ROLE_CONTRACT_CLUSTER');
 $login=getenv('ROLE_CONTRACT_LOGIN');$passwordFile=getenv('ROLE_CONTRACT_PASSWORD_FILE');
 if(!$dir||!$cluster||!$login||!$passwordFile||!is_dir($dir)||
@@ -266,4 +266,143 @@ foreach(['revoked_at=now()'=>'revoked','expires_at=now()-interval \'1 minute\''=
     finally{$admin->exec("UPDATE sites_preview.principals SET revoked_at=NULL,expires_at=now()+interval '1 hour' WHERE database_login='lab486_a_reader'");}
 }
 echo "OVERVIEW OK: 8 tenant/current-revision/digest/editorial/readonly/revocation assertions; synthetic data only.\n";
+
+// Product comparison uses the existing persisted versions and SQL principals.
+// It never creates another authority, approval or an alternative HTML source.
+$comparisonChecksBefore=$count;
+$comparisonRefused=function(callable $operation,string $class,string $label)use($ok):void {
+    try{$operation();}catch(Throwable $error){
+        $expected=$class===InvalidArgumentException::class
+            ?'Invalid private preview comparison':'Private preview comparison unavailable';
+        $ok(get_class($error)===$class&&$error->getMessage()===$expected,$label.' exact sanitized refusal');return;
+    }
+    $ok(false,'comparison unexpectedly accepted: '.$label);
+};
+$comparisons=[];
+foreach($companies as $tenant=>$company) {
+    $results=[];
+    foreach($profiles as $profile=>$_) {
+        $comparisons[$tenant][$profile]=new PrivatePreviewComparison($connections[$tenant][$profile]);
+        $results[$profile]=$comparisons[$tenant][$profile]->compare($company,$projects[$tenant],1,2);
+    }
+    $ok($results['reader']===$results['author']&&$results['reader']===$results['reviewer'],
+        'all existing own-company profiles read the same immutable comparison: '.$tenant);
+    $ok($results['reader']['from']['revision']===1&&$results['reader']['to']['revision']===2&&
+        $results['reader']['changed_fields']===['headline','description']&&
+        $results['reader']['from']['brief']['productCode']===($tenant==='a'?'onepage':'landing_page'),
+        'comparison selects exact revisions and fields for both product formats: '.$tenant);
+}
+$comparisonProject='33333333-3333-4333-8333-333333333333';
+$comparisonBriefOne=new SiteBrief('onepage','Marca fictícia','Primeira versão','Descrição original.',
+    'Conheça o exemplo',['Primeiro benefício','Segundo benefício']);
+$comparisonBriefTwo=new SiteBrief('onepage','Marca fictícia','Revisão "nova" <em>texto</em> 😀',
+    "Descrição revisada com ação e atenção.\nSegunda linha.",'Confira os detalhes',
+    ['Segundo benefício','Primeiro benefício']);
+$comparisonBriefFour=new SiteBrief('onepage','Marca atual','Versão corrente','A edição permanece na head.',
+    'Confira a versão atual',['Benefício atual']);
+$workspaces['a']['author']->createDemonstration($comparisonProject,$companies['a'],$comparisonBriefOne);
+$comparisonVersionTwo=$workspaces['a']['author']->revise($comparisonProject,$companies['a'],1,$comparisonBriefTwo);
+$workspaces['a']['author']->revise($comparisonProject,$companies['a'],2,$comparisonBriefTwo);
+$workspaces['a']['author']->revise($comparisonProject,$companies['a'],3,$comparisonBriefFour);
+$comparisonState=fn()=>[$historyDigest(),$admin->query(
+    "SELECT md5(string_agg(row_to_json(p)::text,'' ORDER BY id)) FROM sites_preview.projects p"
+)->fetchColumn()];
+$comparisonBefore=$comparisonState();
+$historical=$comparisons['a']['reader']->compare($companies['a'],$comparisonProject,1,2);
+$ok(array_keys($historical)===['from','to','changed_fields']&&
+    array_keys($historical['from'])===['revision','sha256','created_at','brief']&&
+    array_keys($historical['to'])===['revision','sha256','created_at','brief'],
+    'comparison returns only version metadata and structured text, never stored HTML or approval flags');
+$ok($historical['from']['brief']===get_object_vars($comparisonBriefOne)&&
+    $historical['to']['brief']===get_object_vars($comparisonBriefTwo)&&
+    $historical['changed_fields']===['headline','description','callToAction','benefits'],
+    'historical comparison preserves Unicode, literal markup and ordered benefits in canonical field order');
+$ok($historical['to']['sha256']===$comparisonVersionTwo['sha256']&&
+    $historical['to']['sha256']===$workspaces['a']['reader']->view($comparisonProject,$companies['a'],2)['sha256']&&
+    $historical['from']['created_at']!==''&&$historical['to']['created_at']!=='',
+    'comparison retains the hashes of full stored bytes including the demonstration marker');
+$sameText=$comparisons['a']['reader']->compare($companies['a'],$comparisonProject,2,3);
+$ok($sameText['changed_fields']===[]&&$sameText['from']['revision']===2&&$sameText['to']['revision']===3,
+    'distinct revisions with identical text remain distinct and have no invented changes');
+$currentComparison=$comparisons['a']['reader']->compare($companies['a'],$comparisonProject,1,4);
+$ok($currentComparison['to']['brief']===get_object_vars($comparisonBriefFour)&&
+    $comparisons['a']['reader']->compare($companies['a'],$comparisonProject,1,2)===$historical,
+    'current head does not replace either selected historical version');
+$readOnlyBefore=$connections['a']['reader']->query('SHOW default_transaction_read_only')->fetchColumn();
+$connections['a']['reader']->exec('SET default_transaction_read_only=on');
+try {
+    $ok($connections['a']['reader']->query('SHOW transaction_read_only')->fetchColumn()==='on'&&
+        $comparisons['a']['reader']->compare($companies['a'],$comparisonProject,1,2)===$historical,
+        'comparison works through an actual read-only PostgreSQL session');
+} finally {
+    $connections['a']['reader']->exec($readOnlyBefore==='on'
+        ?'SET default_transaction_read_only=on':'SET default_transaction_read_only=off');
+}
+foreach([[0,2],[2,2],[3,2],[1,2147483648]] as [$from,$to]) {
+    $comparisonRefused(fn()=>$comparisons['a']['reader']->compare($companies['a'],$comparisonProject,$from,$to),
+        InvalidArgumentException::class,'invalid revision range');
+}
+$comparisonRefused(fn()=>$comparisons['a']['reader']->compare('invalid',$comparisonProject,1,2),
+    InvalidArgumentException::class,'invalid company selector');
+$comparisonRefused(fn()=>$comparisons['a']['reader']->compare($companies['a'],'../project',1,2),
+    InvalidArgumentException::class,'invalid project selector');
+$comparisonRefused(fn()=>$comparisons['a']['reader']->compare($companies['a'],$comparisonProject,1,99),
+    OutOfBoundsException::class,'one requested version does not exist');
+$comparisonRefused(fn()=>$comparisons['a']['reader']->compare($companies['a'],$projects['b'],1,2),
+    OutOfBoundsException::class,'another company project is not visible inside the authorized scope');
+$comparisonRefused(fn()=>$comparisons['a']['reader']->compare($companies['b'],$projects['b'],1,2),
+    RuntimeException::class,'company scope is never supplied as authority');
+$connections['a']['reader']->beginTransaction();
+try {
+    $comparisonRefused(fn()=>$comparisons['a']['reader']->compare($companies['a'],$comparisonProject,1,2),
+        RuntimeException::class,'caller-owned transaction is refused');
+} finally {$connections['a']['reader']->rollBack();}
+foreach(['revoked_at=now()'=>'revoked','expires_at=now()-interval \'1 minute\''=>'expired'] as $mutation=>$label) {
+    $admin->exec("UPDATE sites_preview.principals SET $mutation WHERE database_login='lab486_a_reader'");
+    try {
+        $comparisonRefused(fn()=>$comparisons['a']['reader']->compare($companies['a'],$comparisonProject,1,2),
+            RuntimeException::class,'comparison denies '.$label.' principal on the existing connection');
+    } finally {
+        $admin->exec("UPDATE sites_preview.principals SET revoked_at=NULL,expires_at=now()+interval '1 hour' WHERE database_login='lab486_a_reader'");
+    }
+}
+$admin->exec('GRANT UPDATE ON sites_preview.versions TO lab486_a_reader');
+try {
+    $comparisonRefused(fn()=>$comparisons['a']['reader']->compare($companies['a'],$comparisonProject,1,2),
+        RuntimeException::class,'comparison refuses excessive runtime privileges');
+} finally {$admin->exec('REVOKE UPDATE ON sites_preview.versions FROM lab486_a_reader');}
+$ok($comparisons['a']['reader']->compare($companies['a'],$comparisonProject,1,2)===$historical,
+    'legitimate access resumes with the same immutable content after fixture grant restoration');
+$ok($comparisonState()===$comparisonBefore,'successful and denied comparisons leave projects, versions, reviews and audit unchanged');
+
+// A valid DB digest alone does not establish that HTML or structured metadata
+// obey the private preview dialect. Insert adversarial rows with the existing
+// author capability; no constraints, triggers or permissions are weakened.
+$comparisonHtml=$workspaces['a']['reader']->view($comparisonProject,$companies['a'],1)['html'];
+$comparisonGoodBrief=get_object_vars($comparisonBriefOne);
+$comparisonBadBrief=$comparisonGoodBrief;$comparisonBadBrief['productCode']='landing_page';
+$comparisonObjectBenefits=$comparisonGoodBrief;$comparisonObjectBenefits['benefits']=['label'=>'Not a list'];
+$comparisonBadRows=[
+    [$comparisonGoodBrief,str_replace('</html>','<script>alert(1)</script></html>',$comparisonHtml)],
+    [$comparisonGoodBrief,preg_replace('~(<aside role="note"[^>]*>.*?</aside>)~s','$1$1',$comparisonHtml,1)],
+    [$comparisonGoodBrief,preg_replace('~<aside role="note"[^>]*>.*?</aside>~s','',$comparisonHtml,1)],
+    [$comparisonGoodBrief,str_replace('<body data-site-product="onepage">','<body data-site-product="landing-page">',$comparisonHtml)],
+    [$comparisonBadBrief,$comparisonHtml],
+    [$comparisonObjectBenefits,$comparisonHtml],
+];
+$insertComparison=$connections['a']['author']->prepare(
+    'INSERT INTO sites_preview.versions(project_id,company_id,revision,brief,html,sha256) VALUES(?::uuid,?::uuid,?,?::jsonb,?,?)'
+);
+foreach($comparisonBadRows as $index=>[$badBrief,$badHtml]) {
+    if(!is_string($badHtml))throw new RuntimeException('Invalid adversarial fixture');
+    $badRevision=5+$index;
+    $insertComparison->execute([$comparisonProject,$companies['a'],$badRevision,
+        json_encode($badBrief,JSON_THROW_ON_ERROR),$badHtml,hash('sha256',$badHtml)]);
+    $beforeBadRead=$comparisonState();
+    $comparisonRefused(fn()=>$comparisons['a']['reader']->compare($companies['a'],$comparisonProject,1,$badRevision),
+        RuntimeException::class,'digest-valid unsupported content '.$index);
+    $ok($comparisonState()===$beforeBadRead,'rejected content comparison appends or changes nothing '.$index);
+}
+echo 'COMPARISON OK: '.($count-$comparisonChecksBefore).
+    " real SQL assertions for exact historical versions, text, Unicode, isolation, runtime, integrity and readonly behavior.\n";
 echo "OK: $count synthetic ownership/ACL/RLS/profile assertions; real existing migration, NOLOGIN/NOBYPASSRLS owner, two companies. No operational acceptance or backup evidence.\n";

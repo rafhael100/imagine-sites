@@ -17,6 +17,7 @@
             "App\\": "app/",
             "Imagine\\Sites\\Domain\\": "../../src/Domain/",
             "Imagine\\Sites\\Production\\": "../../src/Production/",
+            "Imagine\\Sites\\Publication\\": "../../src/Publication/",
             "Imagine\\Sites\\Integration\\": "../../src/Integration/",
             "Imagine\\Sites\\Security\\": "../../src/Security/"
         }

@@ -31,64 +31,100 @@ function f383Failed(callable $work,string $sqlstate):bool {
     return false;
 }
 $checks=0;
+// This workflow applies the complete migration directory. Keep an explicit
+// inventory so a missing migration or an unexpected relation cannot pass.
 $names=[
     'tenant_accounts','contract_refs','site_projects',
     'replay_nonces','editorial_revisions','site_outbox',
+    'db_login_bindings','editorial_operator_bindings',
+    'release_registry_principals','release_artifacts','release_binding_events',
 ];
-$boundModel=(int)$db->query(
-    "SELECT count(*) FROM information_schema.tables
-     WHERE table_schema='sites_core' AND table_name='db_login_bindings'"
-)->fetchColumn()===1;
-if ($boundModel) $names[]='db_login_bindings';
-$editorialModel=(int)$db->query(
-    "SELECT count(*) FROM information_schema.tables
-     WHERE table_schema='sites_core' AND table_name='editorial_operator_bindings'"
-)->fetchColumn()===1;
-if ($editorialModel) $names[]='editorial_operator_bindings';
+$registryTables=['release_registry_principals','release_artifacts','release_binding_events'];
 $state=$db->query(
-    "SELECT c.relname AS tablename,
+    "SELECT c.relname AS tablename,c.relkind,pg_get_userbyid(c.relowner) AS owner,
             c.relrowsecurity AS rowsecurity,
             c.relforcerowsecurity AS forcerowsecurity
        FROM pg_class c
        JOIN pg_namespace n ON n.oid=c.relnamespace
-      WHERE n.nspname='sites_core' AND c.relkind='r'"
+      WHERE n.nspname='sites_core' AND c.relkind IN ('r','p','v','m','f')"
 )->fetchAll(PDO::FETCH_ASSOC);
 f383Check(count($state)===count($names),
-    'exact six core tables after reversible Laravel migration');
+    'exact eleven core tables after all reversible Laravel migrations');
 $seen=[];
 foreach ($state as $row) {
     $seen[]=$row['tablename'];
-    f383Check(in_array($row['rowsecurity'],[true,'t','1',1],true) &&
+    f383Check($row['relkind']==='r' &&
+        in_array($row['rowsecurity'],[true,'t','1',1],true) &&
         in_array($row['forcerowsecurity'],[true,'t','1',1],true),
         'RLS forced for '.$row['tablename']);
+    if (in_array($row['tablename'],$registryTables,true)) {
+        f383Check($row['owner']==='sites_core_release_owner',
+            'registry table belongs only to its internal owner: '.$row['tablename']);
+    }
 }
 sort($seen);
 $expected=$names;sort($expected);
 f383Check($seen===$expected,'exact table names, no unexpected public data');
 $policyRows=$db->query(
-    "SELECT tablename,policyname,roles,cmd FROM pg_policies
+    "SELECT tablename,policyname,array_to_json(roles)::text AS roles,
+            cmd,permissive,qual,with_check FROM pg_policies
       WHERE schemaname='sites_core'"
 )->fetchAll(PDO::FETCH_ASSOC);
-if ($boundModel) {
-    f383Check(count($policyRows)===($editorialModel?7:3),
-        'only reviewed internal read/edit-definer policies expected');
-    foreach($policyRows as $policy) {
-        $readerOnly=$policy['policyname']==='f384_internal_reader' &&
-            $policy['cmd']==='SELECT' &&
-            str_contains((string)$policy['roles'],'sites_core_read_definer');
-        $editorialOnly=$editorialModel &&
-            in_array($policy['policyname'],[
-                'f385_editorial_reader','f385_editorial_writer',
-            ],true) &&
-            in_array($policy['cmd'],['SELECT','INSERT'],true) &&
-            str_contains((string)$policy['roles'],'sites_core_edit_definer');
-        f383Check(($readerOnly || $editorialOnly) &&
-            !str_contains(strtolower((string)$policy['roles']),'public'),
-            'only narrow NOLOGIN internal read/editorial policy permitted');
+$readPolicy=static fn(array $roles):array=>['SELECT',$roles,'PERMISSIVE','true',null];
+$writePolicy=static fn(array $roles):array=>['INSERT',$roles,'PERMISSIVE',null,'true'];
+$registryReaders=['sites_core_release_owner','sites_core_release_reader','sites_core_release_writer'];
+$registryCoreReaders=['sites_core_release_reader','sites_core_release_writer'];
+$expectedPolicies=[
+    'db_login_bindings.f384_internal_reader'=>$readPolicy(['sites_core_read_definer']),
+    'site_projects.f384_internal_reader'=>$readPolicy(['sites_core_read_definer']),
+    'editorial_revisions.f384_internal_reader'=>$readPolicy(['sites_core_read_definer']),
+    'editorial_operator_bindings.f385_editorial_reader'=>$readPolicy(['sites_core_edit_definer']),
+    'site_projects.f385_editorial_reader'=>$readPolicy(['sites_core_edit_definer']),
+    'editorial_revisions.f385_editorial_reader'=>$readPolicy(['sites_core_edit_definer']),
+    'editorial_revisions.f385_editorial_writer'=>$writePolicy(['sites_core_edit_definer']),
+    'release_registry_principals.release_principals_internal_read'=>$readPolicy($registryReaders),
+    'release_registry_principals.release_principals_custody_lock'=>[
+        'UPDATE',['sites_core_release_owner'],'PERMISSIVE','true','true',
+    ],
+    'release_artifacts.release_artifacts_internal_read'=>$readPolicy($registryReaders),
+    'release_binding_events.release_bindings_internal_read'=>$readPolicy($registryReaders),
+    'release_artifacts.release_artifacts_internal_write'=>$writePolicy(['sites_core_release_writer']),
+    'release_binding_events.release_bindings_internal_write'=>$writePolicy(['sites_core_release_writer']),
+    'tenant_accounts.release_registry_tenants'=>$readPolicy($registryCoreReaders),
+    'contract_refs.release_registry_contracts'=>$readPolicy($registryCoreReaders),
+    'site_projects.release_registry_projects'=>$readPolicy($registryCoreReaders),
+    'editorial_revisions.release_registry_editorial'=>$readPolicy($registryCoreReaders),
+];
+$actualPolicies=[];
+foreach ($policyRows as $policy) {
+    $roles=json_decode($policy['roles'],true,512,JSON_THROW_ON_ERROR);
+    sort($roles);
+    $actualPolicies[$policy['tablename'].'.'.$policy['policyname']]=[
+        $policy['cmd'],$roles,$policy['permissive'],$policy['qual'],$policy['with_check'],
+    ];
+}
+ksort($actualPolicies);ksort($expectedPolicies);
+f383Check($actualPolicies===$expectedPolicies,
+    'exact table, command, roles and predicates for all seventeen internal policies; no PUBLIC or extra policy');
+
+$registryRoles=$db->query(
+    "SELECT rolname,rolcanlogin,rolsuper,rolbypassrls,rolcreatedb,rolcreaterole,rolreplication,rolinherit
+       FROM pg_roles WHERE rolname IN
+       ('sites_core_release_owner','sites_core_release_writer','sites_core_release_reader')
+      ORDER BY rolname"
+)->fetchAll(PDO::FETCH_ASSOC);
+f383Check(array_column($registryRoles,'rolname')===[
+    'sites_core_release_owner','sites_core_release_reader','sites_core_release_writer',
+],'exact three registry internal roles exist');
+foreach ($registryRoles as $role) {
+    foreach (['rolcanlogin','rolsuper','rolbypassrls','rolcreatedb','rolcreaterole','rolreplication','rolinherit'] as $attribute) {
+        f383Check(in_array($role[$attribute],[false,'f',0,'0'],true),
+            $role['rolname'].' has no '.$attribute.' capability');
     }
-} else {
-    f383Check(count($policyRows)===0,
-        'foundational schema must not grant any tenant RLS policy');
+}
+foreach (['db_login_bindings','editorial_operator_bindings',...$registryTables] as $table) {
+    f383Check((int)$db->query('SELECT count(*) FROM sites_core.'.$table)->fetchColumn()===0,
+        'migration seeds no principal, artifact or binding: '.$table);
 }
 
 $db->exec(
@@ -103,9 +139,11 @@ $untrusted=new PDO(
     'sites_f383_untrusted','f383-fictional-untrusted-only',
     [PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]
 );
-f383Check(f383Failed(static fn()=> $untrusted->query(
-    'SELECT * FROM sites_core.tenant_accounts'
-),'42501'),'restricted SQL principal cannot read tenant table without grant');
+foreach ($names as $table) {
+    f383Check(f383Failed(static fn()=> $untrusted->query(
+        'SELECT * FROM sites_core.'.$table
+    ),'42501'),'restricted SQL principal cannot read table without grant: '.$table);
+}
 f383Check(f383Failed(static fn()=> $untrusted->exec(
     'INSERT INTO sites_core.tenant_accounts(tenant_id,portal_org_ref)
      VALUES (\'00000000-0000-4000-8000-000000000003\',\'forged\')'
