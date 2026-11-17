@@ -24,10 +24,18 @@ cleanup() {
 trap cleanup EXIT
 # No remote listener. A busy port fails; never stop or reuse the occupying service.
 "$PG_BIN/pg_ctl" -D "$lab/data" -l "$lab/postgres.log" -o "-p 55448 -c listen_addresses=127.0.0.1 -c unix_socket_directories=''" -w start
-if ROLE_CONTRACT_CLUSTER=0 "$PHP_BIN" "$repo/tests/private-preview-role-contract.php" > "$lab/denied.log" 2>&1; then
+# Nonzero numeric sentinel: PHP treats the string "0" as absent before SQL.
+wrong_cluster=1
+if [[ "$ROLE_CONTRACT_CLUSTER" == "$wrong_cluster" ]]; then wrong_cluster=2; fi
+[[ "$wrong_cluster" != "$ROLE_CONTRACT_CLUSTER" ]]
+if ROLE_CONTRACT_CLUSTER="$wrong_cluster" "$PHP_BIN" "$repo/tests/private-preview-role-contract.php" > "$lab/denied.log" 2>&1; then
   echo 'Incorrect cluster identity was accepted' >&2; exit 1
 fi
-grep -q 'Disposable SQL identity mismatch' "$lab/denied.log"
+if ! grep -qx 'ROLE_CONTRACT_FAILED RuntimeException: Disposable SQL identity mismatch' "$lab/denied.log"; then
+  echo 'ROLE_CONTRACT_NEGATIVE_PREFLIGHT_FAILED: expected SQL identity refusal marker absent; raw diagnostic withheld' >&2
+  exit 1
+fi
+echo 'NEGATIVE PREFLIGHT OK: mismatched cluster rejected before writes'
 # Still-empty namespace and absent fixture roles prove wrong identity stopped before any writes.
 ROLE_CONTRACT_PREFLIGHT_ONLY=1 "$PHP_BIN" "$repo/tests/private-preview-role-contract.php" | tee "$lab/preflight.log"
 grep -q '^PREFLIGHT OK:' "$lab/preflight.log"
