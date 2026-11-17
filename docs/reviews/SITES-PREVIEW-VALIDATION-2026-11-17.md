@@ -46,7 +46,7 @@ Apenas um workflow novo: `.github/workflows/sites-preview-validation.yml`. Restr
 
 A primeira execução HTTP em a067c3d encontrou ParseError no fechamento adjacente de diretivas Blade. O erro foi reproduzido por render real, corrigido e coberto por três testes/21 assertions antes da execução verde. Nenhuma regra de autorização foi afrouxada para fazer o navegador passar.
 
-O workflow novo filtra caminhos de código; registros documentais não repetem os laboratórios SQL/HTTP. A fonte dos resultados é sempre a SHA funcional acima, não uma suposição baseada no último commit documental.
+O workflow novo filtra caminhos de código no diff do PR. Como esta PR contém código, uma sincronização documental ainda pode repetir os laboratórios SQL/HTTP; esses resultados repetidos não representam novas funcionalidades. A fonte funcional comprovada é a SHA acima, e os commits documentais posteriores preservam esse código.
 
 ## Limites para homologação
 
