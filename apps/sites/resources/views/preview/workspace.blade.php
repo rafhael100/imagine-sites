@@ -17,7 +17,13 @@
 @if($fieldErrors)
 <div class="errors" role="alert" aria-labelledby="errors-title">
 <h2 id="errors-title">{{ isset($fieldErrors['expected_revision']) ? 'Confira a versão atual' : 'Revise os campos indicados' }}</h2>
-<ul>@foreach($fieldErrors as $messages)@foreach($messages as $message)<li>{{ $message }}</li>@endforeach@endforeach</ul>
+<ul>
+@foreach($fieldErrors as $messages)
+@foreach($messages as $message)
+<li>{{ $message }}</li>
+@endforeach
+@endforeach
+</ul>
 </div>
 @endif
 <div class="layout">
