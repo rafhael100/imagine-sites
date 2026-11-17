@@ -17,6 +17,7 @@ use Imagine\Sites\Production\StaticSiteRenderer;
 use Imagine\Sites\Publication\SiteReleasePreparation;
 use Imagine\Sites\Publication\SiteReleasePreparationFiles;
 use Imagine\Sites\Publication\SiteReleasePreparationInput;
+use Imagine\Sites\Publication\SiteReleasePackageVerification;
 
 $checks = 0;
 $ok = static function (bool $condition, string $label) use (&$checks): void {
@@ -28,6 +29,7 @@ $deny = static function (callable $operation, string $label) use ($ok): void {
         $ok(in_array($e->getMessage(), [
             'Release preparation unavailable.', 'Release preparation input unavailable.',
             'Release preparation file unavailable.', 'Release preparation output unavailable.',
+            'Release package verification unavailable.',
         ], true), $label.' sanitized');
         return;
     }
@@ -130,6 +132,34 @@ try {
         $ok(file_get_contents($output.'/'.$name) === $bytes &&
             (fileperms($output.'/'.$name) & 0777) === 0600, 'exact private file '.$name);
     }
+    $ok(SiteReleasePreparationFiles::readPackage($root, 'new-package') === $files,
+        'existing private package reads exact three byte strings in canonical order');
+    $deny(static fn () => (new SiteReleasePackageVerification())->verify(
+        $input['command'], $input['manifest'], $input['editorialRevision'], $files),
+        'package bytes alone never establish a current registry binding');
+    $deny(static fn () => SiteReleasePreparationFiles::readPackage($root, 'absent-package'),
+        'reading does not create a missing package');
+    $ok(!file_exists($root.'/absent-package'), 'missing package remains absent');
+    $deny(static fn () => SiteReleasePreparationFiles::readPackage($root, '../escape'),
+        'package reading refuses traversal');
+    file_put_contents($output.'/extra.txt', 'not a declared package file');
+    $deny(static fn () => SiteReleasePreparationFiles::readPackage($root, 'new-package'),
+        'extra package files refused');
+    unlink($output.'/extra.txt');
+    rename($output.'/readiness.json', $root.'/saved-readiness');
+    $deny(static fn () => SiteReleasePreparationFiles::readPackage($root, 'new-package'),
+        'partial package refused');
+    symlink($root.'/saved-readiness', $output.'/readiness.json');
+    $deny(static fn () => SiteReleasePreparationFiles::readPackage($root, 'new-package'),
+        'linked package member refused');
+    unlink($output.'/readiness.json');
+    rename($root.'/saved-readiness', $output.'/readiness.json');
+    chmod($output, 0755);
+    $deny(static fn () => SiteReleasePreparationFiles::readPackage($root, 'new-package'),
+        'public package directory refused');
+    chmod($output, 0700);
+    $ok(SiteReleasePreparationFiles::readPackage($root, 'new-package') === $files,
+        'rejected package reads preserve the original complete bytes');
     $deny(static fn () => SiteReleasePreparationFiles::write($root, 'new-package', $package),
         'existing package never replaced');
     mkdir($root.'/empty-existing', 0700);

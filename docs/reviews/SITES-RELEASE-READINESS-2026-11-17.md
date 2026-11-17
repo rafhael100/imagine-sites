@@ -91,4 +91,14 @@ O contrato descartável passa a gerar uma CA e um certificado de servidor válid
 
 O guard SQL do registry também passa a verificar privilégios indevidos nas quatro tabelas de custódia/outbox que faltavam no inventário: `db_login_bindings`, `editorial_operator_bindings`, `replay_nonces` e `site_outbox`. O contrato exige a recusa específica do guard e a preservação do histórico em cada caso.
 
+**Execução confirmada da preparação:** código `5afa3b653061dfcaac176b2204801cd5a619850a`, 16 check-runs aprovados. Run `44201915769`, job SQL `134457907349`: 270 asserções do registro, incluindo 27 da preparação técnica e 36 da CLI real; 250 do workspace; 40 offline da preparação; 26 do provisionador; PHPUnit 73 testes/220 asserções/27 skips explícitos na suíte geral. CA incorreta e recibo de limpeza com inode divergente foram recusados antes de escritas/remoções; os três marcadores de conclusão são obrigatórios no runner. Job HTTP `134457907888` e artifact `14381821977` confirmam 56 checks do navegador. SHA-256 do ZIP: `0d6caf73d43b1e09e73657c6f389b3714e110553c71be1deade99acb9edb9a29`. Filtros desktop/mobile revisados visualmente, sem rótulos cortados. A matriz legada `44201915714` também passou em PHP8.3/8.4 com testes dedicados sem skips.
+
+## Continuidade: comparação editorial e verificação de pacotes existentes
+
+A comparação seleciona duas versões persistidas do mesmo projeto e exibe briefing anterior/novo por campo, incluindo a ordem dos benefícios. Empresa, projeto, revisão, digest, HTML e autorização são conferidos na leitura; a seleção pode alcançar versões fora da janela atual do histórico. O briefing de edição permanece na revisão corrente. A tela usa texto escapado, navegação GET local e colunas empilhadas no mobile; comparar não registra parecer nem muda qualquer estado.
+
+A operação `verify` do CLI lê os três arquivos de um pacote privado existente e compara seus bytes com o pacote reconstruído a partir da associação SQL atual. Nenhum campo do JSON exportado é tratado como autoridade. Ela recusa adulteração, arquivos extras/ausentes, troca da associação, revogação e reabertura editorial, preservando arquivos e histórico. A verificação dispensa o mount do HTML original e mantém `canPublish=false` e `canAcceptRealOrders=false`.
+
+Esta continuação terá execução no mesmo CI integrado. Os resultados acima pertencem ao código de preparação já aprovado; não são usados como evidência da comparação ou da operação `verify` antes da nova rodada.
+
 O ensaio usa HTML produzido pelo renderer existente, novas revisões pelo writer Laravel real e uma associação lida pelo PDO restrito. Uma revogação SQL entre as duas leituras testa a recusa com autoridade real do laboratório. O CLI recebe materiais TLS e credenciais sintéticos apenas no runner descartável; a implementação não oferece caminho de staging sem verificação de certificado.

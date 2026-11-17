@@ -35,6 +35,32 @@ final class SiteReleasePreparationFiles
         }
     }
 
+    /** Read an existing complete package; never create, repair or normalize it. */
+    public static function readPackage(string $parent, string $reference): array
+    {
+        try {
+            $parentStat = self::privateDirectory($parent);
+            if (!SiteReleasePreparationInput::packageRef($reference)) throw new DomainException();
+            $target = $parent.'/'.$reference;
+            $targetStat = self::privateDirectory($target);
+            $expected = self::NAMES;
+            sort($expected);
+            $names = array_values(array_diff(scandir($target), ['.', '..']));
+            sort($names);
+            if ($names !== $expected) throw new DomainException();
+            $files = [];
+            foreach (self::NAMES as $name) $files[$name] = self::read($target.'/'.$name, 150000);
+            $afterNames = array_values(array_diff(scandir($target), ['.', '..']));
+            sort($afterNames);
+            if ($afterNames !== $expected ||
+                !self::sameDirectory($parentStat, self::privateDirectory($parent)) ||
+                !self::sameDirectory($targetStat, self::privateDirectory($target))) throw new DomainException();
+            return $files;
+        } catch (Throwable) {
+            throw new DomainException('Release preparation file unavailable.');
+        }
+    }
+
     /**
      * Stage all three files, reserve a new directory exclusively, then rename
      * the complete tree over that own empty reservation. Existing output is

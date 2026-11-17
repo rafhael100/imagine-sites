@@ -7,7 +7,7 @@ const {chromium}=require('playwright');const fs=require('fs'),cp=require('child_
  const docker=(args)=>cp.execFileSync('docker',['compose','-f',compose,...args],{stdio:['ignore','pipe','pipe'],env:process.env}).toString();
  const b=await chromium.launch({headless:true});
  // Only disposable one-run certificates in this CI browser. curl --cacert independently verifies HTTPS before this script.
- const ctx=async(name)=>b.newContext({ignoreHTTPSErrors:true,httpCredentials:name?{username:name,password:vault[name]}:undefined});
+ const ctx=async(name,options={})=>b.newContext({ignoreHTTPSErrors:true,httpCredentials:name?{username:name,password:vault[name]}:undefined,...options});
  const a=await ctx('author'),e=await ctx('editor'),o=await ctx('other'),anon=await ctx();
  const base='https://127.0.0.1:18496';
  ok((await anon.request.get(base+'/_preview')).status()===401,'anonymous denied');
@@ -66,7 +66,12 @@ const {chromium}=require('playwright');const fs=require('fs'),cp=require('child_
  ok(html.headers()['cache-control'].includes('no-store')&&html.headers()['content-security-policy'].includes('sandbox'),'private sandboxed HTML');
  ok((await a.request.post(one)).status()===419,'CSRF missing denied');
  const bad=await a.request.post(one,{form:{_token:await p.locator('input[name=_token]').first().getAttribute('value'),company_id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'}});ok(bad.status()===422,'browser company field rejected');
- await p.getByLabel('Chamada principal').fill('Segunda versão demonstrativa');await p.getByRole('button',{name:'Gerar nova versão privada'}).click();await p.waitForURL(one);
+ const revisedBrief={headline:'Segunda versão demonstrativa',description:'Conteúdo revisado para destacar informações claras.',callToAction:'Confira os detalhes',benefits:['Atendimento organizado','Texto literal <strong data-comparison-probe="literal">sem formatação</strong>']};
+ await p.getByLabel('Chamada principal').fill(revisedBrief.headline);
+ await p.getByLabel('Descrição',{exact:true}).fill(revisedBrief.description);
+ await p.getByLabel('Chamada do botão').fill(revisedBrief.callToAction);
+ await p.getByLabel('Benefícios').fill(revisedBrief.benefits.join('\n'));
+ await p.getByRole('button',{name:'Gerar nova versão privada'}).click();await p.waitForURL(one);
  ok(await p.getByText('Versão 2',{exact:true}).isVisible()&&await p.getByText('Versão 1',{exact:true}).isVisible(),'version history persisted');
  const conflict=await a.request.post(one,{form:{...original,headline:'Briefing de outra aba preservado'}});
  const conflictBody=await conflict.text();
@@ -98,6 +103,100 @@ const {chromium}=require('playwright');const fs=require('fs'),cp=require('child_
  ok(await p.locator('[data-version="61"]').isVisible()&&await p.locator('input[name=expected_revision]').inputValue()==='61','edit from history appends61 from real current60');
  await ep.goto(historyUrl);
  ok(await ep.getByRole('button',{name:'Registrar revisão editorial'}).count()===1,'new current version requires its own review while old versions retain prior decisions');
+ // The comparison is a real GET journey with page JavaScript disabled. Its
+ // selectors identify historical values independently of the current edit form.
+ const comparisonContext=await ctx('author',{javaScriptEnabled:false});
+ const comparisonPage=await comparisonContext.newPage();
+ ok((await comparisonPage.goto(one)).status()===200,'comparison starts from the actual private project');
+ await comparisonPage.locator('input[name=compare_from]').fill('1');
+ await comparisonPage.locator('input[name=compare_to]').fill('2');
+ await comparisonPage.getByRole('button',{name:'Comparar versões',exact:true}).click();
+ await comparisonPage.waitForURL(url=>url.searchParams.get('compare_from')==='1'&&url.searchParams.get('compare_to')==='2');
+ const comparisonPanel=comparisonPage.getByTestId('editorial-comparison');
+ const comparedValue=(side,field)=>comparisonPanel.locator('[data-compare-side="'+side+'"] [data-field="'+field+'"]');
+ ok(await comparisonPanel.isVisible()&&await comparisonPanel.locator('[data-compare-side="from"][data-compare-revision="1"]').isVisible()&&
+    await comparisonPanel.locator('[data-compare-side="to"][data-compare-revision="2"]').isVisible(),'ordinary GET form compares exact versions without JavaScript');
+ for(const [field,before,after] of [
+   ['headline',original.headline,revisedBrief.headline],
+   ['description',original.description,revisedBrief.description],
+   ['callToAction',original.call_to_action,revisedBrief.callToAction],
+ ]) {
+   ok((await comparedValue('from',field).innerText()).trim()===before&&
+      (await comparedValue('to',field).innerText()).trim()===after&&
+      await comparedValue('from',field).getAttribute('data-field-changed')==='true'&&
+      await comparedValue('to',field).getAttribute('data-field-changed')==='true','comparison shows exact before/after and changed state for '+field);
+ }
+ ok((await comparedValue('from','brand').innerText()).trim()===original.brand&&
+    (await comparedValue('to','brand').innerText()).trim()===original.brand&&
+    await comparedValue('to','brand').getAttribute('data-field-changed')==='false','unchanged brand is not presented as an editorial difference');
+ ok(JSON.stringify(await comparedValue('from','benefits').locator('li').allTextContents())===JSON.stringify(original.benefits.split('\n'))&&
+    JSON.stringify(await comparedValue('to','benefits').locator('li').allTextContents())===JSON.stringify(revisedBrief.benefits),
+    'comparison preserves ordered benefit text from both persisted versions');
+ ok(await comparisonPanel.locator('[data-comparison-probe],script').count()===0&&
+    (await comparedValue('to','benefits').innerText()).includes(revisedBrief.benefits[1]),'comparison escapes markup as visible text without inserting elements');
+ const historicalComparisonUrl=historyUrl+'?before_revision=41&compare_from=1&compare_to=60';
+ await comparisonPage.goto(historyUrl+'?before_revision=41');
+ await comparisonPage.locator('input[name=compare_from]').fill('1');
+ await comparisonPage.locator('input[name=compare_to]').fill('60');
+ const historicalComparisonResponse=comparisonPage.waitForResponse(r=>r.url()===historicalComparisonUrl&&r.request().method()==='GET');
+ await comparisonPage.getByRole('button',{name:'Comparar versões',exact:true}).click();
+ ok((await historicalComparisonResponse).status()===200&&new URL(comparisonPage.url()).searchParams.get('before_revision')==='41',
+    'comparison GET form preserves the historical page when requesting versions outside its window');
+ ok(await comparisonPage.locator('[data-version="40"]').isVisible()&&await comparisonPage.locator('[data-version="21"]').isVisible()&&
+    await comparisonPage.locator('[data-version="1"],[data-version="60"]').count()===0,'history stays on its middle page while comparison reads versions1 and60');
+ ok(await comparisonPanel.locator('[data-compare-side="from"][data-compare-revision="1"]').isVisible()&&
+    await comparisonPanel.locator('[data-compare-side="to"][data-compare-revision="60"]').isVisible()&&
+    (await comparedValue('from','headline').innerText()).trim()==='Histórico sintético versão 1'&&
+    (await comparedValue('to','headline').innerText()).trim()==='Histórico sintético versão 60'&&
+    (await comparedValue('from','description').innerText()).trim()==='Conteúdo fictício da versão 1'&&
+    (await comparedValue('to','description').innerText()).trim()==='Conteúdo fictício da versão 60','comparison resolves each immutable briefing independently of the paginated window');
+ ok(await comparisonPage.locator('input[name=expected_revision]').inputValue()==='61'&&
+    await comparisonPage.getByLabel('Chamada principal').inputValue()==='Histórico atual após consulta anterior','comparing old revisions keeps the edit form at the actual head61');
+ await comparisonPage.setViewportSize({width:1440,height:1000});
+ ok(await comparisonPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'comparison fits desktop viewport');
+ await comparisonPanel.screenshot({path:dir+'/comparison-desktop.png'});
+ await comparisonPage.setViewportSize({width:390,height:844});
+ ok(await comparisonPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'comparison fits mobile viewport without horizontal overflow');
+ await comparisonPanel.screenshot({path:dir+'/comparison-mobile.png'});
+ for(const query of ['compare_from=1','compare_to=2','compare_from=2&compare_to=2','compare_from=2&compare_to=1',
+   'compare_from=0&compare_to=2','compare_from[]=1&compare_to=2','compare_from=1&compare_to[]=2']) {
+   ok((await a.request.get(one+'?'+query)).status()===422,'invalid comparison pair rejected: '+query);
+ }
+ ok((await a.request.get(one+'?compare_from=1&compare_to=9999')).status()===404,'valid comparison pair with absent revision returns404');
+ const foreignComparison=await o.request.get(historicalComparisonUrl);
+ const foreignComparisonBody=await foreignComparison.text();
+ ok([403,404].includes(foreignComparison.status())&&!foreignComparisonBody.includes('Histórico sintético versão')&&
+    !foreignComparisonBody.includes('data-compare-side'),'cross-company comparison discloses neither briefing nor comparison panel');
+ const comparisonEditForm=comparisonPage.locator('form:has(input[name=expected_revision])');
+ const editAction=new URL(await comparisonEditForm.getAttribute('action'),base);
+ ok(!editAction.searchParams.has('compare_from')&&!editAction.searchParams.has('compare_to')&&
+    await comparisonEditForm.locator('[name=compare_from],[name=compare_to]').count()===0,
+    'comparison selectors do not become edit action or payload fields');
+ await ep.goto(historyUrl+'?compare_from=1&compare_to=60');
+ const comparisonReviewForm=ep.locator('form.review').first();
+ const reviewAction=new URL(await comparisonReviewForm.getAttribute('action'),base);
+ ok(reviewAction.pathname.endsWith('/versions/61/review')&&!reviewAction.searchParams.has('compare_from')&&
+    !reviewAction.searchParams.has('compare_to')&&await comparisonReviewForm.locator('[name=compare_from],[name=compare_to]').count()===0,
+    'review action stays on the actual unreviewed version and excludes comparison selectors');
+ const comparisonEdit={
+   _token:await comparisonEditForm.locator('input[name=_token]').getAttribute('value'),
+   product:'onepage',brand:await comparisonPage.getByLabel('Marca fictícia').inputValue(),
+   headline:'Histórico atualizado depois da comparação',
+   description:await comparisonPage.getByLabel('Descrição',{exact:true}).inputValue(),
+   call_to_action:await comparisonPage.getByLabel('Chamada do botão').inputValue(),
+   benefits:await comparisonPage.getByLabel('Benefícios').inputValue(),expected_revision:'61',
+ };
+ const editWithComparisonQuery=await comparisonContext.request.post(historyUrl+'?before_revision=41&compare_from[]=1&compare_to=0',
+   {form:comparisonEdit,maxRedirects:0});
+ ok(editWithComparisonQuery.status()===302,'valid edit ignores malformed GET-only comparison selectors');
+ const afterComparisonEdit=new URL(editWithComparisonQuery.headers().location,base);
+ ok(!afterComparisonEdit.searchParams.has('compare_from')&&!afterComparisonEdit.searchParams.has('compare_to'),
+    'successful edit redirects without carrying comparison selectors');
+ await comparisonPage.goto(afterComparisonEdit.toString());
+ ok(await comparisonPage.locator('input[name=expected_revision]').inputValue()==='62'&&
+    await comparisonPage.getByLabel('Chamada principal').inputValue()===comparisonEdit.headline,
+    'editing after historical comparison appends62 from actual head61');
+ await comparisonContext.close();
  ok([403,404].includes((await o.request.get(one)).status()),'cross company workspace denied');ok((await o.request.get(one+'/versions/1/html')).status()===403,'cross company bytes denied');
  await p.setViewportSize({width:1440,height:1000});await p.goto(one);await p.screenshot({path:dir+'/workspace-desktop.png',fullPage:true});
  await p.setViewportSize({width:390,height:844});await p.screenshot({path:dir+'/workspace-mobile.png',fullPage:true});ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'mobile no horizontal overflow');
@@ -115,6 +214,9 @@ const {chromium}=require('playwright');const fs=require('fs'),cp=require('child_
  await p.setViewportSize({width:1440,height:1000});await p.goto(one+'/versions/1/html');await p.screenshot({path:dir+'/onepage-desktop.png',fullPage:true});
  docker(['exec','-T','db','psql','-U','postgres','-d','sites_preview_http_ci','-v','ON_ERROR_STOP=1','-c',"UPDATE sites_preview.principals SET revoked_at=now() WHERE database_login='sites_preview_author'"]);
  ok((await a.request.get(one+'/versions/1/html')).status()===403,'revocation blocks repeated HTML request');
+ const revokedComparison=await a.request.get(one+'?compare_from=1&compare_to=2');
+ ok(revokedComparison.status()===403&&!(await revokedComparison.text()).includes(revisedBrief.headline),
+    'revocation blocks a comparison that previously succeeded without exposing historical copy');
  const audit=docker(['exec','-T','db','psql','-U','postgres','-d','sites_preview_http_ci','-Atc','SELECT count(*) FROM sites_preview.audit']);ok(Number(audit.trim())>=6,'persistent DB audit');
- await b.close();fs.writeFileSync(dir+'/result.json',JSON.stringify({schema:'SITES_DEMO_HTTP_CI_V1',checks,source:'synthetic_separate_laravel_nginx_pg18_tls',operational:false,installed_on_vps:false}));console.log('PREVIEW HTTP BROWSER PASS: '+checks+' checks; persisted Laravel/FPM/PG18 verify-full, nominal proxy auth, CSRF, two products, versions, separate editorial principal, revocation, restart, desktop/mobile.');
+ await b.close();fs.writeFileSync(dir+'/result.json',JSON.stringify({schema:'SITES_DEMO_HTTP_CI_V1',checks,source:'synthetic_separate_laravel_nginx_pg18_tls',operational:false,installed_on_vps:false}));console.log('PREVIEW HTTP BROWSER PASS: '+checks+' checks; persisted Laravel/FPM/PG18 verify-full, nominal proxy auth, CSRF, two products, versions, escaped editorial comparison without JavaScript, separate editorial principal, revocation, restart, desktop/mobile.');
 })().catch(e=>{console.error('PREVIEW HTTP BROWSER FAILED:',e.message);process.exit(1)});

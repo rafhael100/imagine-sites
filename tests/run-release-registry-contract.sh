@@ -77,6 +77,6 @@ sudo -n env GITHUB_ACTIONS=true SITES_RELEASE_PACKAGE_CI=1 python3 \
 sudo -n env GITHUB_ACTIONS=true SITES_RELEASE_PACKAGE_CI=1 python3 \
   "$repo/tests/fixtures/release-registry/cli-paths.py" verify-mismatch "$lab" "$(id -u)" "$(id -g)"
 "$PHP_BIN" "$repo/tests/release-registry-pg-contract.php" | tee "$lab/contract.log"
-grep -q '^OK: [0-9]* persistent release registry assertions;' "$lab/contract.log"
-grep -q '^TECHNICAL PACKAGE CI PASS: [0-9]* assertions;' "$lab/contract.log"
-grep -q '^TECHNICAL PACKAGE CLI PASS: [0-9]* assertions;' "$lab/contract.log"
+grep -q '^OK: [1-9][0-9]* persistent release registry assertions;' "$lab/contract.log"
+grep -q '^TECHNICAL PACKAGE CI PASS: [1-9][0-9]* assertions;' "$lab/contract.log"
+grep -q '^TECHNICAL PACKAGE CLI PASS: [1-9][0-9]* assertions;' "$lab/contract.log"

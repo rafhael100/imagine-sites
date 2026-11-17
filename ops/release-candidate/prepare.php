@@ -8,6 +8,7 @@ use Imagine\Sites\Publication\PgSiteReleaseRegistryGuard;
 use Imagine\Sites\Publication\SiteReleasePreparation;
 use Imagine\Sites\Publication\SiteReleasePreparationFiles;
 use Imagine\Sites\Publication\SiteReleasePreparationInput;
+use Imagine\Sites\Publication\SiteReleasePackageVerification;
 
 // Explicit CLI only. No Laravel boot, route, provider binding or DB mutation.
 const RELEASE_PREPARATION_MANIFEST = '/run/secrets/release_preparation';
@@ -18,9 +19,10 @@ const RELEASE_PREPARATION_OUTPUT = '/var/lib/imagine-sites/release-candidates';
 
 if (PHP_SAPI !== 'cli') { http_response_code(404); exit(2); }
 if ($argc === 2 && $argv[1] === '--help') {
-    echo "Candidate only: php prepare.php prepare\n";
+    echo "Candidate only: php prepare.php prepare|verify\n";
     echo "Reads fixed private mounts; requires pinned PostgreSQL18 with verify-full.\n";
-    echo "Writes a new private technical review package; never publishes or accepts orders.\n";
+    echo "Prepare writes a new private technical review package; verify reads an existing package.\n";
+    echo "Neither operation publishes or accepts orders.\n";
     exit(0);
 }
 
@@ -57,7 +59,8 @@ set_error_handler(static function (int $severity): bool {
 });
 $exitCode = 0;
 try {
-    if ($argc !== 2 || $argv[1] !== 'prepare') throw new DomainException();
+    if ($argc !== 2 || !in_array($argv[1], ['prepare', 'verify'], true)) throw new DomainException();
+    $verify = $argv[1] === 'verify';
     $ci = getenv('GITHUB_ACTIONS') === 'true' &&
         getenv('SITES_RELEASE_PACKAGE_CI') === '1' && getenv('APP_ENV') === 'testing';
     $staging = getenv('GITHUB_ACTIONS') !== 'true' &&
@@ -73,7 +76,11 @@ try {
             $target['port'] !== 55449 || $target['login'] !== 'rr_a_reader' ||
             $target['serverAddress'] !== '127.0.0.1'))) throw new DomainException();
 
-    $artifact = new ReleaseArtifact(SiteReleasePreparationFiles::read(RELEASE_PREPARATION_HTML, 150000));
+    $existing = $verify
+        ? SiteReleasePreparationFiles::readPackage(RELEASE_PREPARATION_OUTPUT, $input['packageRef'])
+        : null;
+    $artifact = $verify ? null
+        : new ReleaseArtifact(SiteReleasePreparationFiles::read(RELEASE_PREPARATION_HTML, 150000));
     $password = rtrim(SiteReleasePreparationFiles::read(RELEASE_PREPARATION_PASSWORD, 4096, 16), "\r\n");
     if (strlen($password) < 16 || str_contains($password, "\0") ||
         str_contains($password, "\n") || str_contains($password, "\r")) throw new DomainException();
@@ -96,13 +103,23 @@ try {
     unset($password);
     $db->exec("SET default_transaction_read_only=on; SET client_encoding='UTF8'; SET statement_timeout='10s'; SET lock_timeout='3s'");
     release_preparation_target($db, $target);
-    $package = (new SiteReleasePreparation(new PgSiteCommercialReleaseBindingSource($db)))->prepare(
-        $input['command'], $input['manifest'], $input['editorialRevision'], $artifact);
+    $source = new PgSiteCommercialReleaseBindingSource($db);
+    $package = $verify
+        ? (new SiteReleasePackageVerification($source))->verify(
+            $input['command'], $input['manifest'], $input['editorialRevision'], $existing)
+        : (new SiteReleasePreparation($source))->prepare(
+            $input['command'], $input['manifest'], $input['editorialRevision'], $artifact);
     release_preparation_target($db, $target);
-    SiteReleasePreparationFiles::write(RELEASE_PREPARATION_OUTPUT, $input['packageRef'], $package);
+    if ($verify) {
+        if (SiteReleasePreparationFiles::readPackage(RELEASE_PREPARATION_OUTPUT, $input['packageRef']) !== $existing) {
+            throw new DomainException();
+        }
+    } else {
+        SiteReleasePreparationFiles::write(RELEASE_PREPARATION_OUTPUT, $input['packageRef'], $package);
+    }
     echo json_encode([
         'schemaVersion' => 'sites.release-preparation.result.v1',
-        'status' => 'prepared_for_internal_review',
+        'status' => $verify ? 'verified_current_internal_package' : 'prepared_for_internal_review',
         'artifactDigest' => $package['artifactDigest'],
         'packageDigest' => $package['packageDigest'],
         'bindingRevision' => $package['bindingRevision'],

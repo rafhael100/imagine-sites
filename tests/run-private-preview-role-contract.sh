@@ -40,4 +40,5 @@ echo 'NEGATIVE PREFLIGHT OK: mismatched cluster rejected before writes'
 ROLE_CONTRACT_PREFLIGHT_ONLY=1 "$PHP_BIN" "$repo/tests/private-preview-role-contract.php" | tee "$lab/preflight.log"
 grep -q '^PREFLIGHT OK:' "$lab/preflight.log"
 "$PHP_BIN" "$repo/tests/private-preview-role-contract.php" | tee "$lab/contract.log"
-grep -q '^OK: [0-9]* synthetic ownership/ACL/RLS/profile assertions;' "$lab/contract.log"
+grep -q '^COMPARISON OK: [1-9][0-9]* real SQL assertions' "$lab/contract.log"
+grep -q '^OK: [1-9][0-9]* synthetic ownership/ACL/RLS/profile assertions;' "$lab/contract.log"

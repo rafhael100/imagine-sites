@@ -46,20 +46,20 @@ $writeCliManifest=static function(array $input)use($cliManifestPath):void {
     if(file_put_contents($cliManifestPath,$json)!==strlen($json))throw new RuntimeException('CLI manifest fixture write failed');
     chmod($cliManifestPath,0600);
 };
-$runCli=static function():array {
+$runCli=static function(string $operation='prepare'):array {
     $php=getenv('PHP_BIN')?:PHP_BINARY;
     $repo=dirname(__DIR__,3);
-    $process=proc_open([$php,$repo.'/ops/release-candidate/prepare.php','prepare'],
+    $process=proc_open([$php,$repo.'/ops/release-candidate/prepare.php',$operation],
         [0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$pipes,$repo);
     if(!is_resource($process))throw new RuntimeException('Package CLI process unavailable');
     fclose($pipes[0]);$stdout=stream_get_contents($pipes[1]);$stderr=stream_get_contents($pipes[2]);
     fclose($pipes[1]);fclose($pipes[2]);$exit=proc_close($process);
     return ['exit'=>$exit,'stdout'=>$stdout,'stderr'=>$stderr];
 };
-$denyCli=static function(array $input,string $label)use($writeCliManifest,$runCli,$ok,$cliOutput):void {
-    $writeCliManifest($input);$result=$runCli();
+$denyCli=static function(array $input,string $label,string $operation='prepare')use($writeCliManifest,$runCli,$ok,$cliOutput):void {
+    $writeCliManifest($input);$result=$runCli($operation);
     $ok($result===['exit'=>1,'stdout'=>'','stderr'=>"RELEASE_PREPARATION_DENIED\n"],$label.' actual CLI refusal without private diagnostics');
-    if(!str_contains($input['packageRef'],'..')&&$input['packageRef']!=='ci-release-package'&&$input['packageRef']!=='ci-existing'&&$input['packageRef']!=='ci-symlink') {
+    if($operation==='prepare'&&!str_contains($input['packageRef'],'..')&&$input['packageRef']!=='ci-release-package'&&$input['packageRef']!=='ci-existing'&&$input['packageRef']!=='ci-symlink') {
         $ok(!file_exists($cliOutput.'/'.$input['packageRef'])&&!is_link($cliOutput.'/'.$input['packageRef']),$label.' no partial output');
     }
 };
@@ -92,6 +92,45 @@ $ok($cliBytes['index.html']===$packageArtifact->html&&$cliMetadata['bindingRevis
     $cliReadiness['canPublish']===false&&$cliMetadata['officialClientAcceptance']===false,
     'delivered private bytes and package digest match actual persisted artifact');
 $ok($snapshot()===$cliBefore,'successful CLI performs no registry/editorial/artifact writes');
+
+// Verification uses the persisted private package, not a replacement artifact
+// in the input mount, and never rewrites its files or repairs stale metadata.
+rename($cliHtmlPath,$cliHtmlPath.'.fixture-saved');
+try {
+    $writeCliManifest($cliInput);$verifiedCli=$runCli('verify');
+    $ok($verifiedCli['exit']===0&&$verifiedCli['stderr']==='',
+        'actual verify succeeds without the original HTML input mount');
+    $verifiedReceipt=json_decode($verifiedCli['stdout'],true,16,JSON_THROW_ON_ERROR);
+    $ok(($verifiedReceipt['status']??null)==='verified_current_internal_package'&&
+        ($verifiedReceipt['packageDigest']??null)===$cliReceipt['packageDigest']&&
+        ($verifiedReceipt['bindingRevision']??null)===3&&($verifiedReceipt['editorialRevision']??null)===3&&
+        ($verifiedReceipt['canPublish']??null)===false&&($verifiedReceipt['canAcceptRealOrders']??null)===false,
+        'verification reports the current exact package without issuing acceptance or publication');
+} finally {rename($cliHtmlPath.'.fixture-saved',$cliHtmlPath);}
+foreach($cliBytes as $name=>$bytes) {
+    clearstatcache(true,$cliDirectory.'/'.$name);
+    $after=lstat($cliDirectory.'/'.$name);
+    $ok(file_get_contents($cliDirectory.'/'.$name)===$bytes&&$after['ino']===$cliStats[$name]['ino']&&
+        $after['mtime']===$cliStats[$name]['mtime']&&$after['ctime']===$cliStats[$name]['ctime'],
+        'verification preserves bytes, inode and timestamps '.$name);
+}
+foreach($cliBytes as $name=>$bytes) {
+    $changedBytes=$name==='readiness.json'
+        ? str_replace('"canPublish": false','"canPublish": true',$bytes) : $bytes."\n";
+    $ok($changedBytes!==$bytes,'verification tamper fixture changes '.$name);
+    file_put_contents($cliDirectory.'/'.$name,$changedBytes);
+    try {
+        $denyCli($cliInput,'existing package tampered '.$name,'verify');
+        $ok(file_get_contents($cliDirectory.'/'.$name)===$changedBytes,
+            'verification refuses without repairing '.$name);
+    } finally {file_put_contents($cliDirectory.'/'.$name,$bytes);}
+}
+file_put_contents($cliDirectory.'/extra.txt','unexpected package member');
+try{$denyCli($cliInput,'extra package member','verify');}finally{unlink($cliDirectory.'/extra.txt');}
+$missingPackage=$cliInput;$missingPackage['packageRef']='ci-missing-package';
+$denyCli($missingPackage,'missing package','verify');
+$ok(!file_exists($cliOutput.'/ci-missing-package')&&$snapshot()===$cliBefore,
+    'verification creates neither output nor SQL history');
 
 $denyCli($cliInput,'existing output is never overwritten');
 foreach($cliBytes as $name=>$bytes) {
@@ -133,8 +172,32 @@ $cliRevoked=$writers['a']['revoker']->revoke($packageSite,3);
 $ok($cliRevoked===4,'explicit revocation precedes final CLI denial');
 $cliRevokedBefore=$snapshot();$revokedInput=$cliInput;$revokedInput['packageRef']='ci-revoked-binding';
 $denyCli($revokedInput,'current binding revoked');
+$denyCli($cliInput,'already exported package with revoked binding','verify');
 $ok($snapshot()===$cliRevokedBefore&&file_get_contents($cliDirectory.'/index.html')===$packageArtifact->html,
     'revoked attempt changes neither history nor previously prepared package');
+
+// Even restoring the same artifact to a new binding revision cannot silently
+// renew the old package. A newly prepared package is checked separately, then
+// invalidated by the real editorial reopening API.
+$restoredBinding=$writers['a']['binding_writer']->bind($packageSite,$packageManifest->releaseRef,3,4);
+$ok($restoredBinding->bindingRevision===5,'same bytes receive a distinct current association');
+$denyCli($cliInput,'old package after explicit reassociation','verify');
+$newBindingInput=$cliInput;$newBindingInput['packageRef']='ci-before-reopen';
+$writeCliManifest($newBindingInput);$newPrepared=$runCli();$newVerified=$runCli('verify');
+$ok($newPrepared['exit']===0&&$newPrepared['stderr']===''&&$newVerified['exit']===0&&$newVerified['stderr']==='',
+    'fresh package for restored binding is prepared and independently reverified');
+$newReceipt=json_decode($newVerified['stdout'],true,16,JSON_THROW_ON_ERROR);
+$ok(($newReceipt['bindingRevision']??null)===5&&($newReceipt['packageDigest']??null)!==$cliReceipt['packageDigest'],
+    'fresh package digest includes the new association even for identical HTML');
+$reopenedPackage=$editorialWriters['a']['reviewer']->transition($packageSite,3,'reopen',$packageArtifact->digest);
+$ok($reopenedPackage['revision']===4&&$reopenedPackage['state']==='draft',
+    'real editorial reopening invalidates the previously current approved revision');
+$reopenedSnapshot=$snapshot();
+$newPackageBytes=Imagine\Sites\Publication\SiteReleasePreparationFiles::readPackage($cliOutput,'ci-before-reopen');
+$denyCli($newBindingInput,'exact exported package after editorial reopening','verify');
+$ok($snapshot()===$reopenedSnapshot&&
+    Imagine\Sites\Publication\SiteReleasePreparationFiles::readPackage($cliOutput,'ci-before-reopen')===$newPackageBytes,
+    'stale verification preserves SQL history and exported package bytes');
 $ok(glob($cliOutput.'/.preparing-*')===[],'no incomplete staging directories remain after successful and rejected operations');
 echo 'TECHNICAL PACKAGE CLI PASS: '.($checks-$cliChecksBefore).
     " assertions; actual CLI, PostgreSQL verify-full, restricted reader, atomic private files and real binding revocation; no publication\n";

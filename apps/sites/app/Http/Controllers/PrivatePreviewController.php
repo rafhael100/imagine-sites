@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
+use Imagine\Sites\Production\PrivatePreviewComparison;
 use Imagine\Sites\Production\PrivatePreviewOverview;
 use Imagine\Sites\Production\PrivatePreviewHistory;
 use Imagine\Sites\Production\PrivatePreviewWorkspace;
@@ -28,9 +29,12 @@ final class PrivatePreviewController
             $workspace = new PrivatePreviewWorkspace($principal->db);
             $workspace->assertSafeRuntime();
             try {
-                $navigation = PreviewNavigation::fromQuery($request->query(), $project !== null);
+                $navigation = $request->isMethod('post')
+                    ? PreviewNavigation::fromPostQuery($request->query(), $project !== null)
+                    : PreviewNavigation::fromQuery($request->query(), $project !== null,
+                        $request->isMethod('get') && $action === null);
             } catch (InvalidArgumentException) {
-                return $this->secure(response('Filtros ou página inválidos. Volte à fila e selecione novamente.', 422));
+                return $this->secure(response('Filtros, página ou comparação inválidos. Volte ao workspace e selecione novamente.', 422));
             }
             if ($action === 'html') {
                 $version = $workspace->view($project, $principal->company, (int) $revision);
@@ -95,6 +99,7 @@ final class PrivatePreviewController
         $projects = [];
         $versions = $reviews = [];
         $brief = null;
+        $comparison = null;
         $currentRevision = $queueNext = $historyOlder = $historyNewer = null;
         $reviewsTruncated = false;
         if ($project !== null) {
@@ -107,12 +112,16 @@ final class PrivatePreviewController
             $historyOlder = $history['older_before'];
             $historyNewer = $history['newer_after'];
             $reviewsTruncated = $history['reviews_truncated'];
+            if ($navigation->compareFrom !== null) {
+                $comparison = (new PrivatePreviewComparison($principal->db))->compare($principal->company, $project,
+                    $navigation->compareFrom, $navigation->compareTo);
+            }
         } else {
             $queue = (new PrivatePreviewOverview($principal->db))->page($principal->company, $navigation->queue);
             $projects = $queue['items'];
             $queueNext = $queue['next_cursor'];
         }
-        return compact('projects', 'project', 'versions', 'reviews', 'brief', 'currentRevision',
+        return compact('projects', 'project', 'versions', 'reviews', 'brief', 'currentRevision', 'comparison',
             'queueNext', 'historyOlder', 'historyNewer', 'reviewsTruncated', 'navigation');
     }
 

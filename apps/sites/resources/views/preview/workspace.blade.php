@@ -8,6 +8,7 @@
 </style>
 <style>
 .queue-filters{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin:18px 0}.queue-filters>div{flex:1 1 220px}.queue-filters label{margin-top:0}.queue-filters button{margin-top:0}.pager{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:20px 0}.pager a{padding:8px 0}.item a,.item p{overflow-wrap:anywhere}.item .project-title{font-size:19px;font-weight:750}.history-note{padding:12px 16px;background:#f3f2ee;border-radius:8px}
+.comparison{margin-top:30px}.comparison h2{margin-top:0}.comparison-form{display:flex;flex-wrap:wrap;gap:16px;align-items:end;margin:20px 0}.comparison-form>div{flex:1 1 180px;min-width:0}.comparison-form label{margin-top:0}.comparison-form button{margin-top:0}.comparison-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;margin-top:20px}.comparison-side{min-width:0;border:1px solid #ded8ce;border-radius:12px;padding:20px}.comparison-side h3{margin-top:0}.comparison-side dl{margin-bottom:0}.comparison-side code{white-space:normal}.comparison-value{min-width:0;overflow-wrap:anywhere}.comparison-value[data-field-changed=true]{border-left:3px solid #c4770b;padding:8px 12px;background:#fff8ee}.comparison-value ol{margin:0;padding-left:22px;white-space:normal}.comparison-value li{white-space:pre-wrap;overflow-wrap:anywhere}.comparison-change{display:inline-block;padding:1px 8px;margin-left:6px;border-radius:12px;background:#fff0db;color:#794100;font-size:12px;font-weight:700}.comparison-summary{padding:12px 16px;border-radius:8px;background:#f3f2ee;overflow-wrap:anywhere}@media(max-width:700px){.comparison-grid{grid-template-columns:1fr}.comparison-form>div{flex-basis:100%}.comparison-side{padding:16px}}
 </style>
 </head>
 <body>
@@ -31,6 +32,9 @@
 @endforeach
 </ul>
 </div>
+@endif
+@if($project)
+@include('preview.comparison')
 @endif
 <div class="layout">
 <section>
@@ -113,6 +117,9 @@
 <strong>Versão {{ $v['revision'] }}</strong>@if($v['revision']===$currentRevision) <span class="status">Atual</span>@endif
 <p class="muted">{{ $formatDate($v['created_at']) }}</p><code>SHA-256: {{ $v['sha256'] }}</code>
 <a class="button" href="/_preview/projects/{{ $project }}/versions/{{ $v['revision'] }}/html" target="_blank" rel="noopener">Visualizar prévia privada ↗</a>
+@if($v['revision'] > 1)
+<p><a href="{{ $navigation->comparisonUrl($project,$v['revision']-1,$v['revision']) }}">Comparar com a anterior</a></p>
+@endif
 @if($canReview && $v['reviewable'])
 <form class="review" method="post" action="{{ $navigation->reviewUrl($project,$v['revision']) }}">
 @csrf<input type="hidden" name="sha256" value="{{ $v['sha256'] }}">
@@ -124,9 +131,9 @@
 </div>
 @empty<p>Nenhuma versão nesta página.</p>@endforelse
 <nav class="pager" aria-label="Páginas do histórico de versões">
-@if($historyNewer !== null)<a href="{{ $navigation->projectUrl($project,null,$historyNewer) }}">← Versões mais recentes</a>@endif
-@if($historyOlder !== null)<a href="{{ $navigation->projectUrl($project,$historyOlder) }}">Versões anteriores →</a>@endif
-@if($navigation->beforeRevision !== null || $navigation->afterRevision !== null)<a href="{{ $navigation->projectUrl($project) }}">Ir à versão atual</a>@endif
+@if($historyNewer !== null)<a href="{{ $navigation->historyUrl($project,null,$historyNewer) }}">← Versões mais recentes</a>@endif
+@if($historyOlder !== null)<a href="{{ $navigation->historyUrl($project,$historyOlder) }}">Versões anteriores →</a>@endif
+@if($navigation->beforeRevision !== null || $navigation->afterRevision !== null)<a href="{{ $navigation->historyUrl($project) }}">Ir à versão atual</a>@endif
 </nav>
 <p class="muted">A revisão exige outra pessoa autorizada. Não representa o aceite do cliente nem libera publicação.</p>
 <h3>Pareceres das versões desta página</h3>
