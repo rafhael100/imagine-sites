@@ -97,9 +97,34 @@ $owners=function(PDO $pdo):array{
     return $rows;
 };
 $sourceOwners=$owners($source);
-$acls=function(PDO $pdo):array{
+$rawAcls=function(PDO $pdo):array{
     return $pdo->query("SELECT 'schema' AS kind,nspname AS name,nspacl::text AS acl FROM pg_namespace WHERE nspname='sites_preview' UNION ALL SELECT 'relation',c.relname,c.relacl::text FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='sites_preview' AND c.relkind IN ('r','S') UNION ALL SELECT 'function',p.oid::regprocedure::text,p.proacl::text FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='sites_preview' ORDER BY 1,2")->fetchAll(PDO::FETCH_ASSOC);
 };
+$acls=function(PDO $pdo):array{
+    // relkind S is a sequence; acldefault s is sequence, uppercase S is foreign server.
+    // NULL means built-in defaults, not an empty ACL. Retain empty objects via LEFT JOIN.
+    $rows=$pdo->query(<<<'SQL'
+WITH objects AS (
+ SELECT 'schema'::text AS kind,nspname::text AS name,nspowner AS owner,nspacl AS acl,'n'::"char" AS type
+ FROM pg_namespace WHERE nspname='sites_preview'
+ UNION ALL
+ SELECT CASE WHEN c.relkind='S' THEN 'sequence' ELSE 'table' END,c.relname::text,c.relowner,c.relacl,
+        CASE WHEN c.relkind='S' THEN 's'::"char" ELSE 'r'::"char" END
+ FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+ WHERE n.nspname='sites_preview' AND c.relkind IN ('r','S')
+ UNION ALL
+ SELECT 'function',p.oid::regprocedure::text,p.proowner,p.proacl,'f'::"char"
+ FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='sites_preview'
+)
+SELECT o.kind,o.name,pg_get_userbyid(o.owner) AS owner,
+       CASE WHEN a.grantor IS NULL THEN NULL ELSE pg_get_userbyid(a.grantor) END AS grantor,
+       CASE WHEN a.grantee=0 THEN 'PUBLIC' WHEN a.grantee IS NULL THEN NULL ELSE pg_get_userbyid(a.grantee) END AS grantee,
+       a.privilege_type AS privilege,a.is_grantable
+FROM objects o LEFT JOIN LATERAL aclexplode(coalesce(o.acl,acldefault(o.type,o.owner))) a ON true
+SQL)->fetchAll(PDO::FETCH_ASSOC);
+    return recoveryCanonicalAclRows($rows);
+};
+
 
 
 $runtime=function(string $side,string $tenant,string $profile)use($expected,$passwords,$db,$identity):PDO{
@@ -163,7 +188,7 @@ $schema=function(string $side)use($command):string{
     // pg_dump generates fresh random psql restrict keys, unrelated to schema fidelity.
     return recoveryCanonicalDdl($sql);
 };
-$stage='source snapshot';$preflight();$before=$manifest($source);$ddl=$schema('source');$sourceAcls=$acls($source);
+$stage='source snapshot';$preflight();$before=$manifest($source);$ddl=$schema('source');$sourceAcls=$acls($source);$sourceRawAcls=$rawAcls($source);
 $expectedCounts=['audit'=>8,'principals'=>6,'projects'=>2,'reviews'=>2,'versions'=>4];
 foreach($expectedCounts as $table=>$count)if($before[$table]['count']!==$count)throw new RuntimeException('Fixture cardinality mismatch');
 $archive=$root.'/preview.dump';
@@ -179,6 +204,7 @@ $stage='readback destination owners';
 if($owners($db['destination'])!==$sourceOwners)throw new RuntimeException('Restored owner differs');
 $stage='readback destination ACL';
 if($acls($db['destination'])!==$sourceAcls)throw new RuntimeException('Restored ACL differs');
+echo 'ACL SEMANTICS OK: owner/grantor/grantee/privilege/grant-option identical; raw representation '.($rawAcls($db['destination'])===$sourceRawAcls?'identical':'different')."\n";
 $stage='readback destination data and sequence';
 if($manifest($db['destination'])!==$before)throw new RuntimeException('Restore fidelity mismatch');
 $stage='readback destination DDL';

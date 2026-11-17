@@ -45,3 +45,14 @@ function recoveryCleanEnvironment(array $allowed):void {
     foreach(array_keys(getenv()) as $key)if(!in_array($key,$allowed,true))putenv($key);
     $_ENV=[];$_SERVER=[];
 }
+function recoveryCanonicalAclRows(array $rows):array {
+    $keys=['kind','name','owner','grantor','grantee','privilege','is_grantable'];
+    foreach($rows as $row){
+        if(array_keys($row)!==$keys||!is_string($row['kind'])||!is_string($row['name'])||!is_string($row['owner']))throw new RuntimeException('Malformed ACL tuple');
+        foreach(['grantor','grantee','privilege'] as $key)if($row[$key]!==null&&!is_string($row[$key]))throw new RuntimeException('Malformed ACL tuple');
+        if($row['is_grantable']!==null&&!is_bool($row['is_grantable']))throw new RuntimeException('Malformed ACL tuple');
+    }
+    // Order-independent multiset: do not drop duplicates, fields, PUBLIC or grant options.
+    usort($rows,static fn(array $a,array $b):int=>strcmp(json_encode($a,JSON_THROW_ON_ERROR),json_encode($b,JSON_THROW_ON_ERROR)));
+    return $rows;
+}
