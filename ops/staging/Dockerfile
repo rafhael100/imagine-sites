@@ -22,6 +22,7 @@ COPY ops/staging/provision-runtime.php ./provision-runtime.php
 COPY ops/staging/verify-runtime.php ./verify-runtime.php
 COPY ops/staging/verify-database-tls.php ./verify-database-tls.php
 COPY ops/preview-candidate/provision.php /opt/imagine/ops/preview-candidate/provision.php
+COPY ops/release-candidate/prepare.php /opt/imagine/ops/release-candidate/prepare.php
 COPY src /opt/imagine/src
 RUN composer install --no-dev --no-interaction --no-ansi --no-progress \
     --prefer-dist --no-scripts --optimize-autoloader && \
@@ -40,6 +41,7 @@ COPY --from=php-build --chown=www-data:www-data /opt/imagine/apps/sites /opt/ima
 COPY --from=php-build --chown=www-data:www-data /opt/imagine/src /opt/imagine/src
 COPY --from=php-build --chown=www-data:www-data /opt/imagine/contracts /opt/imagine/contracts
 COPY --from=php-build --chown=www-data:www-data /opt/imagine/ops/preview-candidate /opt/imagine/ops/preview-candidate
+COPY --from=php-build --chown=www-data:www-data /opt/imagine/ops/release-candidate /opt/imagine/ops/release-candidate
 COPY ops/homologation/php.ini /usr/local/etc/php/conf.d/99-sites-homologation.ini
 COPY ops/homologation/php-fpm-pool.conf /usr/local/etc/php-fpm.d/99-sites-env.conf
 WORKDIR /opt/imagine/apps/sites

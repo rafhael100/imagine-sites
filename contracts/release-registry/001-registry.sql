@@ -163,6 +163,8 @@ BEGIN
  FOR obj IN SELECT c.* FROM pg_class c WHERE c.oid IN (
   'sites_core.tenant_accounts'::regclass,'sites_core.contract_refs'::regclass,
   'sites_core.site_projects'::regclass,'sites_core.editorial_revisions'::regclass,
+  'sites_core.db_login_bindings'::regclass,'sites_core.editorial_operator_bindings'::regclass,
+  'sites_core.replay_nonces'::regclass,'sites_core.site_outbox'::regclass,
   'sites_core.release_registry_principals'::regclass,'sites_core.release_artifacts'::regclass,
   'sites_core.release_binding_events'::regclass)
  LOOP
@@ -190,6 +192,8 @@ BEGIN
  FOR obj IN SELECT c.* FROM pg_class c WHERE c.oid IN (
   'sites_core.tenant_accounts'::regclass,'sites_core.contract_refs'::regclass,
   'sites_core.site_projects'::regclass,'sites_core.editorial_revisions'::regclass,
+  'sites_core.db_login_bindings'::regclass,'sites_core.editorial_operator_bindings'::regclass,
+  'sites_core.replay_nonces'::regclass,'sites_core.site_outbox'::regclass,
   'sites_core.release_registry_principals'::regclass,'sites_core.release_artifacts'::regclass,
   'sites_core.release_binding_events'::regclass)
  LOOP

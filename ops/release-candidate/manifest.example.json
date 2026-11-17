@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "sites.release-preparation.input.v1",
+  "target": {
+    "host": "REPLACE_WITH_CERTIFICATE_HOSTNAME",
+    "port": 5432,
+    "database": "sites_staging",
+    "databaseOid": 0,
+    "login": "replace_with_restricted_reader",
+    "serverAddress": "REPLACE_WITH_OBSERVED_ADDRESS",
+    "caSha256": "REPLACE_WITH_REVIEWED_CA_SHA256"
+  },
+  "command": {
+    "schemaVersion": "1",
+    "operationId": "REPLACE_WITH_OPERATION_REFERENCE",
+    "tenantRef": "REPLACE_WITH_PORTAL_ORGANIZATION_REFERENCE",
+    "orderRef": "REPLACE_WITH_ORDER_REFERENCE",
+    "contractRef": "REPLACE_WITH_CONTRACT_REFERENCE",
+    "contractRevision": 1,
+    "productCode": "onepage",
+    "idempotencyKey": "REPLACE_WITH_OPERATION_IDEMPOTENCY_REFERENCE"
+  },
+  "release": {
+    "siteRef": "REPLACE_WITH_SITE_UUID",
+    "releaseRef": "REPLACE_WITH_RELEASE_REFERENCE",
+    "artifactDigest": "REPLACE_WITH_EXACT_HTML_SHA256",
+    "editorialRevision": 0
+  },
+  "packageRef": "REPLACE_WITH_NEW_PRIVATE_PACKAGE_REFERENCE"
+}

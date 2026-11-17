@@ -15,6 +15,7 @@ on:
       - 'tests/run-release-registry-contract.sh'
       - 'tests/private-preview-provisioning-offline.php'
       - 'tests/fixtures/release-registry/**'
+      - 'tests/release-preparation-offline.php'
       - 'tests/fixtures/preview-http/**'
 permissions:
   contents: read
@@ -107,6 +108,7 @@ jobs:
           php -l tests/release-registry-pg-contract.php
           bash -n tests/run-release-registry-contract.sh
           php tests/private-preview-provisioning-offline.php
+          php tests/release-preparation-offline.php
           php apps/sites/vendor/bin/phpunit -c apps/sites/phpunit.xml --do-not-cache-result
       - name: Fresh local PG18 with effective Laravel and SQL identity guards
         run: |

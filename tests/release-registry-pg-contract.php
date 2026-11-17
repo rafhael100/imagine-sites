@@ -28,15 +28,17 @@ use Imagine\Sites\Publication\{
 
 $dir=getenv('RELEASE_REGISTRY_PGDATA');$cluster=getenv('RELEASE_REGISTRY_CLUSTER');
 $login=getenv('RELEASE_REGISTRY_LOGIN');$passwordFile=getenv('RELEASE_REGISTRY_PASSWORD_FILE');
-if (!$dir||!$cluster||!$login||!$passwordFile||!is_dir($dir)||
+$caFile=getenv('RELEASE_REGISTRY_CA_FILE');
+if (!$dir||!$cluster||!$login||!$passwordFile||!$caFile||!is_dir($dir)||
     !str_starts_with(realpath($dir),sys_get_temp_dir().'/sites-release-registry-')||
-    realpath(dirname($passwordFile))!==realpath(dirname($dir))) {
+    realpath(dirname($passwordFile))!==realpath(dirname($dir))||!is_file($caFile)||is_link($caFile)||
+    realpath(dirname($caFile))!==realpath(dirname($dir).'/tls')) {
     throw new RuntimeException('Own disposable target required');
 }
 $password=trim(file_get_contents($passwordFile));
 if (strlen($password)<32) throw new RuntimeException('Synthetic lab password missing');
 $expected=['driver'=>'pgsql','host'=>'127.0.0.1','port'=>55449,'database'=>'postgres',
-    'username'=>$login,'password'=>$password,'charset'=>'utf8','prefix'=>'','sslmode'=>'disable'];
+    'username'=>$login,'password'=>$password,'charset'=>'utf8','prefix'=>'','sslmode'=>'verify-full','sslrootcert'=>$caFile];
 config()->set('database.default','release_registry_lab');
 config()->set('database.connections.release_registry_lab',$expected);
 DB::purge('release_registry_lab');$connection=DB::connection('release_registry_lab');
@@ -45,15 +47,17 @@ foreach ($expected as $key=>$value) if ($connection->getConfig($key)!==$value) {
 }
 if ($connection->getConfig('url')) throw new RuntimeException('Unexpected URL');
 $admin=$connection->getPdo();
-$id=$admin->query("SELECT current_database() AS db,session_user AS login,current_user AS actor,host(inet_server_addr()) AS address,inet_server_port() AS port,current_setting('data_directory') AS directory,current_setting('server_version_num') AS version,(SELECT system_identifier::text FROM pg_control_system()) AS cluster")->fetch(PDO::FETCH_ASSOC);
+$id=$admin->query("SELECT current_database() AS db,session_user AS login,current_user AS actor,host(inet_server_addr()) AS address,inet_server_port() AS port,current_setting('data_directory') AS directory,current_setting('server_version_num') AS version,(SELECT system_identifier::text FROM pg_control_system()) AS cluster,(SELECT ssl FROM pg_stat_ssl WHERE pid=pg_backend_pid()) AS tls")->fetch(PDO::FETCH_ASSOC);
 if ($id['db']!=='postgres'||$id['login']!==$login||$id['actor']!==$login||
     $id['address']!=='127.0.0.1'||(int)$id['port']!==55449||realpath($id['directory'])!==realpath($dir)||
-    $id['cluster']!==$cluster||(int)$id['version']<180000||(int)$id['version']>=190000) {
+    $id['cluster']!==$cluster||(int)$id['version']<180000||(int)$id['version']>=190000||$id['tls']!==true) {
     throw new RuntimeException('Disposable SQL identity mismatch');
 }
-$connect=static function(string $role)use($password):PDO {
-    $db=new PDO('pgsql:host=127.0.0.1;port=55449;dbname=postgres;sslmode=disable',
+$connect=static function(string $role)use($password,$caFile):PDO {
+    $db=new PDO('pgsql:host=127.0.0.1;port=55449;dbname=postgres;sslmode=verify-full;sslrootcert='.$caFile,
         $role,$password,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
+    if($db->query('SELECT ssl FROM pg_stat_ssl WHERE pid=pg_backend_pid()')->fetchColumn()!==true||
+        $db->query('SELECT session_user')->fetchColumn()!==$role)throw new RuntimeException('Restricted registry TLS identity mismatch');
     $db->exec("SET statement_timeout='15s'; SET lock_timeout='12s'");
     return $db;
 };
@@ -80,7 +84,7 @@ if ($admin->query("SELECT to_regnamespace('sites_core')")->fetchColumn()!==null 
     (int)$admin->query("SELECT count(*) FROM pg_roles WHERE rolname LIKE 'rr_%' OR rolname LIKE 'sites_core_%'")->fetchColumn()!==0) {
     throw new RuntimeException('Expected empty disposable database and roles');
 }
-echo "REGISTRY PREFLIGHT OK: effective Laravel config and own PG18 cluster/database/login/directory/loopback verified before writes\n";
+echo "REGISTRY PREFLIGHT OK: effective Laravel verify-full config and own PG18 cluster/database/login/directory/loopback/TLS verified before writes\n";
 if (getenv('RELEASE_REGISTRY_PREFLIGHT_ONLY')==='1') exit(0);
 $connection->transaction(static function():void {
     foreach (['2026_11_14_000001_create_sites_core_foundation',
@@ -226,6 +230,10 @@ $drift=static function(string $grant,string $revoke,string $label)use($admin,$db
 };
 $drift('GRANT INSERT ON sites_core.release_artifacts TO rr_a_artifact_writer','REVOKE INSERT ON sites_core.release_artifacts FROM rr_a_artifact_writer','direct artifact write privilege');
 $drift('GRANT SELECT (html) ON sites_core.release_artifacts TO rr_a_artifact_writer','REVOKE SELECT (html) ON sites_core.release_artifacts FROM rr_a_artifact_writer','column read privilege');
+$drift('GRANT UPDATE ON sites_core.editorial_operator_bindings TO rr_a_artifact_writer','REVOKE UPDATE ON sites_core.editorial_operator_bindings FROM rr_a_artifact_writer','editorial custody write privilege');
+$drift('GRANT SELECT ON sites_core.db_login_bindings TO rr_a_artifact_writer','REVOKE SELECT ON sites_core.db_login_bindings FROM rr_a_artifact_writer','independent login custody read privilege');
+$drift('GRANT INSERT ON sites_core.replay_nonces TO rr_a_artifact_writer','REVOKE INSERT ON sites_core.replay_nonces FROM rr_a_artifact_writer','replay ledger write privilege');
+$drift('GRANT DELETE ON sites_core.site_outbox TO rr_a_artifact_writer','REVOKE DELETE ON sites_core.site_outbox FROM rr_a_artifact_writer','outbox delete privilege');
 $drift('GRANT CREATE ON SCHEMA sites_core TO rr_a_artifact_writer','REVOKE CREATE ON SCHEMA sites_core FROM rr_a_artifact_writer','schema CREATE privilege');
 $drift('GRANT CREATE ON DATABASE postgres TO rr_a_artifact_writer','REVOKE CREATE ON DATABASE postgres FROM rr_a_artifact_writer','database CREATE privilege');
 $drift('GRANT sites_core_release_owner TO rr_a_artifact_writer WITH INHERIT FALSE','REVOKE sites_core_release_owner FROM rr_a_artifact_writer','non-inherited owner membership');
@@ -383,6 +391,8 @@ $s=$admin->prepare('SELECT count(*) FROM sites_core.release_binding_events WHERE
 $ok((int)$s->fetchColumn()===1,'conflicting concurrent call appended no extra binding');
 
 require __DIR__.'/fixtures/release-registry/editorial-cycle.php';
+require __DIR__.'/fixtures/release-registry/technical-package.php';
+require __DIR__.'/fixtures/release-registry/technical-package-cli.php';
 
 $ok((int)$admin->query('SELECT count(*) FROM sites_core.site_projects WHERE authority_verified OR publishable')->fetchColumn()===0,'no project authority or publication flag was enabled');
 $ok((int)$admin->query('SELECT count(*) FROM sites_core.editorial_revisions WHERE client_accepted OR publishable')->fetchColumn()===0,'internal review is never client acceptance');
