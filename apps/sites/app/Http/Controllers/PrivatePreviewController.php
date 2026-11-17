@@ -5,15 +5,18 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Preview\PreviewBriefInput;
+use App\Preview\PreviewNavigation;
 use App\Preview\PreviewPrincipal;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Imagine\Sites\Production\PrivatePreviewOverview;
+use Imagine\Sites\Production\PrivatePreviewHistory;
 use Imagine\Sites\Production\PrivatePreviewWorkspace;
 use Imagine\Sites\Production\PreviewRevisionConflict;
+use InvalidArgumentException;
 use OutOfBoundsException;
-use PDO;
 use Throwable;
 
 final class PrivatePreviewController
@@ -24,6 +27,11 @@ final class PrivatePreviewController
             $principal = PreviewPrincipal::fromRequest($request);
             $workspace = new PrivatePreviewWorkspace($principal->db);
             $workspace->assertSafeRuntime();
+            try {
+                $navigation = PreviewNavigation::fromQuery($request->query(), $project !== null);
+            } catch (InvalidArgumentException) {
+                return $this->secure(response('Filtros ou página inválidos. Volte à fila e selecione novamente.', 422));
+            }
             if ($action === 'html') {
                 $version = $workspace->view($project, $principal->company, (int) $revision);
                 $principal->requireCapability('read');
@@ -34,7 +42,7 @@ final class PrivatePreviewController
             }
 
             if (!$request->isMethod('post')) {
-                return $this->renderWorkspace($principal, $this->pageData($principal, $project));
+                return $this->renderWorkspace($principal, $this->pageData($principal, $project, $navigation));
             }
             if (strlen($request->getContent()) > PreviewBriefInput::MAX_FORM_BYTES) {
                 return $this->secure(response('Formulário excede o limite.', 413));
@@ -42,32 +50,36 @@ final class PrivatePreviewController
             $allowed = $action === 'review' ? ['_token', 'decision', 'sha256'] : [
                 '_token', 'product', 'brand', 'headline', 'description', 'call_to_action', 'benefits', 'expected_revision',
             ];
-            if (array_diff(array_keys($request->all()), $allowed)) {
+            // Navigation parameters are never briefing, identity or authority.
+            $payload = $request->isJson() ? $request->json()->all() : $request->request->all();
+            if ($request->allFiles() || array_diff(array_keys($payload), $allowed)) {
                 return $this->secure(response('Campos não permitidos.', 422));
             }
             $principal->requireCapability($action === 'review' ? 'review' : 'edit');
-            $data = $this->pageData($principal, $project);
+            $data = $this->pageData($principal, $project, $navigation);
             try {
                 if ($action === 'review') {
-                    $input = $request->validate([
+                    $input = Validator::make($payload, [
                         'sha256' => 'required|string|regex:/\A[a-f0-9]{64}\z/D',
                         'decision' => 'required|string|in:approved_internal,changes_requested',
-                    ]);
+                    ])->validate();
                     $workspace->review($project, $principal->company, (int) $revision, $input['sha256'], $input['decision']);
                 } else {
-                    $brief = PreviewBriefInput::parse($request->all(), $data['brief']['productCode'] ?? null);
+                    $brief = PreviewBriefInput::parse($payload, $data['brief']['productCode'] ?? null);
                     if ($project === null) {
                         $project = (string) Str::uuid();
                         $workspace->createDemonstration($project, $principal->company, $brief);
                     } else {
-                        $workspace->revise($project, $principal->company, (int) $request->input('expected_revision'), $brief);
+                        $workspace->revise($project, $principal->company, (int) $payload['expected_revision'], $brief);
                     }
                 }
-                return $this->secure(redirect('/_preview/projects/'.$project));
+                return $this->secure(redirect($navigation->projectUrl($project,
+                    $action === 'review' ? $navigation->beforeRevision : null,
+                    $action === 'review' ? $navigation->afterRevision : null)));
             } catch (ValidationException $error) {
-                return $this->renderWorkspace($principal, $data, $action === 'review' ? [] : $request->all(), $error->errors(), 422);
+                return $this->renderWorkspace($principal, $data, $action === 'review' ? [] : $payload, $error->errors(), 422);
             } catch (PreviewRevisionConflict) {
-                return $this->renderWorkspace($principal, $this->pageData($principal, $project), $request->all(), [
+                return $this->renderWorkspace($principal, $this->pageData($principal, $project, $navigation), $payload, [
                     'expected_revision' => ['Outra versão foi criada enquanto você editava. Confira a versão atual antes de gerar novamente. Seu briefing foi mantido abaixo.'],
                 ], 409);
             }
@@ -78,35 +90,30 @@ final class PrivatePreviewController
         }
     }
 
-    private function pageData(PreviewPrincipal $principal, ?string $project): array
+    private function pageData(PreviewPrincipal $principal, ?string $project, PreviewNavigation $navigation): array
     {
-        $db = $principal->db;
-        $company = $principal->company;
-        $projects = (new PrivatePreviewOverview($db))->projects($company);
+        $projects = [];
         $versions = $reviews = [];
         $brief = null;
+        $currentRevision = $queueNext = $historyOlder = $historyNewer = null;
+        $reviewsTruncated = false;
         if ($project !== null) {
-            $query = $db->prepare('SELECT revision,sha256,brief,created_at,author<>session_user AS authored_by_other FROM sites_preview.versions WHERE project_id=?::uuid AND company_id=?::uuid ORDER BY revision DESC LIMIT 100');
-            $query->execute([$project, $company]);
-            $versions = $query->fetchAll(PDO::FETCH_ASSOC);
-            if (!$versions) {
-                throw new OutOfBoundsException('Private preview unavailable');
-            }
-            $brief = json_decode($versions[0]['brief'], true, 12, JSON_THROW_ON_ERROR);
-            $query = $db->prepare('SELECT revision,decision,created_at,reviewer=session_user AS reviewed_by_me FROM sites_preview.reviews WHERE project_id=?::uuid AND company_id=?::uuid ORDER BY revision DESC,created_at DESC LIMIT 100');
-            $query->execute([$project, $company]);
-            $reviews = $query->fetchAll(PDO::FETCH_ASSOC);
-            foreach ($versions as &$version) {
-                $version['reviewable'] = $version['authored_by_other'] === true;
-                foreach ($reviews as $review) {
-                    if ($review['reviewed_by_me'] === true && (int) $review['revision'] === (int) $version['revision']) {
-                        $version['reviewable'] = false;
-                    }
-                }
-            }
-            unset($version);
+            $history = (new PrivatePreviewHistory($principal->db))->page($principal->company, $project,
+                $navigation->beforeRevision, $navigation->afterRevision);
+            $versions = $history['versions'];
+            $reviews = $history['reviews'];
+            $brief = $history['brief'];
+            $currentRevision = $history['current_revision'];
+            $historyOlder = $history['older_before'];
+            $historyNewer = $history['newer_after'];
+            $reviewsTruncated = $history['reviews_truncated'];
+        } else {
+            $queue = (new PrivatePreviewOverview($principal->db))->page($principal->company, $navigation->queue);
+            $projects = $queue['items'];
+            $queueNext = $queue['next_cursor'];
         }
-        return compact('projects', 'project', 'versions', 'reviews', 'brief');
+        return compact('projects', 'project', 'versions', 'reviews', 'brief', 'currentRevision',
+            'queueNext', 'historyOlder', 'historyNewer', 'reviewsTruncated', 'navigation');
     }
 
     private function renderWorkspace(PreviewPrincipal $principal, array $data, array $submitted = [], array $fieldErrors = [], int $status = 200)

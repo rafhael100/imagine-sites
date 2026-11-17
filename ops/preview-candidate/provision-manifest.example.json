@@ -1,0 +1,27 @@
+{
+  "schema": "SITES_PREVIEW_PROVISION_V1",
+  "contract_sha256": "5ecfa4e626c622b387047d51e3a672b733d5830283b4e34d847f7469df5279eb",
+  "target": {
+    "database": "sites_staging",
+    "bootstrap_login": "sites_bootstrap",
+    "host": "REPLACE_WITH_REVIEWED_HOST",
+    "port": 5432,
+    "server_address": "REPLACE_WITH_OBSERVED_ADDRESS",
+    "database_oid": 0,
+    "system_identifier": "REPLACE_WITH_OBSERVED_CLUSTER"
+  },
+  "principals": [
+    {
+      "login": "sites_preview_replace_author",
+      "company_id": "REPLACE_WITH_AUTHORIZED_DEMO_COMPANY",
+      "profile": "author",
+      "expires_at": 0
+    },
+    {
+      "login": "sites_preview_replace_reviewer",
+      "company_id": "REPLACE_WITH_AUTHORIZED_DEMO_COMPANY",
+      "profile": "reviewer",
+      "expires_at": 0
+    }
+  ]
+}

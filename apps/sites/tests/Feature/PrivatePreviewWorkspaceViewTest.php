@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Preview\PreviewNavigation;
+use Imagine\Sites\Production\PreviewQueueQuery;
 use Tests\TestCase;
 
 final class PrivatePreviewWorkspaceViewTest extends TestCase
@@ -13,6 +15,9 @@ final class PrivatePreviewWorkspaceViewTest extends TestCase
         return [
             'projects' => [], 'project' => null, 'brief' => null,
             'versions' => [], 'reviews' => [], 'fieldErrors' => [],
+            'navigation' => PreviewNavigation::fromQuery([]),
+            'currentRevision' => null, 'queueNext' => null,
+            'historyOlder' => null, 'historyNewer' => null, 'reviewsTruncated' => false,
             'form' => [
                 'product' => 'onepage', 'brand' => '', 'headline' => '',
                 'description' => '', 'call_to_action' => '', 'benefits' => '',
@@ -36,6 +41,7 @@ final class PrivatePreviewWorkspaceViewTest extends TestCase
     {
         $data = $this->page();
         $data['project'] = '11111111-1111-4111-8111-111111111111';
+        $data['currentRevision'] = 1;
         $data['canEdit'] = false;
         $data['canReview'] = true;
         $data['form']['brand'] = 'Marca fictícia';
@@ -76,5 +82,52 @@ final class PrivatePreviewWorkspaceViewTest extends TestCase
         self::assertStringNotContainsString('<script>', $html);
         self::assertStringNotContainsString('<img ', $html);
         self::assertStringNotContainsString('@endforeach', $html);
+    }
+
+    public function test_queue_titles_are_escaped_and_navigation_retains_selected_filters(): void
+    {
+        $data = $this->page();
+        $data['navigation'] = PreviewNavigation::fromQuery(['status' => 'changes_requested', 'format' => 'onepage']);
+        $data['queueNext'] = PreviewQueueQuery::cursorFor('2026-11-17T12:00:00.000000Z', '11111111-1111-4111-8111-111111111111');
+        $data['projects'] = [[
+            'id' => '11111111-1111-4111-8111-111111111111', 'product' => 'onepage',
+            'brand' => '<script>Marca</script>', 'headline' => 'Chamada identificável',
+            'latest_revision' => 2, 'latest_created_at' => '2026-11-17 12:00:00+00',
+            'editorial_status' => 'changes_requested',
+        ]];
+
+        $html = view('preview.workspace', $data)->render();
+
+        self::assertStringContainsString('&lt;script&gt;Marca&lt;/script&gt;', $html);
+        self::assertStringNotContainsString('<script>', $html);
+        self::assertStringContainsString('Chamada identificável', $html);
+        self::assertStringContainsString('/_preview/projects/11111111-1111-4111-8111-111111111111?status=changes_requested&amp;format=onepage', $html);
+        self::assertStringContainsString('/_preview?status=changes_requested&amp;format=onepage&amp;cursor=', $html);
+        self::assertStringContainsString('Próximos projetos', $html);
+        self::assertStringContainsString('17/11/2026 09:00', $html);
+    }
+
+    public function test_older_history_page_keeps_the_current_brief_and_revision_for_editing(): void
+    {
+        $data = $this->page();
+        $data['project'] = '11111111-1111-4111-8111-111111111111';
+        $data['navigation'] = PreviewNavigation::fromQuery(['before_revision' => '21'], true);
+        $data['currentRevision'] = 60;
+        $data['historyOlder'] = 1;
+        $data['historyNewer'] = 20;
+        $data['form']['headline'] = 'Briefing atual da versão 60';
+        $data['versions'] = [[
+            'revision' => 20, 'sha256' => str_repeat('a', 64),
+            'created_at' => '2026-11-17 12:00:00+00', 'reviewable' => false,
+        ]];
+
+        $html = view('preview.workspace', $data)->render();
+
+        self::assertStringContainsString('name="expected_revision" value="60"', $html);
+        self::assertStringContainsString('value="Briefing atual da versão 60"', $html);
+        self::assertStringContainsString('<strong>Versão 20</strong>', $html);
+        self::assertStringNotContainsString('<span class="status">Atual</span>', $html);
+        self::assertStringContainsString('after_revision=20', $html);
+        self::assertStringContainsString('before_revision=1', $html);
     }
 }

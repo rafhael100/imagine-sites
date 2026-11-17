@@ -25,3 +25,62 @@ Disable preview feature and remove only new /_preview proxy exposure, validate c
 ## Safe access after approved installation
 
 Private VPN/SSH tunnel already authorized to VPS loopback18090, hostname matching the existing certificate and CA trust, nominal credential delivered by secure channel. Open `https://<approved-certificate-hostname>:<forwarded-port>/_preview`. This placeholder is not an installed URL. Opening localhost on the user's computer without a tunnel does not reach the VPS. No credentials, console session URL or key should enter GitHub/chat.
+
+## Executable candidate: plan / apply / check
+
+`provision.php` now implements the database portion of the candidate. It is a manually invoked CLI, never a route, boot hook, deployment workflow or migration auto-runner. It uses `PrivatePreviewProvisioning`, the existing migration `2026_11_16_000004_add_private_preview_workspace`, and the existing SQL contract. It does not start containers, change ports, install images, configure proxy authentication, create SQL LOGINs/passwords, issue a Portal identity, or grant commercial authority.
+
+The operational destination must be the existing **sites_staging** PostgreSQL18 database. Other database names are refused; `sites_preview_http_ci` is available only to the explicit GitHub Actions disposable fixture. The namespace `sites_preview` and dedicated owner must either both be absent, or both match a previous successful application exactly. A namespace created manually or by the older superuser-owned fixture is refused. There is no automatic ownership transfer, schema replacement, destructive rollback, permission repair, revocation reversal or validity renewal.
+
+### Prerequisites and custody
+
+Keep all existing release gates above. Before an eventual authorized invocation, the operator supplies these reviewed prerequisites through the existing custody mechanism:
+
+- A one-shot bootstrap connection with the existing administrator identity; PostgreSQL18, `APP_ENV=staging`, debug disabled, `pgsql` default connection, no database URL override, empty table prefix and `public` search path.
+- `sslmode=verify-full` and the approved mounted CA. Both effective Laravel configuration and the actual PostgreSQL session are checked against the reviewed database name/OID, login, server address/port and cluster `system_identifier`; the actual session must use TLS.
+- The administrator password mounted at `/run/secrets/migration_owner`, mode0400/0600, with `SITES_DB_PASSWORD_FILE` pointing to that exact path. The effective connection password must match the mounted value. Do not mount this file in the long-running web container.
+- An existing Laravel `public.migrations` repository. The provisioner never creates or replaces this repository in an operational database.
+- Distinct, pre-existing dedicated SQL LOGINs for each named access, with no privileged attributes, no role memberships, no owned objects and no schema/database CREATE. Passwords and nominal Nginx identity are prepared separately by the custodian; this tool neither accepts nor creates them.
+- A reviewed manifest mounted at `/run/secrets/preview_provisioning`, mode0400/0600, owned by root or the invoking UID. The CLI rejects other paths, links, oversized files and unknown fields. `provision-manifest.example.json` is deliberately ineligible: its placeholders and zero values must not be treated as a valid target or approved access.
+
+The manifest contains the contract SHA-256, exact target metadata, and each pre-existing login's approved demonstration company UUID, profile (`author`, `reviewer`, `reader`) and integer expiration time. It contains no password. Its company/login details stay in private custody; only sanitized counts, action names and fingerprints are printed.
+
+### Read-only plan
+
+In the reviewed candidate image, after the above custody and connection prerequisites are in place:
+
+```sh
+php /opt/imagine/ops/preview-candidate/provision.php plan --manifest=/run/secrets/preview_provisioning
+```
+
+`ready` describes a new, additive installation. `already_applied` means the manifest and all managed state still agree; the actions array is empty. A nonzero exit with a bounded `PROVISION_DENIED` reason means stop and review the mismatch. Plan fingerprints bind the source contract, exact observed database identity, existing role attributes, migration/ownership state and approved manifest. Plan does not write a file, role, schema, binding or migration record.
+
+### Explicit application, only after operational approval
+
+The operator reviews the concrete plan and uses its exact `plan_sha256`:
+
+```sh
+php /opt/imagine/ops/preview-candidate/provision.php apply --manifest=/run/secrets/preview_provisioning --plan-sha=<reviewed-sha256> --authorize-apply=SITES_PREVIEW_ONLY_APPROVED
+```
+
+The flag is a guard against accidental CLI use; it does not replace the required human operational authorization, backup/recovery evidence or independent review. This repository does not invoke this command on a VPS.
+
+Application rechecks the plan under a transaction-scoped lock. It creates only the dedicated `sites_preview_owner` NOLOGIN/NOINHERIT nonprivileged owner, temporarily grants it database CREATE, invokes migration000004 under `SET LOCAL ROLE`, resets to the verified bootstrap identity and removes temporary CREATE. The migration ledger, profile grants, company bindings and ownership marker are committed in the **same transaction** after full verification. Any failure rolls back the owner, schema, grants, bindings and ledger entry together. It never changes `sites_core` or other product namespaces.
+
+Authors receive read plus INSERT on projects/versions. Reviewers receive read plus EXECUTE on the independent review function. Readers receive read only. No profile gets direct writes to reviews, audit or principals, sequence access, mutation/DDL rights, grant options or owner membership. The SQL login remains the original authenticated session identity for RLS and attribution.
+
+A second application with a fresh matching plan returns `already_applied` and `changed:false`. It performs no migration/grant/binding writes and does not extend validity. Revoked/expired bindings, unexpected permissions, altered function definitions/search paths, owner privileges/membership or inconsistent migration records block both checking and reapplication. The operator must investigate them through a separately reviewed change.
+
+### Read-only verification
+
+```sh
+php /opt/imagine/ops/preview-candidate/provision.php check --manifest=/run/secrets/preview_provisioning
+```
+
+Check verifies owner attributes and membership, the six relation objects and five functions, definitions/constraints/indexes/triggers/policies against the managed structural fingerprint, FORCE RLS, effective and direct ACLs including column grants/PUBLIC/grant options, exact bindings and migration ledger consistency. It is independent of the volume of demonstration projects and preserves all history. It returns `verified` with `can_accept_orders:false` and `can_publish:false`; it cannot prove backup offsite, human acceptance, deployment readiness or payment authority.
+
+### Verification of the implementation
+
+`tests/private-preview-provisioning-offline.php` validates 26 manifest cases without Laravel boot or SQL. The HTTP fixture uses the real provisioner against its verified disposable TLS database. It exercises a read-only plan, authorization/hash/target refusals, state drift after planning, injected failure after migration+ledger to prove full transaction rollback, successful apply/check, repeat no-op, and refusal of extra ACLs, owner LOGIN, revocation and function search-path drift. The existing browser journey then runs with the segregated NOLOGIN owner and minimal profiles, including the same roles used by the candidate. Synthetic LOGIN creation is confined to the fixture and is never part of the provisioner.
+
+These are candidate/CI checks, not evidence of any invocation on the Leaseweb VPS. Existing staging containers, loopback18090, data, certificates and services remain outside this change.

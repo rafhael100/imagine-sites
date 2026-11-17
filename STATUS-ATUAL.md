@@ -1,5 +1,13 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 17/11/2026 — continuidade: registro persistente, provisionador e navegação editorial
+
+Base de desenvolvimento: PR #489 em `cac9084b4fbb0b2a5cf50ac843e89010fb9a019c`; branch DRAFT `feature/sites-release-readiness-2026-11-17`. O candidato acrescenta registro Sites de artefato/pedido/contrato/revisão, leitor PDO independente para o verificador de evidências existente, provisionamento `plan/apply/check` das prévias com owner NOLOGIN e ledger Laravel, fila paginada por formato/parecer e histórico paginado que mantém o briefing atual e não oferece revisões duplicadas.
+
+O workflow restrito executa contratos SQL e jornada HTTP descartáveis sobre o HEAD da branch. SHAs, resultados efetivamente executados e artefatos ficam na descrição da PR; este registro de implementação não equivale a evidência operacional. Detalhes e limites: `docs/reviews/SITES-RELEASE-READINESS-2026-11-17.md`.
+
+Nenhuma demonstração é promovida a pedido real. Registro técnico, liquidação e aceite continuam fontes independentes. Os dez gates operacionais permanecem BLOCKED, sem merge, deploy, alteração de VPS/18090 ou ativação de publisher.
+
 ## 17/11/2026 — PR #489 DRAFT: fila editorial e correções validadas no CI
 
 Base de continuidade: PR #488, `ef1a8ba888c8862108b9329e0301764dbcbe8ddb`. Recuperação já comprovada nessa PR não foi duplicada. Branch `feature/sites-preview-validation-2026-11-17` acrescenta fila da versão corrente por empresa/digest, tratamento de briefing inválido sem perda de campos, conflito HTTP409, produto imutável e ações de tela conforme perfil. O guard de runtime passa a recusar deriva de privilégios, inclusive grants por coluna, PUBLIC/herança, TRUNCATE/TRIGGER, CREATE e escrita direta em revisão/auditoria.
