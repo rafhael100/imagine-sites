@@ -1,5 +1,15 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 17/11/2026 — PR #489 DRAFT: fila editorial e correções validadas no CI
+
+Base de continuidade: PR #488, `ef1a8ba888c8862108b9329e0301764dbcbe8ddb`. Recuperação já comprovada nessa PR não foi duplicada. Branch `feature/sites-preview-validation-2026-11-17` acrescenta fila da versão corrente por empresa/digest, tratamento de briefing inválido sem perda de campos, conflito HTTP409, produto imutável e ações de tela conforme perfil. O guard de runtime passa a recusar deriva de privilégios, inclusive grants por coluna, PUBLIC/herança, TRUNCATE/TRIGGER, CREATE e escrita direta em revisão/auditoria.
+
+**Código funcional verificado:** `9ad188aa197e43135b5a992de5dfcf00df4cd8aa`. [PR #489](https://github.com/rafhael100/imagine-sites/pull/489). [CI #44190839583](https://github.com/rafhael100/imagine-sites/actions/runs/44190839583): **250 verificações PostgreSQL18** (63 configurações de privilégio indevido e oito verificações da fila), **33 verificações HTTP/navegador** com Nginx/FPM/PG18 separados, TLS verify-full, CSRF, revisão independente, empresa cruzada, briefing preservado, conflito409, Unicode, reinício e revogação. Todos os13 check-runs da HEAD funcional terminaram success (inclui duplicados push/PR). Imagens desktop/mobile revisadas; artifact14376686334, somente dados sintéticos, SHA256 `0446fd16afe09999c2af153b143bc50ebc426003a0bd9907034a8cd8684895d2`.
+
+Validação local: lint PHP8.4, 32 domínio, 27 renderer, 61 auditoria HTML, 26 structured-copy e dez testes novos de briefing/render com41 assertions aprovados. PostgreSQL local não pôde abrir socket; a evidência SQL vem exclusivamente do CI. A primeira execução revelou um ParseError Blade antes da jornada; corrigido com regressão de render real e nova execução integral aprovada. Workflow novo restrito ao draft/branch/base exatos e a mudanças de código; workflows anteriores intactos. Revisão independente detectou limite de transporte pequeno para Unicode, corrigido com teto32KiB no proxy candidato e aplicação.
+
+A fila informa revisão interna e não autoriza contrato, aceite de cliente ou publicação. Integração Portal/pagamento/registry de vínculos, backup externo e homologação continuam pendentes. VPS, porta18090, main/dev e serviços preservados. Detalhes: `docs/reviews/SITES-PREVIEW-VALIDATION-2026-11-17.md`.
+
 ## 16/11/2026 — PostgreSQL verify-full REAL na Leaseweb, ambiente preservado (PR483 DRAFT)
 
 Fonte dd91486352bdc45b68e1b6289546759cc36360f5, CI11 check runs success incluindo43810046212. Em09:07–09:08 Brasília, TLS foi ativado por SIGHUP no PostgreSQL18 existente, sem restart; CA/hostname corretos verificados e CA/hostname errados/plaintext recusados. App Sites passou a verify-full com a mesma imagem;52 outros contêineres, banco, proxy, volumes/redes e porta127.0.0.1:18090 preservados. HTTPS privado200 com acesso/401 sem acesso. Preflight real postgres_tls=verified, global blocked. Nenhum pedido/PSP/prévia operacional liberado. Relatório: docs/SITES-P0-EXISTING-TLS-2026-11-16.md. Portal901 prepara ledger Sandbox nativo, sem ativação ou credenciais; não é conciliação real.

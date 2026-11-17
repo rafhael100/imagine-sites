@@ -36,7 +36,10 @@ final readonly class PreviewPrincipal {
   $result=new self($db,$p['company_id'],$name);$result->requireCapability('read');return $result;
  }
  public function requireCapability(string $capability):void {
+  if(!$this->allows($capability))throw new RuntimeException('Preview permission unavailable');
+ }
+ public function allows(string $capability):bool {
   $s=$this->db->prepare('SELECT sites_preview.can_access(?::uuid,?)');$s->execute([$this->company,$capability]);
-  if($s->fetchColumn()!==true)throw new RuntimeException('Preview permission unavailable');
+  return $s->fetchColumn()===true;
  }
 }
