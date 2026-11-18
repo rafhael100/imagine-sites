@@ -97,6 +97,21 @@ $spaced = $base;
 $spaced['brand'] = " \tMarca fictícia 😀 \r\n";
 $spaced['benefits'] = ["\tBenefício fictício \r\n"];
 $sameAsDirect($spaced, 'valid leading and trailing whitespace with one benefit');
+$unicodeSpaced = $base;
+foreach (['brand', 'headline', 'description', 'callToAction'] as $field) {
+    $unicodeSpaced[$field] = "\u{00A0}\u{2003}".$base[$field]."\u{2003}\u{00A0}";
+}
+$unicodeSpaced['benefits'] = ["\u{00A0}Texto\u{2003}com conteúdo\u{2003}\u{00A0}"];
+foreach (['onepage', 'landing_page'] as $product) {
+    $sameAsDirect(array_replace($unicodeSpaced, ['productCode' => $product]),
+        $product.' preserves leading, internal and trailing Unicode spaces around content');
+    // These format characters are not Unicode White_Space, even on their own.
+    foreach (['ZWSP' => "\u{200B}", 'FEFF' => "\u{FEFF}"] as $label => $format) {
+        $values = ['productCode' => $product, 'brand' => $format, 'headline' => $format,
+            'description' => $format, 'callToAction' => $format, 'benefits' => [$format]];
+        $sameAsDirect($values, $product.' preserves standalone '.$label.' in every text field and benefit');
+    }
+}
 $nfc = array_replace($base, ['headline' => 'Café e conteúdo de exemplo']);
 $lf = array_replace($base, ['description' => str_replace("\r\n", "\n", $base['description'])]);
 $ok(LocalSiteRendering::render($encode($nfc))->digest !== $artifact->digest &&
@@ -153,8 +168,12 @@ foreach (['productCode', 'brand', 'headline', 'description', 'callToAction'] as 
 foreach (['', 'landing-page', 'ONEPAGE', 'onepage ', 'blog'] as $index => $product) {
     $deny($encode(array_replace($base, ['productCode' => $product])), 'unsupported product '.$index);
 }
+// All 25 White_Space code points from Unicode 17.0, as test data only.
+$unicodeWhitespace = "\t\n\v\f\r \u{0085}\u{00A0}\u{1680}".
+    "\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}".
+    "\u{2028}\u{2029}\u{202F}\u{205F}\u{3000}";
 foreach (['brand' => 120, 'headline' => 180, 'description' => 600, 'callToAction' => 80] as $field => $limit) {
-    foreach (['', " \t\r\n"] as $index => $blank) {
+    foreach (['', " \t\r\n", "\u{00A0}", "\u{2003}", $unicodeWhitespace] as $index => $blank) {
         $deny($encode(array_replace($base, [$field => $blank])), 'blank '.$field.' variant '.$index);
     }
     $deny($encode(array_replace($base, [$field => str_repeat('😀', $limit + 1)])),
@@ -169,11 +188,14 @@ foreach ([null, '', true, 1, new stdClass(), (object) ['0' => 'Benefício'], [1 
 foreach ([[], array_fill(0, 9, 'Benefício')] as $index => $value) {
     $deny($encode(array_replace($base, ['benefits' => $value])), 'benefit count outside existing bounds '.$index);
 }
-foreach ([null, false, 1, 1.5, [], new stdClass(), '', " \t\r\n", str_repeat('😀', 181),
+foreach ([null, false, 1, 1.5, [], new stdClass(), '', " \t\r\n", "\u{00A0}", "\u{2003}",
+    $unicodeWhitespace, str_repeat('😀', 181),
     "\0inicio", "meio\0fim", "fim\0"] as $index => $value) {
     $deny($encode(array_replace($base, ['benefits' => ['Benefício válido', $value]])),
         'invalid benefit value '.$index);
 }
+$deny($encode(array_replace($base, ['benefits' => ["\u{00A0}\u{2003}"]])),
+    'a single Unicode whitespace-only benefit cannot satisfy the nonblank list requirement');
 
 foreach ([
     'empty JSON' => '', 'root array' => '[]', 'root null' => 'null',

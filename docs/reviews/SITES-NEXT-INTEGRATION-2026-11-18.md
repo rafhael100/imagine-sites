@@ -6,6 +6,25 @@
 
 Essa conclusão delimita a integração; não afirma esgotamento de todo desenvolvimento. O trabalho autorizado em branch isolada pode continuar em componentes com uso concreto e defeitos demonstrados. A inspeção privada do diário é um exemplo: consome a API persistente existente sem criar autoridade ou depender de um briefing inventado.
 
+### Texto não vazio na entrada de renderização local
+
+Sobre a #534 validada, a correção de `LocalSiteRendering` recusa quatro campos
+textuais e benefícios compostos inteiramente por Unicode `White_Space`. Corrige
+a aceitação demonstrada de NBSP/EM SPACE sem modificar `SiteBrief` ou a leitura
+de versões históricas. Conteúdo e espaços significativos permanecem byte a byte.
+**159 checks de serviço e 97 da CLI** passaram, incluindo ausência de output e
+inputs preservados nos cinco negativos. [Escopo e fonte Unicode](SITES-LOCAL-RENDER-UNICODE-BLANK-2026-11-18.md).
+O CI dedicado está pendente.
+
+### Recuperação exata de uma solicitação do diário
+
+A solicitação privada documenta a possibilidade de commit seguido de falha na
+gravação do recibo. Se o `operationRef` se perder, a consulta existente precisa
+desse UUID; a apuração por chave ainda depende de repetir o writer. O próximo
+recorte é um leitor exato pelos cinco seletores originais, com autorização atual
+própria e nenhum append. O primeiro incremento será SQL aditivo e consumidor PHP
+em memória; a CLI com novo arquivo privado virá depois da prova desse contrato.
+
 ### Auditoria do CSS do artefato inerte
 
 A correção sobre a #533 fecha duas formas de declarar recursos que o filtro
@@ -15,8 +34,12 @@ O CSS fixo do renderer não usa essas construções, e os campos de texto contin
 aceitando seus nomes literais. Os **152 checks F27 e 279 de registro offline**
 passaram, incluindo recusa antes de PDO com compromisso recalculado.
 [Recorte, fontes primárias e limites](SITES-INERT-CSS-ESCAPES-2026-11-18.md).
-A candidata preserva artefatos históricos, schema e os gates existentes;
-CI próprio ainda pendente.
+A [#534](https://github.com/rafhael100/imagine-sites/pull/534), HEAD
+`5a93720b68b81e2336fd7038b4f791a2bebc9c72`, confirmou **12/12 checks SUCCESS**.
+O [run 44391000613](https://github.com/rafhael100/imagine-sites/actions/runs/44391000613)
+confirmou **20 checks de pacote, 152 de auditoria e 279 de registro** em PHP
+8.3/8.4, com os dois pacotes privados e cleanup. Artefatos históricos, schema e
+os gates existentes permanecem preservados.
 
 ### Recibo recuperado consumido pelo Portal nativo
 
