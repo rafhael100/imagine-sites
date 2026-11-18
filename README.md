@@ -22,6 +22,8 @@ Na fila, uma busca segura acima do limite permanece no formulário com mensagem 
 
 O registro privado de artefatos possui plano somente leitura e gravação explícita por hash revisado, usando a API SQL existente. Ele conserva os bytes e a idempotência do registry; a aprovação editorial e a associação da release exigem suas identidades próprias antes de preparar o pacote.
 
+A renderização local também pode conferir um plano, um snapshot candidato do briefing rico e os bytes da entrada editorial escolhida. O modo explícito produz o mesmo HTML inerte e um recibo privado ligado ao hash do plano. Os quatro arquivos são verificados antes e durante a escrita; somente o HTML segue ao registro existente. A proveniência demonstra consistência local, mantendo `authorityVerified`, `canPublish` e `canAcceptRealOrders` falsos.
+
 O guard do registry inspeciona permissões de tabela e coluna em todo o schema nativo, incluindo o ledger de recebimento do Portal. A ampliação usa uma migration aditiva que preserva identidade e ACL da função existente; nenhuma capacidade de recebimento, pagamento ou publicação é concedida por essa verificação.
 
 A CLI editorial permite planejar e solicitar uma transição por execução, com revisão esperada, bytes exatos e confirmação explícita do plano. O SQL verifica a função do operador e o estado corrente. O comando não consulta o artefato no registry nem estabelece uma associação; conflitos e respostas perdidas exigem apuração antes de outra decisão, sem retry ou incremento automático da revisão.
@@ -66,6 +68,8 @@ php tests/private-preview-upgrade-cli-offline.php
 php tests/release-preparation-offline.php
 php tests/local-site-rendering-offline.php
 php tests/local-site-rendering-cli-offline.php
+php tests/brief-render-provenance-offline.php
+php tests/local-site-rendering-provenance-cli-offline.php
 php tests/release-registration-offline.php
 php tests/release-registration-cli-offline.php
 php tests/release-binding-offline.php
@@ -115,6 +119,7 @@ O Portal controla contratos, aceite expresso e evento oficial `ENTREGUE`; Sites 
 - [Custódia dos recibos dos auxiliares de CI](docs/reviews/SITES-FIXTURE-RECEIPT-CUSTODY-2026-11-18.md)
 - [Recuperação do formulário de comparação](docs/reviews/SITES-COMPARISON-RECOVERY-2026-11-18.md)
 - [Renderização de briefing local privado](docs/reviews/SITES-LOCAL-ARTIFACT-RENDERING-2026-11-18.md)
+- [Proveniência local do briefing ao HTML](docs/reviews/SITES-LOCAL-RENDER-PROVENANCE-2026-11-18.md)
 - [Próxima integração Portal → briefing → geração](docs/reviews/SITES-NEXT-INTEGRATION-2026-11-18.md)
 - [Orientação editorial por versão](docs/reviews/SITES-EDITORIAL-FEEDBACK-2026-11-18.md)
 - [Briefing Unicode e validação por campo](docs/reviews/SITES-BRIEF-UNICODE-VALIDATION-2026-11-18.md)

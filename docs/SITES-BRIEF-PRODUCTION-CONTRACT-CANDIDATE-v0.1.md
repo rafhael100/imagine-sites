@@ -1,18 +1,21 @@
 # Briefing Onepage e produção — contrato candidato v0.1
 
-**Estado: proposta revisável, sem homologação ou ativação.** Data: 18/11/2026.
-Base Sites: `1634bc45094abfe51b6e391877b4b7f8fdadf692` (#516). Origem de regras
+**Estado: contrato candidato com primeiro consumidor local implementado, sem homologação ou ativação operacional.** Data: 18/11/2026.
+Base da proposta: `1634bc45094abfe51b6e391877b4b7f8fdadf692` (#516). Origem de regras
 consultada: Portal #941, `0e0ccc06755b6ddd938635e5c4c3625ff6497e2c`.
 
 Esta proposta define um snapshot privado de briefing rico Onepage e um plano
 que o vincula a uma entrada editorial separada, já consumível pelo renderer
-local. A primeira implementação útil será conferir esses arquivos e conservar
-proveniência privada do HTML produzido. O recebimento durável e autenticado de
+local. O [primeiro consumidor local](reviews/SITES-LOCAL-RENDER-PROVENANCE-2026-11-18.md),
+implementado sobre a proposta #517 / `c53eac9eb8060a62eb060e68f3bc5b2956dbbdff`,
+confere esses arquivos e conserva proveniência privada do HTML produzido.
+O recebimento durável e autenticado de
 briefing pelo Sites permanece uma etapa posterior, com requisitos explícitos.
 
 Os schemas e exemplos deste documento não são um contrato oficial do Portal,
-um endpoint, uma autorização de produção ou uma prova de pagamento. A proposta
-não altera runtime, migrations, grants, gates, publicação ou rollback automático.
+um endpoint, uma autorização de produção ou uma prova de pagamento.
+A proposta #517 não alterou runtime. O incremento local amplia a CLI existente,
+sem migrations, grants, gates, publicação ou rollback automático.
 As escolhas identificadas como propostas são decisões de engenharia abertas à
 revisão; não foram atribuídas à implementação legada.
 
@@ -90,6 +93,16 @@ armazenados e seus hashes permanecem intocados. Campos opcionais vazios são
 permitidos. Quando presentes, `current_site`/`contact_site` são referências HTTP
 ou HTTPS sem usuário/senha; e-mail e domínio seguem a validação de compatibilidade
 fixada no handler, com domínio como hostname ASCII e não URL.
+
+O primeiro consumidor PHP aceita um **subconjunto explícito das URLs WHATWG**
+do legado: esquema HTTP(S) escrito em ASCII; DNS ASCII convencional, sem labels
+IDNA (`xn--`) ou ponto final; IPv4 canônico ou IPv6 entre colchetes; porta decimal
+de até cinco dígitos, de 0 a 65535. Recusa usuário/senha, barra invertida,
+controles, espaços internos e formas que dependeriam de normalização WHATWG,
+como host Unicode ou IPv4 abreviado. Caminho e query UTF-8 permanecem texto
+literal. A avaliação usa somente a cópia lógica aparada; os bytes e hashes
+originais não mudam. Não se afirma paridade integral de URLs entre PHP e Node,
+e nenhuma referência é resolvida ou acessada pela rede.
 
 Essas condições verificam completude declarada, não que o cliente confirmou o
 envio. `confirmed=true` era entrada de uma ação separada na origem e não é
@@ -255,9 +268,11 @@ a expectativa no plano, usa template alternativo ou substitui o snapshot.
 Pode ser preparado com o renderer já existente. O novo modo acrescenta uma
 conferência e proveniência; não adiciona geração criativa, IA ou um worker vazio.
 
-## 6. Primeiro incremento de código executável após esta proposta
+## 6. Primeiro incremento de código executável
 
-**Escolha proposta:** ampliar o comando existente, preservando seu modo atual:
+**Implementado em candidato isolado:** o comando existente foi ampliado,
+preservando seu modo anterior. [Serviço](../src/Production/BriefRenderProvenance.php)
+e [relatório de validação](reviews/SITES-LOCAL-RENDER-PROVENANCE-2026-11-18.md):
 
 ```text
 php ops/release-candidate/render.php render \
@@ -283,7 +298,7 @@ exclusivamente dois arquivos 0600 no mesmo parent, mantendo ambos os FDs:
 `index.html` e **`render-provenance.json`**. Não há overwrite, chmod reparador,
 rename, limpeza automática ou segunda árvore escolhida por referência.
 
-O sidecar privado proposto tem exatamente sete campos:
+O sidecar privado tem exatamente sete campos:
 
 | Campo | Conteúdo |
 | --- | --- |
@@ -337,7 +352,7 @@ aprovação, binding, publicação ou promoção automática no render.
 | CAS proposto, separação de versões e regra de replay exato | Receptor durável autenticado, capacidade própria, recibo, consulta e revogação por recurso |
 | Entrada editorial manual separada e conferência no renderer existente | Aprovação humana comprovada e política de início de produção; um arquivo local não identifica o aprovador |
 | Modo local sem materiais, sidecar privado e integração explícita com registro já existente | Acesso/validação de materiais reais, direitos, retenção, dados pessoais e credenciais operacionais |
-| Exemplos fictícios Onepage e testes futuros do consumidor local | Regras de Landing, obrigatoriedade de domínio na aprovação e demais diferenças de produto |
+| Exemplos fictícios Onepage e testes do consumidor local | Regras de Landing, obrigatoriedade de domínio na aprovação e demais diferenças de produto |
 | Manter todos os indicadores de autoridade falsos | Contrato/pagamento oficial, aceite expresso da release exata, publicação observada e `ENTREGUE` do Portal |
 
 Os estados financeiros legados, a dispensa administrativa do gate de pagamento,
@@ -377,9 +392,10 @@ reproduzido exatamente pelo renderer existente. Identidade entre arquivos,
 equação de revisão e limites UTF-16 dos exemplos foram conferidos separadamente.
 Uma revisão cruzada de documento/schemas não encontrou bloqueadores. O scan de
 segurança passou sobre 632 arquivos de fonte, conservando os dez gates BLOCKED.
-Essas verificações documentais não executam o consumidor novo proposto abaixo.
+Essas verificações documentais pertencem à #517 e não executaram o consumidor
+novo. A entrega de implementação possui provas próprias no relatório vinculado.
 
-A implementação seguinte será aceita quando exercitar pelo comando real:
+Os critérios do incremento local são exercitados pelo serviço e comando reais:
 
 - O exemplo de quatro arquivos, byte a byte, com sidecar ligado ao plano e HTML
   idêntico ao renderer direto; o modo antigo continua com sua saída conhecida.
@@ -395,8 +411,9 @@ A implementação seguinte será aceita quando exercitar pelo comando real:
 - Saída pública sem conteúdo rico, refs comerciais, paths ou autoridade; nenhum
   acesso a DB, Portal, provider, fila, publicação ou gate novo.
 
-Esses são critérios para o incremento ainda não implementado, não resultados
-de CI desta especificação. A próxima entrega pode acrescentar validação e o
-modo explícito na CLI existente sem criar worker, storage genérico ou protocolo
-oficial. O receptor durável futuro exigirá provas próprias de CAS concorrente,
+Os testes locais do incremento passaram com 109 checks do serviço, 80 da nova
+CLI e os 137/87 anteriores. A fixture de registro acrescenta quatro verificações,
+cuja execução PostgreSQL remota deve ser comprovada separadamente; definição
+de workflow ou revisão de código não equivalem a resultado de CI.
+O receptor durável futuro exigirá provas próprias de CAS concorrente,
 replay, revogação, isolamento e falha de commit, ligadas ao consumidor real.
