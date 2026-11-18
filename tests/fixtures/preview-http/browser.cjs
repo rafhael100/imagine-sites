@@ -218,6 +218,7 @@ const {chromium}=require('playwright');const fs=require('fs'),cp=require('child_
  await p.goto(landing+'/versions/1/html');await p.screenshot({path:dir+'/landing-mobile.png',fullPage:true});ok(await p.getByRole('heading',{name:'Uma oferta com foco em oportunidades'}).isVisible(),'real renderer visible');
  await require('./brief-validation.cjs')({ctx,o,base,dir,ok});
  await require('./inert-text.cjs')({ctx,base,dir,ok});
+ const revisionCeiling=await require('../preview-revision-ceiling/browser.cjs')({ctx,base,dir,docker,ok});
  docker(['restart','app']);
  let restored=false;for(let n=0;n<20;n++){try{const r=await a.request.get(one);if(r.status()===200){restored=true;break;}}catch{}await new Promise(r=>setTimeout(r,300));}ok(restored,'app restart retains DB and immutable versions');
  await p.setViewportSize({width:1440,height:1000});await p.goto(one+'/versions/1/html');await p.screenshot({path:dir+'/onepage-desktop.png',fullPage:true});
@@ -231,6 +232,7 @@ const {chromium}=require('playwright');const fs=require('fs'),cp=require('child_
  await comparisonRecovery.verifyRevocation();
  await queueSearchRecovery.verifyRevocation();
  await unsavedBrief.verifyRevocation();
+ await revisionCeiling.verifyRevocation();
  const privateLogs=docker(['logs','--no-color','app','proxy']);
  ok(!privateLogs.includes(queryLogProbe),'the query-only synthetic search term is absent from app and proxy logs');
  const audit=docker(['exec','-T','db','psql','-U','postgres','-d','sites_preview_http_ci','-Atc','SELECT count(*) FROM sites_preview.audit']);ok(Number(audit.trim())>=6,'persistent DB audit');
