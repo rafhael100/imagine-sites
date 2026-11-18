@@ -437,6 +437,9 @@ if (getenv('SITES_PUBLICATION_RECONCILIATION_CI') === '1') {
 if (getenv('SITES_PUBLICATION_REQUEST_CI') === '1') {
     require __DIR__.'/fixtures/publication-request/contract.php';
 }
+if (getenv('SITES_EDITORIAL_INSPECTION_CI') === '1') {
+    require __DIR__.'/fixtures/editorial-inspection/contract.php';
+}
 
 $ok((int)$admin->query('SELECT count(*) FROM sites_core.site_projects WHERE authority_verified OR publishable')->fetchColumn()===0,'no project authority or publication flag was enabled');
 $ok((int)$admin->query('SELECT count(*) FROM sites_core.editorial_revisions WHERE client_accepted OR publishable')->fetchColumn()===0,'internal review is never client acceptance');

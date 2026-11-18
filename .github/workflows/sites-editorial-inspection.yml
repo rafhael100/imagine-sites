@@ -1,0 +1,221 @@
+name: Sites exact editorial inspection (isolated draft)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['fix/sites-queue-search-recovery-2026-11-18']
+    paths:
+      - '.github/workflows/sites-editorial-inspection.yml'
+      - 'tests/editorial-inspection-offline.php'
+      - 'tests/editorial-inspection-cli-offline.php'
+      - 'tests/fixtures/editorial-inspection/**'
+      - 'apps/sites/**'
+      - 'src/**'
+      - 'contracts/**'
+      - 'ops/**'
+      - 'tests/private-preview-role-contract.php'
+      - 'tests/run-private-preview-role-contract.sh'
+      - 'tests/release-registry-pg-contract.php'
+      - 'tests/run-release-registry-contract.sh'
+      - 'tests/private-preview-provisioning-offline.php'
+      - 'tests/fixtures/release-registry/**'
+      - 'tests/release-preparation-offline.php'
+      - 'tests/fixtures/preview-http/**'
+      - 'tests/fixtures/preview-feedback/**'
+      - 'tests/fixtures/preview-search/**'
+      - 'tests/fixtures/preview-brief/**'
+      - 'tests/fixtures/preview-upgrade/**'
+      - 'tests/private-preview-upgrade-offline.php'
+      - 'tests/private-preview-upgrade-cli-offline.php'
+      - 'tests/publication-journal-offline.php'
+      - 'tests/publication-request-offline.php'
+      - 'tests/publication-request-cli-offline.php'
+      - 'tests/fixtures/publication-request/**'
+      - 'tests/release-registration-offline.php'
+      - 'tests/release-registration-cli-offline.php'
+      - 'tests/release-binding-offline.php'
+      - 'tests/release-binding-cli-offline.php'
+      - 'tests/fixtures/release-binding/**'
+      - 'tests/editorial-transition-offline.php'
+      - 'tests/editorial-transition-cli-offline.php'
+      - 'tests/fixture-private-material.py'
+      - 'tests/fixture-receipt-custody.py'
+      - 'tests/fixture-publication-request-custody.py'
+      - 'tests/local-site-rendering-offline.php'
+      - 'tests/local-site-rendering-cli-offline.php'
+      - 'tests/fixtures/editorial-transition/**'
+      - 'tests/fixtures/release-registration/**'
+      - 'tests/publication-inspection-offline.php'
+      - 'tests/publication-inspection-cli-offline.php'
+      - 'tests/fixtures/publication-inspection/**'
+      - 'tests/publication-reconciliation-offline.php'
+      - 'tests/publication-reconciliation-cli-offline.php'
+      - 'tests/fixtures/publication-reconciliation/**'
+      - 'tests/private-preview-workspace.php'
+      - 'tests/preview-recovery.php'
+permissions:
+  contents: read
+concurrency:
+  group: sites-editorial-inspection-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  editorial-inspection-contract:
+    if: >-
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.head.ref == 'feature/sites-editorial-inspection-2026-11-18' &&
+      github.event.pull_request.base.sha == '23f52d8ef6c542109f6271f33d06b218fbcd5d1a'
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo_pgsql, mbstring, sodium, dom, xml
+          tools: composer:v2
+          coverage: none
+      - name: Extract authenticated official PG18 tooling without system installation
+        run: |
+          set -euo pipefail
+          . /etc/os-release
+          test "$ID" = ubuntu
+          test "$VERSION_CODENAME" = noble
+          test "$(dpkg --print-architecture)" = amd64
+          tooling=$(mktemp -d "$RUNNER_TEMP/sites507-editorial-inspection-pg18-XXXXXXXX")
+          mkdir -p "$tooling/lists/partial" "$tooling/cache/archives/partial" "$tooling/debs" "$tooling/root"
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc -o "$tooling/pgdg.asc"
+          fingerprint=$(gpg --batch --show-keys --with-colons "$tooling/pgdg.asc" | awk -F: '$1 == "fpr" {print $10; exit}')
+          test "$fingerprint" = B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8
+          test -r /usr/share/keyrings/ubuntu-archive-keyring.gpg
+          # All APT indexes/cache/config are local. Normal signature/hash checks remain enabled.
+          # No system APT hooks, package installation, maintainer scripts or global files.
+          cat > "$tooling/apt.conf" <<EOF
+          Dir::Etc::parts "-";
+          Dir::Etc::main "-";
+          Dir::Etc::sourcelist "$tooling/sources.list";
+          Dir::Etc::sourceparts "-";
+          Dir::State::lists "$tooling/lists";
+          Dir::Cache "$tooling/cache";
+          Dir::Log "$tooling";
+          EOF
+          cat > "$tooling/sources.list" <<EOF
+          deb [signed-by=$tooling/pgdg.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://archive.ubuntu.com/ubuntu noble main universe
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://archive.ubuntu.com/ubuntu noble-updates main universe
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://security.ubuntu.com/ubuntu noble-security main universe
+          EOF
+          export APT_CONFIG="$tooling/apt.conf"
+          apt-get --error-on=any update -qq
+          cd "$tooling/debs"
+          # Other runtime libraries are supplied by the standard Noble runner and checked below.
+          apt-get download postgresql-18 postgresql-client-18 libpq5 liburing2
+          for package in ./*.deb; do
+            dpkg-deb --show "$package"
+            sha256sum "$package"
+            dpkg-deb --extract "$package" "$tooling/root"
+          done
+          pg_bin="$tooling/root/usr/lib/postgresql/18/bin"
+          runtime_lib="$tooling/root/usr/lib/x86_64-linux-gnu"
+          export LD_LIBRARY_PATH="$runtime_lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          for binary in postgres initdb pg_ctl pg_controldata psql; do
+            ldd "$pg_bin/$binary" > "$tooling/$binary.ldd"
+            cat "$tooling/$binary.ldd"
+            if grep -q 'not found' "$tooling/$binary.ldd"; then
+              echo 'Required local runtime library unavailable; stopping before cluster creation' >&2
+              exit 1
+            fi
+          done
+          "$pg_bin/initdb" --version | grep -E '^initdb \(PostgreSQL\) 18[.]'
+          "$pg_bin/postgres" --version | grep -E '^postgres \(PostgreSQL\) 18[.]'
+          echo "PG_BIN=$pg_bin" >> "$GITHUB_ENV"
+          echo "SITES_PG_RUNTIME_LIB=$runtime_lib" >> "$GITHUB_ENV"
+      - name: Locked application dependencies without scripts or plugins
+        run: composer install --working-dir=apps/sites --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+      - name: Validate syntax and existing domain contracts
+        run: |
+          php -l tests/private-preview-role-contract.php
+          bash -n tests/run-private-preview-role-contract.sh
+          php tests/run.php
+          php tests/f24-run.php
+          php tests/f27-offline-preview-audit.php
+          php -l tests/release-registry-pg-contract.php
+          bash -n tests/run-release-registry-contract.sh
+          php tests/private-preview-provisioning-offline.php
+          php tests/private-preview-upgrade-offline.php
+          php tests/private-preview-upgrade-cli-offline.php
+          php tests/release-preparation-offline.php
+          php tests/publication-journal-offline.php
+          php -l ops/publication-candidate/request.php
+          php -l src/Publication/PrivatePublicationRequest.php
+          php -l src/Publication/PrivatePublicationRequestReceipt.php
+          php -l tests/fixtures/publication-request/contract.php
+          php tests/publication-request-offline.php
+          php tests/publication-request-cli-offline.php
+          php -l ops/publication-candidate/inspect.php
+          php -l src/Publication/PrivatePublicationInspection.php
+          php tests/publication-inspection-offline.php
+          php tests/publication-inspection-cli-offline.php
+          php -l ops/publication-candidate/reconcile.php
+          php -l src/Publication/PrivatePublicationReconciliation.php
+          php -l tests/fixtures/publication-reconciliation/contract.php
+          php tests/publication-reconciliation-offline.php
+          php tests/publication-reconciliation-cli-offline.php
+          php -l ops/release-candidate/render.php
+          php -l src/Production/LocalSiteRendering.php
+          php -l src/Production/LocalSiteRenderingFiles.php
+          php tests/local-site-rendering-offline.php
+          php tests/local-site-rendering-cli-offline.php
+          php -l ops/release-candidate/register.php
+          php -l src/Publication/PrivateReleaseRegistration.php
+          php tests/release-registration-offline.php
+          php tests/release-registration-cli-offline.php
+          php -l ops/editorial-candidate/transition.php
+          php -l apps/sites/app/Editorial/PrivateEditorialTransition.php
+          php -l tests/fixtures/editorial-transition/contract.php
+          php tests/editorial-transition-offline.php
+          php tests/editorial-transition-cli-offline.php
+          php -l ops/editorial-candidate/inspect.php
+          php -l apps/sites/app/Editorial/PrivateEditorialInspection.php
+          php -l apps/sites/database/migrations/2026_11_18_000009_add_editorial_head_read_api.php
+          php -l tests/fixtures/editorial-inspection/contract.php
+          php tests/editorial-inspection-offline.php
+          php tests/editorial-inspection-cli-offline.php
+          php -l ops/release-candidate/binding.php
+          php -l src/Publication/PrivateReleaseBinding.php
+          php -l tests/fixtures/release-binding/contract.php
+          php tests/release-binding-offline.php
+          php tests/release-binding-cli-offline.php
+          python3 tests/fixture-private-material.py
+          python3 tests/fixture-receipt-custody.py
+          python3 tests/fixture-publication-request-custody.py
+          php apps/sites/vendor/bin/phpunit -c apps/sites/phpunit.xml --do-not-cache-result
+      - name: Fresh local PG18 with effective Laravel and SQL identity guards
+        run: |
+          export LD_LIBRARY_PATH="$SITES_PG_RUNTIME_LIB${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          export PHP_BIN="$(command -v php)"
+          bash tests/run-private-preview-role-contract.sh
+      - name: Exact editorial inspection and additive migration through the existing release chain
+        env:
+          SITES_RELEASE_REGISTRY_CI: '1'
+          SITES_PUBLICATION_JOURNAL_CI: '1'
+          SITES_PUBLICATION_INSPECTION_CI: '1'
+          SITES_RELEASE_REGISTRATION_CI: '1'
+          SITES_EDITORIAL_TRANSITION_CI: '1'
+          SITES_RELEASE_BINDING_CI: '1'
+          SITES_PUBLICATION_RECONCILIATION_CI: '1'
+          SITES_PUBLICATION_REQUEST_CI: '1'
+          SITES_EDITORIAL_INSPECTION_CI: '1'
+        run: |
+          set -euo pipefail
+          export LD_LIBRARY_PATH="$SITES_PG_RUNTIME_LIB${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          export PHP_BIN="$(command -v php)"
+          bash tests/run-release-registry-contract.sh | tee "$RUNNER_TEMP/sites-editorial-inspection-contract.log"
+          grep -q '^EDITORIAL INSPECTION CI PASS: [1-9][0-9]* assertions;' "$RUNNER_TEMP/sites-editorial-inspection-contract.log"
