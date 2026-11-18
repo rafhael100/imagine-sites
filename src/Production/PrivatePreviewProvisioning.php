@@ -16,7 +16,11 @@ final class PrivatePreviewProvisioning
     public const MIGRATION = '2026_11_16_000004_add_private_preview_workspace';
     public const NOTES_MIGRATION = '2026_11_18_000008_add_private_preview_review_notes';
     public const MIGRATIONS = [self::MIGRATION, self::NOTES_MIGRATION];
+    private const LEGACY_CONTRACT_SHA = '5ecfa4e626c622b387047d51e3a672b733d5830283b4e34d847f7469df5279eb';
+    private const LEGACY_REVIEW_BODY_SHA = '11553cd47863818e44c1d8a78f24b357c4f134884d8234b006cd1e9507365bf0';
     private const TABLES = ['principals', 'projects', 'versions', 'reviews', 'audit'];
+    private const LEGACY_FUNCTIONS = ['can_access(uuid,text)', 'review_version(uuid,uuid,integer,text,text)',
+        'record_change()', 'check_writer_identity()', 'immutable()'];
     private const FUNCTIONS = ['can_access(uuid,text)', 'review_version(uuid,uuid,integer,text,text)',
         'review_version(uuid,uuid,integer,text,text,text)',
         'record_change()', 'check_writer_identity()', 'immutable()'];
@@ -30,6 +34,14 @@ final class PrivatePreviewProvisioning
         $notes = file_get_contents($root.'002-review-notes.sql');
         if (!is_string($base) || $base === '' || !is_string($notes) || $notes === '') self::deny('contract_unavailable');
         return hash('sha256', "sites.preview.contract.v2\0".$base."\0".$notes);
+    }
+
+    /** A changed base contract is not silently treated as a supported V1. */
+    public static function legacyContractSha(): string
+    {
+        $observed = hash_file('sha256', dirname(__DIR__, 2).'/contracts/private-preview/001-workspace.sql');
+        if (!is_string($observed) || !hash_equals(self::LEGACY_CONTRACT_SHA, $observed)) self::deny('legacy_contract_unavailable');
+        return $observed;
     }
 
     /** No connection or filesystem writes. Also used by the CLI's offline validation. */
@@ -64,6 +76,92 @@ final class PrivatePreviewProvisioning
         }
         usort($manifest['principals'], fn(array $a, array $b): int => strcmp($a['login'], $b['login']));
         return $manifest;
+    }
+
+    /** A separate manifest describes only the one supported additive transition. */
+    public static function validateUpgradeManifest(array $manifest, ?int $now = null): array
+    {
+        self::keys($manifest, ['schema', 'source_contract_sha256', 'target_contract_sha256', 'target', 'principals']);
+        if ($manifest['schema'] !== 'SITES_PREVIEW_UPGRADE_V1' ||
+            $manifest['source_contract_sha256'] !== self::legacyContractSha() ||
+            $manifest['target_contract_sha256'] !== self::contractSha()) self::deny('upgrade_manifest');
+        // Validate the entire explicit upgrade envelope before projecting the
+        // target into the unchanged fresh-install manifest validator.
+        $target = self::validateManifest(self::upgradeTargetManifest($manifest), $now);
+        $manifest['principals'] = $target['principals'];
+        return $manifest;
+    }
+
+    public function planUpgrade(array $manifest): array
+    {
+        return $this->safe(fn(): array => $this->inspectUpgrade(self::validateUpgradeManifest($manifest), false)['plan']);
+    }
+
+    public function checkUpgrade(array $manifest): array
+    {
+        return $this->safe(function () use ($manifest): array {
+            $plan = $this->inspectUpgrade(self::validateUpgradeManifest($manifest), false)['plan'];
+            if ($plan['status'] !== 'already_upgraded') self::deny('upgrade_not_applied');
+            return ['schema' => 'SITES_PREVIEW_UPGRADE_CHECK_V1', 'status' => 'verified',
+                'plan_sha256' => $plan['plan_sha256'], 'principal_count' => $plan['principal_count'],
+                'source_contract_sha256' => self::legacyContractSha(), 'target_contract_sha256' => self::contractSha(),
+                'can_accept_orders' => false, 'can_publish' => false];
+        });
+    }
+
+    public function applyUpgrade(array $manifest, string $expectedPlanSha, bool $authorized = false): array
+    {
+        return $this->safe(function () use ($manifest, $expectedPlanSha, $authorized): array {
+            if (!$authorized || preg_match('/\A[a-f0-9]{64}\z/D', $expectedPlanSha) !== 1) self::deny('explicit_upgrade_required');
+            $manifest = self::validateUpgradeManifest($manifest);
+            $before = $this->inspectUpgrade($manifest, false);
+            if (!hash_equals($before['plan']['plan_sha256'], $expectedPlanSha)) self::deny('stale_plan');
+            if ($before['plan']['status'] === 'already_upgraded') return $this->upgradeReceipt($before['plan'], false);
+
+            return $this->db->transaction(function () use ($manifest, $expectedPlanSha): array {
+                $this->db->statement("SET LOCAL lock_timeout='5s'");
+                $this->db->statement("SET LOCAL statement_timeout='15s'");
+                $this->db->select("SELECT pg_advisory_xact_lock(hashtextextended('sites_preview.provision.v1',0))");
+                // Serialize the ledger append and preserve all identity rows.
+                // A missing/changed namespace cannot be repaired by this path.
+                $this->db->statement('LOCK TABLE public.migrations IN SHARE ROW EXCLUSIVE MODE');
+                $this->db->statement('LOCK TABLE sites_preview.principals IN SHARE MODE');
+                $current = $this->inspectUpgrade($manifest, true);
+                if (!hash_equals($current['plan']['plan_sha256'], $expectedPlanSha)) self::deny('stale_plan');
+                if ($current['plan']['status'] === 'already_upgraded') return $this->upgradeReceipt($current['plan'], false);
+
+                $baseRow = $current['ledger'][0];
+                $sourceStructure = $current['marker']['structure_sha256'];
+                $owner = self::identifier(self::OWNER);
+                $this->db->statement("SET LOCAL ROLE $owner");
+                $migration = require dirname(__DIR__, 2).'/apps/sites/database/migrations/'.self::NOTES_MIGRATION.'.php';
+                $migration->up();
+                $this->db->statement('SET LOCAL ROLE NONE');
+
+                $repository = new DatabaseMigrationRepository(app('db'), 'migrations');
+                $repository->setSource($this->db->getName());
+                $batch = $repository->getNextBatchNumber();
+                if (!is_int($batch) || $batch <= $baseRow->batch || $batch > 2147483647) self::deny('owner_or_migration_drift');
+                $repository->log(self::NOTES_MIGRATION, $batch);
+                $ledger = $this->migrationLedger();
+                if (count($ledger) !== 2 || $ledger[0] != $baseRow ||
+                    $ledger[1]->migration !== self::NOTES_MIGRATION || $ledger[1]->batch !== $batch) self::deny('owner_or_migration_drift');
+
+                $marker = ['kind' => 'SITES_PREVIEW_MANAGED_V2', 'target' => $this->ownerMarker($manifest),
+                    'contract_sha256' => self::contractSha(), 'structure_sha256' => $this->structureSha(),
+                    'upgrade' => [
+                        'schema' => 'SITES_PREVIEW_UPGRADE_LINEAGE_V1',
+                        'source_contract_sha256' => self::legacyContractSha(),
+                        'source_structure_sha256' => $sourceStructure,
+                        'base_migration' => ['id' => $baseRow->id, 'batch' => $baseRow->batch],
+                        'notes_migration' => ['id' => $ledger[1]->id, 'batch' => $ledger[1]->batch],
+                    ]];
+                $this->db->statement('COMMENT ON SCHEMA sites_preview IS '.$this->quote(self::canonical($marker)));
+                $after = $this->inspectUpgrade($manifest, true)['plan'];
+                if ($after['status'] !== 'already_upgraded') self::deny('postcheck');
+                return $this->upgradeReceipt($after, true);
+            }, 1);
+        });
     }
 
     public function plan(array $manifest): array
@@ -141,20 +239,12 @@ final class PrivatePreviewProvisioning
 
     private function buildPlan(array $manifest, bool $inTransaction): array
     {
-        $identity = $this->identity($manifest['target'], $inTransaction);
-        if ($this->db->selectOne("SELECT to_regclass('public.migrations') AS relation")->relation === null) self::deny('migration_repository_missing');
-        $ledger = $this->db->select('SELECT migration,batch FROM public.migrations WHERE migration IN (?,?) ORDER BY migration', self::MIGRATIONS);
-        $namespace = $this->db->selectOne("SELECT oid,nspowner::regrole::text AS owner,obj_description(oid,'pg_namespace') AS marker FROM pg_namespace WHERE nspname='sites_preview'");
-        $owner = $this->role(self::OWNER);
-        $runtimeRoles = [];
-        foreach ($manifest['principals'] as $p) {
-            $r = $this->role($p['login']);
-            if ($r === null || $r['rolcanlogin'] !== true || !$this->restricted($r) || $this->hasMembership($p['login'])) self::deny('login_custody');
-            $ddl = $this->db->selectOne("SELECT has_database_privilege(?,current_database(),'CREATE') OR EXISTS(SELECT 1 FROM pg_namespace WHERE nspname='public' AND has_schema_privilege(?,oid,'CREATE')) AS unsafe", [$p['login'], $p['login']]);
-            if ($ddl->unsafe !== false) self::deny('login_ddl');
-            if ($this->db->selectOne('SELECT EXISTS(SELECT 1 FROM pg_class WHERE relowner=?::regrole UNION ALL SELECT 1 FROM pg_namespace WHERE nspowner=?::regrole UNION ALL SELECT 1 FROM pg_proc WHERE proowner=?::regrole) AS owned', [$p['login'], $p['login'], $p['login']])->owned !== false) self::deny('login_owner');
-            $runtimeRoles[] = $r;
-        }
+        $observed = $this->observe($manifest, $inTransaction);
+        $identity = $observed['identity'];
+        $ledger = $observed['ledger'];
+        $namespace = $observed['namespace'];
+        $owner = $observed['owner'];
+        $runtimeRoles = $observed['roles'];
         if ($namespace === null) {
             if ($owner !== null || $ledger !== []) self::deny('partial_or_unmanaged_state');
             $status = 'ready';
@@ -162,26 +252,12 @@ final class PrivatePreviewProvisioning
                 'record_migration_000004', 'record_migration_000008', 'grant_existing_logins', 'verify'];
             $state = ['absent' => true, 'roles' => $runtimeRoles];
         } else {
-            if ($owner === null || $owner['rolcanlogin'] !== false || $owner['rolinherit'] !== false ||
-                !$this->restricted($owner) || $this->hasMembership(self::OWNER) || $namespace->owner !== self::OWNER ||
-                $owner['marker'] !== $this->ownerMarker($manifest)) self::deny('owner_or_migration_drift');
-            if ($this->db->selectOne("SELECT has_database_privilege(?,current_database(),'CREATE') AS unsafe", [self::OWNER])->unsafe !== false) self::deny('owner_create_not_removed');
+            $this->checkOwner($manifest, $namespace, $owner);
             $marker = json_decode((string) $namespace->marker, true, 8, JSON_THROW_ON_ERROR);
             if (is_array($marker) && ($marker['kind'] ?? null) === 'SITES_PREVIEW_MANAGED_V1') {
                 self::deny('managed_upgrade_required');
             }
-            if (array_map(static fn(object $row): string => $row->migration, $ledger) !== self::MIGRATIONS ||
-                count(array_unique(array_map(static fn(object $row): int => (int) $row->batch, $ledger))) !== 1 ||
-                (int) $ledger[0]->batch < 1) {
-                self::deny('owner_or_migration_drift');
-            }
-            if (!is_array($marker) || ($marker['kind'] ?? null) !== 'SITES_PREVIEW_MANAGED_V2' ||
-                ($marker['target'] ?? null) !== $this->ownerMarker($manifest) ||
-                ($marker['contract_sha256'] ?? null) !== self::contractSha() ||
-                ($marker['structure_sha256'] ?? null) !== $this->structureSha()) self::deny('structure_drift');
-            $this->checkOwnership();
-            $this->checkGrants($manifest['principals']);
-            $this->checkBindings($manifest['principals']);
+            $this->checkV2State($manifest, $ledger, $marker);
             $status = 'already_applied';
             $actions = [];
             $state = ['owner' => $owner, 'marker' => $marker, 'ledger' => $ledger, 'roles' => $runtimeRoles];
@@ -190,6 +266,145 @@ final class PrivatePreviewProvisioning
             'plan_sha256' => hash('sha256', self::canonical(['manifest' => $manifest, 'identity' => $identity, 'state' => $state, 'actions' => $actions])),
             'principal_count' => count($manifest['principals']), 'actions' => $actions,
             'can_accept_orders' => false, 'can_publish' => false];
+    }
+
+    /** Internal observed identity is never part of a public plan or receipt. */
+    private function observe(array $manifest, bool $inTransaction): array
+    {
+        $identity = $this->identity($manifest['target'], $inTransaction);
+        $ledger = $this->migrationLedger();
+        $namespace = $this->db->selectOne("SELECT oid,nspowner::regrole::text AS owner,obj_description(oid,'pg_namespace') AS marker FROM pg_namespace WHERE nspname='sites_preview'");
+        $owner = $this->role(self::OWNER);
+        $roles = [];
+        foreach ($manifest['principals'] as $p) {
+            $r = $this->role($p['login']);
+            if ($r === null || $r['rolcanlogin'] !== true || !$this->restricted($r) || $this->hasMembership($p['login'])) self::deny('login_custody');
+            $ddl = $this->db->selectOne("SELECT has_database_privilege(?,current_database(),'CREATE') OR EXISTS(SELECT 1 FROM pg_namespace WHERE nspname='public' AND has_schema_privilege(?,oid,'CREATE')) AS unsafe", [$p['login'], $p['login']]);
+            if ($ddl->unsafe !== false) self::deny('login_ddl');
+            if ($this->db->selectOne('SELECT EXISTS(SELECT 1 FROM pg_class WHERE relowner=?::regrole UNION ALL SELECT 1 FROM pg_namespace WHERE nspowner=?::regrole UNION ALL SELECT 1 FROM pg_proc WHERE proowner=?::regrole) AS owned', [$p['login'], $p['login'], $p['login']])->owned !== false) self::deny('login_owner');
+            $roles[] = $r;
+        }
+        return compact('identity', 'ledger', 'namespace', 'owner', 'roles');
+    }
+
+    private function migrationLedger(): array
+    {
+        if ($this->db->selectOne("SELECT to_regclass('public.migrations') AS relation")->relation === null) self::deny('migration_repository_missing');
+        $ledger = $this->db->select('SELECT id,migration,batch FROM public.migrations WHERE migration IN (?,?) ORDER BY migration,id', self::MIGRATIONS);
+        foreach ($ledger as $row) {
+            foreach (['id', 'batch'] as $key) {
+                if ((!is_int($row->$key) && !is_string($row->$key)) ||
+                    preg_match('/\A[1-9][0-9]{0,9}\z/D', (string) $row->$key) !== 1 ||
+                    (int) $row->$key > 2147483647) self::deny('owner_or_migration_drift');
+                $row->$key = (int) $row->$key;
+            }
+        }
+        return $ledger;
+    }
+
+    private function checkOwner(array $manifest, object $namespace, ?array $owner): void
+    {
+        if ($owner === null || $owner['rolcanlogin'] !== false || $owner['rolinherit'] !== false ||
+            !$this->restricted($owner) || $this->hasMembership(self::OWNER) || $namespace->owner !== self::OWNER ||
+            $owner['marker'] !== $this->ownerMarker($manifest)) self::deny('owner_or_migration_drift');
+        if ($this->db->selectOne("SELECT has_database_privilege(?,current_database(),'CREATE') AS unsafe", [self::OWNER])->unsafe !== false) self::deny('owner_create_not_removed');
+    }
+
+    private function checkV2State(array $manifest, array $ledger, mixed $marker): void
+    {
+        if (array_map(static fn(object $row): string => $row->migration, $ledger) !== self::MIGRATIONS) self::deny('owner_or_migration_drift');
+        if (!is_array($marker)) self::deny('structure_drift');
+        $upgraded = array_key_exists('upgrade', $marker);
+        self::keys($marker, $upgraded
+            ? ['kind', 'target', 'contract_sha256', 'structure_sha256', 'upgrade']
+            : ['kind', 'target', 'contract_sha256', 'structure_sha256'], 'structure_drift');
+        if ($marker['kind'] !== 'SITES_PREVIEW_MANAGED_V2' ||
+            $marker['target'] !== $this->ownerMarker($manifest) ||
+            $marker['contract_sha256'] !== self::contractSha() ||
+            $marker['structure_sha256'] !== $this->structureSha()) self::deny('structure_drift');
+        if ($upgraded) {
+            self::checkUpgradeLineage($marker['upgrade'], $ledger);
+        } elseif ($ledger[0]->batch !== $ledger[1]->batch) {
+            // Fresh installations keep their existing same-batch requirement.
+            self::deny('owner_or_migration_drift');
+        }
+        $this->checkOwnership();
+        $this->checkGrants($manifest['principals']);
+        $this->checkBindings($manifest['principals']);
+    }
+
+    private static function checkUpgradeLineage(mixed $lineage, array $ledger): void
+    {
+        if (!is_array($lineage)) self::deny('upgrade_lineage');
+        self::keys($lineage, ['schema', 'source_contract_sha256', 'source_structure_sha256', 'base_migration', 'notes_migration'], 'upgrade_lineage');
+        if ($lineage['schema'] !== 'SITES_PREVIEW_UPGRADE_LINEAGE_V1' ||
+            $lineage['source_contract_sha256'] !== self::legacyContractSha() ||
+            !is_string($lineage['source_structure_sha256']) ||
+            preg_match('/\A[a-f0-9]{64}\z/D', $lineage['source_structure_sha256']) !== 1 ||
+            $ledger[1]->batch <= $ledger[0]->batch) self::deny('upgrade_lineage');
+        foreach (['base_migration' => 0, 'notes_migration' => 1] as $key => $index) {
+            if (!is_array($lineage[$key])) self::deny('upgrade_lineage');
+            self::keys($lineage[$key], ['id', 'batch'], 'upgrade_lineage');
+            if (!is_int($lineage[$key]['id']) || !is_int($lineage[$key]['batch']) ||
+                $lineage[$key]['id'] !== $ledger[$index]->id || $lineage[$key]['batch'] !== $ledger[$index]->batch) self::deny('upgrade_lineage');
+        }
+    }
+
+    /** Only callers that passed validateUpgradeManifest may project its target. */
+    private static function upgradeTargetManifest(array $manifest): array
+    {
+        return ['schema' => 'SITES_PREVIEW_PROVISION_V1', 'contract_sha256' => $manifest['target_contract_sha256'],
+            'target' => $manifest['target'], 'principals' => $manifest['principals']];
+    }
+
+    /** Returns public output separately from the internal source snapshot. */
+    private function inspectUpgrade(array $manifest, bool $inTransaction): array
+    {
+        $target = self::upgradeTargetManifest($manifest);
+        $observed = $this->observe($target, $inTransaction);
+        $namespace = $observed['namespace'];
+        if ($namespace === null) self::deny('upgrade_source_required');
+        $this->checkOwner($target, $namespace, $observed['owner']);
+        $marker = json_decode((string) $namespace->marker, true, 8, JSON_THROW_ON_ERROR);
+        if (!is_array($marker)) self::deny('structure_drift');
+        $ledger = $observed['ledger'];
+
+        if (($marker['kind'] ?? null) === 'SITES_PREVIEW_MANAGED_V1') {
+            self::keys($marker, ['kind', 'target', 'contract_sha256', 'structure_sha256'], 'structure_drift');
+            if (count($ledger) !== 1 || $ledger[0]->migration !== self::MIGRATION) self::deny('owner_or_migration_drift');
+            if ($marker['target'] !== $this->ownerMarker($target) ||
+                $marker['contract_sha256'] !== self::legacyContractSha() ||
+                $marker['structure_sha256'] !== $this->structureSha()) self::deny('structure_drift');
+            $legacy = $this->db->selectOne("SELECT
+                to_regprocedure('sites_preview.review_version(uuid,uuid,integer,text,text,text)') IS NULL AS notes_api_absent,
+                NOT EXISTS(SELECT 1 FROM pg_attribute WHERE attrelid='sites_preview.reviews'::regclass
+                    AND attname='note' AND NOT attisdropped) AS note_absent,
+                (SELECT encode(sha256(convert_to(prosrc,'UTF8')),'hex') FROM pg_proc
+                    WHERE oid=to_regprocedure('sites_preview.review_version(uuid,uuid,integer,text,text)')) AS review_body,
+                has_schema_privilege(?,'sites_preview','USAGE') AND has_schema_privilege(?,'sites_preview','CREATE') AS owner_can_migrate", [self::OWNER, self::OWNER]);
+            if ($legacy->notes_api_absent !== true || $legacy->note_absent !== true ||
+                $legacy->review_body !== self::LEGACY_REVIEW_BODY_SHA || $legacy->owner_can_migrate !== true) self::deny('upgrade_source_drift');
+            $this->checkOwnership(true);
+            $this->checkGrants($manifest['principals'], true);
+            $this->checkBindings($manifest['principals']);
+            $status = 'ready';
+            $actions = ['apply_migration_000008', 'record_migration_000008', 'record_upgrade_lineage', 'verify'];
+        } elseif (($marker['kind'] ?? null) === 'SITES_PREVIEW_MANAGED_V2') {
+            if (!array_key_exists('upgrade', $marker)) self::deny('upgrade_source_required');
+            $this->checkV2State($target, $ledger, $marker);
+            $status = 'already_upgraded';
+            $actions = [];
+        } else {
+            self::deny('upgrade_source_required');
+        }
+        $state = ['owner' => $observed['owner'], 'marker' => $marker, 'ledger' => $ledger, 'roles' => $observed['roles']];
+        $plan = ['schema' => 'SITES_PREVIEW_UPGRADE_PLAN_V1', 'status' => $status,
+            'plan_sha256' => hash('sha256', self::canonical(['operation' => 'managed_preview_v1_to_v2',
+                'manifest' => $manifest, 'identity' => $observed['identity'], 'state' => $state, 'actions' => $actions])),
+            'principal_count' => count($manifest['principals']), 'actions' => $actions,
+            'source_contract_sha256' => self::legacyContractSha(), 'target_contract_sha256' => self::contractSha(),
+            'can_accept_orders' => false, 'can_publish' => false];
+        return compact('plan', 'ledger', 'marker');
     }
 
     private function identity(array $target, bool $inTransaction): array
@@ -230,7 +445,7 @@ final class PrivatePreviewProvisioning
         return $observed;
     }
 
-    private function checkOwnership(): void
+    private function checkOwnership(bool $legacy = false): void
     {
         $objects = $this->db->select("SELECT relname,relkind,relowner::regrole::text AS owner,relrowsecurity,relforcerowsecurity FROM pg_class WHERE relnamespace='sites_preview'::regnamespace AND relkind NOT IN ('i','I') ORDER BY relname");
         if (count($objects) !== 6) self::deny('unexpected_objects');
@@ -240,8 +455,9 @@ final class PrivatePreviewProvisioning
                 (!in_array($o->relname, ['principals', 'audit_id_seq'], true) && (!$o->relrowsecurity || !$o->relforcerowsecurity))) self::deny('object_owner_rls');
         }
         $functions = $this->db->select("SELECT oid::regprocedure::text AS signature,proname,proowner::regrole::text AS owner,prosecdef,proconfig FROM pg_proc WHERE pronamespace='sites_preview'::regnamespace ORDER BY proname,oid::regprocedure::text");
-        if (count($functions) !== count(self::FUNCTIONS)) self::deny('unexpected_functions');
-        $expectedFunctions = array_map(static fn(string $function): string => 'sites_preview.'.$function, self::FUNCTIONS);
+        $inventory = $legacy ? self::LEGACY_FUNCTIONS : self::FUNCTIONS;
+        if (count($functions) !== count($inventory)) self::deny('unexpected_functions');
+        $expectedFunctions = array_map(static fn(string $function): string => 'sites_preview.'.$function, $inventory);
         foreach ($functions as $f) {
             $definer = in_array($f->proname, ['can_access', 'record_change', 'review_version'], true);
             if (!in_array($f->signature, $expectedFunctions, true) ||
@@ -250,7 +466,7 @@ final class PrivatePreviewProvisioning
         }
     }
 
-    private function checkGrants(array $principals): void
+    private function checkGrants(array $principals, bool $legacy = false): void
     {
         foreach ($principals as $p) {
             $login = $p['login'];
@@ -267,7 +483,7 @@ final class PrivatePreviewProvisioning
                     $acl->excess !== false) self::deny('table_acl');
             }
             if ($this->db->selectOne("SELECT has_sequence_privilege(?,'sites_preview.audit_id_seq','USAGE,SELECT,UPDATE') AS excess", [$login])->excess !== false) self::deny('sequence_acl');
-            foreach (self::FUNCTIONS as $function) {
+            foreach ($legacy ? self::LEGACY_FUNCTIONS : self::FUNCTIONS as $function) {
                 $acl = $this->db->selectOne("SELECT has_function_privilege(?,?,'EXECUTE') AS allowed,has_function_privilege(?,?,'EXECUTE WITH GRANT OPTION') AS excess", [$login, 'sites_preview.'.$function, $login, 'sites_preview.'.$function]);
                 $allowed = in_array($function, ['can_access(uuid,text)', 'check_writer_identity()', 'immutable()'], true) ||
                     (in_array($function, ['review_version(uuid,uuid,integer,text,text)',
@@ -350,6 +566,15 @@ final class PrivatePreviewProvisioning
             'contract_sha256' => self::contractSha(), 'can_accept_orders' => false, 'can_publish' => false];
     }
 
+    private function upgradeReceipt(array $plan, bool $changed): array
+    {
+        return ['schema' => 'SITES_PREVIEW_UPGRADE_RESULT_V1', 'status' => $changed ? 'upgraded' : 'already_upgraded',
+            'changed' => $changed, 'plan_sha256' => $plan['plan_sha256'], 'principal_count' => $plan['principal_count'],
+            'migration' => self::NOTES_MIGRATION,
+            'source_contract_sha256' => self::legacyContractSha(), 'target_contract_sha256' => self::contractSha(),
+            'can_accept_orders' => false, 'can_publish' => false];
+    }
+
     private function safe(callable $operation): array
     {
         try { return $operation(); }
@@ -359,10 +584,10 @@ final class PrivatePreviewProvisioning
         }
     }
 
-    private static function keys(array $value, array $expected): void
+    private static function keys(array $value, array $expected, string $reason = 'manifest_fields'): void
     {
         $keys = array_keys($value); sort($keys); sort($expected);
-        if ($keys !== $expected) self::deny('manifest_fields');
+        if ($keys !== $expected) self::deny($reason);
     }
 
     private static function canonical(mixed $value): string

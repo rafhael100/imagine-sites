@@ -30,7 +30,7 @@ Private VPN/SSH tunnel already authorized to VPS loopback18090, hostname matchin
 
 `provision.php` now implements the database portion of the candidate. It is a manually invoked CLI, never a route, boot hook, deployment workflow or migration auto-runner. It uses `PrivatePreviewProvisioning`, the immutable base migration `2026_11_16_000004_add_private_preview_workspace` and additive `2026_11_18_000008_add_private_preview_review_notes`. The contract SHA binds the versioned bundle of both SQL files; the example manifest carries this bundle fingerprint. It does not start containers, change ports, install images, configure proxy authentication, create SQL LOGINs/passwords, issue a Portal identity, or grant commercial authority.
 
-The operational destination must be the existing **sites_staging** PostgreSQL18 database. Other database names are refused; `sites_preview_http_ci` is available only to the explicit GitHub Actions disposable fixture. The namespace `sites_preview` and dedicated owner must either both be absent, or both match a previous successful application exactly. A namespace created manually or by the older superuser-owned fixture is refused. An older managed V1 installation returns `PROVISION_DENIED:managed_upgrade_required`; its marker is never reinterpreted as the new V2 bundle. Applying the additive migration and updating an existing managed installation requires a separately reviewed upgrade procedure. There is no automatic ownership transfer, schema replacement, destructive rollback, permission repair, revocation reversal or validity renewal.
+The operational destination must be the existing **sites_staging** PostgreSQL18 database. Other database names are refused; `sites_preview_http_ci` is available only to the explicit GitHub Actions disposable fixture. The namespace `sites_preview` and dedicated owner must either both be absent, or both match a previous successful application exactly. A namespace created manually or by the older superuser-owned fixture is refused. An older managed V1 installation still returns `PROVISION_DENIED:managed_upgrade_required` from the fresh-install commands; its marker is never reinterpreted as the new V2 bundle. The separate `upgrade-plan` / `upgrade-apply` / `upgrade-check` procedure below is the candidate for that transition. There is no automatic ownership transfer, schema replacement, destructive rollback, permission repair, revocation reversal or validity renewal.
 
 ### Prerequisites and custody
 
@@ -90,3 +90,71 @@ The migration preserves the original five-argument function identity and grants 
 `tests/private-preview-provisioning-offline.php` validates 26 manifest cases without Laravel boot or SQL. The HTTP fixture uses the real provisioner against its verified disposable TLS database. It exercises a read-only plan, authorization/hash/target refusals, state drift after planning, injected failure after migration+ledger to prove full transaction rollback, successful apply/check, repeat no-op, and refusal of extra ACLs, owner LOGIN, revocation and function search-path drift. The existing browser journey then runs with the segregated NOLOGIN owner and minimal profiles, including the same roles used by the candidate. Synthetic LOGIN creation is confined to the fixture and is never part of the provisioner.
 
 These are candidate/CI checks, not evidence of any invocation on the Leaseweb VPS. Existing staging containers, loopback18090, data, certificates and services remain outside this change.
+
+## Separate candidate: upgrade an existing managed V1 namespace
+
+This procedure closes the compatibility gap between the original managed preview contract and the additive editorial-notes contract. **No managed V1 installation has been confirmed on the VPS.** This repository provides a candidate procedure and isolated verification; it does not establish that an operational upgrade is needed, authorized or executed. The inventory, independent review, backup/recovery evidence and operational approvals above remain prerequisites.
+
+The upgrade accepts only a verified `SITES_PREVIEW_MANAGED_V1` source created by the original provisioner, with its existing dedicated NOLOGIN owner, exact structure, permissions, live principal bindings and migration000004 ledger record. A partially configured, manually created, drifted, revoked or expired source is refused. An absent namespace or a fresh V2 installation has no V1 upgrade lineage and returns `PROVISION_DENIED:upgrade_source_required`.
+
+### Distinct manifest and command guards
+
+Mount the privately reviewed upgrade manifest at **`/run/secrets/preview_upgrade`**, mode0400/0600 and owned by root or the invoking UID. The same file-size, symlink, ownership, TLS, one-shot bootstrap and exact database-identity rules as the fresh procedure apply. The CLI does not accept the fresh-install manifest path for an upgrade, or the upgrade path for a fresh installation.
+
+The exact top-level schema is `SITES_PREVIEW_UPGRADE_V1`:
+
+| Field | Required meaning |
+| --- | --- |
+| `schema` | `SITES_PREVIEW_UPGRADE_V1` |
+| `source_contract_sha256` | Exact original001 fingerprint: `5ecfa4e626c622b387047d51e3a672b733d5830283b4e34d847f7469df5279eb` |
+| `target_contract_sha256` | Exact001+002 bundle fingerprint: `d0c26c3bcc71c0615ad8efeeb6ebc1b10b9bede37a82d90173a913863ffc08d5` |
+| `target` | Reviewed database, bootstrap login, host/port, observed server address, database OID and cluster system identifier |
+| `principals` | The same existing login, company UUID, profile and expiration values as the verified source bindings |
+
+`upgrade-manifest.example.json` contains placeholders and zero values and is deliberately ineligible. It contains no credentials and must not be used as proof of a destination or access approval. Do not substitute newer expirations, another company or additional principals when preparing the upgrade manifest: this procedure does not renew or expand access.
+
+`upgrade-apply` requires its own `--authorize-upgrade=SITES_PREVIEW_UPGRADE_ONLY_APPROVED` guard and the exact reviewed `--plan-sha`. The fresh `--authorize-apply` flag is refused even when the correct upgrade flag is also supplied. Fresh commands similarly refuse `--authorize-upgrade`. All plan/check commands refuse write flags and plan hashes. These guards prevent accidental command reuse; they do not supply the required human operational authorization.
+
+### Review a concrete source plan
+
+After the existing custody and inventory prerequisites have been satisfied, the read-only candidate command is:
+
+```sh
+php /opt/imagine/ops/preview-candidate/provision.php upgrade-plan --manifest=/run/secrets/preview_upgrade
+```
+
+The `SITES_PREVIEW_UPGRADE_PLAN_V1` result has status `ready` only for the verified V1 source. Its `plan_sha256` binds the requested transition to the observed identity, managed source and existing permissions/bindings. Review the action list and fingerprints privately before approving application. A change in the bound state invalidates the reviewed plan; a failed check must be investigated, not repaired by this command.
+
+The source inventory has five exact function signatures; the target has six because it adds the note-aware review API. Both retain the same five tables plus the audit sequence. Existing project/version/review/audit contents are preserved. The existing migration000004 entry keeps its original `id` and `batch`; the procedure does not replay000004 or rewrite that ledger entry.
+
+### Apply only the additive transition after approval
+
+```sh
+php /opt/imagine/ops/preview-candidate/provision.php upgrade-apply --manifest=/run/secrets/preview_upgrade --plan-sha=<reviewed-upgrade-sha256> --authorize-upgrade=SITES_PREVIEW_UPGRADE_ONLY_APPROVED
+```
+
+Application rechecks the plan under the provisioner transaction lock, applies only migration000008 under the existing owner and verifies the resulting state before commit. Migration000008 takes its own exclusive review-table lock. The new ledger record uses a later batch. Schema migration, that ledger record and the new managed marker are committed together; any failure rolls back the transition together.
+
+The upgrade does not create roles, transfer ownership, reinstall profile grants, rewrite company bindings or extend expirations. Migration000008 preserves the original five-argument review function's OID, owner and ACL, and copies its existing EXECUTE permissions to the new six-argument function. This is the only additive review capability; it does not give any profile direct review/audit writes, grant options or owner membership.
+
+The V2 marker records an `upgrade` lineage object with schema `SITES_PREVIEW_UPGRADE_LINEAGE_V1`, the source contract/structure fingerprints, and both `base_migration` and `notes_migration` identities (`id` and `batch`). This records the particular additive transition instead of pretending both migrations ran in the same installation batch.
+
+The result schema is `SITES_PREVIEW_UPGRADE_RESULT_V1`. A completed transition returns `status:upgraded` and `changed:true`. Repeating application is supported only with a newly reviewed matching plan from the resulting state: it returns `status:already_upgraded` and `changed:false`, without migration, grant or binding writes. Reusing the pre-upgrade plan after the state changed is refused as `PROVISION_DENIED:stale_plan`.
+
+### Verify lineage and coordinate application compatibility
+
+```sh
+php /opt/imagine/ops/preview-candidate/provision.php upgrade-check --manifest=/run/secrets/preview_upgrade
+```
+
+The read-only `SITES_PREVIEW_UPGRADE_CHECK_V1` result returns `status:verified` only after it verifies the upgraded structure, owner, permissions, bindings, ledger and recorded V1 lineage. `upgrade-check` on an untouched V1 source returns `PROVISION_DENIED:upgrade_not_applied`. A plan for an already verified upgrade returns `status:already_upgraded` and no actions. Every result retains `can_accept_orders:false` and `can_publish:false`.
+
+The application/schema compatibility change must be included in the approved release plan. Legacy approval calls through the five-argument function remain supported. **A legacy client that calls `changes_requested` without a note stops being able to submit that decision after the upgrade.** It must use the note-aware API and provide nonblank guidance. Existing historical change requests without notes are preserved; the tool does not fabricate or backfill text. The note-aware UI expects the additive schema, so deploying that UI is a separate coordinated release action.
+
+Do not use destructive rollback to regain old client behavior. Disable the affected preview flow through the approved procedure and preserve its history while compatibility is reviewed. Migration000008 refuses rollback when any non-NULL note exists. The original stack, images, listener18090, networks, volumes and certificates are not changed by this database candidate.
+
+### Offline CLI checks and isolated SQL verification
+
+`php tests/private-preview-upgrade-cli-offline.php` exercises44 help/argument cases before secret custody checks or Laravel boot. Child processes restrict filesystem reads to this repository. The checks cover separate manifest paths and write guards, mixed/duplicate/unknown options, missing authorization/hash and write options on read-only commands. Every refusal has an exact bounded `PROVISION_CLI_DENIED` reason and an empty stdout; no manifest, secret or database is opened.
+
+The real V1-to-V2 transition, preserved history/ledger/ACLs, stale plans, injected rollback and repeated no-op require the isolated PostgreSQL/TLS fixture. Offline argument checks do not substitute for that evidence. No command in this section has been invoked on operational infrastructure as part of this development work.

@@ -31,6 +31,8 @@ O Composer lock da aplicação define as dependências. A suíte geral usa banco
 composer install --working-dir=apps/sites --no-interaction --no-scripts --no-plugins
 php tests/run.php
 php tests/private-preview-provisioning-offline.php
+php tests/private-preview-upgrade-offline.php
+php tests/private-preview-upgrade-cli-offline.php
 php tests/release-preparation-offline.php
 php tests/publication-journal-offline.php
 php apps/sites/vendor/bin/phpunit -c apps/sites/phpunit.xml --do-not-cache-result
@@ -47,6 +49,7 @@ O Portal controla contratos, aceite expresso e evento oficial `ENTREGUE`; Sites 
 - [Gates de segurança](docs/SITES-SEC-01-GATES.md)
 - [Inventário de migração](docs/SITES-MIG-01-INVENTARIO.md)
 - [Provisionamento de prévias](ops/preview-candidate/README.md)
+- [Upgrade explícito do preview gerenciado](docs/reviews/SITES-PREVIEW-MANAGED-UPGRADE-2026-11-18.md)
 - [Preparação e verificação de pacotes](ops/release-candidate/README.md)
 - [Diário técnico de publicação](contracts/publication-journal/README.md)
 - [Orientação editorial por versão](docs/reviews/SITES-EDITORIAL-FEEDBACK-2026-11-18.md)

@@ -1,12 +1,18 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 18/11/2026 — continuidade: atualização explícita do preview gerenciado V1
+
+Branch `feature/sites-preview-managed-upgrade-2026-11-18`, na sequência da PR #493. O candidato ganha `upgrade-plan`, `upgrade-apply` e `upgrade-check`, com manifesto próprio, origem V1 exata e autorização de CLI distinta. Somente a migration000008 é aplicada sob o owner existente. A linha004 conserva ID/batch;008 entra em batch posterior, com origem registrada e verificada no marcador V2. DDL, ledger, marcador e postcheck são atômicos; não há renovação de bindings, reparo de permissões ou downgrade automático.
+
+Instalação nova continua com seu fluxo e batch conjunto. A fixture parte do provisionador V1 original pinado, em processo separado, com PostgreSQL/TLS descartável e histórico fictício populado. **PR #494, HEAD79863ad89f5701e0122f320f0437598b90f9193d: upgrade real aprovado com9 checks de seed e76 de contrato**, incluindo falhas transacionais e concorrência da CLI, no [run44215333265](https://github.com/rafhael100/imagine-sites/actions/runs/44215333265). Regressões SQL em PHP8.3/8.4 aprovadas; correção de sessão validada na PR #493 incorporada, aguardando a nova regressão conjunta do navegador. Nenhum V1 no VPS foi confirmado ou atualizado. Detalhes: [relatório de upgrade gerenciado](docs/reviews/SITES-PREVIEW-MANAGED-UPGRADE-2026-11-18.md).
+
 ## 18/11/2026 — continuidade: busca por marca ou chamada principal na fila
 
 Branch `feature/sites-queue-search-2026-11-18`, sobre a PR #492 / `ae3a9bd58c89d0c76b7d983c0206a9cad6bf80f8`. A busca consulta somente o briefing da versão atual, junto com os filtros de parecer/formato e a paginação. O contexto acompanha a abertura de projetos, histórico, comparação e retorno à fila. Alterar ou limpar a busca retorna à primeira página; limpar apenas a busca conserva os demais filtros.
 
 O termo é literal, limitado a100 codepoints Unicode/400 bytes e validado antes de aparar espaços nas bordas. Maiúsculas/minúsculas usam casefold Unicode do PostgreSQL18, inclusive em banco localeC. `%`, `_` e barra invertida não se tornam curingas; acentos e composição Unicode não são normalizados. Campo vazio passa pelo middleware Laravel sem erro e controles inválidos não são aparados silenciosamente. Nenhuma migration, grant ou autoridade nova.
 
-Validação local: **PHPUnit119 testes/788 asserções/27 skips explícitos**, lint e suites offline aprovados. **CI SQL/HTTP desta busca pendente**. Detalhes: [relatório de busca na fila](docs/reviews/SITES-QUEUE-SEARCH-2026-11-18.md).
+**PR #493 validada em f0a2f361d04297bfbafd5d11f55f3ab299a8e000:15/15 check-runs SUCCESS**. [Run44216520003](https://github.com/rafhael100/imagine-sites/actions/runs/44216520003):33 verificações de busca e356 do workspace em PHP8.3/8.4,139 de navegador, PHPUnit122/854/27 skips explícitos. O preview remove o histórico de URL da sessão para manter cabeçalhos compactos; CSRF permanece verificado. Capturas desktop/mobile revisadas e artifact14388718594 conferido por SHA-256 `ce47477f728fd2c2af3f8c4181d74c99f4a7e3be30a4faef7c74ca7646ad39e3`. Detalhes: [relatório de busca na fila](docs/reviews/SITES-QUEUE-SEARCH-2026-11-18.md).
 
 ## 18/11/2026 — continuidade: parecer editorial com orientação persistida
 

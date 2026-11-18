@@ -57,7 +57,7 @@ O workflow desta entrega é restrito ao draft, branch e SHA exato da base. Os en
 - Capturas desktop/mobile do campo e do resultado; verificação de overflow.
 - Regressões do workspace, orientação editorial, registry, pacote, diário e migrations Laravel.
 
-Na HEAD `528efd1cb7cb5f4618f222fc663fbf0fbea27bea`, o [run44213463495](https://github.com/rafhael100/imagine-sites/actions/runs/44213463495) aprovou os contratos SQL em PHP8.3/8.4:33 verificações específicas de busca e356 totais do workspace. A regressão HTTP encontrou o problema de sessão descrito acima; a validação integral com a correção ainda está pendente. PostgreSQL local não foi iniciado. Resultados definitivos, HEAD e artefatos serão registrados na descrição da PR após a execução.
+**PR #493 validada na HEAD `f0a2f361d04297bfbafd5d11f55f3ab299a8e000`:15/15 check-runs SUCCESS**, incluindo execuções push/PR. O [run44216520003](https://github.com/rafhael100/imagine-sites/actions/runs/44216520003) aprovou33 verificações específicas da busca,356 do workspace e402 do registry/ciclo/pacote/journal em PHP8.3/8.4; o navegador completou139 checks, inclusive100 emojis pelo formulário. PHPUnit122/854/27 skips explícitos. Capturas desktop/mobile inspecionadas, legíveis e sem overflow. Artifact14388718594,13 arquivos, SHA-256 `ce47477f728fd2c2af3f8c4181d74c99f4a7e3be30a4faef7c74ca7646ad39e3`, download conferido. PostgreSQL local não foi iniciado.
 
 ## Limites
 
