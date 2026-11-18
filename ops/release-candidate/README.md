@@ -191,7 +191,7 @@ The result has no `created` or `replayed` field. The existing SQL revision and r
 
 Revocation changes the registry association and makes a package tied to the old current association stale. It preserves stored artifacts, editorial history, binding history and previously exported package bytes. It does not unpublish a site at an external provider, retract customer consent or permanently prevent a later authorized bind. External publication, external rollback and future binding decisions require their own authorities and explicit actions.
 
-Failures emit only `RELEASE_BINDING_DENIED` on stderr with exit status 1 and no successful JSON result. A failure during or after SQL, including a lost response or failed postcheck, can follow a committed event. The error does not establish rollback, artifact absence, creation or replay. Do not automatically retry or increment the expected revision. Resolve the outcome through separately authorized access to current registry state before deciding on another reviewed action. This command offers no private head lookup or built-in recovery procedure.
+Failures emit only `RELEASE_BINDING_DENIED` on stderr with exit status 1 and no successful JSON result. A failure during or after SQL, including a lost response or failed postcheck, can follow a committed event. The error does not establish rollback, artifact absence, creation or replay. Do not automatically retry or increment the expected revision. Resolve the outcome through separately authorized access to registry state before deciding on another reviewed action. `binding.php` does not perform that lookup or offer a built-in recovery procedure. The separate [binding-event inspector](#read-only-inspection-of-the-last-binding-event) can show the last persisted event, but cannot attribute it to a lost call, prove current eligibility or authorize a retry.
 
 ### Binding CI boundary
 
@@ -200,6 +200,68 @@ The isolated alternative requires `GITHUB_ACTIONS=true`, `APP_ENV=testing` and `
 The database OID, CA fingerprint, file custody, exact plan and explicit action-specific approval remain mandatory. The combined fixture may use the active `rr_registration_a_artifact_writer` through the real registration CLI to create its artifact, then separate editorial operators before binding. That CI-only registration allowlist does not restore the previously revoked author or relax any principal, epoch or tenant guard.
 
 Offline CLI tests cover help and early argument/environment refusals with autoload and private inputs inaccessible. Actual bind/revoke, revision conflicts, repetition, isolation and package invalidation require the separate disposable PostgreSQL/TLS fixture. This candidate adds no deployment authorization or operational acceptance.
+
+## Read-only inspection of the last binding event
+
+The separate `inspect-binding.php` command reads the last persisted binding event of one known project through `sites_core.read_release_binding_head(uuid)`. It uses a fresh PDO connection and the Composer autoloader without booting Laravel. It changes no association, records no event, creates no output file and calls no Portal or publication provider.
+
+This observation helps an authorized operator investigate a conflict or lost binding response. It does not identify which call produced an event. A matching revision, event kind or digest is not proof that a particular timed-out action succeeded, and a later event may describe another operator's work. Inspection neither retries an action nor reserves a binding revision for a later write.
+
+### Binding inspection manifest and custody
+
+| Fixed private path | Content |
+| --- | --- |
+| `/run/secrets/release_binding_inspection` | Exact `SITES_RELEASE_BINDING_INSPECTION_V1` JSON, 1–16384 bytes, based on `binding-inspection.example.json` |
+| `/run/secrets/sites_release_binding_inspection_reader` | Password of the separately provisioned restricted reader, 16–4096 bytes |
+| `/run/secrets/sites_release_binding_inspection_ca` | Reviewed PostgreSQL CA PEM, at most 65536 bytes, matching `target.caSha256` |
+
+The manifest contains exactly `schema`, `target` and `siteRef`. The target contains exactly `host`, `port`, `database`, `databaseOid`, `login`, `serverAddress` and `caSha256`. `siteRef` is a known lowercase project UUID. Extra fields, duplicate JSON keys, malformed selectors, coerced integers and unsafe target coordinates are refused. The example intentionally uses invalid placeholders and cannot be executed unchanged.
+
+There is no release selector, expected revision, action, plan hash, artifact input, tenant override, output path or acceptance claim in this manifest. Neither a site selector nor a login name supplies tenant authority. The SQL function independently requires the current login's active, unexpired release-registry principal with reader duty and rechecks its tenant, epoch and revocation status after reading the event.
+
+Each of the three inputs must be a readable regular file at a canonical absolute path, with no observed symlink component, one hard link, mode `0400` or `0600`, and root or the CLI effective user as owner. The existing `SiteReleasePreparationFiles::read` checks the opened descriptor against the pathname and bounds each read. The wrapper records exact bytes, SHA-256 and identity, including the password. After the query, it rereads all three files and compares bytes, digest, inode, mode, ownership, link count, size and modification metadata before releasing stdout. Access time is excluded. An observed change produces a bounded refusal; no input is repaired, rewritten or chmodded.
+
+Staging requires `APP_ENV=staging`, no GitHub Actions or binding-inspection CI opt-in, and `target.database=sites_staging`. Supply the hostname, database OID, login, server address and CA fingerprint from separately reviewed inventory. The hostname must match the server certificate, and the direct endpoint's observed port and address must match the manifest.
+
+The new nonpersistent PDO connection uses `sslmode=verify-full`, the fixed CA mount, `gssencmode=disable` and a 5-second connection timeout. Its session remains read-only throughout, with `pg_catalog`, UTF-8, read committed isolation, a 10-second statement timeout and a 3-second lock timeout. The service checks PostgreSQL 18, TLS, exact target identity, no inherited transaction and the restricted effective read capability before and after the query.
+
+The separate reader requires schema USAGE and EXECUTE exclusively on `sites_core.read_release_binding_head(uuid)`, without grant option or execution of other core/publication APIs. It receives no bind, revoke, editorial transition or journal mutation authority. The function and the restricted principal must already exist through their separately reviewed installation and provisioning. This CLI applies no migration or grant and changes no existing writer or status endpoint.
+
+```sh
+php /opt/imagine/ops/release-candidate/inspect-binding.php --help
+php /opt/imagine/ops/release-candidate/inspect-binding.php inspect
+```
+
+`inspect` accepts no options. `plan`, mutable commands, approval flags, credentials and path overrides are refused. `--help` works before autoload and without environment variables, private inputs or a database connection.
+
+### Binding inspection result and limits
+
+Success is exactly one JSON line with eight fields:
+
+| Field | Value |
+| --- | --- |
+| `schema` | `SITES_RELEASE_BINDING_INSPECTION_RESULT_V1` |
+| `status` | `inspected` |
+| `lastBindingRevision` | Last positive binding-event revision, or `null` when the authorized project has no event |
+| `lastEventKind` | `bound`, `revoked`, or `null` with no event |
+| `editorialRevision` | Editorial revision recorded in that event, or `null` with no event |
+| `artifactDigest` | Artifact digest recorded in that event, or `null` with no event |
+| `canPublish` | `false` |
+| `canAcceptRealOrders` | `false` |
+
+For an authorized project without binding events, the four observation fields are all null together. A missing project, another tenant's project or an unauthorized reader receives the same bounded refusal instead. The service validates the returned project identity internally; stdout includes no site or release reference, actor, tenant, credential, path or private diagnostic.
+
+Both `bound` and `revoked` describe historical registry events. In particular, the editorial revision and artifact digest returned with `revoked` remain those recorded in the revocation event. The observation does not revalidate current editorial approval, artifact-author authority or the original binding actor. Those conditions may have changed since the event, even when the last event remains `bound`. It therefore does not establish present eligibility for preparing a package, requesting publication or performing another binding action.
+
+The result also cannot prove customer acceptance, external publication or external unpublication. It provides no `created` or `replayed` inference, no attribution of a lost call and no reserved CAS value. A later explicit bind or revoke still needs its own reviewed inputs and authorization, and its SQL guards must check current conditions. Never automatically retry or increment an expected revision from this read.
+
+Failures return exit status 1, empty stdout and only `RELEASE_BINDING_INSPECTION_DENIED` on stderr. The command exposes no exception chain or SQL diagnostic and never enables SQL writes. A refusal does not explain whether a project exists in another tenant or whether an earlier binding write committed. Further diagnosis requires separately authorized access outside this command.
+
+### Binding inspection CI boundary
+
+The disposable alternative requires `GITHUB_ACTIONS=true`, `APP_ENV=testing` and `SITES_RELEASE_BINDING_INSPECTION_CI=1` together. It pins host `localhost`, port `55449`, database `postgres`, observed address `127.0.0.1` and login `bi_a_reader`. The actual database OID, CA fingerprint, private-file custody, read-only session and exclusive read capability remain mandatory. This login pin constrains the synthetic fixture; SQL still determines current reader authority and tenant access.
+
+Offline CLI tests cover help and bounded argument/environment refusals while autoload and all private inputs are inaccessible. They fabricate no successful SQL query. Last-event reads, the null-event case, tenant isolation, reader revocation, transport/target checks and unchanged rows/catalogs require the separate PostgreSQL/TLS fixture. This candidate creates no operational principal, installs nothing in staging and supplies no deployment or publication approval.
 
 ## Local HTML rendering from a private brief
 

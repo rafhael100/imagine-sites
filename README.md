@@ -22,6 +22,8 @@ A inspeção editorial privada consulta a revisão, o estado e o digest atuais d
 
 A associação e a revogação privadas têm comandos separados e credenciais próprias, com plano somente leitura e controle da revisão esperada. A associação usa o artefato imutável e a aprovação editorial corrente; a revogação preserva o histórico e invalida o vínculo, permitindo que a preparação e a verificação recusem pacotes que deixaram de ser correntes.
 
+A consulta privada da associação informa o último evento persistido de um site conhecido, incluindo revogação e ausência de eventos. Usa um leitor separado, sem alterar o histórico. A revisão, o tipo do evento e o digest ajudam a apuração após resposta perdida; não comprovam elegibilidade atual, autoria de uma chamada ou autorização para repetir a operação.
+
 A reconciliação privada permite planejar e solicitar a classificação técnica de uma operação conhecida do diário. O plano vincula seletores e runtime; o SQL decide a revisão e o vencimento. Um resultado `inconclusive` pode incluir ACK tardio e não comprova publicação externa. A execução exige confirmação explícita e preserva tentativa e lease, sem reenvio ou reset automático.
 
 A solicitação privada do diário recebe a release e a revisão esperada da associação, confirma um plano somente leitura e usa a API de idempotência existente. A referência da operação fica em um novo recibo privado para preparar sua consulta pelo inspetor. A resposta pública contém apenas a projeção técnica; uma repetição pode devolver o estado mais recente da mesma operação. O recibo e o banco são recursos separados, portanto falha na gravação do arquivo pode ocorrer depois do commit.
@@ -38,7 +40,7 @@ Esses componentes não constituem homologação operacional. Contrato, pagamento
 | `src/Integration` | Contratos e adaptadores candidatos de integração com o Portal |
 | `contracts` | Regras SQL versionadas e fronteiras dos componentes |
 | `ops/preview-candidate` | Provisionamento explícito e revisável do workspace privado |
-| `ops/release-candidate` | Renderização local privada, registro, associação/revogação e `prepare`/`verify` do pacote técnico |
+| `ops/release-candidate` | Renderização local, registro, associação/revogação, consulta do último evento e `prepare`/`verify` do pacote técnico |
 | `ops/editorial-candidate` | Transição editorial explícita e consulta exata do head com leitor separado |
 | `ops/publication-candidate` | Solicitação com recibo privado, inspeção somente leitura e reconciliação explícita do diário |
 | `tests/fixtures` | Materiais inteiramente sintéticos para os ensaios descartáveis de CI |
@@ -60,6 +62,8 @@ php tests/release-registration-offline.php
 php tests/release-registration-cli-offline.php
 php tests/release-binding-offline.php
 php tests/release-binding-cli-offline.php
+php tests/release-binding-inspection-offline.php
+php tests/release-binding-inspection-cli-offline.php
 php tests/editorial-transition-offline.php
 php tests/editorial-transition-cli-offline.php
 php tests/editorial-inspection-offline.php
@@ -92,6 +96,7 @@ O Portal controla contratos, aceite expresso e evento oficial `ENTREGUE`; Sites 
 - [Preparação e verificação de pacotes](ops/release-candidate/README.md)
 - [Registro privado de artefatos](docs/reviews/SITES-ARTIFACT-REGISTRATION-2026-11-18.md)
 - [Associação e revogação de releases](docs/reviews/SITES-RELEASE-BINDING-2026-11-18.md)
+- [Consulta privada do último evento de associação](docs/reviews/SITES-BINDING-INSPECTION-2026-11-18.md)
 - [Transição editorial explícita](docs/reviews/SITES-EDITORIAL-TRANSITION-2026-11-18.md)
 - [Manual da CLI editorial](ops/editorial-candidate/README.md)
 - [Diário técnico de publicação](contracts/publication-journal/README.md)
