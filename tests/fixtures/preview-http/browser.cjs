@@ -213,6 +213,7 @@ const {chromium}=require('playwright');const fs=require('fs'),cp=require('child_
  await p.goto(base+'/_preview?status=awaiting_review&format=landing_page');
  ok(await p.locator('[data-project]').count()===1&&await p.getByText('Uma oferta com foco em oportunidades',{exact:true}).isVisible(),'landing filter locates current pending project');
  await p.goto(landing+'/versions/1/html');await p.screenshot({path:dir+'/landing-mobile.png',fullPage:true});ok(await p.getByRole('heading',{name:'Uma oferta com foco em oportunidades'}).isVisible(),'real renderer visible');
+ await require('./brief-validation.cjs')({ctx,o,base,dir,ok});
  docker(['restart','app']);
  let restored=false;for(let n=0;n<20;n++){try{const r=await a.request.get(one);if(r.status()===200){restored=true;break;}}catch{}await new Promise(r=>setTimeout(r,300));}ok(restored,'app restart retains DB and immutable versions');
  await p.setViewportSize({width:1440,height:1000});await p.goto(one+'/versions/1/html');await p.screenshot({path:dir+'/onepage-desktop.png',fullPage:true});

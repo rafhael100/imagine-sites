@@ -16,6 +16,11 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Session\Middleware\StartSession::class => \App\Http\Middleware\PrivatePreviewStartSession::class,
         ]);
 
+        // Only malformed briefing fields containing NUL bypass framework trim;
+        // all valid fields retain the existing normalization and exceptions.
+        $middleware->replace(\Illuminate\Foundation\Http\Middleware\TrimStrings::class,
+            \App\Http\Middleware\TrimStrings::class);
+
         // Private editorial notes retain their exact whitespace in storage and
         // failed form responses; their domain validator handles blank text.
         // Search is bounded and normalized by PreviewQueueQuery, so malformed

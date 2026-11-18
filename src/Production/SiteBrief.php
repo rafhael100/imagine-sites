@@ -30,7 +30,8 @@ final readonly class SiteBrief
             'description' => [$description, 600],
             'callToAction' => [$callToAction, 80],
         ] as $label => [$value, $max]) {
-            if (trim($value) === '' || !mb_check_encoding($value, 'UTF-8') || mb_strlen($value, 'UTF-8') > $max) {
+            if (str_contains($value, "\0") || trim($value) === '' || !mb_check_encoding($value, 'UTF-8') ||
+                mb_strlen($value, 'UTF-8') > $max) {
                 throw new InvalidArgumentException('Invalid plain text: '.$label);
             }
         }
@@ -38,7 +39,7 @@ final readonly class SiteBrief
             throw new InvalidArgumentException('One to eight benefits required.');
         }
         foreach ($benefits as $benefit) {
-            if (!is_string($benefit) || trim($benefit) === '' || !mb_check_encoding($benefit, 'UTF-8') ||
+            if (!is_string($benefit) || str_contains($benefit, "\0") || trim($benefit) === '' || !mb_check_encoding($benefit, 'UTF-8') ||
                 mb_strlen($benefit, 'UTF-8') > 180) {
                 throw new InvalidArgumentException('Invalid benefit list.');
             }

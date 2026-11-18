@@ -47,8 +47,9 @@ final class PreviewBriefInput
         $benefits = [];
         $validator->after(static function ($validator) use ($input, &$benefits): void {
             foreach (['brand', 'headline', 'description', 'call_to_action', 'benefits'] as $field) {
-                if (is_string($input[$field] ?? null) && !mb_check_encoding($input[$field], 'UTF-8')) {
-                    $validator->errors()->add($field, 'Use um texto válido em UTF-8.');
+                if (is_string($input[$field] ?? null) &&
+                    (!mb_check_encoding($input[$field], 'UTF-8') || str_contains($input[$field], "\0"))) {
+                    $validator->errors()->add($field, 'Este texto contém caracteres inválidos. Digite novamente este campo.');
                 }
             }
             if ($validator->errors()->has('benefits')) {
@@ -77,5 +78,22 @@ final class PreviewBriefInput
             // Keep invalid content out of storage and do not label user input as an access failure.
             throw ValidationException::withMessages(['briefing' => 'Revise os textos do briefing.']);
         }
+    }
+
+    /** Keep failed text only in the no-store response, without malformed bytes or authority fields. */
+    public static function preserve(array $input): array
+    {
+        $preserved = [];
+        foreach (['product', 'brand', 'headline', 'description', 'call_to_action', 'benefits'] as $field) {
+            if (!array_key_exists($field, $input)) {
+                continue;
+            }
+            $value = $input[$field];
+            // Valid over-limit text remains complete so the author can shorten it.
+            // NUL cannot be represented faithfully in HTML; clear only that field.
+            $preserved[$field] = is_string($value) && strlen($value) <= self::MAX_FORM_BYTES &&
+                mb_check_encoding($value, 'UTF-8') && !str_contains($value, "\0") ? $value : '';
+        }
+        return $preserved;
     }
 }
