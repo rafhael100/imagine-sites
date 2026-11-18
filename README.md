@@ -16,6 +16,8 @@ Na fila, uma busca segura acima do limite permanece no formulário com mensagem 
 
 O registro privado de artefatos possui plano somente leitura e gravação explícita por hash revisado, usando a API SQL existente. Ele conserva os bytes e a idempotência do registry; a aprovação editorial e a associação da release exigem suas identidades próprias antes de preparar o pacote.
 
+O guard do registry inspeciona permissões de tabela e coluna em todo o schema nativo, incluindo o ledger de recebimento do Portal. A ampliação usa uma migration aditiva que preserva identidade e ACL da função existente; nenhuma capacidade de recebimento, pagamento ou publicação é concedida por essa verificação.
+
 A CLI editorial permite planejar e solicitar uma transição por execução, com revisão esperada, bytes exatos e confirmação explícita do plano. O SQL verifica a função do operador e o estado corrente. O comando não consulta o artefato no registry nem estabelece uma associação; conflitos e respostas perdidas exigem apuração antes de outra decisão, sem retry ou incremento automático da revisão.
 
 A inspeção editorial privada consulta a revisão, o estado e o digest atuais de um site conhecido, inclusive fora da listagem dos 100 mais recentes. Usa uma identidade de leitura separada e mantém a sessão somente leitura. Um projeto autorizado sem revisão retorna os três campos nulos; falta de acesso e site ausente recebem a mesma recusa. A observação não atribui uma transição a uma resposta perdida nem permite repetição automática.

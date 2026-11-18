@@ -1,4 +1,21 @@
 # STATUS-ATUAL — Imagine Sites Engine
+
+## 18/11/2026 — continuidade: cobertura de permissões após o recebimento nativo
+
+Branch `fix/sites-registry-intake-permissions-2026-11-18`, sobre a PR #512 / `9b80387fe1c580436b444a6aad2b63f3baafa37d`. A migration 12 substitui somente o guard do registry para incluir todas as tabelas comuns/particionadas de `sites_core`, preservando as onze bases obrigatórias e os predicados anteriores. Fecha a omissão da tabela nova `portal_project_intakes`, sem alterar grants ou dados. Up/down conferem pins e todos os atributos de `pg_proc` exceto o corpo; a reversão restaura também a limitação antiga. Produto, migration e fixture receberam revisão independente sem bloqueador. **PR #515 validada no HEAD funcional `1732ad5b0d7b60067154c2a3354cd16b99a6658b`: 14/14 check-runs SUCCESS**. O [run 44307367368](https://github.com/rafhael100/imagine-sites/actions/runs/44307367368) confirmou **13 verificações novas/918 registry**, em PHP 8.3/8.4 e PostgreSQL 18/TLS, com reprodução do corpo antigo, quatro ACLs indevidas, recuperação positiva e snapshots completos. O [run nativo 44307366977](https://github.com/rafhael100/imagine-sites/actions/runs/44307366977) confirmou 63 verificações do recebimento, recorder 18 testes/84 assertions e rollback das 12 migrations. A [matriz Laravel 44307367201](https://github.com/rafhael100/imagine-sites/actions/runs/44307367201) passou com suíte padrão 186/1902/27 e opt-in sintético 186/1914/21. Clusters próprios inativos e materiais dos auxiliares limpos. [Contrato e limites](docs/reviews/SITES-REGISTRY-INTAKE-PERMISSIONS-2026-11-18.md).
+
+### Entregas de interface na linha paralela
+
+Estas PRs partem da #510 por outra linha; os resultados abaixo identificam seus próprios SHAs e não significam que seu código foi incorporado à candidata de compatibilidade do registry.
+
+| PR / HEAD | Resultado confirmado |
+| --- | --- |
+| [#511](https://github.com/rafhael100/imagine-sites/pull/511), `d95618bdce599e90ba9b03ff73e9f19c8baee7c1` | Consulta paginada por versão: 15 checks SUCCESS, 25 verificações SQL novas/429 totais e 39 HTTP novas/433 totais; PHPUnit 188/2052/27. [Run 44300875232](https://github.com/rafhael100/imagine-sites/actions/runs/44300875232). |
+| [#513](https://github.com/rafhael100/imagine-sites/pull/513), `a21781e1c1143392fbe37239a0d6ecb3938c0339` | Nomes acessíveis por versão: 11 checks SUCCESS, 6 HTTP novas/439 totais; PHP 8.3/8.4, suíte padrão 188/2070/27 e opt-in sintético 188/2082/21. [Navegador](https://github.com/rafhael100/imagine-sites/actions/runs/44303478376), [Laravel](https://github.com/rafhael100/imagine-sites/actions/runs/44303478143). |
+| [#514](https://github.com/rafhael100/imagine-sites/pull/514), `c5df3ee02f040028cd2655b963c7a7dced07ab7c` | Links com destinos explícitos e legendas conforme acesso: 11 checks SUCCESS, 439 HTTP; PHP 8.3/8.4, suíte padrão 188/2090/27 e opt-in sintético 188/2102/21. [Navegador](https://github.com/rafhael100/imagine-sites/actions/runs/44304778713), [Laravel](https://github.com/rafhael100/imagine-sites/actions/runs/44304778161). |
+
+As capturas desktop/mobile dessas três entregas foram revisadas e os artifacts conferidos por SHA-256: #511 `14426790594` / `d5e4d5e0b20941e549da82664a082512e0ce9fef932e165cf53db8fe4909005e`; #513 `14426143530` / `1d5c7ccfef8a0266e0fa5b9ef82d1904132b48d60075bd15d0fe158b3b478582`; #514 `14428565756` / `494b756e9dd3e89e78062e45b045bf8eb25b020fadced6b8d211d0c1d898bacd`. Os ambientes descartáveis tiveram a limpeza confirmada.
+
 ## 18/11/2026 — recebimento nativo pendente do Portal (candidato em revisão)
 
 Sobre a HEAD Sites #510 `61a8d1db212d298051e6f64f8b923e545a4c6bb3`, o serviço Laravel
@@ -11,14 +28,18 @@ A validação local passou em PHP8.4/PostgreSQL18 com 63 verificações reais,
 Down/reapply da migration preservou projetos e não restaurou capacidades; os 32
 checks de domínio e o safety guard passaram. O rollback exato do batch 1 também
 removeu `sites_core` após todos os seeds/casos nativos. Revisão independente de
-SQL/migration/serviço concluída sem bloqueadores funcionais; CI remota pendente.
+SQL/migration/serviço concluída sem bloqueadores funcionais. **CI remota da PR #512
+confirmada no HEAD `9b80387fe1c580436b444a6aad2b63f3baafa37d`: 14/14 check-runs SUCCESS**.
+O [run 44303070110](https://github.com/rafhael100/imagine-sites/actions/runs/44303070110)
+passou em PHP 8.3/8.4, confirmando 63 verificações nativas, 18 testes/84 assertions
+do recorder e a reversão completa do schema descartável.
 Nenhum transporte, autoridade financeira, geração, instalação ou publicação foi
 ativado; os dez gates permanecem BLOCKED. Detalhes: [contrato do recebimento](docs/PORTAL-PROJECT-INTAKE.md).
 
 
 ## 18/11/2026 — continuidade: consulta privada da associação
 
-Branch `feature/sites-binding-inspection-2026-11-18`, sobre a PR #509 / `b288c40ee08186fb17509bc064c1ed5c63ace015`. A função `read_release_binding_head(uuid)` e a CLI `inspect-binding.php inspect` consultam o último evento de associação de um site conhecido, com leitor independente e sessão somente leitura. Projeto próprio sem evento retorna quatro campos nulos; ausência/empresa diferente conserva recusa uniforme. O histórico permanece observável mesmo após mudanças posteriores de elegibilidade, sem atribuir uma chamada perdida ou autorizar repetição. Migration010 cria somente a função sob owner existente. **172 assertions offline do serviço, 49 checks da CLI e PHPUnit 168 testes/1818 assertions/27 skips PASS**, com pins, sintaxe, workflow e revisões independentes do serviço, SQL e CLI. A fixture PostgreSQL/CLI foi implementada e revisada, com 55 verificações novas/905 registry previstas e 404 workspace, incluindo histórico, isolamento, autoridade corrente, rollback/reapply e limpeza exclusiva. A execução conectada aguarda CI. [Contrato e limites](docs/reviews/SITES-BINDING-INSPECTION-2026-11-18.md).
+Branch `feature/sites-binding-inspection-2026-11-18`, sobre a PR #509 / `b288c40ee08186fb17509bc064c1ed5c63ace015`. A função `read_release_binding_head(uuid)` e a CLI `inspect-binding.php inspect` consultam o último evento de associação de um site conhecido, com leitor independente e sessão somente leitura. Projeto próprio sem evento retorna quatro campos nulos; ausência/empresa diferente conserva recusa uniforme. O histórico permanece observável mesmo após mudanças posteriores de elegibilidade, sem atribuir uma chamada perdida ou autorizar repetição. Migration010 cria somente a função sob owner existente. **172 assertions offline do serviço, 49 checks da CLI e PHPUnit 168 testes/1818 assertions/27 skips PASS**, com pins, sintaxe, workflow e revisões independentes do serviço, SQL e CLI. A fixture PostgreSQL/CLI confirmou **55 verificações novas/905 registry e 404 workspace**, incluindo histórico, isolamento, autoridade corrente, rollback/reapply e limpeza exclusiva. **PR #510 validada em `61a8d1db212d298051e6f64f8b923e545a4c6bb3`: 14/14 check-runs SUCCESS**. O [run 44296336981](https://github.com/rafhael100/imagine-sites/actions/runs/44296336981) passou em PHP 8.3/8.4 com PostgreSQL 18, arquivos próprios limpos e clusters inativos; o [run 44296337182](https://github.com/rafhael100/imagine-sites/actions/runs/44296337182) confirmou também as migrações e rollback legados. [Contrato e limites](docs/reviews/SITES-BINDING-INSPECTION-2026-11-18.md).
 
 ## 18/11/2026 — continuidade: limite consistente para novas versões
 
