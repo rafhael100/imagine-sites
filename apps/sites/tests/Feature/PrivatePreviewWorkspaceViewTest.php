@@ -550,15 +550,15 @@ final class PrivatePreviewWorkspaceViewTest extends TestCase
         $xpath = $this->xpath($html);
 
         self::assertSame(2, substr_count($html, 'Este parecer foi registrado sem observação.'));
-        self::assertStringContainsString('Mostrando os 100 pareceres mais recentes da versão atual.', $html);
-        self::assertStringNotContainsString('Mostrando os 100 pareceres mais recentes das versões desta página.', $html);
+        self::assertStringContainsString('Mostrando os 100 pareceres mais recentes da versão atual. Use o link de consulta acima para ver os demais pareceres.', $html);
+        self::assertStringNotContainsString('Este resumo está limitado a 100 pareceres.', $html);
         self::assertSame(0, $xpath->query('//form[@method="post"]|//*[@data-review-note]')->length);
         self::assertStringContainsString('Versão 1: Ajustes solicitados', $html);
         $data['currentReviewsTruncated'] = false;
         $data['reviewsTruncated'] = true;
         $html = view('preview.workspace', $data)->render();
         self::assertStringNotContainsString('Mostrando os 100 pareceres mais recentes da versão atual.', $html);
-        self::assertStringContainsString('Mostrando os 100 pareceres mais recentes das versões desta página.', $html);
+        self::assertStringContainsString('Este resumo está limitado a 100 pareceres. Use “Consultar pareceres da versão” no cartão desejado para continuar a consulta.', $html);
     }
 
     public function test_queue_search_is_escaped_accessible_and_resets_pagination_when_submitted(): void
