@@ -14,6 +14,8 @@ A CLI editorial permite planejar e solicitar uma transição por execução, com
 
 A associação e a revogação privadas têm comandos separados e credenciais próprias, com plano somente leitura e controle da revisão esperada. A associação usa o artefato imutável e a aprovação editorial corrente; a revogação preserva o histórico e invalida o vínculo, permitindo que a preparação e a verificação recusem pacotes que deixaram de ser correntes.
 
+A reconciliação privada permite planejar e solicitar a classificação técnica de uma operação conhecida do diário. O plano vincula seletores e runtime; o SQL decide a revisão e o vencimento. Um resultado `inconclusive` pode incluir ACK tardio e não comprova publicação externa. A execução exige confirmação explícita e preserva tentativa e lease, sem reenvio ou reset automático.
+
 Esses componentes não constituem homologação operacional. Contrato, pagamento, identidade entre serviços, revogação, aceite expresso do cliente, backup externo e publicação exigem suas próprias fontes e evidências. Os dez gates em `config/operational-readiness.json` permanecem `BLOCKED`; os padrões de autorização continuam negadores.
 
 ## Componentes
@@ -28,7 +30,7 @@ Esses componentes não constituem homologação operacional. Contrato, pagamento
 | `ops/preview-candidate` | Provisionamento explícito e revisável do workspace privado |
 | `ops/release-candidate` | Registro, associação e revogação explícitos, além de `prepare`/`verify` do pacote técnico |
 | `ops/editorial-candidate` | Plano e execução explícita de uma transição editorial pela API existente |
-| `ops/publication-candidate` | Consulta privada de uma operação conhecida do diário, somente leitura |
+| `ops/publication-candidate` | Inspeção somente leitura e reconciliação explícita de operações conhecidas do diário |
 | `tests/fixtures` | Materiais inteiramente sintéticos para os ensaios descartáveis de CI |
 
 ## Verificação local
@@ -52,6 +54,8 @@ python3 tests/fixture-private-material.py
 php tests/publication-journal-offline.php
 php tests/publication-inspection-offline.php
 php tests/publication-inspection-cli-offline.php
+php tests/publication-reconciliation-offline.php
+php tests/publication-reconciliation-cli-offline.php
 php apps/sites/vendor/bin/phpunit -c apps/sites/phpunit.xml --do-not-cache-result
 ```
 
@@ -74,6 +78,7 @@ O Portal controla contratos, aceite expresso e evento oficial `ENTREGUE`; Sites 
 - [Manual da CLI editorial](ops/editorial-candidate/README.md)
 - [Diário técnico de publicação](contracts/publication-journal/README.md)
 - [Inspeção privada do diário](ops/publication-candidate/README.md)
+- [Reconciliação explícita do diário](docs/reviews/SITES-PUBLICATION-RECONCILIATION-2026-11-18.md)
 - [Próxima integração Portal → briefing → geração](docs/reviews/SITES-NEXT-INTEGRATION-2026-11-18.md)
 - [Orientação editorial por versão](docs/reviews/SITES-EDITORIAL-FEEDBACK-2026-11-18.md)
 - [Briefing Unicode e validação por campo](docs/reviews/SITES-BRIEF-UNICODE-VALIDATION-2026-11-18.md)
