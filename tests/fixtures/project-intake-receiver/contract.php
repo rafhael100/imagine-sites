@@ -609,6 +609,16 @@ return static function (
         }
         $pirCheck($pirRestored && $pirFile($pirPath(15)) === $pirSentinelStamp && $pirFile($pirPath(16)) === $pirMoved,
             'all four fixed inputs are restored while both postcommit probe files remain preserved for their owning helper');
+        if (getenv('SITES_PROJECT_INTAKE_RECOVERY_CLI_CI') === '1') {
+            $pirStage = 'private read-only receipt recovery CLI';
+            $pirRecoveryFixture = require __DIR__.'/../project-intake-recovery/contract.php';
+            $pirRecoveredReceipts = $pirRecoveryFixture($pirAdmin, $pirConnection, $pirPassword, $pirCaFile,
+                $pirTenants, $pirCommands, $pirReceipts, $pirParentCheck);
+            bapRequire($pirRecoveredReceipts === $pirReceipts, 'recovered native receipts match the three original committed requests');
+            // Subsequent native snapshots and release consumers use the maps
+            // decoded from the recovery files, without another intake call.
+            $pirReceipts = $pirRecoveredReceipts;
+        }
         echo 'PROJECT INTAKE RECEIVER CLI CI PASS: '.$pirChecks.
             " assertions; existing native command and receipt, three substituted intakes, private outputs, replay and bounded postcommit recovery.\n";
         return $pirReceipts;
