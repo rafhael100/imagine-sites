@@ -14,6 +14,7 @@ final class ReleaseArtifactConnection
     public const BRIEF_ARTIFACT = 'brief_artifact';
     public const BRIEF_RECEIPT = 'brief_receipt';
     public const BRIEF_SNAPSHOT = 'brief_snapshot';
+    public const BRIEF_SNAPSHOT_RECEIVER = 'brief_snapshot_receiver';
 
     /** Coordinates identify a reviewed endpoint, never a private tenant or duty. */
     public static function target(mixed $target): array
@@ -57,6 +58,7 @@ final class ReleaseArtifactConnection
             self::BRIEF_ARTIFACT => 'sites_core.record_brief_release_artifact(text,text,text)',
             self::BRIEF_RECEIPT => 'sites_core.read_brief_release_artifact_receipt(uuid,text,text)',
             self::BRIEF_SNAPSHOT => 'sites_core.read_portal_brief_snapshot(uuid,uuid,integer,text)',
+            self::BRIEF_SNAPSHOT_RECEIVER => 'sites_core.record_portal_brief_snapshot(text,text)',
             default => throw new RuntimeException(),
         };
         if (in_array($api, [self::BRIEF_RECEIPT, self::BRIEF_SNAPSHOT], true) && !$readOnly) {
