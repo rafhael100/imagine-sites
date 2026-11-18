@@ -28,9 +28,11 @@ O armazenamento nativo candidato recebe o manifesto e o corpo rico Onepage como 
 
 Uma conexão de leitura separada recupera a seleção exata do snapshot e revalida o perfil completo antes de alimentar o renderer com a entrada editorial escolhida. Esse consumidor interno continua sem escrever arquivos ou registrar o artefato por conta própria. O armazenamento foi validado na #519; consulte o [manual dos snapshots candidatos](docs/PORTAL-BRIEF-SNAPSHOTS.md).
 
-A composição seguinte está em implementação candidata: `StoredBriefReleaseRegistration` lê e renderiza internamente, confirma um compromisso que inclui alvo, plano, editorial e HTML originais e solicita uma única operação SQL. A migration 14 associa o snapshot e registra o artefato atomicamente pela operação existente do registry, sem adotar retroativamente artefatos antigos sem relação. O SQL confere estrutura, hashes e vínculo persistente; a geração e a auditoria do HTML continuam no PHP. A API antiga conserva seu contrato.
+A composição candidata foi validada na [#520](https://github.com/rafhael100/imagine-sites/pull/520), HEAD `8b717d3c0c03146bc48ee812e906bc70a1c479a9`, com **15/15 checks SUCCESS**. `StoredBriefReleaseRegistration` lê e renderiza internamente, confirma um compromisso que inclui alvo, plano, editorial e HTML originais e solicita uma única operação SQL. A migration 14 associa o snapshot e registra o artefato atomicamente pela operação existente do registry, sem adotar retroativamente artefatos antigos sem relação. O SQL confere estrutura, hashes e vínculo persistente; a geração e a auditoria do HTML continuam no PHP. A API antiga conserva seu contrato. Em PHP 8.3/8.4, a prova confirmou **119 checks novos/1042 registry totais**, **245 checks de briefing/65 de intake**, Laravel **279/4250/27** e **279/4262/21**, além de rollback e cleanup dos laboratórios próprios.
 
-O plano composto tem dez campos, o resultado de registro vinte e a consulta histórica exata dezoito. `commitmentSha256` identifica a confirmação completa; `planSha256` identifica somente os bytes do plano. Um reader separado permite consultar o recibo histórico sem repetir um writer cuja época já mudou. Falha após a chamada pode seguir commit, sem retry automático. Esse percurso não aceita sidecar arbitrário, não autentica aprovação Portal e não ativa CLI, HTTP ou provider. O comando local da #518 continua sem DB; produtor, transporte e materiais reais permanecem integrações próprias. Consulte o [manual da composição](docs/STORED-BRIEF-RELEASE-PROVENANCE.md).
+O plano composto tem dez campos, o resultado de registro vinte e a consulta histórica exata dezoito. `commitmentSha256` identifica a confirmação completa; `planSha256` identifica somente os bytes do plano. Um reader separado permite consultar o recibo histórico sem repetir um writer cuja época já mudou. Falha após a chamada pode seguir commit, sem retry automático. Esse percurso não aceita sidecar arbitrário, não autentica aprovação Portal e não disponibiliza comando de escrita, HTTP ou provider. O comando local da #518 continua sem DB; produtor, transporte e materiais reais permanecem integrações próprias. Consulte o [manual da composição](docs/STORED-BRIEF-RELEASE-PROVENANCE.md).
+
+A nova CLI candidata `inspect-provenance.php inspect` permite consultar esse recibo por site, release e hash exato do plano, usando três entradas privadas fixas e uma identidade somente leitura. Ela reaproveita o serviço existente, confere a custódia antes e depois da consulta e retorna dez campos técnicos, sem referências privadas ou conteúdo do briefing. Isso permite apurar uma resposta perdida sem repetir o writer original. O recibo histórico não certifica execução do renderer, elegibilidade atual ou autorização para publicar. Os 51 checks offline locais passaram; os 25 checks previstos para a própria CLI em PostgreSQL/TLS continuam pendentes de execução. Consulte o [manual da consulta privada de proveniência](docs/BRIEF-ARTIFACT-INSPECTION.md).
 
 O guard do registry inspeciona permissões de tabela e coluna em todo o schema nativo, incluindo o ledger de recebimento do Portal. A ampliação usa uma migration aditiva que preserva identidade e ACL da função existente; nenhuma capacidade de recebimento, pagamento ou publicação é concedida por essa verificação.
 
@@ -59,7 +61,7 @@ Esses componentes não constituem homologação operacional. Contrato, pagamento
 | `apps/sites/app/Integration` | Recebimento nativo, leitura exata, renderização de snapshots e composição candidata de registro com recuperação histórica |
 | `contracts` | Regras SQL versionadas e fronteiras dos componentes |
 | `ops/preview-candidate` | Provisionamento explícito e revisável do workspace privado |
-| `ops/release-candidate` | Renderização local, registro, associação/revogação, consulta do último evento e `prepare`/`verify` do pacote técnico |
+| `ops/release-candidate` | Renderização local, registro, associação/revogação, consultas do último evento e do recibo de proveniência, e `prepare`/`verify` do pacote técnico |
 | `ops/editorial-candidate` | Transição editorial explícita e consulta exata do head com leitor separado |
 | `ops/publication-candidate` | Solicitação com recibo privado, inspeção somente leitura e reconciliação explícita do diário |
 | `tests/fixtures` | Materiais inteiramente sintéticos para os ensaios descartáveis de CI |
@@ -85,6 +87,7 @@ php tests/release-binding-offline.php
 php tests/release-binding-cli-offline.php
 php tests/release-binding-inspection-offline.php
 php tests/release-binding-inspection-cli-offline.php
+php tests/brief-artifact-inspection-cli-offline.php
 php tests/editorial-transition-offline.php
 php tests/editorial-transition-cli-offline.php
 php tests/editorial-inspection-offline.php
@@ -131,6 +134,7 @@ O Portal controla contratos, aceite expresso e evento oficial `ENTREGUE`; Sites 
 - [Proveniência local do briefing ao HTML](docs/reviews/SITES-LOCAL-RENDER-PROVENANCE-2026-11-18.md)
 - [Snapshots candidatos: armazenamento, leitura exata e consumo](docs/PORTAL-BRIEF-SNAPSHOTS.md)
 - [Composição candidata: snapshot, artefato e recibo histórico](docs/STORED-BRIEF-RELEASE-PROVENANCE.md)
+- [Consulta privada do recibo de proveniência](docs/BRIEF-ARTIFACT-INSPECTION.md)
 - [Schemas e exemplos de briefing, plano e recibo técnico](contracts/portal-sites/candidates/brief-production-v1/README.md)
 - [Próxima integração Portal → briefing → geração](docs/reviews/SITES-NEXT-INTEGRATION-2026-11-18.md)
 - [Orientação editorial por versão](docs/reviews/SITES-EDITORIAL-FEEDBACK-2026-11-18.md)

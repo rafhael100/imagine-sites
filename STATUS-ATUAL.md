@@ -1,12 +1,38 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 18/11/2026 — consulta privada exata da proveniência
+
+Branch `feature/sites-brief-provenance-inspection-2026-11-18`, construída sobre a
+composição validada da [#520](https://github.com/rafhael100/imagine-sites/pull/520),
+HEAD `8b717d3c0c03146bc48ee812e906bc70a1c479a9`. A prova da nova CLI continua
+pendente. `inspect-provenance.php inspect` consulta a
+associação por site/release/hash dos bytes originais do plano, com reader
+corrente separado. Usa o serviço e SQL existentes; não cria tabela, migration,
+parser alternativo ou capacidade de escrita. Três mounts privados são
+revalidados antes e depois da consulta; stdout expõe somente dez campos de
+hash/tamanho/data/status e quatro flags falsas, sem referências privadas.
+
+**Prova local: 51 checks offline PASS**, limitados a ajuda e recusas antes de
+conexão. Lint e revisões independentes da CLI e fixture passaram. Os 25 checks
+novos previstos para PostgreSQL/TLS reaproveitam seis associações existentes,
+incluindo resposta descartada, autor revogado/epoch anterior e origem SQL direta;
+essa contagem estática não é resultado de execução. A integração real e seu
+cleanup ainda dependem do CI da própria branch. [Manual e limites da consulta](docs/BRIEF-ARTIFACT-INSPECTION.md).
+
 ## 18/11/2026 — composição candidata do snapshot ao artefato registrado
 
-Branch `feature/sites-brief-artifact-provenance-2026-11-18`, com referência anterior validada na #519 / `cdfad4464d65355962d487396911fe06092dfde5`. A camada composta está em implementação candidata na migration 14: lê o snapshot exato, revalida o perfil e renderiza internamente; uma chamada SQL usa `record_release_artifact` existente e persiste a associação na mesma transação. Conserva plano/editorial originais, sem duplicar HTML ou corpo rico na relação e sem adoção retroativa de artefatos antigos sem associação. A API antiga permanece intacta; a capacidade composta é uma alternativa exclusiva, não um grant adicional à mesma identidade.
+Branch `feature/sites-brief-artifact-provenance-2026-11-18`, com referência anterior validada na #519 / `cdfad4464d65355962d487396911fe06092dfde5`. A [PR #520](https://github.com/rafhael100/imagine-sites/pull/520) concluiu **15/15 checks SUCCESS** no HEAD `8b717d3c0c03146bc48ee812e906bc70a1c479a9`, tree `4fa39a00cae8f373b6330c565c5f95e9b05333cc`. A camada composta candidata da migration 14 lê o snapshot exato, revalida o perfil e renderiza internamente; uma chamada SQL usa `record_release_artifact` existente e persiste a associação na mesma transação. Conserva plano/editorial originais, sem duplicar HTML ou corpo rico na relação e sem adoção retroativa de artefatos antigos sem associação. A API antiga permanece intacta; a capacidade composta é uma alternativa exclusiva, não um grant adicional à mesma identidade.
 
 `StoredBriefReleaseRegistration` oferece plano de dez campos e registro de vinte, com `expectedCommitmentSha256` explícito. `commitmentSha256` vincula alvo canônico, plano/editorial originais e HTML; `planSha256` é o hash dos bytes do plano. O reader histórico separado retorna dezoito campos por site/release/hash exatos, sem `created`, compromisso antigo, texto bruto ou login privado. A leitura termina antes da escrita; não se promete autorização atômica entre as duas sessões. Erro pode seguir commit e não provoca retry. O SQL comprova estrutura/hashes/vínculo, enquanto PHP executa a geração e a auditoria. Nenhuma dessas provas autentica aprovação Portal, aceite do cliente ou publicação.
 
-**Evidência PHP atual:** grupo focado de **39 testes/1172 assertions PASS**, composto por **28 novos e onze Unit existentes**, com `--do-not-cache-result`. Esse grupo não é a suíte geral. Regressões de proveniência **109** e registro antigo **271 PASS**, lint dos oito arquivos e diffcheck PASS. A nova prova PostgreSQL/compatibilidade ainda depende de execução; nenhum número de PR ou resultado de CI desta composição é presumido. Sem novo CLI, HTTP, provider, schema de exemplo, grant operacional ou teste PostgreSQL local. [Contrato e limites da composição](docs/STORED-BRIEF-RELEASE-PROVENANCE.md).
+| Prova final da #520 | Resultado confirmado |
+| --- | --- |
+| [Registry — run 44344390814](https://github.com/rafhael100/imagine-sites/actions/runs/44344390814) | PHP 8.3/8.4: **119 checks novos**, somados aos **923 da base**, total **1042**; clusters próprios encerrados e cleanup confirmado. |
+| [F383 — run 44344390782](https://github.com/rafhael100/imagine-sites/actions/runs/44344390782) | PHP 8.3/8.4: **245 checks de briefing**, **65 de intake**, batch das **14 migrations**, down com os dois schemas próprios ausentes e cleanup. |
+| [Laravel — run 44344390833](https://github.com/rafhael100/imagine-sites/actions/runs/44344390833) | PHP 8.3/8.4: padrão **279 testes/4250 assertions/27 skips** e opt-in sintético **279/4262/21**. |
+| [Containers — run 44344390839](https://github.com/rafhael100/imagine-sites/actions/runs/44344390839) | Ensaio e cleanup confirmados. |
+
+Na preparação local, o grupo focado passou com **39 testes/1172 assertions**, composto por **28 novos e onze Unit existentes**, com `--do-not-cache-result`; não é a suíte geral. As regressões **109** de proveniência e **271** do registro antigo, lint e diffcheck também passaram. As correções durante o CI ficaram na fixture: serialização integral do catálogo para comparar valores `bytea`, em vez de identidades de streams PDO, e liberação de ciclos Laravel/PDO já inalcançáveis antes de abrir outra sessão. Não são correções de produto nem novas execuções locais. A #520 não acrescentou CLI, HTTP, provider, schema de exemplo ou grant operacional. A CLI de consulta posterior mantém sua prova própria pendente, como registrado acima. [Contrato, jobs e limites da composição](docs/STORED-BRIEF-RELEASE-PROVENANCE.md).
 
 ## 18/11/2026 — armazenamento nativo candidato de snapshots do briefing
 
@@ -19,7 +45,7 @@ A [PR #519](https://github.com/rafhael100/imagine-sites/pull/519), branch `featu
 | [Laravel — run 44336308278](https://github.com/rafhael100/imagine-sites/actions/runs/44336308278) | Suíte padrão **251 testes/3140 assertions/27 skips** e opt-in sintético **251/3152/21** nas duas versões. |
 | [Containers — run 44336308134](https://github.com/rafhael100/imagine-sites/actions/runs/44336308134) | Ensaio e cleanup confirmados. |
 
-`BriefSnapshotInput` compartilha a validação estrita com o modo local existente. Recorder e reader têm uma tentativa e conexão própria; o reader é somente leitura e revalida os quatro seletores exatos. `StoredBriefRendering` retorna HTML/proveniência em memória, sem registro por conta própria. Essa capacidade da #519 é a base histórica da composição em desenvolvimento acima, não prova de execução da migration 14. O comando local da #518 continua sem DB; endpoint, transporte, produtor Portal e materiais reais permanecem pendentes.
+`BriefSnapshotInput` compartilha a validação estrita com o modo local existente. Recorder e reader têm uma tentativa e conexão própria; o reader é somente leitura e revalida os quatro seletores exatos. `StoredBriefRendering` retorna HTML/proveniência em memória, sem registro por conta própria. Essa capacidade da #519 é a base histórica da composição validada acima; sua evidência permanece separada da execução própria da migration 14 na #520. O comando local da #518 continua sem DB; endpoint, transporte, produtor Portal e materiais reais permanecem pendentes.
 
 Na preparação local, o scan source-only de **652 arquivos PASS** conservou os **dez gates BLOCKED**; a fixture também recusou execução fora de CI antes de autoload/DB. A evidência final é a dos runs acima, sem atribuir o resultado preliminar 249/3133/27 ao último patch. [Manual dos snapshots](docs/PORTAL-BRIEF-SNAPSHOTS.md); [schema do recibo](contracts/portal-sites/candidates/brief-production-v1/brief-snapshot-receipt.schema.json) e [sexto exemplo sintético](contracts/portal-sites/candidates/brief-production-v1/examples/brief-snapshot-receipt.synthetic.json). O exemplo não prova commit; calendário em JSON Schema exige format checker e o PHP confere UTC6 por round-trip.
 

@@ -7,9 +7,10 @@ A branch `feature/sites-native-brief-snapshots-2026-11-18` partiu da #518 /
 `907e2883393b776eebcba59fafb672aa34c99bf6`. Não há ativação operacional.
 
 A [composição posterior com o registry](STORED-BRIEF-RELEASE-PROVENANCE.md)
-está em implementação candidata na migration 14, em branch separada. Ela
-reutiliza o armazenamento e o renderer deste manual; a prova da #519 não
-substitui a execução dos novos ensaios SQL de associação.
+foi validada na #520, HEAD `8b717d3c0c03146bc48ee812e906bc70a1c479a9`, com
+**15/15 checks SUCCESS**. A migration 14 reutiliza o armazenamento e o renderer
+deste manual; suas provas próprias de associação permanecem separadas das
+evidências históricas da #519.
 
 ## Resultado
 
@@ -234,7 +235,7 @@ Não foram alterados gates, staging, infraestrutura, serviços existentes ou
 fontes oficiais. `StoredBriefRendering` continua retornando HTML/proveniência
 em memória; esse resultado isolado não registra o artefato.
 
-## Composição posterior em implementação candidata
+## Composição posterior candidata validada na #520
 
 `StoredBriefReleaseRegistration` reutiliza essa leitura e renderização
 internamente. O plano tem dez campos e o resultado de registro vinte;
@@ -258,7 +259,15 @@ retry automático ou atribuição de autoridade oficial.
 
 O grupo PHP focado da composição passou com **39 testes/1172 assertions**,
 sendo **28 novos e onze Unit existentes**; regressões **109/271 PASS**, lint e
-diffcheck. Esse grupo não é a suíte geral. A nova prova PostgreSQL/CI ainda
-está pendente, sem número de PR presumido. O [manual da composição](STORED-BRIEF-RELEASE-PROVENANCE.md)
-detalha projeções e recuperação. Produtor Portal, transporte, materiais reais e
-uso operacional continuam exigindo integração e evidência próprias.
+diffcheck. Esse grupo local não é a suíte geral. A prova própria da #520 em PHP
+8.3/8.4 confirmou **119 checks novos/1042 registry totais**, **245 checks de
+briefing/65 de intake**, Laravel **279/4250/27** e **279/4262/21**, além de batch/down
+das **14 migrations**, ausência dos dois schemas próprios e cleanup. O
+[manual da composição](STORED-BRIEF-RELEASE-PROVENANCE.md) registra runs/jobs,
+projeções, recuperação e as correções de fixture para catálogo `bytea`/streams
+e ciclos Laravel/PDO; elas não mudaram o produto.
+
+A [CLI posterior de consulta histórica](BRIEF-ARTIFACT-INSPECTION.md) tem
+**51 checks offline PASS**, mas seus **25 checks PostgreSQL previstos continuam
+pendentes**. Produtor Portal, transporte, materiais reais e uso operacional
+continuam exigindo integração e evidência próprias.

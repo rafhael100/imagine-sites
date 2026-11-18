@@ -3,6 +3,9 @@ set -euo pipefail
 # Own disposable CI cluster only. Never attach to an existing service or target.
 test "${GITHUB_ACTIONS:-}" = true
 test "${SITES_RELEASE_REGISTRY_CI:-}" = 1
+if [[ "${SITES_BRIEF_ARTIFACT_INSPECTION_CI:-}" == 1 ]]; then
+  test "${SITES_BRIEF_ARTIFACT_PROVENANCE_CI:-}" = 1
+fi
 if [[ "${SITES_BRIEF_ARTIFACT_PROVENANCE_CI:-}" == 1 ]]; then
   test "${SITES_BRIEF_SNAPSHOTS_CI:-}" = 1
 fi
@@ -58,6 +61,11 @@ cleanup() {
   local failed=0
   if "$PG_BIN/pg_ctl" -D "$lab/data" status > /dev/null 2>&1; then
     "$PG_BIN/pg_ctl" -D "$lab/data" -m fast -w stop > "$lab/stop.log" 2>&1 || failed=1
+  fi
+  if [[ "${SITES_BRIEF_ARTIFACT_INSPECTION_CI:-}" == 1 && -f "$lab/brief-artifact-inspection-paths.json" ]]; then
+    sudo -n env GITHUB_ACTIONS=true SITES_RELEASE_REGISTRY_CI=1 SITES_BRIEF_ARTIFACT_INSPECTION_CI=1 \
+      python3 "$repo/tests/fixtures/brief-artifact-inspection/cli-paths.py" \
+      cleanup "$lab" "$(id -u)" "$(id -g)" || failed=1
   fi
   if [[ "${SITES_RELEASE_BINDING_INSPECTION_CI:-}" == 1 && -f "$lab/release-binding-inspection-paths.json" ]]; then
     sudo -n env GITHUB_ACTIONS=true SITES_RELEASE_REGISTRY_CI=1 SITES_RELEASE_BINDING_INSPECTION_CI=1 \
@@ -229,6 +237,14 @@ if [[ "${SITES_RELEASE_BINDING_INSPECTION_CI:-}" == 1 ]]; then
     python3 "$repo/tests/fixtures/release-binding-inspection/cli-paths.py" \
     verify-mismatch "$lab" "$(id -u)" "$(id -g)"
 fi
+if [[ "${SITES_BRIEF_ARTIFACT_INSPECTION_CI:-}" == 1 ]]; then
+  sudo -n env GITHUB_ACTIONS=true SITES_RELEASE_REGISTRY_CI=1 SITES_BRIEF_ARTIFACT_INSPECTION_CI=1 \
+    python3 "$repo/tests/fixtures/brief-artifact-inspection/cli-paths.py" \
+    prepare "$lab" "$(id -u)" "$(id -g)"
+  sudo -n env GITHUB_ACTIONS=true SITES_RELEASE_REGISTRY_CI=1 SITES_BRIEF_ARTIFACT_INSPECTION_CI=1 \
+    python3 "$repo/tests/fixtures/brief-artifact-inspection/cli-paths.py" \
+    verify-mismatch "$lab" "$(id -u)" "$(id -g)"
+fi
 "$PHP_BIN" "$repo/tests/release-registry-pg-contract.php" | tee "$lab/contract.log"
 grep -q '^OK: [1-9][0-9]* persistent release registry assertions;' "$lab/contract.log"
 grep -q '^TECHNICAL PACKAGE CI PASS: [1-9][0-9]* assertions;' "$lab/contract.log"
@@ -270,4 +286,7 @@ fi
 if [[ "${SITES_BRIEF_ARTIFACT_PROVENANCE_CI:-}" == 1 ]]; then
   grep -q '^BRIEF ARTIFACT PREDECESSOR CI PASS: 923 assertions;' "$lab/contract.log"
   grep -q '^BRIEF ARTIFACT PROVENANCE CI PASS: [1-9][0-9]* new assertions; 923 existing assertions retained[.]' "$lab/contract.log"
+fi
+if [[ "${SITES_BRIEF_ARTIFACT_INSPECTION_CI:-}" == 1 ]]; then
+  grep -q '^BRIEF ARTIFACT INSPECTION CI PASS: [1-9][0-9]* assertions;' "$lab/contract.log"
 fi

@@ -1,6 +1,6 @@
 # Briefing Onepage e produção — contrato candidato v0.1
 
-**Estado: consumo local e armazenamento nativo validados; composição persistente com o registry em implementação candidata, sem homologação ou ativação operacional.** Data: 18/11/2026.
+**Estado: consumo local, armazenamento nativo e composição persistente com o registry validados em CI isolado; sem homologação ou ativação operacional.** Data: 18/11/2026.
 Base da proposta: `1634bc45094abfe51b6e391877b4b7f8fdadf692` (#516). Origem de regras
 consultada: Portal #941, `0e0ccc06755b6ddd938635e5c4c3625ff6497e2c`.
 
@@ -12,10 +12,10 @@ confere esses arquivos e conserva proveniência privada do HTML produzido.
 O [armazenamento nativo candidato](PORTAL-BRIEF-SNAPSHOTS.md), validado na #519 /
 `cdfad4464d65355962d487396911fe06092dfde5`, acrescenta persistência imutável,
 CAS, replay e leitura exata sob identidade SQL. Seu consumidor interno renderiza
-os bytes armazenados. A branch `feature/sites-brief-artifact-provenance-2026-11-18`
-implementa a [composição com o registry](STORED-BRIEF-RELEASE-PROVENANCE.md),
-com associação persistente e consulta histórica exata. Seus novos ensaios SQL
-ainda dependem de execução. A autenticação da aprovação Portal, o exportador
+os bytes armazenados. A [composição com o registry](STORED-BRIEF-RELEASE-PROVENANCE.md)
+foi validada na #520, HEAD `8b717d3c0c03146bc48ee812e906bc70a1c479a9`, com
+**15/15 checks SUCCESS**, associação persistente e consulta histórica exata.
+A autenticação da aprovação Portal, o exportador
 oficial, o transporte e os materiais reais continuam exigindo integração própria.
 
 Os schemas e exemplos deste documento não são um contrato oficial do Portal,
@@ -36,7 +36,7 @@ revisão; não foram atribuídas à implementação legada.
 | [Recebimento nativo de projeto](PORTAL-PROJECT-INTAKE.md) e [comando existente](../src/Integration/SiteProjectCommand.php) | Pedido, contrato e projeto já têm referências distintas. O Sites gera `siteRef`; o recibo permanece `awaiting_official_authority`. Não é necessário duplicar essa criação para propor briefing. |
 | [`LocalSiteRendering::render`](../src/Production/LocalSiteRendering.php), [`SiteBrief`](../src/Production/SiteBrief.php) e [`render.php`](../ops/release-candidate/render.php) | Existe um consumidor determinístico de seis campos editoriais, sem DB, provider ou rede. Ele não aceita o corpo rico do cliente. |
 | [Snapshot nativo e consumidor persistido](PORTAL-BRIEF-SNAPSHOTS.md) | A migration 13 conserva os dois JSONs originais; um reader separado revalida o perfil e resolve a seleção exata para o renderer. A identidade SQL não autentica a aprovação declarada pelo Portal. |
-| [Composição persistente em implementação](STORED-BRIEF-RELEASE-PROVENANCE.md) | PHP lê/renderiza internamente; a chamada SQL composta registra pelo registry existente e liga a seleção exata, sem aceitar sidecar externo ou adotar artefato antigo sem relação. |
+| [Composição persistente validada na #520](STORED-BRIEF-RELEASE-PROVENANCE.md) | PHP lê/renderiza internamente; a chamada SQL composta registra pelo registry existente e liga a seleção exata, sem aceitar sidecar externo ou adotar artefato antigo sem relação. |
 | [`register.php`](../ops/release-candidate/register.php), [`PrivateReleaseRegistration`](../src/Publication/PrivateReleaseRegistration.php) e [`PgSiteReleaseRegistry`](../src/Publication/PgSiteReleaseRegistry.php) | Os bytes privados resultantes já podem alimentar uma solicitação explícita de registro, sob as verificações existentes de principal, empresa, digest e referência. Renderizar não executa esse registro. |
 
 O perfil de origem v0.1 é somente **Onepage**. O legado inspecionado exige
@@ -380,7 +380,7 @@ automática no render local.
 
 ### Composição persistente posterior, separada do comando local
 
-Em implementação candidata na migration 14, `StoredBriefReleaseRegistration`
+Implementado na migration 14 e validado na #520, `StoredBriefReleaseRegistration`
 recebe o plano e o editorial como bytes originais e um alvo explícito de sete
 campos. O parser compartilhado `BriefRenderPlanInput` valida os seletores e o
 HTML esperado antes de qualquer PDO. O serviço lê/renderiza internamente por
@@ -413,9 +413,11 @@ As quatro flags são `authorityVerified`, `clientAccepted`, `canPublish` e
 `canAcceptRealOrders`, sempre falsas. Um reader atual separado recupera a
 associação histórica sem repetir o writer de época anterior. Erro ou perda da
 resposta pode ocorrer após commit; não há retry, adoção ou avanço automático.
-Esta composição não cria CLI, HTTP, provider ou transporte Portal. O
+Essa entrega não acrescentou CLI, HTTP, provider ou transporte Portal. O
 [manual próprio](STORED-BRIEF-RELEASE-PROVENANCE.md) detalha alvos, projeções,
-recuperação e limites. A prova PostgreSQL do incremento ainda está pendente.
+recuperação, limites e os runs aprovados. A [CLI posterior de consulta](BRIEF-ARTIFACT-INSPECTION.md)
+reutiliza somente a leitura: **51 checks offline PASS**, com **25 checks PostgreSQL
+previstos ainda pendentes**, sem transferir para ela a validação da #520.
 
 ## 7. Fronteiras de decisão e autoridade
 
@@ -423,7 +425,7 @@ recuperação e limites. A prova PostgreSQL do incremento ainda está pendente.
 | --- | --- |
 | Shape estrito, limites técnicos, unidade UTF-16, descritores privados e hashes de bytes exatos | Adoção pelo produtor Portal e captura consistente de uma revisão com autorização corrente |
 | Armazenamento candidato, identidade SQL, CAS/replay e leitura exata implementados | Produtor e transporte Portal autenticados, aprovação verificável da origem e ativação de capacidades operacionais |
-| Composição persistente snapshot/artefato em implementação, com entrada editorial separada e leitura histórica exata | Execução da nova prova PostgreSQL, ativação operacional autorizada e evidência de aprovação humana; a relação técnica não concede autoridade oficial |
+| Composição persistente snapshot/artefato validada em CI, com entrada editorial separada e leitura histórica exata | Ativação operacional autorizada e evidência de aprovação humana; a relação técnica não concede autoridade oficial |
 | Entrada editorial manual separada e conferência no renderer existente | Aprovação humana comprovada e política de início de produção; um arquivo local não identifica o aprovador |
 | Modo local sem materiais, sidecar privado e integração explícita com registro já existente | Acesso/validação de materiais reais, direitos, retenção, dados pessoais e credenciais operacionais |
 | Exemplos fictícios Onepage e testes do consumidor local | Regras de Landing, obrigatoriedade de domínio na aprovação e demais diferenças de produto |
@@ -516,9 +518,21 @@ Schema e não representa commit. O PHP confere o timestamp por round-trip exato.
 O [manual de snapshots](PORTAL-BRIEF-SNAPSHOTS.md) descreve a reversão e os limites
 dessa capacidade já validada.
 
-Na composição em implementação, o grupo PHP focado passou com **39 testes/
+Na preparação local da composição, o grupo PHP focado passou com **39 testes/
 1172 assertions**, formado por **28 novos e onze Unit existentes**, sem representar
 toda a suíte. As regressões **109** de proveniência e **271** do registro antigo
-passaram, assim como lint e diffcheck. A fixture PostgreSQL própria e a
-compatibilidade do novo conjunto ainda precisam executar. Nenhum número de PR
-ou resultado de CI é presumido para essa composição.
+passaram, assim como lint e diffcheck.
+
+A [PR #520](https://github.com/rafhael100/imagine-sites/pull/520), HEAD
+`8b717d3c0c03146bc48ee812e906bc70a1c479a9`, concluiu **15/15 checks SUCCESS**.
+Em PHP 8.3/8.4, o [registry 44344390814](https://github.com/rafhael100/imagine-sites/actions/runs/44344390814)
+confirmou **119 novos + 923 da base = 1042 checks**; o
+[F383 44344390782](https://github.com/rafhael100/imagine-sites/actions/runs/44344390782)
+confirmou **245 checks de briefing**, **65 de intake** e rollback das
+**14 migrations**, com os dois schemas ausentes. A
+[matriz Laravel 44344390833](https://github.com/rafhael100/imagine-sites/actions/runs/44344390833)
+confirmou **279/4250/27** e **279/4262/21**; o
+[ensaio de containers 44344390839](https://github.com/rafhael100/imagine-sites/actions/runs/44344390839)
+passou. Os laboratórios concluíram cleanup. As correções de comparação de
+catálogo `bytea`/stream e ciclos Laravel/PDO pertencem à fixture, sem mudança
+de produto; os detalhes e jobs estão no [manual da composição](STORED-BRIEF-RELEASE-PROVENANCE.md).

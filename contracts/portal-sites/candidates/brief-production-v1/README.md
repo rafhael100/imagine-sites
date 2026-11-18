@@ -4,8 +4,8 @@ Estes arquivos são uma **proposta revisável**, com consumo local no `render.ph
 existente e armazenamento técnico candidato na migration 13. O primeiro verifica
 arquivos privados e grava HTML com proveniência local, sem DB. O segundo conserva
 os JSONs originais sob identidade SQL e oferece leitura exata para um consumidor
-interno do renderer. A composição com o registry está em implementação candidata
-na migration 14, preservando essas duas entradas e seus contratos. Nenhum desses
+interno do renderer. A composição com o registry na migration 14 foi validada
+na #520, preservando essas duas entradas e seus contratos. Nenhum desses
 componentes ativa endpoint, transporte, worker ou autoridade operacional.
 A especificação e as decisões ainda abertas estão em
 [SITES-BRIEF-PRODUCTION-CONTRACT-CANDIDATE-v0.1](../../../../docs/SITES-BRIEF-PRODUCTION-CONTRACT-CANDIDATE-v0.1.md).
@@ -112,7 +112,7 @@ descrita abaixo acrescenta a relação persistente por serviço separado.
 Consulte [o manual de armazenamento e leitura](../../../../docs/PORTAL-BRIEF-SNAPSHOTS.md)
 para permissões, recusas e reversão. Nenhum endpoint foi ativado.
 
-## Composição persistente em implementação
+## Composição persistente candidata validada na #520
 
 `StoredBriefReleaseRegistration` recebe plano e editorial originais, reusa o
 parser compartilhado e lê/renderiza o snapshot internamente. Não aceita um
@@ -138,9 +138,11 @@ As quatro flags `authorityVerified`, `clientAccepted`, `canPublish` e
 `canAcceptRealOrders` continuam falsas. SQL valida estrutura/hashes/vínculo;
 PHP revalida o perfil, gera e audita HTML. A leitura termina antes da escrita,
 sem atomicidade da autorização entre sessões. Falha pode seguir commit e não
-autoriza retry automático. Não há CLI, HTTP, provider, transporte ou aprovação
-Portal ativados. O [manual da composição](../../../../docs/STORED-BRIEF-RELEASE-PROVENANCE.md)
-detalha o contrato; a execução da nova fixture PostgreSQL ainda está pendente.
+autoriza retry automático. A #520 não acrescentou CLI, HTTP, provider, transporte
+ou aprovação Portal. O [manual da composição](../../../../docs/STORED-BRIEF-RELEASE-PROVENANCE.md)
+detalha o contrato e os resultados próprios em PostgreSQL/TLS. A
+[CLI posterior de consulta](../../../../docs/BRIEF-ARTIFACT-INSPECTION.md) mantém
+**51 checks offline PASS** e **25 checks PostgreSQL previstos ainda pendentes**.
 O modo local abaixo permanece sem DB e sem mudanças de flags ou sidecar.
 
 ## Consumo local implementado
@@ -255,9 +257,14 @@ O armazenamento foi validado na **#519**, HEAD
 As provas de rollback e cleanup estão no
 [manual de snapshots](../../../../docs/PORTAL-BRIEF-SNAPSHOTS.md).
 
-Na composição seguinte, o grupo PHP focado passou com **39 testes/1172
+Na preparação local da composição, o grupo PHP focado passou com **39 testes/1172
 assertions**, incluindo **28 novos e onze Unit existentes**, sem representar
 toda a suíte. Regressões **109** de proveniência e **271** do registro anterior
-PASS. A nova prova PostgreSQL/CI permanece pendente; esses resultados PHP não
-demonstram persistência da nova relação. Nenhum novo schema ou exemplo foi
-acrescentado a este diretório pela composição.
+PASS. A **#520**, HEAD `8b717d3c0c03146bc48ee812e906bc70a1c479a9`, concluiu
+**15/15 checks SUCCESS**: **119 checks novos/1042 registry totais**, **245 de
+briefing/65 de intake**, Laravel **279/4250/27** e **279/4262/21** em PHP 8.3/8.4.
+Batch/down das **14 migrations**, ausência dos dois schemas próprios e cleanup
+foram confirmados. Os runs, jobs e as duas correções limitadas à fixture
+(catálogo `bytea`/streams e ciclos Laravel/PDO) estão no
+[manual da composição](../../../../docs/STORED-BRIEF-RELEASE-PROVENANCE.md).
+Nenhum novo schema ou exemplo foi acrescentado a este diretório pela composição.

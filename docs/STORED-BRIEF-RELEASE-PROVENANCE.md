@@ -1,10 +1,13 @@
 # Briefing armazenado e artefato: registro composto e recibo histórico
 
-**Estado em 18/11/2026:** implementação candidata na branch
+**Estado em 18/11/2026:** composição candidata validada na
+[#520](https://github.com/rafhael100/imagine-sites/pull/520), com **15/15 checks SUCCESS**,
+HEAD `8b717d3c0c03146bc48ee812e906bc70a1c479a9` e tree
+`4fa39a00cae8f373b6330c565c5f95e9b05333cc`. A branch
 `feature/sites-brief-artifact-provenance-2026-11-18`, derivada da
 [#519](https://github.com/rafhael100/imagine-sites/pull/519), no commit
-`cdfad4464d65355962d487396911fe06092dfde5`. A prova PostgreSQL desta composição
-será obtida no CI isolado da própria branch; a prova da base não a substitui.
+`cdfad4464d65355962d487396911fe06092dfde5`, possui provas próprias PostgreSQL/TLS,
+Laravel e de rollback/cleanup. A validação continua isolada, sem ativação operacional.
 
 ## Resultado e limite
 
@@ -20,8 +23,10 @@ Não autentica a aprovação declarada pelo Portal nem verifica pagamento ou ace
 Os quatro campos `authorityVerified`, `clientAccepted`, `canPublish` e
 `canAcceptRealOrders` permanecem falsos em todos os resultados PHP.
 
-Não há endpoint, comando, provider, transporte, dispatcher ou ativação de
-principal operacional nesta entrega. O produtor oficial do Portal, transporte
+Não houve endpoint, comando, provider, transporte, dispatcher ou ativação de
+principal operacional na #520. A [CLI posterior de consulta](BRIEF-ARTIFACT-INSPECTION.md)
+consome apenas a leitura histórica: seus **51 checks offline** passaram e seus
+**25 checks PostgreSQL previstos** ainda aguardam execução própria. O produtor oficial do Portal, transporte
 autenticado, materiais e aceite comercial continuam como integrações próprias.
 O fluxo de revisão, associação comercial, preparação e verificação de pacote
 existente é exercitado pela fixture; não recebe um atalho por existir proveniência.
@@ -206,8 +211,8 @@ As provas locais focadas registradas são 39 testes/1172 assertions
 (28 testes novos e 11 Unit existentes), além de 109 checks de proveniência e
 271 do registro anterior. A suíte geral local em PHP 8.4.27 completou
 **279 testes / 4250 assertions / 27 skips**, com `--do-not-cache-result`.
-Os skips não são apresentados como provas PostgreSQL; os números do CI da
-própria branch serão registrados após seus resultados observados.
+Os skips não são apresentados como provas PostgreSQL; os resultados abaixo
+registram a execução real da própria #520.
 
 A [fixture composta](../tests/fixtures/brief-artifact-provenance/contract.php)
 roda em PostgreSQL 18 com TLS no cluster descartável já verificado. Primeiro o
@@ -220,7 +225,26 @@ a fixture posterior possui suas próprias provas de compatibilidade.
 O [workflow dedicado](../.github/workflows/sites-brief-artifact-provenance.yml)
 restringe repositório, draft, head/base exatos e PHP 8.3/8.4; exige todos os
 13 opt-ins anteriores/atuais. O ensaio F383 confere 15 tabelas core, 45 policies
-e o rollback completo. Logs de sucesso, contagens efetivas e teardown do
-ambiente próprio são necessários antes de declarar essas provas aprovadas.
+e o rollback completo.
+
+### Evidência final da #520
+
+Os quatro runs abaixo concluíram com sucesso no HEAD
+`8b717d3c0c03146bc48ee812e906bc70a1c479a9`; as matrizes PHP executaram 8.3 e 8.4.
+
+| Run | Jobs e resultado observado |
+| --- | --- |
+| [Registry 44344390814](https://github.com/rafhael100/imagine-sites/actions/runs/44344390814) | Jobs [134942740847](https://github.com/rafhael100/imagine-sites/actions/runs/44344390814/job/134942740847) e [134942740279](https://github.com/rafhael100/imagine-sites/actions/runs/44344390814/job/134942740279): **119 checks novos + 923 da base = 1042**, com clusters próprios encerrados e cleanup. |
+| [F383 44344390782](https://github.com/rafhael100/imagine-sites/actions/runs/44344390782) | Jobs [134942740298](https://github.com/rafhael100/imagine-sites/actions/runs/44344390782/job/134942740298) e [134942739782](https://github.com/rafhael100/imagine-sites/actions/runs/44344390782/job/134942739782): **245 checks de briefing**, **65 de intake**, batch de **14 migrations**, down com os dois schemas próprios ausentes e cleanup. |
+| [Laravel 44344390833](https://github.com/rafhael100/imagine-sites/actions/runs/44344390833) | Jobs [134942740119](https://github.com/rafhael100/imagine-sites/actions/runs/44344390833/job/134942740119) e [134942739505](https://github.com/rafhael100/imagine-sites/actions/runs/44344390833/job/134942739505): padrão **279 testes/4250 assertions/27 skips** e opt-in sintético **279/4262/21**. |
+| [Containers 44344390839](https://github.com/rafhael100/imagine-sites/actions/runs/44344390839) | Job [134942739934](https://github.com/rafhael100/imagine-sites/actions/runs/44344390839/job/134942739934): ensaio e cleanup aprovados. |
+
+Dois problemas da fixture foram corrigidos antes desse resultado final. O
+snapshot do catálogo passou a serializar todos os valores no SQL, incluindo
+`bytea`, evitando comparar identidades dos streams que o PDO cria em cada fetch.
+O auxiliar de conexão também passou a liberar ciclos Laravel/PDO inalcançáveis
+antes de abrir outra sessão, preservando readers e writers ainda usados pelos
+cenários concorrentes. Essas mudanças pertencem ao ensaio, sem alteração do
+produto e sem nova execução local atribuída a esta atualização documental.
 
 AGI-11-RB01 permanece desativado e os dez gates de prontidão continuam BLOCKED.

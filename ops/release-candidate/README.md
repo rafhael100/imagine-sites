@@ -263,6 +263,47 @@ The disposable alternative requires `GITHUB_ACTIONS=true`, `APP_ENV=testing` and
 
 Offline CLI tests cover help and bounded argument/environment refusals while autoload and all private inputs are inaccessible. They fabricate no successful SQL query. Last-event reads, the null-event case, tenant isolation, reader revocation, transport/target checks and unchanged rows/catalogs require the separate PostgreSQL/TLS fixture. This candidate creates no operational principal, installs nothing in staging and supplies no deployment or publication approval.
 
+## Read-only inspection of recorded briefing provenance
+
+The separate `inspect-provenance.php` command retrieves one exact historical association between a stored briefing snapshot and a release artifact. It calls the existing `StoredBriefReleaseReceiptReader` with a currently authorized reader, so investigating a lost registration response does not require repeating the original writer. The command uses Composer without booting Laravel and adds no SQL API, migration, write, listing or output file. See the [private provenance inspection manual](../../docs/BRIEF-ARTIFACT-INSPECTION.md) for the full interpretation and isolated validation contract.
+
+```sh
+php /opt/imagine/ops/release-candidate/inspect-provenance.php --help
+php /opt/imagine/ops/release-candidate/inspect-provenance.php inspect
+```
+
+`inspect` accepts no options. Other commands, selectors on the command line, approval flags, credentials and path overrides are refused. `--help` runs before autoload and without private inputs or a connection.
+
+### Provenance inspection manifest and custody
+
+| Fixed private path | Content |
+| --- | --- |
+| `/run/secrets/brief_artifact_inspection` | Exact `SITES_BRIEF_ARTIFACT_INSPECTION_V1` JSON, 1–16384 bytes, based on `provenance-inspection.example.json` |
+| `/run/secrets/sites_brief_artifact_inspection_reader` | Password of the separate restricted reader, 16–4096 bytes before format validation |
+| `/run/secrets/sites_brief_artifact_inspection_ca` | Reviewed PostgreSQL CA PEM, 1–65536 bytes, matching `target.caSha256`, without a private key |
+
+The manifest contains exactly `schema`, `target`, `siteRef`, `releaseRef` and `planSha256`. The target contains exactly `host`, `port`, `database`, `databaseOid`, `login`, `serverAddress` and `caSha256`. The shared strict parser validates the known lowercase site UUID, opaque release reference and lowercase SHA-256, refusing extra or duplicate keys and malformed values. The example deliberately contains invalid placeholders; it cannot be executed unchanged.
+
+`planSha256` is the hash of the original render-plan bytes. It is distinct from the registration `commitmentSha256`, which also commits to the reviewed target, editorial input and HTML. The caller must retain the original private selectors; this command does not discover references, select the newest snapshot or reconstruct an old approval commitment. Different plan bytes remain a different selection even if they produce identical HTML.
+
+All three inputs use the existing protected file reader: canonical absolute paths, no observed symlink component, regular single-link files, mode `0400` or `0600`, and root or the effective CLI user as owner. The wrapper retains exact bytes, SHA-256 and file identity, then rereads and compares all three inputs before the receipt query and again before stdout. It compares device, inode, mode, ownership, link count, size and modification metadata; access time is excluded. An observed change is refused without rewriting or repairing an input. These checks do not reserve pathname identity after the final observation.
+
+The new nonpersistent PDO connection uses the pinned CA with `sslmode=verify-full`, `gssencmode=disable` and a 5-second connection timeout. The session stays read-only, with UTF-8, read committed isolation, `search_path=pg_catalog`, row security, a 10-second statement timeout and a 3-second lock timeout. The shared service verifies PostgreSQL 18, TLS, the exact target and the exclusive effective capability for `sites_core.read_brief_release_artifact_receipt(uuid,text,text)` before and after its one query. It rejects a caller-owned transaction and performs no retry. The reader and its separately reviewed provisioning must already exist.
+
+### Provenance inspection result and limits
+
+Success is one JSON line containing exactly ten fields: `schema=SITES_BRIEF_ARTIFACT_INSPECTION_RESULT_V1`, `status=inspected`, `planSha256`, `artifactDigest`, `sizeBytes`, `recordedAt`, `authorityVerified=false`, `clientAccepted=false`, `canPublish=false` and `canAcceptRealOrders=false`. `recordedAt` is the stored UTC timestamp with six fractional digits. The existing service validates its internal eighteen-field receipt; only this ten-field projection reaches stdout.
+
+No site, release or snapshot reference, operation or idempotency key, author, epoch, raw plan, editorial input, briefing, HTML or approval commitment is emitted. A handled refusal returns exit status 1, empty stdout and only `BRIEF_ARTIFACT_INSPECTION_DENIED` on stderr. Unknown selections, foreign tenants, revoked readers, incompatible privileges and failed transport or custody checks share this response.
+
+The result confirms a persisted technical association. It does not certify execution of the PHP renderer: the SQL operation can also accept coherent bytes supplied directly by an authorized writer. It does not establish current editorial or commercial eligibility, customer approval, publication or permission to repeat a write. The original writer may have changed epoch or been revoked while a current reader can still retrieve the historical receipt. A refusal alone does not prove that an earlier write failed, and a successful read reserves no future authority.
+
+### Provenance inspection CI boundary
+
+The disposable path requires `GITHUB_ACTIONS=true`, `APP_ENV=testing` and `SITES_BRIEF_ARTIFACT_INSPECTION_CI=1` together. It pins host `localhost`, port `55449`, database `postgres`, observed server address `127.0.0.1` and only `bai_a_reader` or `bai_b_reader`. The database OID, CA fingerprint, custody and current SQL authority remain checked. Staging instead requires `APP_ENV=staging`, no GitHub Actions or inspection opt-in, and database `sites_staging`; these code restrictions do not provision or authorize operational access.
+
+The local offline CLI suite passed **51 checks** for help and bounded argument/environment refusals with autoload and private inputs inaccessible. It makes no successful SQL claim. The new CLI's real PostgreSQL/TLS validation remains pending; historical association recovery, tenant isolation, revocation and unchanged rows/catalogs belong to that disposable fixture.
+
 ## Local HTML rendering from a private brief
 
 The separate `render.php` command closes the local step before artifact registration. Its original two-option mode reads one private technical briefing JSON and writes the existing renderer's exact inert HTML to a new `index.html`. It uses `SiteBrief`, `StaticSiteRenderer` and `InertPreviewAudit`; it preserves the renderer's demonstration disclaimer, escaped text and distinct Onepage/Landing Page layouts. It loads the Composer autoloader without booting Laravel and makes no database or network connection. The optional provenance mode documented below adds a candidate Onepage source chain and a second private output to this same command.
