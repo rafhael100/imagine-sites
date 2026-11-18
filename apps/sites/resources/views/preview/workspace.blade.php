@@ -73,8 +73,11 @@
 @foreach(['brand'=>['Marca fictícia',120], 'headline'=>['Chamada principal',180], 'description'=>['Descrição',600], 'call_to_action'=>['Chamada do botão',80], 'benefits'=>['Benefícios (um por linha, até oito)',1500]] as $field => [$label,$max])
 <label for="{{ $field }}">{{ $label }}</label>
 {{-- Native maxlength counts UTF-16 units, while briefing limits count Unicode code points. --}}
-@if(in_array($field,['description','benefits'],true))
-<textarea id="{{ $field }}" name="{{ $field }}" required aria-describedby="help-{{ $field }}@if(isset($fieldErrors[$field])) error-{{ $field }}@endif" @if(isset($fieldErrors[$field]))aria-invalid="true"@endif>{{ $form[$field] }}</textarea>
+@php($multilineTextField = in_array($field,['brand','headline','call_to_action'],true) && (str_contains($form[$field],"\r") || str_contains($form[$field],"\n")))
+@if(in_array($field,['description','benefits'],true) || $multilineTextField)
+{{-- The extra initial LF protects a leading line break in the short fields: HTML
+     discards that first LF and normalizes the remaining CR/CRLF to LF. --}}
+<textarea id="{{ $field }}" name="{{ $field }}" required aria-describedby="help-{{ $field }}@if(isset($fieldErrors[$field])) error-{{ $field }}@endif" @if(isset($fieldErrors[$field]))aria-invalid="true"@endif>{{ $multilineTextField ? "\n".$form[$field] : $form[$field] }}</textarea>
 @else
 <input id="{{ $field }}" name="{{ $field }}" required value="{{ $form[$field] }}" aria-describedby="help-{{ $field }}@if(isset($fieldErrors[$field])) error-{{ $field }}@endif" @if(isset($fieldErrors[$field]))aria-invalid="true"@endif>
 @endif

@@ -1,16 +1,18 @@
 # Consulta privada de um snapshot exato de briefing
 
-**Estado em 18/11/2026:** implementação candidata isolada na branch
+**Estado em 18/11/2026:** candidata validada na
+[#528](https://github.com/rafhael100/imagine-sites/pull/528), HEAD
+`035e50e979e7cdf45f29a7e2c66d0aa1b5d63944`, com **12/12 checks SUCCESS** na branch
 `feature/sites-brief-snapshot-inspection-2026-11-18`. A consulta reutiliza o
 armazenamento e o leitor existentes; não acrescenta SQL, migration, serviço de
-domínio ou transporte Portal. Sua execução PostgreSQL/TLS própria ainda depende
-do CI. Não há ativação operacional.
+domínio ou transporte Portal. A prova PostgreSQL/TLS própria está registrada
+abaixo. Não há ativação operacional.
 
 A base é a [#527](https://github.com/rafhael100/imagine-sites/pull/527), HEAD
 `6ff2cabc0c32bcaa92de5b94f84c4cc3e7cdd167`, que concluiu **14/14 checks SUCCESS**.
 Sua prova de mensagens de limite confirmou 5 checks novos/456 HTTP totais;
-essa evidência e a da cadeia de recebimento #526 permanecem separadas do novo
-inspector. [Evidência final da base](reviews/SITES-PREVIEW-LIMIT-MESSAGES-2026-11-18.md).
+essa evidência e a da cadeia de recebimento #526 permanecem separadas da prova
+própria do inspector. [Evidência final da base](reviews/SITES-PREVIEW-LIMIT-MESSAGES-2026-11-18.md).
 
 ## Para que serve
 
@@ -168,7 +170,7 @@ compartilham essa resposta, sem cadeia de exceções ou diagnóstico SQL privado
 Uma interrupção do processo ou perda da resposta pode não fornecer um resultado
 observável confiável.
 
-## Validação da candidata
+## Evidência final da #528
 
 **Validação local concluída:** 56 checks offline de ajuda e recusas antecipadas,
 lint PHP, forma do exemplo JSON e conferência de whitespace/diff. Os subprocessos
@@ -178,10 +180,25 @@ Também passaram a suíte geral **284 testes/4310 assertions/27 skips** e os
 **32 checks sintéticos** de `tests/run.php`; esses resultados locais não são
 uma execução da nova fixture PostgreSQL/TLS.
 
-O ensaio PostgreSQL/TLS reutiliza snapshots históricos elegíveis, incluindo o
-snapshot recebido com stdout descartado, com leitores próprios e nenhum novo
-append. A fixture prevê 26 asserções novas e 1.149 totais no registry. Esses
-números ainda são previsões: a execução própria em CI está pendente.
+O [run registry 44365173017](https://github.com/rafhael100/imagine-sites/actions/runs/44365173017)
+concluiu a prova PostgreSQL/TLS nas duas versões de PHP. O ensaio reutilizou
+snapshots históricos elegíveis, incluindo o snapshot recebido com stdout
+descartado, com leitores próprios e nenhum novo append. Os dois jobs confirmaram
+**26 asserções novas, 1.149 totais no registry e 56 checks offline**.
+O [run Laravel 44365172022](https://github.com/rafhael100/imagine-sites/actions/runs/44365172022)
+também terminou com sucesso na mesma HEAD:
+
+| Fluxo | Job | Resultado observado |
+| --- | --- | --- |
+| Registry PHP 8.3 | [135016846372](https://github.com/rafhael100/imagine-sites/actions/runs/44365173017/job/135016846372) | 26 novas / 1.149 totais; 56 offline PASS. |
+| Registry PHP 8.4 | [135016845405](https://github.com/rafhael100/imagine-sites/actions/runs/44365173017/job/135016845405) | 26 novas / 1.149 totais; 56 offline PASS. |
+| Laravel PHP 8.3 | [135016841702](https://github.com/rafhael100/imagine-sites/actions/runs/44365172022/job/135016841702) | 284 testes / 4.310 assertions / 27 skips; com opt-ins sintéticos, 284 / 4.322 / 21. |
+| Laravel PHP 8.4 | [135016841019](https://github.com/rafhael100/imagine-sites/actions/runs/44365172022/job/135016841019) | 284 testes / 4.310 assertions / 27 skips; com opt-ins sintéticos, 284 / 4.322 / 21. |
+
+Os logs confirmaram a limpeza dos três inputs da inspeção antes dos caminhos
+do receiver e dos consumidores anteriores, e os clusters descartáveis terminaram
+inativos. **A #528 não executou novos jobs HTTP, F383 ou containers**; as provas
+históricas desses fluxos continuam atribuídas às respectivas entregas.
 
 O [contrato da fixture](../tests/fixtures/brief-snapshot-inspection/contract.php)
 consulta A e B1/B2/B3 antes das negativas. Confirma a revogação prévia do receiver
@@ -199,7 +216,7 @@ de inputs do receiver, sem acrescentar as novas verificações ao contador dele.
 O [workflow dedicado](../.github/workflows/sites-brief-snapshot-inspection.yml)
 usa a matriz PHP 8.3/8.4, guard de draft/base/head e 17 opt-ins do laboratório;
 exige o marcador `BRIEF SNAPSHOT INSPECTION CI PASS: 26 assertions;` e o total
-1.149. Nenhum resultado desse job é declarado antes de sua execução.
+1.149. Esses marcadores foram confirmados nos jobs acima.
 
 A consulta não cria transporte oficial Portal, materiais reais, provisionamento,
 grants operacionais, publicação, pagamento, aceite ou evento `ENTREGUE`. Os dez
