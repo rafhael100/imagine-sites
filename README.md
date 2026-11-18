@@ -12,7 +12,7 @@ A correção candidata do renderer permite quebrar palavras e URLs literais long
 
 A entrada de benefícios agora ignora linhas formadas apenas por espaços Unicode, incluindo NBSP e EM SPACE, depois da validação original. Oito itens reais podem ser colados com essas linhas entre eles; espaços Unicode junto de texto permanecem intactos. Os limites de oito itens, 180 caracteres por item e 1500 no campo completo continuam iguais. A [#525](https://github.com/rafhael100/imagine-sites/pull/525) confirmou **14/14 checks SUCCESS**, com **4 novos/451 HTTP totais** e Laravel **284/4280/27** e **284/4292/21** em PHP 8.3/8.4. [Recorte e prova da correção](docs/reviews/SITES-BENEFIT-BLANK-LINES-2026-11-18.md).
 
-As mensagens de tamanho excedido do briefing passam a informar o limite em português, mantendo a tentativa completa. A correção usa o formato de mensagem reconhecido pelo Validator instalado; não altera os limites dos cinco campos ou a regra numérica da versão esperada. [Verificação e limites](docs/reviews/SITES-PREVIEW-LIMIT-MESSAGES-2026-11-18.md).
+As mensagens de tamanho excedido do briefing passam a informar o limite em português, mantendo a tentativa completa. A correção usa o formato de mensagem reconhecido pelo Validator instalado; não altera os limites dos cinco campos ou a regra numérica da versão esperada. A [#527](https://github.com/rafhael100/imagine-sites/pull/527), HEAD `6ff2cabc0c32bcaa92de5b94f84c4cc3e7cdd167`, confirmou **14/14 checks SUCCESS**, com **5 novos/456 HTTP totais** e Laravel **284/4310/27** e **284/4322/21** em PHP 8.3/8.4. [Verificação e limites](docs/reviews/SITES-PREVIEW-LIMIT-MESSAGES-2026-11-18.md).
 
 Os campos e o botão da revisão editorial identificam a versão explicitamente. Isso permite escolher o parecer pelo nome do controle, inclusive quando várias versões estão disponíveis na mesma página. Erros e orientações preservadas mantêm essa identificação.
 
@@ -35,6 +35,8 @@ O armazenamento nativo candidato recebe o manifesto e o corpo rico Onepage como 
 Uma conexão de leitura separada recupera a seleção exata do snapshot e revalida o perfil completo antes de alimentar o renderer com a entrada editorial escolhida. Esse consumidor interno continua sem escrever arquivos ou registrar o artefato por conta própria. O armazenamento foi validado na #519; consulte o [manual dos snapshots candidatos](docs/PORTAL-BRIEF-SNAPSHOTS.md).
 
 A entrada privada `receive-brief-snapshot.php`, incorporada da [#523](https://github.com/rafhael100/imagine-sites/pull/523) em uma candidata integrada, planeja e recebe os dois JSONs originais por cinco mounts fixos. A escrita exige compromisso e confirmação explícita; usa o recorder existente, preserva CAS/replay e não repete automaticamente uma chamada. A [#526](https://github.com/rafhael100/imagine-sites/pull/526) confirmou **12/12 checks SUCCESS**, com **29 novos/1123 registry totais** em PHP 8.3/8.4: o snapshot recebido chegou ao registro composto e à inspeção histórica, inclusive com a resposta de recebimento descartada e apurada pelo leitor exato. Consulte o [manual do receptor](docs/BRIEF-SNAPSHOT-RECEIVER-CLI.md) e o [recorte integrado](docs/reviews/SITES-BRIEF-SNAPSHOT-CLI-CHAIN-2026-11-18.md).
+
+A nova candidata `inspect-brief-snapshot.php inspect` oferece essa apuração por uma CLI somente leitura: recebe a seleção original conhecida e usa um reader atualmente autorizado, separado do receiver. Três inputs privados e a identidade PostgreSQL/TLS são conferidos; a saída tem dez campos com hashes, revisões e quatro flags falsas, sem timestamp ou conteúdo privado. Permite consultar o snapshot depois de uma resposta de recebimento perdida, sem repetir a escrita ou reativar o receiver histórico. **56 checks offline e a suíte geral local 284/4310/27 passaram; os 26 checks novos/1149 registry totais permanecem pendentes do CI próprio.** [Manual da inspeção exata de briefing](docs/BRIEF-SNAPSHOT-INSPECTION-CLI.md).
 
 A composição candidata foi validada na [#520](https://github.com/rafhael100/imagine-sites/pull/520), HEAD `8b717d3c0c03146bc48ee812e906bc70a1c479a9`, com **15/15 checks SUCCESS**. `StoredBriefReleaseRegistration` lê e renderiza internamente, confirma um compromisso que inclui alvo, plano, editorial e HTML originais e solicita uma única operação SQL. A migration 14 associa o snapshot e registra o artefato atomicamente pela operação existente do registry, sem adotar retroativamente artefatos antigos sem relação. O SQL confere estrutura, hashes e vínculo persistente; a geração e a auditoria do HTML continuam no PHP. A API antiga conserva seu contrato. Em PHP 8.3/8.4, a prova confirmou **119 checks novos/1042 registry totais**, **245 checks de briefing/65 de intake**, Laravel **279/4250/27** e **279/4262/21**, além de rollback e cleanup dos laboratórios próprios.
 
@@ -71,7 +73,7 @@ Esses componentes não constituem homologação operacional. Contrato, pagamento
 | `apps/sites/app/Integration` | Recebimento nativo, leitura exata, renderização de snapshots e composição candidata de registro com recuperação histórica |
 | `contracts` | Regras SQL versionadas e fronteiras dos componentes |
 | `ops/preview-candidate` | Provisionamento explícito e revisável do workspace privado |
-| `ops/release-candidate` | Renderização local, registro, associação/revogação, consultas do último evento e do recibo de proveniência, e `prepare`/`verify` do pacote técnico |
+| `ops/release-candidate` | Recebimento e inspeção exata de snapshots, renderização local, registro, associação/revogação, consultas técnicas e `prepare`/`verify` do pacote |
 | `ops/editorial-candidate` | Transição editorial explícita e consulta exata do head com leitor separado |
 | `ops/publication-candidate` | Solicitação com recibo privado, inspeção somente leitura e reconciliação explícita do diário |
 | `tests/fixtures` | Materiais inteiramente sintéticos para os ensaios descartáveis de CI |
@@ -100,6 +102,7 @@ php tests/release-binding-inspection-cli-offline.php
 php tests/brief-artifact-inspection-cli-offline.php
 php tests/brief-artifact-registration-cli-offline.php
 php tests/brief-snapshot-receiver-cli-offline.php
+php tests/brief-snapshot-inspection-cli-offline.php
 php tests/editorial-transition-offline.php
 php tests/editorial-transition-cli-offline.php
 php tests/editorial-inspection-offline.php
@@ -145,6 +148,7 @@ O Portal controla contratos, aceite expresso e evento oficial `ENTREGUE`; Sites 
 - [Renderização de briefing local privado](docs/reviews/SITES-LOCAL-ARTIFACT-RENDERING-2026-11-18.md)
 - [Proveniência local do briefing ao HTML](docs/reviews/SITES-LOCAL-RENDER-PROVENANCE-2026-11-18.md)
 - [Snapshots candidatos: armazenamento, leitura exata e consumo](docs/PORTAL-BRIEF-SNAPSHOTS.md)
+- [Inspeção privada de um snapshot conhecido](docs/BRIEF-SNAPSHOT-INSPECTION-CLI.md)
 - [Composição candidata: snapshot, artefato e recibo histórico](docs/STORED-BRIEF-RELEASE-PROVENANCE.md)
 - [Consulta privada do recibo de proveniência](docs/BRIEF-ARTIFACT-INSPECTION.md)
 - [Planejamento e registro privado pela composição](docs/STORED-BRIEF-REGISTRATION-CLI.md)

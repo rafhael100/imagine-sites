@@ -84,6 +84,28 @@ não repetir automaticamente; apurar a revisão exata com um leitor
 independente atualmente autorizado, nunca inferir ausência a partir da
 recusa ou de uma resposta perdida.
 
+## Consulta da seleção original após perda da resposta
+
+A candidata [`inspect-brief-snapshot.php inspect`](BRIEF-SNAPSHOT-INSPECTION-CLI.md)
+oferece essa apuração pela mesma leitura exata usada pelo consumidor. Conserve
+o manifesto original em ambiente privado: dele vêm `siteRef`, `snapshotRef` e
+`briefRevision`; o hash de seus bytes completos fornece `manifestSha256`.
+Esses quatro seletores e o target de um reader separado formam a configuração
+da consulta. O `commitmentSha256` do receiver não substitui o hash do manifesto.
+
+A inspeção mantém a sessão somente leitura e revalida a autoridade corrente do
+reader. Retorna dez campos com hashes, revisões e quatro flags falsas, sem os
+JSONs ou `recordedAt`. Ela pode confirmar a seleção armazenada mesmo depois da
+revogação do receiver original; não identifica qual tentativa a criou, não
+reconstrói o timestamp nem repete a escrita. Uma recusa também não comprova
+ausência do snapshot.
+
+Essa CLI não muda a prova histórica da #526 abaixo. Sua validação local tem
+**56 checks offline e suíte geral 284/4310/27 PASS**; **26 checks novos/1149
+registry totais permanecem PENDENTES do CI próprio**. Depois de registrar um
+artefato, a [inspeção de proveniência](BRIEF-ARTIFACT-INSPECTION.md) usa os
+seletores daquele registro, em uma consulta distinta.
+
 ## Controles e testes
 
 A CLI só admite `APP_ENV=staging` fora do GitHub Actions, com banco

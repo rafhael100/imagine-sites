@@ -19,6 +19,14 @@ usa o leitor exato, o registro composto e o inspetor já existentes. Não altera
 os serviços, SQL ou migrations descritos aqui. A prova histórica abaixo continua
 atribuída à #519; a CLI e sua integração possuem execução própria.
 
+A [nova inspeção privada de snapshot](BRIEF-SNAPSHOT-INSPECTION-CLI.md) reutiliza
+`readExact` por um comando somente leitura, para consultar a seleção original
+conhecida após perda da resposta do receiver. Expõe dez campos técnicos, sem
+timestamp ou conteúdo privado. Essa candidata parte da #527 validada; tem
+**56 checks offline e suíte geral local 284/4310/27 PASS**, enquanto seus
+**26 checks novos/1149 registry totais ainda estão PENDENTES do CI próprio**.
+Ela não altera as tabelas, APIs ou regras de armazenamento deste manual.
+
 ## Resultado
 
 O Sites passa a ter um receptor persistente de bytes candidatos do briefing
@@ -42,14 +50,16 @@ comando de shell novo é registrado por esta entrega.
 | [`BriefRenderPlanInput`](../src/Production/BriefRenderPlanInput.php) | Na composição posterior, extrai o parser único do plano; conserva bytes/seletores e valida a entrada editorial e o HTML esperado, sem autenticar a origem. |
 | [`PortalBriefSnapshotRecorder`](../apps/sites/app/Integration/PortalBriefSnapshotRecorder.php) | Grava pela API SQL e valida o recibo antes de permitir o commit e a devolução do resultado. |
 | [`StoredBriefSnapshotReader`](../apps/sites/app/Integration/StoredBriefSnapshotReader.php) | Lê por quatro seletores exatos, revalida o perfil completo e confere novamente a identidade dos bytes. |
+| [`inspect-brief-snapshot.php`](../ops/release-candidate/inspect-brief-snapshot.php), candidata posterior | Disponibiliza a leitura exata por três mounts privados e reader corrente; projeta somente hashes, revisões e quatro flags falsas, sem timestamp ou JSON bruto. |
 | [`StoredBriefRendering`](../apps/sites/app/Integration/StoredBriefRendering.php) | Usa o reader para obter a fonte armazenada e chama `BriefRenderProvenance::render`. |
 | [`BriefSnapshotTransaction`](../apps/sites/app/Integration/BriefSnapshotTransaction.php) | Mantém uma transação própria, uma tentativa, a mesma PDO e o runtime esperado; não permite réplica ou resultado antes do commit. |
 | [`002-brief-snapshots.sql`](../contracts/portal-sites/002-brief-snapshots.sql) e [migration 13](../apps/sites/database/migrations/2026_11_18_000013_add_portal_brief_snapshots.php) | Persistência, capacidade corrente, isolamento, imutabilidade, CAS e replay exato. |
 
-O chamador fornece conexões já configuradas por código confiável. A conexão de
-recebimento e a de consulta são distintas; a segunda já precisa ter
-`default_transaction_read_only=on`. O código não ativa esse modo ou concede
-privilégios automaticamente:
+Nos serviços abaixo, o chamador fornece conexões já configuradas por código
+confiável. A conexão de recebimento e a de consulta são distintas; a segunda
+já precisa ter `default_transaction_read_only=on`. Os serviços não alteram o
+default da sessão nem concedem privilégios. A CLI posterior cria e configura
+explicitamente sua conexão de leitura antes de chamar o serviço:
 
 ```php
 $input = BriefSnapshotInput::fromJson($snapshotJson, $sourceJson);
@@ -69,6 +79,27 @@ O reader recebe exatamente `siteRef`, `snapshotRef`, `briefRevision` e
 `manifestSha256`. Não consulta uma lista nem troca silenciosamente pela última
 revisão. O renderer continua consumindo os seis campos editoriais, sem derivá-los
 automaticamente do corpo rico ou alterar seus avisos de demonstração.
+
+### Apuração privada sem repetir o recebimento
+
+O chamador da CLI de inspeção conserva a seleção original: `siteRef`,
+`snapshotRef`, `briefRevision` e o SHA-256 dos bytes completos do manifesto.
+O reader atual precisa ter acesso à empresa e capacidade exclusiva de leitura;
+nenhuma referência do JSON concede esse acesso. O snapshot pode continuar
+legível após outra revisão ou após a revogação do receiver histórico.
+
+O sucesso `inspected` contém hashes do manifesto/corpo, revisão candidata,
+contador agregado da origem e as quatro flags falsas. Não inclui `recordedAt`,
+pois `readExact` devolve somente os dois JSONs e seus metadados validados; não
+há consulta adicional para obter o horário. A recusa é única e não permite
+concluir que a escrita anterior não ocorreu. A apuração não atribui a linha a
+uma tentativa nem dispara replay, renderer ou registro de artefato.
+
+O [manual do comando](BRIEF-SNAPSHOT-INSPECTION-CLI.md) detalha configuração,
+TLS, custódia e limites. Seu ensaio próprio reutiliza A/B1/B2/B3 existentes,
+incluindo a revisão cujo stdout de recebimento foi descartado, sem acrescentar
+snapshots ou artefatos. A execução PostgreSQL/TLS de 26 checks novos permanece
+pendente e não altera as evidências históricas apresentadas abaixo.
 
 ## Identidade, tabelas e permissões
 
@@ -274,7 +305,11 @@ das **14 migrations**, ausência dos dois schemas próprios e cleanup. O
 projeções, recuperação e as correções de fixture para catálogo `bytea`/streams
 e ciclos Laravel/PDO; elas não mudaram o produto.
 
-A [CLI posterior de consulta histórica](BRIEF-ARTIFACT-INSPECTION.md) tem
-**51 checks offline PASS**, mas seus **25 checks PostgreSQL previstos continuam
-pendentes**. Produtor Portal, transporte, materiais reais e uso operacional
-continuam exigindo integração e evidência próprias.
+A [CLI posterior de consulta histórica de artefatos](BRIEF-ARTIFACT-INSPECTION.md)
+foi validada na [#521](https://github.com/rafhael100/imagine-sites/pull/521), com
+**51 checks offline** e **25 novos/1067 registry totais** em PHP 8.3/8.4 no
+[run 44346085528](https://github.com/rafhael100/imagine-sites/actions/runs/44346085528),
+incluindo cleanup. Essa evidência pertence à associação de artefato; não deve
+ser atribuída ao novo inspector de snapshot, cujo CI próprio ainda está pendente.
+Produtor Portal, transporte, materiais reais e uso operacional continuam
+exigindo integração e evidência próprias.

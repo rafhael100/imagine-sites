@@ -6,6 +6,30 @@
 
 Essa conclusão delimita a integração; não afirma esgotamento de todo desenvolvimento. O trabalho autorizado em branch isolada pode continuar em componentes com uso concreto e defeitos demonstrados. A inspeção privada do diário é um exemplo: consome a API persistente existente sem criar autoridade ou depender de um briefing inventado.
 
+### Inspeção privada do snapshot recebido, candidata em validação
+
+A branch `feature/sites-brief-snapshot-inspection-2026-11-18` parte da #527
+validada no HEAD `6ff2cabc0c32bcaa92de5b94f84c4cc3e7cdd167`. O novo comando
+[`inspect-brief-snapshot.php inspect`](../BRIEF-SNAPSHOT-INSPECTION-CLI.md)
+oferece a apuração da seleção original por um reader atualmente autorizado,
+sem repetir o receiver depois de uma resposta perdida. Reutiliza `readExact`
+e a API SQL existente; não acrescenta armazenamento, parser de perfil, transporte
+ou worker. Não procura a revisão mais recente nem descobre referências privadas.
+
+A saída tem dez campos: hashes do manifesto/corpo, revisão candidata, contador
+agregado da origem, schema/status e quatro capacidades falsas. Não contém
+timestamp, conteúdo ou referências. A consulta independe da atividade atual do
+receiver histórico; a autorização do reader continua obrigatória. A inspeção
+do snapshot é distinta da consulta de proveniência de um artefato já registrado.
+
+**Evidência local:** 56 checks offline, suíte geral **284/4310/27** e 32 checks
+sintéticos PASS, com lint/AST/diffcheck. **PostgreSQL/TLS próprio ainda PENDENTE:**
+a fixture prevê **26 checks novos/1149 registry totais**, reutilizando os quatro
+snapshots A/B1/B2/B3 da cadeia anterior, sem novos snapshots ou artefatos.
+O [workflow dedicado](../../.github/workflows/sites-brief-snapshot-inspection.yml)
+mantém as provas anteriores e seus controles de laboratório. O sucesso da base
+#527 não é evidência de execução deste novo comando.
+
 ### Entrada privada de snapshots validada na #526
 
 A implementação da [#523](https://github.com/rafhael100/imagine-sites/pull/523),
@@ -187,7 +211,7 @@ A [PR Portal #941](https://github.com/rafhael100/imagine-portal/pull/941), HEAD 
 
 A [composição pareada](https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/tests/Integration/NativeOnepageSitesPairAssertions.php) chama o `PortalProjectIntakeRecorder` real da [Sites #512](https://github.com/rafhael100/imagine-sites/pull/512), HEAD `9b80387fe1c580436b444a6aad2b63f3baafa37d`, em outra base descartável. Confere o recibo de quinze campos, persistência, reconexão/replay e recusas, conservando solicitação pendente, flags falsas e outbox bloqueado. O [run 44304843544](https://github.com/rafhael100/imagine-portal/actions/runs/44304843544) passou em PHP 8.3/8.4, jobs `134803607144` e `134803606588`. Portanto, a associação nativa de pedido/projeto já possui consumidor e prova próprios; não deve mais ser descrita apenas como objeto SAMPLE.
 
-O [provider](https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/app/Providers/OnepageCommerceServiceProvider.php) registra cinco rotas privadas de pedido. O provider e o controller examinados não enviam o comando ao Sites nem conservam o recibo no Portal; a chamada ao receiver está na composição de teste. O [manual da entrega](https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/docs/NATIVE-ONEPAGE-CHECKOUT.md) mantém transporte entre servidores, envio automático, acompanhamento de recibo e briefing de produção como integrações seguintes. O pagamento PSP da prova é simulado.
+Na #941, o [provider](https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/app/Providers/OnepageCommerceServiceProvider.php) registra cinco rotas privadas de pedido. O provider e o controller daquela HEAD não enviam o comando ao Sites nem conservam o recibo no Portal; a chamada ao receiver está na composição de teste. O [manual daquela entrega](https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/docs/NATIVE-ONEPAGE-CHECKOUT.md) mantém transporte entre servidores, envio automático, acompanhamento de recibo e briefing de produção como integrações seguintes. O pagamento PSP da prova é simulado. A conservação e consulta do recibo avançaram posteriormente na #954, descrita abaixo.
 
 Os 24 arquivos do [manifesto pareado](https://github.com/rafhael100/imagine-portal/blob/0e0ccc06755b6ddd938635e5c4c3625ff6497e2c/apps/portal/tests/Integration/portal-sites-source-pins.json) foram comparados com a Sites #515, HEAD funcional `1732ad5b0d7b60067154c2a3354cd16b99a6658b`, e seus hashes permanecem idênticos. A #515 acrescenta a cobertura de ACL da tabela nova no guard do registry, sem modificar comando, recorder, recibo ou migration 11. A prova pareada continua fixada à #512 e não comprova ainda a migration 12; a adoção dessa revisão e dos arquivos adicionais deve acompanhar a linha pareada existente.
 
@@ -199,6 +223,35 @@ A [Portal #943](https://github.com/rafhael100/imagine-portal/pull/943), HEAD `ad
 
 A [Sites #516](https://github.com/rafhael100/imagine-sites/pull/516), HEAD funcional `a92b365a789b3d09638feb95becc5e2dc1d384ca`, reúne o recebimento #512 e a correção #515 com a interface #511/#513/#514. Os 24 arquivos Sites consumidos pela prova pareada Portal #941 mantêm os hashes de origem; a prova do Portal continua pinada à #512. A revisão das pendências não encontrou outro contrato de briefing oficial ou consumidor definido nessas novas referências. A investigação posterior do legado fundamentou a proposta #517 e seu primeiro consumidor local, descritos acima. Os três insumos seguintes delimitam adoção operacional, sem necessidade de repetir a associação nativa já entregue.
 
+### Atualização de 18/11/2026: recibo pendente no Portal #953/#954
+
+A [#953](https://github.com/rafhael100/imagine-portal/pull/953), HEAD
+`af580e5de756d8415f6210057130dfe3ca952cf8`, acrescenta o
+[validador dos quinze campos do recibo](https://github.com/rafhael100/imagine-portal/blob/af580e5de756d8415f6210057130dfe3ca952cf8/apps/portal/app/Domain/SitesIntegration/PortalSitesPendingReceiptValidator.php).
+A [#954](https://github.com/rafhael100/imagine-portal/pull/954), HEAD
+`d1aaab523848baf80325a023f3ebbf4998a3607f`, acrescenta sua
+[gravação](https://github.com/rafhael100/imagine-portal/blob/d1aaab523848baf80325a023f3ebbf4998a3607f/apps/portal/app/Infrastructure/Commerce/PostgresOnepageSiteReceiptWriter.php)
+em ledger imutável e a consulta `read_my_site_intake` no
+[SQL próprio](https://github.com/rafhael100/imagine-portal/blob/d1aaab523848baf80325a023f3ebbf4998a3607f/apps/portal/database/security/portal_onepage_site_receipts.sql).
+O [controller privado](https://github.com/rafhael100/imagine-portal/blob/d1aaab523848baf80325a023f3ebbf4998a3607f/apps/portal/app/Http/Controllers/OnepageOrderController.php)
+e a [interface Onepage](https://github.com/rafhael100/imagine-portal/blob/d1aaab523848baf80325a023f3ebbf4998a3607f/apps/portal/resources/onepage-client/app.js)
+apresentam a solicitação recebida ao comprador; as flags de autoridade continuam falsas.
+
+A [fixture pareada](https://github.com/rafhael100/imagine-portal/blob/d1aaab523848baf80325a023f3ebbf4998a3607f/apps/portal/tests/Integration/NativeOnepageSitesPairAssertions.php)
+já encadeia encoder, recorder Sites real, validador, ledger e leitura do comprador.
+Os quatro arquivos centrais de comando, recorder, SQL de intake e schema de
+recibo continuam idênticos aos pins Sites #512; não há mudança necessária nesses
+contratos para este consumidor. Isso não equivale a executar todas as migrations
+posteriores do Sites no pareamento antigo.
+
+As duas PRs estavam abertas/draft na leitura. Código, árvore e pins foram
+conferidos, sem atribuir sucesso de CI a essas HEADs. O próximo recorte desse
+fluxo é a coordenação e o transporte autenticado em runtime: o provider não
+dispara o writer de recibos, e a composição examinada está na fixture. Nos
+deltas #953/#954 e entradas de integração lidas, não foi encontrado um exportador
+oficial do briefing rico. A conclusão é limitada a essas fontes, e o consumidor
+de recibo é específico de Onepage.
+
 ## O que as peças Sites já fazem
 
 | Peça atual | Consequência para a integração |
@@ -209,6 +262,8 @@ A [Sites #516](https://github.com/rafhael100/imagine-sites/pull/516), HEAD funci
 | [LaravelAdmittedPreviewLab](../../apps/sites/app/Labs/LaravelAdmittedPreviewLab.php) | Usa texto fictício fixo, sob guardas de CI. Não lê briefing do cliente e não é worker de geração operacional. |
 | [BriefRenderProvenance](../../src/Production/BriefRenderProvenance.php) e [render.php](../../ops/release-candidate/render.php) | Conferem um snapshot candidato e sua entrada editorial por bytes exatos, preservando o renderer existente e um sidecar privado. Não consultam head, autenticação do Portal ou autorização comercial, nem persistem briefing em `sites_core`. |
 | [BriefSnapshotInput](../../src/Production/BriefSnapshotInput.php), [recorder e reader nativos](../PORTAL-BRIEF-SNAPSHOTS.md) | A migration 13 e os serviços implementam armazenamento técnico, CAS/replay e leitura exata sob principal SQL corrente. O perfil rico completo é validado em PHP; o recibo não comprova aprovação da origem. |
+| [Entrada privada de snapshot](../BRIEF-SNAPSHOT-RECEIVER-CLI.md) | A composição validada na #526 oferece plan/record por arquivos privados, com compromisso, CAS/replay e apuração pelo reader. Não é um produtor ou transporte oficial Portal. |
+| [Inspeção privada de snapshot](../BRIEF-SNAPSHOT-INSPECTION-CLI.md) | Nova candidata somente leitura para apurar a seleção conhecida após stdout perdido, sem replay do receiver. Dez campos técnicos, sem corpo ou timestamp; prova PostgreSQL/TLS própria pendente. |
 | [StoredBriefRendering](../../apps/sites/app/Integration/StoredBriefRendering.php) | Usa o snapshot persistido selecionado pelo plano, sem fallback para o head. Retorna HTML/proveniência em memória e não grava o artefato ou sua relação no registry. |
 | [StoredBriefReleaseRegistration e consulta histórica](../STORED-BRIEF-RELEASE-PROVENANCE.md) | Composição validada na #520: usa renderização interna, confirma compromisso próprio e solicita registro/associação atômicos; uma identidade de leitura separada consulta o recibo exato. Não ingere sidecar nem autentica aprovação Portal. |
 | [Pacote técnico](../../ops/release-candidate/README.md), [diário](../../contracts/publication-journal/README.md) e [inspector](../../src/Publication/PrivatePublicationInspection.php) | Trabalham sobre artefato/vínculo e estado técnico já existentes. Não fornecem o insumo ausente, não verificam pagamento/aceite e não autorizam envio. |
@@ -221,7 +276,7 @@ Os nomes lógicos `SubmitBriefRevision` e `RequestGenerateRelease` já constam e
 2. **Leitura e entrega autorizadas:** identidade entre serviços e escopo por empresa/recurso, revogação corrente, acesso aos materiais privados e custódia/retenção operacionais. Referência recebida no JSON não concede acesso. O candidato já tem tabelas, capacidade SQL, replay e reader negados por padrão; ativação de grants, transporte e uso real exigem fonte e autorização próprias.
 3. **Consumidor de produção autorizado:** o modo local e o consumidor do snapshot persistido já vinculam bytes e geram HTML inerte; a composição durável com o registry possui prova SQL própria na #520. Continua necessário comprovar qual operação pode iniciar produção real e a aprovação humana da entrada editorial. Para IA/ferramenta externa, definir previamente ferramenta, orçamento e dados permitidos; a fixture não substitui execução autorizada.
 
-O desenvolvimento em draft fechou a relação técnica persistente com o registry, mantendo revisões de briefing e editorial distintas. A #519 conserva as provas do receptor e a #520 acrescenta as de registro/associação e recuperação histórica. A CLI de consulta possui prova própria na #521; a entrada privada de registro composto possui prova própria na #522. A composição pareada com o Portal deve usar fontes fixadas dos dois repositórios; um sucesso só do Sites não comprova o produtor Portal ou o transporte.
+O desenvolvimento em draft fechou a relação técnica persistente com o registry, mantendo revisões de briefing e editorial distintas. A #519 conserva as provas do receptor e a #520 acrescenta as de registro/associação e recuperação histórica. A CLI de consulta do artefato possui prova própria na #521; a entrada privada de registro composto possui prova própria na #522; a composição do receiver com seus consumidores foi validada na #526. A nova inspeção do snapshot estende a apuração privada, com CI PostgreSQL/TLS próprio ainda pendente. A composição pareada com o Portal deve usar fontes fixadas dos dois repositórios; um sucesso só do Sites não comprova o produtor Portal ou o transporte.
 
 ## Dependências operacionais e alçadas preservadas
 

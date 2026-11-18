@@ -3,6 +3,9 @@ set -euo pipefail
 # Own disposable CI cluster only. Never attach to an existing service or target.
 test "${GITHUB_ACTIONS:-}" = true
 test "${SITES_RELEASE_REGISTRY_CI:-}" = 1
+if [[ "${SITES_BRIEF_SNAPSHOT_INSPECTION_CI:-}" == 1 ]]; then
+  test "${SITES_BRIEF_SNAPSHOT_RECEIVER_CLI_CI:-}" = 1
+fi
 if [[ "${SITES_BRIEF_SNAPSHOT_RECEIVER_CLI_CI:-}" == 1 ]]; then
   test "${SITES_BRIEF_ARTIFACT_REGISTRATION_CI:-}" = 1
 fi
@@ -67,6 +70,11 @@ cleanup() {
   local failed=0
   if "$PG_BIN/pg_ctl" -D "$lab/data" status > /dev/null 2>&1; then
     "$PG_BIN/pg_ctl" -D "$lab/data" -m fast -w stop > "$lab/stop.log" 2>&1 || failed=1
+  fi
+  if [[ "${SITES_BRIEF_SNAPSHOT_INSPECTION_CI:-}" == 1 && -f "$lab/brief-snapshot-inspection-paths.json" ]]; then
+    sudo -n env GITHUB_ACTIONS=true SITES_RELEASE_REGISTRY_CI=1 SITES_BRIEF_SNAPSHOT_INSPECTION_CI=1 \
+      python3 "$repo/tests/fixtures/brief-snapshot-inspection/cli-paths.py" \
+      cleanup "$lab" "$(id -u)" "$(id -g)" || failed=1
   fi
   if [[ "${SITES_BRIEF_SNAPSHOT_RECEIVER_CLI_CI:-}" == 1 && -f "$lab/brief-snapshot-receiver-paths.json" ]]; then
     sudo -n env GITHUB_ACTIONS=true SITES_RELEASE_REGISTRY_CI=1 SITES_BRIEF_SNAPSHOT_RECEIVER_CLI_CI=1 \
@@ -277,6 +285,14 @@ if [[ "${SITES_BRIEF_SNAPSHOT_RECEIVER_CLI_CI:-}" == 1 ]]; then
     python3 "$repo/tests/fixtures/brief-snapshot-receiver/cli-paths.py" \
     verify-mismatch "$lab" "$(id -u)" "$(id -g)"
 fi
+if [[ "${SITES_BRIEF_SNAPSHOT_INSPECTION_CI:-}" == 1 ]]; then
+  sudo -n env GITHUB_ACTIONS=true SITES_RELEASE_REGISTRY_CI=1 SITES_BRIEF_SNAPSHOT_INSPECTION_CI=1 \
+    python3 "$repo/tests/fixtures/brief-snapshot-inspection/cli-paths.py" \
+    prepare "$lab" "$(id -u)" "$(id -g)"
+  sudo -n env GITHUB_ACTIONS=true SITES_RELEASE_REGISTRY_CI=1 SITES_BRIEF_SNAPSHOT_INSPECTION_CI=1 \
+    python3 "$repo/tests/fixtures/brief-snapshot-inspection/cli-paths.py" \
+    verify-mismatch "$lab" "$(id -u)" "$(id -g)"
+fi
 "$PHP_BIN" "$repo/tests/release-registry-pg-contract.php" | tee "$lab/contract.log"
 grep -q '^OK: [1-9][0-9]* persistent release registry assertions;' "$lab/contract.log"
 grep -q '^TECHNICAL PACKAGE CI PASS: [1-9][0-9]* assertions;' "$lab/contract.log"
@@ -327,4 +343,8 @@ if [[ "${SITES_BRIEF_ARTIFACT_REGISTRATION_CI:-}" == 1 ]]; then
 fi
 if [[ "${SITES_BRIEF_SNAPSHOT_RECEIVER_CLI_CI:-}" == 1 ]]; then
   grep -q '^BRIEF SNAPSHOT RECEIVER CI PASS: [1-9][0-9]* assertions;' "$lab/contract.log"
+fi
+if [[ "${SITES_BRIEF_SNAPSHOT_INSPECTION_CI:-}" == 1 ]]; then
+  grep -q '^BRIEF SNAPSHOT INSPECTION CI PASS: 26 assertions;' "$lab/contract.log"
+  grep -q '^OK: 1149 persistent release registry assertions;' "$lab/contract.log"
 fi

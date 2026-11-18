@@ -474,6 +474,13 @@ return static function (PDO $bsrAdmin, Connection $bsrConnection, string $bsrPas
                 $bsrStat['nlink'] === 1 && ($bsrStat['mode'] & 0777) === $bsrSaved['mode'] && file_get_contents($bsrPath) === $bsrSaved['bytes'];
         }
         $bsrCheck($bsrRestored, 'all five receiver inputs and all nine preexisting consumer inputs retain their original inode, owner, private mode and bytes');
+        if (getenv('SITES_BRIEF_SNAPSHOT_INSPECTION_CI') === '1') {
+            $bsrStage = 'private exact snapshot inspection CLI';
+            $bsrInspectionFixture = require __DIR__.'/../brief-snapshot-inspection/contract.php';
+            $bsrInspectionFixture($bsrAdmin, $bsrConnection, $bsrPassword, $bsrCaFile, $bsrTenants,
+                ['company_a' => $bsrExistingSnapshots['a'], 'company_b' => $bsrExistingSnapshots['b'],
+                    'received_2' => $bsrInputs[2], 'lost_3' => $bsrInputs[3]], $bsrParentCheck);
+        }
         echo "BRIEF SNAPSHOT RECEIVER CI PASS: {$bsrChecks} assertions; actual receive/readExact/register/inspect chain, two immutable snapshots and one artifact pair, lost response resolved without receiver retry, exact replay and current isolated authority.\n";
         return $bsrChecks;
     } catch (Throwable $bsrError) {
