@@ -126,11 +126,22 @@ module.exports=async({ctx,base,dir,ok})=>{
        const loaded=await preview.goto(project+'/versions/'+revision+'/html');
        ok(loaded.status()===200&&(await loaded.body()).equals(saved.bytes),
           'inert text '+product+' preview '+revision+' keeps exact stored bytes after comparison');
-       const headers=loaded.headers(),csp=headers['content-security-policy']||'';
+       const headers=await loaded.allHeaders(),csp=headers['content-security-policy']||'';
+       // Both Laravel and the private Nginx add these fixed headers. Browser
+       // stacks may expose repeated fields separately or as a combined value.
+       // Every reported value must match; a conflicting value still fails.
+       const [frameValues,referrerValues]=await Promise.all([
+         loaded.headerValues('x-frame-options'),loaded.headerValues('referrer-policy'),
+       ]);
+       const only=(values,expected)=>{
+         const tokens=values.flatMap(value=>value.split(/[,\n]/)).map(value=>value.trim());
+         return tokens.length>0&&tokens.every(value=>value===expected);
+       };
        ok(csp.includes('sandbox')&&csp.includes("default-src 'none'")&&csp.includes("frame-ancestors 'none'")&&
-          headers['x-frame-options']==='DENY'&&(headers['cache-control']||'').includes('no-store')&&
-          headers['referrer-policy']==='no-referrer',
-          'inert text '+product+' preview '+revision+' retains real isolation headers');
+          only(frameValues,'DENY')&&(headers['cache-control']||'').includes('no-store')&&
+          only(referrerValues,'no-referrer'),
+          'inert text '+product+' preview '+revision+' retains real isolation headers; '+
+          JSON.stringify({frame:frameValues,referrer:referrerValues}));
        ok(await preview.locator('.brand').textContent()===values.brand&&
           await preview.locator('#hero-title').textContent()===values.headline&&
           await preview.locator('.lead').textContent()===values.description&&
