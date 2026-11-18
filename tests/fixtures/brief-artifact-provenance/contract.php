@@ -34,6 +34,14 @@ const BAP_NATIVE_API = 'sites_core.record_release_artifact(uuid,text,text)';
 const BAP_HTML_SHA = '12549ec46a09e83ea76353a43a48723daa99aa30c6bbdd461923f1a800543d15';
 const BAP_GUARD12_SHA = 'a6707a10197400c20651603949abe6ffe4dd48e52fd40b595c3832b42e1a9753';
 
+/** Only fixture-authored labels may be reported; never wrap an internal error. */
+final class BriefArtifactFixtureAssertion extends RuntimeException {}
+
+function bapRequire(bool $condition, string $label): void
+{
+    if (!$condition) throw new BriefArtifactFixtureAssertion($label);
+}
+
 function bapJson(array $value): string
 {
     return json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)."\n";
@@ -240,7 +248,8 @@ if (!isset($admin, $connection, $connect, $password, $caFile, $ok)) {
     $bapStage = 'disposable identity';
     $bapWorkers = [];
     $bapCheck = static function (bool $condition, string $label) use ($bapOk, &$bapChecks): void {
-        $bapOk($condition, 'brief artifact provenance '.$label);
+        bapRequire($condition, $label);
+        $bapOk(true, 'brief artifact provenance '.$label);
         ++$bapChecks;
     };
     try {
@@ -396,8 +405,12 @@ if (!isset($admin, $connection, $connect, $password, $caFile, $ok)) {
                 'clientAccepted' => false, 'canPublish' => false, 'canAcceptRealOrders' => false, 'commitmentSha256' => $commitment,
             ];
             ksort($receipt); ksort($expected);
-            $bapCheck($receipt === $expected && is_string($expected['recordedAt']) &&
+            bapRequire(array_keys($receipt) === array_keys($expected), 'record receipt field names');
+            foreach ($expected as $key => $value) bapRequire($receipt[$key] === $value, 'record receipt field '.$key);
+            bapRequire(is_string($expected['recordedAt']) &&
                 preg_match('/\A[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}Z\z/D', $expected['recordedAt']) === 1,
+                'record receipt UTC timestamp');
+            $bapCheck(true,
                 'the committed receipt has exactly twenty typed fields, raw commitments and false authority');
         };
         $bapHistoryExpected = static function (array $receipt): array {
@@ -415,12 +428,17 @@ if (!isset($admin, $connection, $connect, $password, $caFile, $ok)) {
         $bapMainCommitment = hash('sha256', "SITES_BRIEF_ARTIFACT_REGISTRATION_PLAN_V1\0".
             json_encode(bapTarget($bapAdmin, $bapRoles['writer_a'], $bapCaSha), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES).
             "\0".$bapPlans['main']."\0".$bapEditorial."\0".$bapHtml);
-        $bapCheck($bapMainPlan === [
+        $expectedMainPlan = [
             'schemaVersion' => 'sites.brief-artifact-registration.plan.candidate.v0.1', 'status' => 'planned',
             'commitmentSha256' => $bapMainCommitment, 'planSha256' => hash('sha256', $bapPlans['main']),
             'artifactDigest' => BAP_HTML_SHA, 'sizeBytes' => 5167, 'authorityVerified' => false,
             'clientAccepted' => false, 'canPublish' => false, 'canAcceptRealOrders' => false,
-        ] && [bapRows($bapAdmin), bapCatalog($bapAdmin)] === $before,
+        ];
+        bapRequire(array_keys($bapMainPlan) === array_keys($expectedMainPlan), 'initial plan field names and order');
+        foreach ($expectedMainPlan as $key => $value) bapRequire($bapMainPlan[$key] === $value, 'initial plan field '.$key);
+        bapRequire(bapRows($bapAdmin) === $before[0], 'initial plan preserves all rows');
+        bapRequire(bapCatalog($bapAdmin) === $before[1], 'initial plan preserves the catalog');
+        $bapCheck(true,
             'the ten-field read-only plan uses the exact stored source and commits target, original plan, editorial bytes and HTML without a write');
         $before = bapRows($bapAdmin);
         $bapMainReceipt = $bapRecord($bapRoles['writer_a'], $bapPlans['main'], $bapMainCommitment);
@@ -432,19 +450,25 @@ if (!isset($admin, $connection, $connect, $password, $caFile, $ok)) {
             FROM sites_core.release_artifacts a JOIN sites_core.release_artifact_provenance p
             USING(tenant_id,site_id,release_ref,artifact_digest) WHERE a.tenant_id=?::uuid AND a.site_id=?::uuid AND a.release_ref=?',
             [$bapTenants['a'], $main->siteRef, $main->releaseRef])->fetch(PDO::FETCH_ASSOC);
-        $bapCheck(is_array($stored) && $stored['html'] === $bapHtml && $stored['artifact_digest'] === BAP_HTML_SHA &&
-            $stored['author'] === $bapRoles['writer_a'] && $stored['author_epoch'] === 1 &&
-            $stored['plan_json'] === $bapPlans['main'] && $stored['editorial_json'] === $bapEditorial &&
-            $stored['portal_org_ref'] === $bapOrgs['a'] && $stored['snapshot_ref'] === $main->snapshotRef &&
-            $stored['brief_revision'] === 1 && $stored['manifest_sha256'] === $main->manifestSha256,
+        bapRequire(is_array($stored), 'initial committed artifact and association row exists');
+        foreach (['html' => $bapHtml, 'artifact_digest' => BAP_HTML_SHA, 'author' => $bapRoles['writer_a'],
+            'author_epoch' => 1, 'plan_json' => $bapPlans['main'], 'editorial_json' => $bapEditorial,
+            'portal_org_ref' => $bapOrgs['a'], 'snapshot_ref' => $main->snapshotRef,
+            'brief_revision' => 1, 'manifest_sha256' => $main->manifestSha256] as $key => $value) {
+            bapRequire(($stored[$key] ?? null) === $value, 'initial committed column '.$key);
+        }
+        $bapCheck(true,
             'fresh SQL observes committed exact bytes, native author epoch and the immutable source selection');
         $before = bapRows($bapAdmin);
         $bapMainHistory = $bapInspect($bapRoles['receipt_a'], $bapPlans['main']);
         $bapReplay = $bapRecord($bapRoles['writer_a'], $bapPlans['main'], $bapMainCommitment);
         $bapReceipt($bapReplay, $bapPlans['main'], $bapMainCommitment, false);
         $expectedReplay = $bapMainReceipt; $expectedReplay['created'] = false;
-        $bapCheck($bapReplay === $expectedReplay && $bapMainHistory === $bapHistoryExpected($bapMainReceipt) &&
-            count($bapMainHistory) === 18 && bapRows($bapAdmin) === $before,
+        bapRequire($bapReplay === $expectedReplay, 'initial replay matches its exact receipt');
+        bapRequire($bapMainHistory === $bapHistoryExpected($bapMainReceipt), 'initial historical receipt matches its exact projection');
+        bapRequire(count($bapMainHistory) === 18, 'initial historical receipt has eighteen fields');
+        bapRequire(bapRows($bapAdmin) === $before, 'initial historical read and replay preserve all rows');
+        $bapCheck(true,
             'exact replay preserves recordedAt; a fresh independent current reader returns only the eighteen historical fields');
 
         $bapStage = 'independent editorial, binding and technical package consumers';
@@ -903,7 +927,9 @@ if (!isset($admin, $connection, $connect, $password, $caFile, $ok)) {
         echo 'BRIEF ARTIFACT PROVENANCE CI PASS: '.$bapChecks.' new assertions; 923 existing assertions retained. '.
             "Real stored-source rendering, atomic native registration, historical inspection and ordered rollback; no publication authority.\n";
     } catch (Throwable $error) {
-        fwrite(STDERR, 'BRIEF_ARTIFACT_PROVENANCE_FIXTURE_FAILED stage='.$bapStage.' reason='.get_class($error)."\n");
+        $detail = $error instanceof BriefArtifactFixtureAssertion ? ' assertion='.$error->getMessage() : '';
+        fwrite(STDERR, 'BRIEF_ARTIFACT_PROVENANCE_FIXTURE_FAILED stage='.$bapStage.' reason='.get_class($error).
+            ' completedChecks='.$bapChecks.$detail."\n");
         throw new RuntimeException('Brief artifact provenance fixture failed');
     } finally {
         if ($bapAdmin->inTransaction()) $bapAdmin->rollBack();
