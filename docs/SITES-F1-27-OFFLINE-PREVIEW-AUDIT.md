@@ -24,7 +24,28 @@ A reprodução em memória confirmou que a auditoria recusava `url("/inert-audit
 
 O dialeto fixo passa a recusar barras invertidas **somente dentro de `style`**, além de `image-set()` e seu alias com comparação sem distinção de maiúsculas. Os estilos atuais e históricos suportados não precisam desses recursos. Texto literal nos cinco campos e na meta description continua permitido, incluindo barras e nomes dessas funções. Renderer, vetores, bytes históricos, digests e cálculo dos pacotes não mudam; a auditoria não reescreve o HTML.
 
-As provas locais finais passaram com **152 checks F27** e **279 asserções de registro**, incluindo digest/compromisso recalculados e recusa antes de qualquer chamada à PDO. A suíte geral passou com **296 testes / 4705 asserções / 27 skips**, e o domínio sintético com **32 checks**. O CI específico desta correção permanece pendente. O [relatório da correção](reviews/SITES-INERT-CSS-ESCAPES-2026-11-18.md) registra o recorte, as fontes e os limites da reprodução.
+As provas locais finais passaram com **152 checks F27** e **279 asserções de registro**, incluindo digest/compromisso recalculados e recusa antes de qualquer chamada à PDO. A suíte geral passou com **296 testes / 4705 asserções / 27 skips**, e o domínio sintético com **32 checks**. A #534 confirmou esses contadores em PHP 8.3/8.4, com 12/12 checks SUCCESS; o [relatório da correção](reviews/SITES-INERT-CSS-ESCAPES-2026-11-18.md) registra o recorte, as fontes e os limites da reprodução.
+
+## Vocabulário CSS fixo — 18/11/2026
+
+Após o bloqueio de escapes e `image-set()`, a reprodução em memória ainda
+aceitou `image("/inert-audit-probe")`, `src("/inert-audit-probe")` e
+`src(var(--asset))` em ambos os produtos. As especificações definem strings de
+`image()` e argumentos de `src()` como referências de recurso. A reprodução
+não executou navegador e não observou uma requisição.
+
+A auditoria passa a admitir somente as funções `clamp`, `linear-gradient`,
+`minmax`, `repeat` e `rgba` e a at-rule `media`. Strings e comentários são
+separados dos identificadores; funções exigem parêntese imediato e as chamadas
+aninhadas são conferidas. NUL, strings com quebra de linha e strings/comentários
+não terminados são recusados. O scanner confere vocabulário, sem implementar
+toda a gramática CSS. Funções benignas como `calc()`, `var()` e `rgb()` também
+exigem uma futura revisão explícita do dialeto.
+
+**260 checks F27 e 293 de registro offline** passaram localmente. Os testes
+preservam os vetores de 5223 e 5167 bytes com seus hashes originais, aceitam as
+mesmas palavras como texto escapado e recusam pacotes com digest recalculado.
+O CI desta ampliação permanece pendente. [Decisão, fontes primárias e prova](reviews/SITES-INERT-CSS-DIALECT-2026-11-18.md).
 
 ## Limites de segurança
 

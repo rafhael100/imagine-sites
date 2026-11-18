@@ -260,6 +260,20 @@ foreach ([
         'body{background-image:image-set("/inert-audit-probe" 1x)}</style>', $html),
     'CSS uppercase prefixed image-set relative string' => str_replace('</style>',
         'body{background-image:-WEBKIT-IMAGE-SET("/inert-audit-probe" 1x)}</style>', $html),
+    'CSS image relative string' => str_replace('</style>',
+        'body{background-image:image("/inert-audit-probe")}</style>', $html),
+    'CSS src relative string' => str_replace('</style>',
+        'body{background-image:src("/inert-audit-probe")}</style>', $html),
+    'CSS src with variable substitution' => str_replace('</style>',
+        'body{--asset:"/inert-audit-probe";background-image:src(var(--asset))}</style>', $html),
+    'CSS uppercase SRC relative string' => str_replace('</style>',
+        'body{background-image:SRC("/inert-audit-probe")}</style>', $html),
+    'unreviewed CSS call inside permitted function' => str_replace('</style>',
+        'body{width:clamp(1px,var(--width),2px)}</style>', $html),
+    'unreviewed CSS bare-string at-rule' => str_replace('</style>',
+        '@namespace "urn:inert-audit-probe";</style>', $html),
+    'unclosed CSS string' => str_replace('</style>',
+        'body{--note:"unfinished</style>', $html),
 ] as $label => $bytes) {
     $candidate = array_replace($manifest, ['artifactDigest' => hash('sha256', $bytes), 'sizeBytes' => strlen($bytes)]);
     $candidateCommitment = $expectedPlan($candidate, $bytes);

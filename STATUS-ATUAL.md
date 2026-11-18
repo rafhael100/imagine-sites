@@ -1,5 +1,37 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 18/11/2026 — vocabulário CSS do artefato inerte
+
+A branch `fix/sites-inert-css-dialect-2026-11-18` deriva da #538 /
+`cb300444b57aa8b6a314855a6e1a403fc4ddfbed`. O scanner da auditoria admite as
+cinco funções usadas pelo renderer e somente `@media`, separando strings,
+comentários, at-keywords e chamadas aninhadas. Corrige a aceitação reproduzida
+em memória de `image()` e `src()` com caminhos relativos. Não houve navegação
+ou requisição de recurso observada nessa reprodução.
+
+**260 checks F27** (108 novos) e **293 de registro offline** (14 novos) passaram.
+Os negativos de registro recalculam digest, tamanho e compromisso e são
+recusados antes de qualquer chamada à PDO. Os vetores de 5223 e 5167 bytes
+conservam seus hashes; renderer, contratos SQL e migrations não mudam.
+A suíte Laravel confirmou **296/4705/27** e o domínio **32 checks**.
+CI próprio pendente. [Decisão, provas e limites](docs/reviews/SITES-INERT-CSS-DIALECT-2026-11-18.md).
+
+## 18/11/2026 — adoção da CLI de recuperação publicada em paralelo
+
+A [#538](https://github.com/rafhael100/imagine-sites/pull/538), HEAD
+`cb300444b57aa8b6a314855a6e1a403fc4ddfbed`, deriva da #536 e publicou a CLI
+`recover-request.php`. Esta sequência conserva seu manifesto original de oito
+campos, plano de seis, resultado de treze, recibo privado de três, `planSha256`
+e diretório `/var/lib/imagine-sites/publication-recoveries`.
+
+Foram conferidos **12/12 checks SUCCESS**. O [run offline 44400177491](https://github.com/rafhael100/imagine-sites/actions/runs/44400177491),
+jobs **135140745492 / 135140745949**, confirmou **63 checks** em PHP 8.3/8.4.
+O [Laravel 44400177436](https://github.com/rafhael100/imagine-sites/actions/runs/44400177436),
+jobs **135140744723 / 135140745233**, confirmou **296 testes/4705 assertions/27
+skips** e **296/4717/21** em ambas as versões. Esses runs não executaram a nova
+fixture PostgreSQL. A prova completa será acrescentada em branch filha,
+preservando o produto publicado e a alternativa local separada.
+
 ## 18/11/2026 — leitor exato da solicitação do diário
 
 A branch `feature/sites-publication-request-reader-2026-11-18` deriva da #535 /
@@ -17,10 +49,16 @@ juntos e revalida o epoch corrente sem lock ou autorização até a resposta.
 
 **49 checks PHP focados**, **99 anteriores do diário**, **296 testes Laravel /
 4705 assertions /27 skips** e **32 checks sintéticos** passaram localmente.
-A CI planejada executa as 1208 assertions anteriores sob o guard ampliado antes
-da fixture nova: **33 checks novos /1241 totais previstos**, com rollback 16
-e revisão dos snapshots. PostgreSQL próprio
-ainda pendente; nenhuma execução local de banco. [Contrato e limites](docs/PUBLICATION-REQUEST-READER.md).
+A [#536](https://github.com/rafhael100/imagine-sites/pull/536), HEAD
+`849636107cc8562f68ad6c42a34bb71c5b7f66e1`, confirmou **14/14 checks SUCCESS**.
+O [registry 44394481654](https://github.com/rafhael100/imagine-sites/actions/runs/44394481654),
+jobs **135120584998 / 135120584665**, executou as **1208 assertions anteriores**
+sob o guard ampliado e confirmou **33 novas /1241 totais**, rollback 16,
+snapshots e cleanup em PHP 8.3/8.4. O [F383 44394481894](https://github.com/rafhael100/imagine-sites/actions/runs/44394481894)
+confirmou a sequência de dezesseis migrations e a remoção dos dois schemas.
+O [Laravel 44394481500](https://github.com/rafhael100/imagine-sites/actions/runs/44394481500)
+confirmou **296/4705/27** e **296/4717/21**. Não houve execução local de banco.
+[Contrato e limites](docs/PUBLICATION-REQUEST-READER.md).
 
 ## 18/11/2026 — entrada local recusa textos inteiramente em branco Unicode
 

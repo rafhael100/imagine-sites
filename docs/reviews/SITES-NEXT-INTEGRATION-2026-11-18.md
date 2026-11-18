@@ -6,6 +6,14 @@
 
 Essa conclusão delimita a integração; não afirma esgotamento de todo desenvolvimento. O trabalho autorizado em branch isolada pode continuar em componentes com uso concreto e defeitos demonstrados. A inspeção privada do diário é um exemplo: consome a API persistente existente sem criar autoridade ou depender de um briefing inventado.
 
+### Vocabulário CSS do renderer inerte
+
+Sobre a #538, a correção fecha a aceitação de `image()` e `src()` e restringe
+funções/at-rules ao vocabulário fixo do renderer. O scanner distingue strings,
+comentários e tokens de função, inclusive chamadas aninhadas. **260 checks F27
+e 293 de registro offline** passaram, com os hashes atual e histórico
+preservados. A prova CI própria está pendente. [Recorte e fontes](SITES-INERT-CSS-DIALECT-2026-11-18.md).
+
 ### Texto não vazio na entrada de renderização local
 
 Sobre a #534 validada, a correção de `LocalSiteRendering` recusa quatro campos
@@ -27,8 +35,19 @@ desse UUID; a apuração por chave ainda depende de repetir o writer. O próximo
 recorte já está implementado como [leitor exato](../PUBLICATION-REQUEST-READER.md)
 pelos cinco seletores originais, com autorização atual própria e nenhum append.
 SQL/migration 16 e consumidor PHP em memória preservam os métodos anteriores.
-Os 49 checks PHP focados passaram; a prova PostgreSQL segue pendente. A CLI com
-novo arquivo privado virá depois da validação desse contrato.
+A [#536](https://github.com/rafhael100/imagine-sites/pull/536), HEAD
+`849636107cc8562f68ad6c42a34bb71c5b7f66e1`, confirmou **14/14 checks SUCCESS**:
+**49 offline**, **33 novas/1241 registry totais**, rollback16 e cleanup em PHP
+8.3/8.4 no [run 44394481654](https://github.com/rafhael100/imagine-sites/actions/runs/44394481654).
+
+A [#538](https://github.com/rafhael100/imagine-sites/pull/538), HEAD
+`cb300444b57aa8b6a314855a6e1a403fc4ddfbed`, publicou em paralelo a
+[CLI de recuperação](../PUBLICATION-REQUEST-RECOVERY-CLI.md). Seu contrato foi
+adotado: original8, plano6/resultado13/recibo3, `planSha256` e diretório privado
+`publication-recoveries`. Confirmou **12/12 checks SUCCESS** e **63 offline**
+em PHP 8.3/8.4 no [run 44400177491](https://github.com/rafhael100/imagine-sites/actions/runs/44400177491).
+A próxima composição exercitará a CLI real e o inspector separado no
+PostgreSQL descartável; essa prova ainda está pendente.
 
 ### Auditoria do CSS do artefato inerte
 

@@ -12,6 +12,10 @@ namespace Imagine\Sites\Production;
 final class InertPreviewAudit
 {
     private const DESCRIPTION_META = '/\A<meta name="description" content="[^"<>]*">\z/D';
+    private const CSS_FUNCTIONS = [
+        'clamp' => true, 'linear-gradient' => true, 'minmax' => true,
+        'repeat' => true, 'rgba' => true,
+    ];
 
     /** @return list<string> */
     public static function issues(string $html): array
@@ -114,7 +118,8 @@ final class InertPreviewAudit
         // Literal copy in text and description metadata is unaffected.
         if (preg_match_all('~<style>(.*?)</style>~s', $html, $css) !== 1 ||
             str_contains($css[1][0], '\\') ||
-            preg_match('/(?:@import\b|(?:url|(?:-webkit-)?image-set|expression)\s*\(|-moz-binding)/i', $css[1][0])) {
+            preg_match('/(?:@import\b|(?:url|(?:-webkit-)?image-set|expression)\s*\(|-moz-binding)/i', $css[1][0]) ||
+            !self::hasSupportedCssVocabulary($css[1][0])) {
             return ['active_css_or_style_structure'];
         }
 
@@ -135,6 +140,59 @@ final class InertPreviewAudit
             return ['missing_inert_preview_disclaimer'];
         }
         return [];
+    }
+
+    /**
+     * Scan the fixed renderer vocabulary, not the complete CSS grammar.
+     * Escapes are already refused above. Strings/comments are separate from
+     * identifiers; @media is an at-keyword, even with an immediate '('.
+     * Do not skip function arguments: nested calls need the same check.
+     */
+    private static function hasSupportedCssVocabulary(string $css): bool
+    {
+        // CSS replaces NUL with a name character; no such preprocessing is
+        // needed by the fixed renderer dialect.
+        if (str_contains($css, "\0")) return false;
+        $length = strlen($css);
+        for ($offset = 0; $offset < $length;) {
+            $character = $css[$offset];
+            if ($character === '/' && ($css[$offset + 1] ?? '') === '*') {
+                $end = strpos($css, '*/', $offset + 2);
+                if ($end === false) return false;
+                $offset = $end + 2;
+                continue;
+            }
+            if ($character === '"' || $character === "'") {
+                $quote = $character;
+                ++$offset;
+                while ($offset < $length && $css[$offset] !== $quote) {
+                    if (str_contains("\r\n\f", $css[$offset])) return false;
+                    ++$offset;
+                }
+                if ($offset === $length) return false;
+                ++$offset;
+                continue;
+            }
+
+            $atRule = $character === '@';
+            if ($atRule) ++$offset;
+            // Include all name bytes so an unsupported/non-ASCII name cannot
+            // be accepted merely because its suffix is a permitted function.
+            if (preg_match('/\G[-_a-zA-Z0-9\x80-\xff]+/', $css, $name, 0, $offset) === 1) {
+                $offset += strlen($name[0]);
+                $identifier = strtolower($name[0]);
+                if ($atRule) {
+                    if ($identifier !== 'media') return false;
+                } elseif (($css[$offset] ?? '') === '(' && !isset(self::CSS_FUNCTIONS[$identifier])) {
+                    return false;
+                }
+            } elseif ($atRule) {
+                return false;
+            } else {
+                ++$offset;
+            }
+        }
+        return true;
     }
 
     public static function isSafe(string $html): bool

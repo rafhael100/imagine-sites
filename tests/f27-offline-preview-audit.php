@@ -63,6 +63,7 @@ $literalCopy = [
     'quoted markup as text' => '<a href="http://example.invalid" onclick="x">Texto & "aspas"</a>',
     'Unicode and line breaks' => "Ação 😀\r\nonfocus='nada' https://example.invalid/?a=1&b=2",
     'CSS-like escaped words' => 'u\\72l("x") @\\69mport C:\\x image-set("x" 1x) -webkit-image-set("x" 1x)',
+    'unreviewed CSS words' => 'image("x") SRC("x") src(var(--x)) calc(1px) @font-face',
 ];
 foreach (['onepage', 'landing_page'] as $product) {
     foreach (['brand', 'headline', 'description', 'callToAction', 'benefits'] as $field) {
@@ -78,6 +79,69 @@ foreach (['onepage', 'landing_page'] as $product) {
 }
 $textual = $renderer->render(new SiteBrief('onepage', $brief->brand, $brief->headline,
     'https://example.invalid onboarding=aberto onclick="texto"', $brief->callToAction, $brief->benefits));
+
+// Preserve the current golden and remove only the three known CSS additions
+// in memory to reconstruct the exact historical #517/#518 bytes. This is
+// a pinned test vector, never an artifact migration or runtime rewrite.
+$golden = file_get_contents(__DIR__.'/../contracts/portal-sites/candidates/brief-production-v1/examples/rendered.synthetic.html');
+f27Assert(is_string($golden) && strlen($golden) === 5223 &&
+    hash('sha256', $golden) === 'ab999fc8c61d4f22ab250c6d5d86442a0ceca24659d1f4173db3580e4694740e' &&
+    InertPreviewAudit::isSafe($golden), 'current golden passes with its original bytes and digest');
+$historical = str_replace([
+    'line-height: 1.6; overflow-wrap: anywhere;',
+    'letter-spacing: -.02em; min-width: 0;',
+    'text-decoration: none; max-width: 100%;',
+], [
+    'line-height: 1.6;', 'letter-spacing: -.02em;', 'text-decoration: none;',
+], $golden, $historicalChanges);
+f27Assert($historicalChanges === 3 && strlen($historical) === 5167 &&
+    hash('sha256', $historical) === '12549ec46a09e83ea76353a43a48723daa99aa30c6bbdd461923f1a800543d15' &&
+    InertPreviewAudit::isSafe($historical), 'historical golden passes with its original bytes and digest');
+
+$cssPositives = [
+    'media at-keyword and nested permitted functions in uppercase' =>
+        '@MEDIA(prefers-reduced-motion: reduce) { .benefits ul { grid-template-columns: REPEAT(auto-fit,MINMAX(220px,1fr)); }'.
+        ' .hero { background: LINEAR-GRADIENT(120deg,RGBA(1,2,3,.2),RGBA(4,5,6,.3)); padding-block: CLAMP(64px,9vw,136px); } }',
+    'quoted strings and comments do not create function or at-rule tokens' =>
+        'body { --note: "image() SRC() @font-face"; --other: \'src(var(--asset)) /* literal */\'; }'.
+        ' /* image("/probe") src("/probe") @namespace " unfinished quote */',
+    'separate identifiers and parentheses are not function tokens' =>
+        '@media screen and (min-width: 1px) { body { --label: image /**/ ("/probe"); } }',
+];
+$cssDenials = [
+    'image relative URL string' => 'body { background-image: image("/inert-audit-probe"); }',
+    'src relative URL string' => 'body { background-image: src("/inert-audit-probe"); }',
+    'src with variable substitution' => 'body { --asset: "/inert-audit-probe"; background-image: src(var(--asset)); }',
+    'uppercase SRC relative URL string' => 'body { background-image: SRC("/inert-audit-probe"); }',
+    // This is a vocabulary check, not a claim that the outer grammar would
+    // make the nested image a resource in a browser.
+    'unknown call nested inside permitted functions' => 'body { width: clamp(1px,minmax(1px,image("/probe")),2px); }',
+    'unreviewed calc function' => 'body { width: calc(1px + 2px); }',
+    'unreviewed var function' => 'body { --width: 1px; width: var(--width); }',
+    'unreviewed rgb function' => 'body { color: rgb(1,2,3); }',
+    'unreviewed bare-string at-rule' => '@namespace "urn:inert-audit-probe";',
+    'unreviewed uppercase conditional at-rule' => '@SUPPORTS (display: grid) { body { display: grid; } }',
+    'unclosed double-quoted CSS string' => 'body { --note: "unfinished',
+    'unclosed single-quoted CSS string' => "body { --note: 'unfinished",
+    'unclosed CSS comment' => '/* unfinished',
+    'newline in a CSS string' => "body { --note: \"line one\nline two\"; }",
+    'NUL in a CSS name' => "body { --note: rgba\0(1,2,3,.2); }",
+];
+foreach (['onepage' => $original->html, 'landing_page' => $landing->html] as $product => $source) {
+    foreach ($cssPositives as $label => $rule) {
+        $candidate = str_replace('</style>', $rule.'</style>', $source, $changes);
+        f27Assert($changes === 1 && InertPreviewAudit::isSafe($candidate), $product.' CSS accepts '.$label);
+    }
+    foreach ($cssDenials as $label => $rule) {
+        $candidate = str_replace('</style>', $rule.'</style>', $source, $changes);
+        f27Assert($changes === 1 && $candidate !== $source, $product.' CSS mutation constructed: '.$label);
+        f27Assert(!InertPreviewAudit::isSafe($candidate), $product.' CSS vocabulary denies: '.$label);
+        $artifact = new ReleaseArtifact($candidate);
+        $manifest = new ReleaseManifest('tenant-f27', 'site-f27', 'release-css-dialect', $artifact->digest);
+        f27Assert(f27Denied(fn () => new SyntheticReleaseBundle($manifest, $artifact)),
+            $product.' recomputed bundle digest cannot authorize: '.$label);
+    }
+}
 
 $base = $original->html;
 $mutations = [
