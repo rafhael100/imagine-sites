@@ -245,9 +245,17 @@ try {
         finally { chmod($path,$path === $bindingCliManifestPath ? 0600 : 0400); }
     }
     // /run/secrets belongs to root and is not writable by the fixture actor.
-    // Add a link only inside this actor's private laboratory; the fixed source
-    // now has nlink=2 and must be refused without replacing its directory entry.
-    $bindingCliHardlink = getenv('RELEASE_REGISTRY_LAB_DIR').'/binding-selected-password.fixture-link';
+    // Add a link only inside an existing actor-owned /run input directory.
+    // Do not assume /tmp and /run share a filesystem. The fixed source now has
+    // nlink=2 and must be refused without replacing its directory entry.
+    $bindingCliLinkDirectory = '/run/sites-release-registration';
+    clearstatcache(true,$bindingCliLinkDirectory); $linkDirectory = lstat($bindingCliLinkDirectory);
+    if (!is_array($linkDirectory) || realpath($bindingCliLinkDirectory) !== $bindingCliLinkDirectory ||
+        ($linkDirectory['mode'] & 0170000) !== 0040000 || ($linkDirectory['mode'] & 0777) !== 0700 ||
+        $linkDirectory['uid'] !== posix_geteuid() || $linkDirectory['dev'] !== $bindingCliIdentities[$bindingCliWriterPath][0]) {
+        throw new RuntimeException('Owned same-filesystem link directory required');
+    }
+    $bindingCliHardlink = $bindingCliLinkDirectory.'/binding-selected-password.fixture-link';
     if (file_exists($bindingCliHardlink) || is_link($bindingCliHardlink)) {
         throw new RuntimeException('Fresh private hardlink fixture path required');
     }
