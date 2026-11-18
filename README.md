@@ -10,6 +10,8 @@ O workspace permite gerar versões imutáveis, consultar fila e histórico, busc
 
 Os campos e o botão da revisão editorial identificam a versão explicitamente. Isso permite escolher o parecer pelo nome do controle, inclusive quando várias versões estão disponíveis na mesma página. Erros e orientações preservadas mantêm essa identificação.
 
+Os links do histórico também identificam a versão da prévia e o par da comparação. As legendas descrevem a edição quando o formulário está disponível e a consulta do briefing salvo nos acessos somente para leitura ou revisão.
+
 Cada versão tem uma consulta própria de pareceres, com 20 registros por página e continuação para os anteriores. Assim, as orientações que excedem o resumo do histórico permanecem acessíveis. A seleção conserva o contexto de busca e comparação e mantém a edição na versão atual do projeto.
 
 Após um erro de validação ou conflito de edição, o workspace identifica o briefing que ainda não foi salvo e conserva os campos para conferência. Um painel nativo na mesma página permite consultar o briefing realmente salvo, sua revisão e digest, sem sair da tentativa ou perder o texto. A navegação pelo histórico e o controle de revisão esperada permanecem preservados.

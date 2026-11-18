@@ -142,16 +142,16 @@
 @else
 <p class="muted">Versão atual: {{ $currentRevision }}. Datas no horário de Brasília.</p>
 @if($navigation->beforeRevision !== null || $navigation->afterRevision !== null)
-<p class="history-note">O histórico pode mostrar versões anteriores. @if($hasUnsavedBrief)O briefing ainda não salvo foi mantido nesta página para consulta.@elseif($revisionLimitReached)O briefing salvo da versão atual continua disponível para consulta.@else O briefing de edição continua na versão atual.@endif</p>
+<p class="history-note">O histórico pode mostrar versões anteriores. @if($hasUnsavedBrief)O briefing ainda não salvo foi mantido nesta página para consulta.@elseif($revisionLimitReached || !$canAppendVersion)O briefing salvo da versão atual continua disponível para consulta.@else O briefing de edição continua na versão atual.@endif</p>
 @endif
 @forelse($versions as $v)
 <div class="item" data-version="{{ $v['revision'] }}">
 <h3 id="version-title-{{ $v['revision'] }}">Versão {{ $v['revision'] }}</h3>@if($v['revision']===$currentRevision) <span class="status">Atual</span>@endif
 <p class="muted">{{ $formatDate($v['created_at']) }}</p><code>SHA-256: {{ $v['sha256'] }}</code>
-<a class="button" href="/_preview/projects/{{ $project }}/versions/{{ $v['revision'] }}/html" target="_blank" rel="noopener">Visualizar prévia privada ↗</a>
+<a class="button" href="/_preview/projects/{{ $project }}/versions/{{ $v['revision'] }}/html" target="_blank" rel="noopener">Visualizar prévia privada da versão {{ $v['revision'] }} ↗</a>
 <p><a data-testid="version-reviews-link" data-review-target="{{ $v['revision'] }}" href="{{ $navigation->versionReviewsUrl($project,$v['revision']) }}">Consultar pareceres da versão {{ $v['revision'] }}</a></p>
 @if($v['revision'] > 1)
-<p><a href="{{ $navigation->comparisonUrl($project,$v['revision']-1,$v['revision']) }}">Comparar com a anterior</a></p>
+<p><a href="{{ $navigation->comparisonUrl($project,$v['revision']-1,$v['revision']) }}">Comparar versão {{ $v['revision'] }} com a versão {{ $v['revision'] - 1 }}</a></p>
 @endif
 @if($canReview && $v['reviewable'] && !($reviewSubmission !== null && !$reviewSubmission['canRetry'] && $reviewSubmission['revision']===$v['revision'] && $reviewSubmission['sha256']===$v['sha256']))
 @include('preview.review-form')
