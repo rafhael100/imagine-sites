@@ -9,6 +9,7 @@
 <style>
 .queue-filters{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin:18px 0}.queue-filters>div{flex:1 1 220px}.queue-filters label{margin-top:0}.queue-filters button{margin-top:0}.pager{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:20px 0}.pager a{padding:8px 0}.item a,.item p{overflow-wrap:anywhere}.item .project-title{font-size:19px;font-weight:750}.history-note{padding:12px 16px;background:#f3f2ee;border-radius:8px}
 .comparison{margin-top:30px}.comparison h2{margin-top:0}.comparison-form{display:flex;flex-wrap:wrap;gap:16px;align-items:end;margin:20px 0}.comparison-form>div{flex:1 1 180px;min-width:0}.comparison-form label{margin-top:0}.comparison-form button{margin-top:0}.comparison-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;margin-top:20px}.comparison-side{min-width:0;border:1px solid #ded8ce;border-radius:12px;padding:20px}.comparison-side h3{margin-top:0}.comparison-side dl{margin-bottom:0}.comparison-side code{white-space:normal}.comparison-value{min-width:0;overflow-wrap:anywhere}.comparison-value[data-field-changed=true]{border-left:3px solid #c4770b;padding:8px 12px;background:#fff8ee}.comparison-value ol{margin:0;padding-left:22px;white-space:normal}.comparison-value li{white-space:pre-wrap;overflow-wrap:anywhere}.comparison-change{display:inline-block;padding:1px 8px;margin-left:6px;border-radius:12px;background:#fff0db;color:#794100;font-size:12px;font-weight:700}.comparison-summary{padding:12px 16px;border-radius:8px;background:#f3f2ee;overflow-wrap:anywhere}@media(max-width:700px){.comparison-grid{grid-template-columns:1fr}.comparison-form>div{flex-basis:100%}.comparison-side{padding:16px}}
+.editorial-guidance,.preserved-review{margin-top:24px}.editorial-guidance h2,.preserved-review h2{margin-top:0}.editorial-review{border-top:1px solid #e4ddd2;padding:14px 0;min-width:0}.editorial-review p{margin:8px 0}.review-note{white-space:pre-wrap;overflow-wrap:anywhere;min-width:0}.review textarea{white-space:pre-wrap;overflow-wrap:anywhere}.preserved-review p,.errors li,.review .muted,.editorial-guidance p{overflow-wrap:anywhere}
 </style>
 </head>
 <body>
@@ -23,7 +24,7 @@
 <p class="note"><strong>DEMONSTRAÇÃO PRIVADA</strong> — Use apenas dados fictícios. Este workspace não cria contratação, pagamento, aceite do cliente ou autorização de publicação.</p>
 @if($fieldErrors)
 <div class="errors" role="alert" aria-labelledby="errors-title">
-<h2 id="errors-title">{{ isset($fieldErrors['expected_revision']) ? 'Confira a versão atual' : 'Revise os campos indicados' }}</h2>
+<h2 id="errors-title">{{ isset($fieldErrors['expected_revision']) ? 'Confira a versão atual' : (isset($fieldErrors['review']) ? 'Confira o parecer desta versão' : 'Revise os campos indicados') }}</h2>
 <ul>
 @foreach($fieldErrors as $messages)
 @foreach($messages as $message)
@@ -35,6 +36,10 @@
 @endif
 @if($project)
 @include('preview.comparison')
+@include('preview.current-editorial-guidance')
+@endif
+@if($reviewSubmission !== null && !$reviewSubmission['canRetry'])
+@include('preview.preserved-review')
 @endif
 <div class="layout">
 <section>
@@ -120,13 +125,8 @@
 @if($v['revision'] > 1)
 <p><a href="{{ $navigation->comparisonUrl($project,$v['revision']-1,$v['revision']) }}">Comparar com a anterior</a></p>
 @endif
-@if($canReview && $v['reviewable'])
-<form class="review" method="post" action="{{ $navigation->reviewUrl($project,$v['revision']) }}">
-@csrf<input type="hidden" name="sha256" value="{{ $v['sha256'] }}">
-<label for="decision-{{ $v['revision'] }}">Parecer editorial desta versão</label>
-<select id="decision-{{ $v['revision'] }}" name="decision"><option value="changes_requested">Solicitar ajustes</option><option value="approved_internal">Aprovado internamente</option></select>
-<button type="submit">Registrar revisão editorial</button>
-</form>
+@if($canReview && $v['reviewable'] && !($reviewSubmission !== null && !$reviewSubmission['canRetry'] && $reviewSubmission['revision']===$v['revision'] && $reviewSubmission['sha256']===$v['sha256']))
+@include('preview.review-form')
 @endif
 </div>
 @empty<p>Nenhuma versão nesta página.</p>@endforelse
@@ -136,11 +136,17 @@
 @if($navigation->beforeRevision !== null || $navigation->afterRevision !== null)<a href="{{ $navigation->historyUrl($project) }}">Ir à versão atual</a>@endif
 </nav>
 <p class="muted">A revisão exige outra pessoa autorizada. Não representa o aceite do cliente nem libera publicação.</p>
+<div data-testid="editorial-review-history">
 <h3>Pareceres das versões desta página</h3>
 @forelse($reviews as $r)
+<article class="editorial-review" data-review-revision="{{ $r['revision'] }}" data-review-digest="{{ $r['sha256'] }}">
 <p>Versão {{ $r['revision'] }}: {{ $r['decision']==='approved_internal' ? 'Aprovada internamente' : 'Ajustes solicitados' }} · {{ $formatDate($r['created_at']) }}</p>
+<code>SHA-256: {{ $r['sha256'] }}</code>
+@if($r['note'] !== null)<p class="review-note" data-review-note>{{ $r['note'] }}</p>@else<p class="muted">Este parecer foi registrado sem observação.</p>@endif
+</article>
 @empty<p>Nenhuma revisão editorial registrada.</p>@endforelse
 @if($reviewsTruncated)<p class="muted">Mostrando os 100 pareceres mais recentes das versões desta página.</p>@endif
+</div>
 @endif
 </section>
 </div>

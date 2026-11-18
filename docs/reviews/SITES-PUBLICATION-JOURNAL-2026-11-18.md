@@ -26,7 +26,9 @@ Os dez gates permanecem BLOCKED. A entrega é isolada em draft e não modifica a
 
 Validação local executada: lint PHP e Bash, diff sem erros de whitespace, 99 verificações offline do journal, 32 de domínio, 26 do provisionador e 50 do pacote. PHPUnit: 80 testes, 312 asserções e 27 skips explícitos dos cenários que exigem banco ou opt-in. A revisão independente do SQL, migração e fixture não identificou defeito bloqueante; isso não substitui execução do banco.
 
-As execuções SQL desta nova entrega ainda estão pendentes de CI. Não foi iniciado PostgreSQL local. A evidência da base permanece disponível na [PR #490](https://github.com/rafhael100/imagine-sites/pull/490): HEAD ad649b3, 16/16 check-runs aprovados, 287 verificações SQL do workspace, 295 do registry/pacote e 85 do navegador.
+**PR #491 validada em `b2210ec32064ceec2faf393e85117369e185e5a8`: 14/14 check-runs success**, incluindo duplicados push/PR. [Run 44206897492](https://github.com/rafhael100/imagine-sites/actions/runs/44206897492), PHP8.3 e PHP8.4: 107 verificações reais do journal; 402 totais do registry/ciclo/pacote/journal, incluindo 61 da CLI com TLS; 287 do workspace; 99 offline do journal. [Run 44206897543](https://github.com/rafhael100/imagine-sites/actions/runs/44206897543): 99 verificações do schema/inventário, rollback do batch vazio e testes dedicados Laravel sem skips (leitor 3/12; writer 2/12).
+
+A primeira execução em e7da03f detectou erro de sintaxe de CASE no guard PL/pgSQL, corrigido em b2210ec. A matriz completa passou depois da correção. Não foi iniciado PostgreSQL local. A evidência da UI inalterada permanece na [PR #490](https://github.com/rafhael100/imagine-sites/pull/490): HEAD ad649b3 e 85 verificações do navegador.
 
 ## Próximas dependências funcionais
 

@@ -2,6 +2,7 @@
 declare(strict_types=1);
 namespace Imagine\Sites\Production;
 use PDO;
+use PDOException;
 use RuntimeException;
 use Throwable;
 /** Persisted demonstration workspace; NEVER an operational order/provisioning authority. */
@@ -49,6 +50,7 @@ SELECT r.rolsuper OR r.rolbypassrls OR r.rolcreatedb OR r.rolcreaterole OR r.rol
   SELECT 1 FROM pg_catalog.pg_proc p
   WHERE p.oid IN ('sites_preview.can_access(uuid,text)'::regprocedure,
    'sites_preview.review_version(uuid,uuid,integer,text,text)'::regprocedure,
+   'sites_preview.review_version(uuid,uuid,integer,text,text,text)'::regprocedure,
    'sites_preview.record_change()'::regprocedure,
    'sites_preview.check_writer_identity()'::regprocedure,'sites_preview.immutable()'::regprocedure)
   AND (pg_catalog.pg_has_role(current_user,p.proowner,'MEMBER')
@@ -88,12 +90,17 @@ SQL)->fetch(PDO::FETCH_ASSOC);
   $this->runtime();$s=$this->db->prepare('SELECT html,sha256,revision FROM sites_preview.versions WHERE project_id=?::uuid AND company_id=?::uuid AND revision=?');$s->execute([$project,$company,$revision]);$r=$s->fetch(PDO::FETCH_ASSOC);
   if(!$r||!hash_equals($r['sha256'],hash('sha256',$r['html'])))throw new RuntimeException('Private preview unavailable');return $r;
  }
- public function review(string $project,string $company,int $revision,string $digest,string $decision):void {
+ public function review(string $project,string $company,int $revision,string $digest,string $decision,?string $note=null):void {
+  $note=PreviewReviewInput::note($decision,$note);
   $this->runtime();$this->db->beginTransaction();try{
    $this->db->exec("SET LOCAL statement_timeout='3000ms'");$this->db->exec("SET LOCAL lock_timeout='1500ms'");
-   $s=$this->db->prepare('SELECT sites_preview.review_version(?::uuid,?::uuid,?,?,?)');$s->execute([$project,$company,$revision,$digest,$decision]);
+   $s=$this->db->prepare('SELECT sites_preview.review_version(?::uuid,?::uuid,?::integer,?::text,?::text,?::text)');$s->execute([$project,$company,$revision,$digest,$decision,$note]);
    $check=$this->db->prepare("SELECT sites_preview.can_access(?::uuid,'review')");$check->execute([$company]);if($check->fetchColumn()!==true)throw new RuntimeException('Preview review revoked');
    $this->db->commit();
-  }catch(Throwable $e){if($this->db->inTransaction())$this->db->rollBack();throw $e;}
+  }catch(Throwable $e){
+   if($this->db->inTransaction())$this->db->rollBack();
+   if($e instanceof PDOException&&(string)($e->errorInfo[0]??$e->getCode())==='40001')throw new PreviewRevisionConflict('Preview revision conflict');
+   throw $e;
+  }
  }
 }

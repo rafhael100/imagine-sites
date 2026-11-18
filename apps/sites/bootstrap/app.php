@@ -12,6 +12,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Private editorial notes retain their exact whitespace in storage and
+        // failed form responses; their domain validator handles blank text.
+        $middleware->trimStrings(except: ['note']);
+
         // F1-377: only the disposable GitHub CI-to-CI HTTP fixture may
         // bypass BROWSER CSRF. It authenticates a fictional HMAC command
         // and is NEVER registered in staging/production.

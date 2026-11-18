@@ -89,11 +89,11 @@ config()->set('database.default','recovery_source');
 $source=$db['source'];
 $source->exec('GRANT CREATE ON DATABASE postgres TO lab486_owner; SET ROLE lab486_owner');
 if(DB::connection()->getPdo()!==$source||$source->query('SELECT current_user')->fetchColumn()!=='lab486_owner')throw new RuntimeException('Migration PDO/role mismatch');
-try{(require __DIR__.'/../apps/sites/database/migrations/2026_11_16_000004_add_private_preview_workspace.php')->up();if(DB::connection()->getPdo()!==$source||$source->query('SELECT current_user')->fetchColumn()!=='lab486_owner')throw new RuntimeException('Migration PDO/role changed');}finally{$source->exec('RESET ROLE');}
+try{(require __DIR__.'/../apps/sites/database/migrations/2026_11_16_000004_add_private_preview_workspace.php')->up();(require __DIR__.'/../apps/sites/database/migrations/2026_11_18_000008_add_private_preview_review_notes.php')->up();if(DB::connection()->getPdo()!==$source||$source->query('SELECT current_user')->fetchColumn()!=='lab486_owner')throw new RuntimeException('Migration PDO/role changed');}finally{$source->exec('RESET ROLE');}
 $source->exec('REVOKE CREATE ON DATABASE postgres FROM lab486_owner');
 $owners=function(PDO $pdo):array{
     $rows=$pdo->query("SELECT 'schema' AS kind,nspname AS name,pg_get_userbyid(nspowner) AS owner FROM pg_namespace WHERE nspname='sites_preview' UNION ALL SELECT 'relation',c.relname,pg_get_userbyid(c.relowner) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='sites_preview' AND c.relkind IN ('r','S') UNION ALL SELECT 'function',p.oid::regprocedure::text,pg_get_userbyid(p.proowner) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='sites_preview' ORDER BY 1,2")->fetchAll(PDO::FETCH_ASSOC);
-    if(count($rows)!==12||array_unique(array_column($rows,'owner'))!==['lab486_owner'])throw new RuntimeException('Catalog owner mismatch');
+    if(count($rows)!==13||array_unique(array_column($rows,'owner'))!==['lab486_owner'])throw new RuntimeException('Catalog owner mismatch');
     return $rows;
 };
 $sourceOwners=$owners($source);
@@ -141,7 +141,7 @@ foreach($companies as $tenant=>$company)foreach($profiles as $profile=>[$edit,$r
     $role="lab486_{$tenant}_{$profile}";
     $source->exec("GRANT USAGE ON SCHEMA sites_preview TO $role; GRANT SELECT ON sites_preview.projects,sites_preview.versions,sites_preview.reviews,sites_preview.audit TO $role; GRANT EXECUTE ON FUNCTION sites_preview.can_access(uuid,text) TO $role");
     if($edit)$source->exec("GRANT INSERT ON sites_preview.projects,sites_preview.versions TO $role");
-    if($review)$source->exec("GRANT EXECUTE ON FUNCTION sites_preview.review_version(uuid,uuid,integer,text,text) TO $role");
+    if($review)$source->exec("GRANT EXECUTE ON FUNCTION sites_preview.review_version(uuid,uuid,integer,text,text),sites_preview.review_version(uuid,uuid,integer,text,text,text) TO $role");
     $s=$source->prepare("INSERT INTO sites_preview.principals VALUES(?,?::uuid,?::boolean,?::boolean,now()+interval '1 hour',NULL)");
     $s->execute([$role,$company,$edit?'true':'false',$review?'true':'false']);
 }

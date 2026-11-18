@@ -1,10 +1,16 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 18/11/2026 — continuidade: parecer editorial com orientação persistida
+
+Branch `feature/sites-editorial-feedback-2026-11-18`, sobre a PR #491 / b2210ec. O revisor informa os ajustes na própria versão; o autor consulta a orientação corrente mesmo em páginas antigas do histórico. Texto e decisão são preservados em422/409, sem sessão e sem reaplicar o envio a outra revisão. A nova versão mantém o parecer anterior no histórico e aguarda avaliação própria.
+
+Migration000008 preserva reviews legadas, OID/ACL da assinatura antiga e histórico; novos ajustes exigem nota com até2000 caracteres Unicode. O provisionamento novo aplica004+008 atomicamente com fingerprint composto, e instalações managedV1 exigem upgrade explícito. Validação local: PHPUnit102/509/27 skips explícitos, lint e verificações offline aprovados. **CI SQL/HTTP desta entrega pendente**. Detalhes: [relatório de orientação editorial](docs/reviews/SITES-EDITORIAL-FEEDBACK-2026-11-18.md).
+
 ## 18/11/2026 — continuidade: diário durável de tentativas de publicação
 
 Nova branch isolada `feature/sites-publication-journal-2026-11-18`, sobre a PR #490 / `ad649b3f10bdee93837e9443efc9bf4b1edeb85c`. Migration000007 e wrapper PDO acrescentam intenções idempotentes, tentativa única por empresa/site, lease por relógio PostgreSQL, ACK técnico, reconciliação de expiração e leitura sem token. O histórico é imutável; um ACK tardio após revogação ou reabertura editorial permanece inconclusivo. O replay recupera o mesmo registro e não autoriza envio nem garante exclusividade entre processos do mesmo login.
 
-Workflow novo restrito à branch/base/draft e matriz PHP8.3/8.4; fixture de dois processos concorrentes, grants restritos, epochs, expiração e rollback recusado com histórico. Inventário legado atualizado sem relaxar a lista exata de políticas. **Execução SQL da nova entrega pendente de CI**; PostgreSQL local não iniciado. Detalhes: [relatório do journal](docs/reviews/SITES-PUBLICATION-JOURNAL-2026-11-18.md).
+Workflow novo restrito à branch/base/draft e matriz PHP8.3/8.4; fixture de dois processos concorrentes, grants restritos, epochs, expiração e rollback recusado com histórico. Inventário legado atualizado sem relaxar a lista exata de políticas. **PR #491 validada em b2210ec32064ceec2faf393e85117369e185e5a8: 14/14 check-runs success**. [Run 44206897492](https://github.com/rafhael100/imagine-sites/actions/runs/44206897492): 107 verificações do journal, 402 totais do registry/ciclo/pacote/journal, 287 do workspace; PHP8.3/8.4. [Run 44206897543](https://github.com/rafhael100/imagine-sites/actions/runs/44206897543): 99 verificações do schema, rollback e integrações Laravel dedicadas sem skips. PostgreSQL local não iniciado. Detalhes: [relatório do journal](docs/reviews/SITES-PUBLICATION-JOURNAL-2026-11-18.md).
 
 Nenhum provider, transporte, principal ativo, retry, resolução ou desbloqueio instalado. `canPublish=false`, `publicationVerified=false`; aceite do Portal é somente referência declarada neste diário. Os dez gates, o bloqueio de rollback automático e a infraestrutura existente permanecem preservados.
 

@@ -15,8 +15,9 @@ final class PrivatePreviewWorkspaceViewTest extends TestCase
         return [
             'projects' => [], 'project' => null, 'brief' => null,
             'versions' => [], 'reviews' => [], 'fieldErrors' => [],
+            'currentReviews' => [], 'currentReviewsTruncated' => false, 'reviewSubmission' => null,
             'navigation' => PreviewNavigation::fromQuery([]),
-            'currentRevision' => null, 'queueNext' => null, 'comparison' => null,
+            'currentRevision' => null, 'currentSha256' => null, 'queueNext' => null, 'comparison' => null,
             'historyOlder' => null, 'historyNewer' => null, 'reviewsTruncated' => false,
             'form' => [
                 'product' => 'onepage', 'brand' => '', 'headline' => '',
@@ -239,6 +240,199 @@ final class PrivatePreviewWorkspaceViewTest extends TestCase
         self::assertStringNotContainsString('name="compare_from"', $html);
         self::assertStringNotContainsString('Comparar com a anterior', $html);
         self::assertStringNotContainsString('data-testid="editorial-comparison"', $html);
+    }
+
+    public function test_review_form_explains_conditional_note_without_limiting_unicode_as_utf16(): void
+    {
+        $data = $this->reviewPage();
+        $html = view('preview.workspace', $data)->render();
+        $xpath = $this->xpath($html);
+        $form = '//form[@class="review"]';
+
+        self::assertSame('2', $xpath->evaluate('string('.$form.'/@data-review-revision)'));
+        self::assertSame(str_repeat('b', 64), $xpath->evaluate('string('.$form.'/@data-review-digest)'));
+        self::assertSame(str_repeat('b', 64), $xpath->evaluate('string('.$form.'//input[@name="sha256"]/@value)'));
+        self::assertSame('changes_requested', $xpath->evaluate('string('.$form.'//select[@name="decision"]/option[@selected]/@value)'));
+        self::assertSame('Orientação editorial', $xpath->evaluate('string('.$form.'//label[@for="note-2"])'));
+        self::assertSame('note-help-2', $xpath->evaluate('string('.$form.'//textarea[@name="note"]/@aria-describedby)'));
+        self::assertSame(0, $xpath->query($form.'//textarea[@name="note"]/@maxlength|'.$form.'//textarea[@name="note"]/@required')->length);
+        self::assertStringContainsString('Obrigatória ao solicitar ajustes; opcional ao aprovar internamente.', $html);
+        self::assertSame(0, $xpath->query('//*[@data-testid="preserved-review"]')->length);
+    }
+
+    public function test_validation_keeps_note_decision_and_digest_on_only_the_original_version(): void
+    {
+        $data = $this->reviewPage();
+        $data['currentRevision'] = 3;
+        $data['currentSha256'] = str_repeat('c', 64);
+        array_unshift($data['versions'], ['revision' => 3, 'sha256' => str_repeat('c', 64),
+            'created_at' => '2026-11-17 13:00:00+00', 'reviewable' => true]);
+        $note = "\n  </textarea><script data-review-probe=literal>Texto privado</script>\n".str_repeat('漢', 2001)."  \n";
+        $data['reviewSubmission'] = [
+            'revision' => 2, 'sha256' => str_repeat('b', 64), 'decision' => 'approved_internal',
+            'note' => $note, 'canRetry' => true,
+        ];
+        $data['fieldErrors'] = ['note' => ['Use até 2000 caracteres na orientação editorial.']];
+        $html = view('preview.workspace', $data)->render();
+        $xpath = $this->xpath($html);
+        $preserved = '//form[@data-testid="preserved-review"]';
+
+        self::assertSame(1, $xpath->query($preserved)->length);
+        self::assertSame('2', $xpath->evaluate('string('.$preserved.'/@data-review-revision)'));
+        self::assertSame(str_repeat('b', 64), $xpath->evaluate('string('.$preserved.'/@data-review-digest)'));
+        self::assertSame('/_preview/projects/'.$data['project'].'/versions/2/review', $xpath->evaluate('string('.$preserved.'/@action)'));
+        self::assertSame('approved_internal', $xpath->evaluate('string('.$preserved.'//select/option[@selected]/@value)'));
+        // libxml retains the leading LF which browser HTML parsing discards for textarea.
+        self::assertSame("\n".$note, $xpath->evaluate('string('.$preserved.'//textarea[@name="note"])'));
+        self::assertSame('true', $xpath->evaluate('string('.$preserved.'//textarea/@aria-invalid)'));
+        self::assertSame('note-help-2 error-note-2', $xpath->evaluate('string('.$preserved.'//textarea/@aria-describedby)'));
+        self::assertSame('', trim($xpath->evaluate('string(//form[@data-review-revision="3"]//textarea)')));
+        self::assertSame('changes_requested', $xpath->evaluate('string(//form[@data-review-revision="3"]//select/option[@selected]/@value)'));
+        self::assertSame(0, $xpath->query('//script|//*[@data-review-probe]')->length);
+        self::assertStringContainsString('&lt;/textarea&gt;&lt;script data-review-probe=literal&gt;', $html);
+    }
+
+    public function test_conflict_shows_preserved_input_without_resending_or_replacing_the_existing_review(): void
+    {
+        $data = $this->reviewPage();
+        $data['versions'][0]['reviewable'] = false;
+        $data['currentRevision'] = 3;
+        $data['currentSha256'] = str_repeat('c', 64);
+        array_unshift($data['versions'], ['revision' => 3, 'sha256' => str_repeat('c', 64),
+            'created_at' => '2026-11-17 13:00:00+00', 'reviewable' => true]);
+        $note = "  Texto que não substitui o parecer anterior.\n<em>Orientação preservada</em>  ";
+        $data['reviewSubmission'] = [
+            'revision' => 2, 'sha256' => str_repeat('b', 64), 'decision' => 'changes_requested',
+            'note' => $note, 'canRetry' => false,
+        ];
+        $data['fieldErrors'] = ['review' => ['Seu acesso já registrou um parecer para esta versão.']];
+        $data['reviews'] = [[
+            'revision' => 2, 'sha256' => str_repeat('b', 64), 'decision' => 'approved_internal',
+            'note' => 'Parecer anterior original', 'created_at' => '2026-11-17 12:30:00+00',
+        ]];
+        $html = view('preview.workspace', $data)->render();
+        $xpath = $this->xpath($html);
+        $preserved = '//*[@data-testid="preserved-review"]';
+
+        self::assertSame('2', $xpath->evaluate('string('.$preserved.'/@data-review-revision)'));
+        self::assertSame(str_repeat('b', 64), $xpath->evaluate('string('.$preserved.'/@data-review-digest)'));
+        self::assertSame($note, $xpath->evaluate('string('.$preserved.'//*[@data-review-note])'));
+        self::assertSame(0, $xpath->query($preserved.'//form|'.$preserved.'//button|//form[@data-review-revision="2"]')->length);
+        self::assertSame('', trim($xpath->evaluate('string(//form[@data-review-revision="3"]//textarea)')));
+        self::assertSame('Parecer anterior original', $xpath->evaluate('string(//*[@data-testid="editorial-review-history"]//*[@data-review-note])'));
+        self::assertStringContainsString('Confira o parecer desta versão', $html);
+        self::assertStringContainsString('Solicitar ajustes', $xpath->evaluate('string('.$preserved.')'));
+        self::assertSame(0, $xpath->query('//em')->length);
+    }
+
+    public function test_failed_review_outside_the_history_window_is_preserved_without_a_new_target(): void
+    {
+        $data = $this->reviewPage();
+        $data['navigation'] = PreviewNavigation::fromQuery(['before_revision' => '21'], true);
+        $data['versions'] = [['revision' => 20, 'sha256' => str_repeat('a', 64),
+            'created_at' => '2026-11-17 12:00:00+00', 'reviewable' => true]];
+        $data['currentRevision'] = 61;
+        $data['currentSha256'] = str_repeat('c', 64);
+        $data['reviewSubmission'] = [
+            'revision' => 60, 'sha256' => str_repeat('b', 64), 'decision' => 'approved_internal',
+            'note' => "Texto original da versão 60\n", 'canRetry' => false,
+        ];
+        $html = view('preview.workspace', $data)->render();
+        $xpath = $this->xpath($html);
+        $preserved = '//*[@data-testid="preserved-review"]';
+
+        self::assertSame('60', $xpath->evaluate('string('.$preserved.'/@data-review-revision)'));
+        self::assertSame("Texto original da versão 60\n", $xpath->evaluate('string('.$preserved.'//*[@data-review-note])'));
+        self::assertSame(0, $xpath->query($preserved.'//button|//form[@data-review-revision="60"]')->length);
+        self::assertSame('', trim($xpath->evaluate('string(//form[@data-review-revision="20"]//textarea)')));
+        self::assertStringContainsString('A orientação não será reaplicada a outra versão.', $html);
+    }
+
+    public function test_current_guidance_is_independent_from_older_history_and_comparison(): void
+    {
+        $data = $this->reviewPage();
+        $data['canEdit'] = true;
+        $data['canReview'] = false;
+        $data['navigation'] = PreviewNavigation::fromQuery(['before_revision' => '21', 'compare_from' => '1', 'compare_to' => '60'], true);
+        $data['versions'] = [['revision' => 20, 'sha256' => str_repeat('a', 64),
+            'created_at' => '2026-11-17 12:00:00+00', 'reviewable' => true]];
+        $data['currentRevision'] = 61;
+        $data['currentSha256'] = str_repeat('c', 64);
+        $currentNote = "  <img src=x onerror=alert(1)>\nOrientação da versão atual 😀\n".str_repeat('字', 300)."  ";
+        $data['currentReviews'] = [[
+            'revision' => 61, 'sha256' => str_repeat('c', 64), 'decision' => 'changes_requested',
+            'note' => $currentNote, 'created_at' => '2026-11-17 13:00:00+00',
+        ]];
+        $data['reviews'] = [[
+            'revision' => 20, 'sha256' => str_repeat('a', 64), 'decision' => 'changes_requested',
+            'note' => 'Orientação histórica da versão 20', 'created_at' => '2026-11-17 12:30:00+00',
+        ]];
+        $brief = ['productCode' => 'onepage', 'brand' => 'Marca', 'headline' => 'Chamada',
+            'description' => 'Descrição', 'callToAction' => 'Conheça', 'benefits' => ['Benefício']];
+        $data['comparison'] = [
+            'from' => ['revision' => 1, 'sha256' => str_repeat('a', 64), 'created_at' => '2026-11-16 12:00:00+00', 'brief' => $brief],
+            'to' => ['revision' => 60, 'sha256' => str_repeat('b', 64), 'created_at' => '2026-11-17 12:00:00+00', 'brief' => $brief],
+            'changed_fields' => [],
+        ];
+        $html = view('preview.workspace', $data)->render();
+        $xpath = $this->xpath($html);
+        $current = '//*[@data-testid="current-editorial-guidance"]';
+        $history = '//*[@data-testid="editorial-review-history"]';
+
+        self::assertSame('61', $xpath->evaluate('string('.$current.'/@data-review-revision)'));
+        self::assertSame(str_repeat('c', 64), $xpath->evaluate('string('.$current.'/@data-review-digest)'));
+        self::assertSame($currentNote, $xpath->evaluate('string('.$current.'//*[@data-review-note])'));
+        self::assertSame('61', $xpath->evaluate('string('.$current.'//article/@data-review-revision)'));
+        self::assertSame('Orientação histórica da versão 20', $xpath->evaluate('string('.$history.'//*[@data-review-note])'));
+        self::assertSame('20', $xpath->evaluate('string('.$history.'//article/@data-review-revision)'));
+        self::assertSame('61', $xpath->evaluate('string(//input[@name="expected_revision"]/@value)'));
+        self::assertSame('1', $xpath->evaluate('string(//*[@data-compare-side="from"]/@data-compare-revision)'));
+        self::assertSame('60', $xpath->evaluate('string(//*[@data-compare-side="to"]/@data-compare-revision)'));
+        self::assertSame(0, $xpath->query('//img|//script|//form[@class="review"]')->length);
+        self::assertStringContainsString('white-space:pre-wrap;overflow-wrap:anywhere', $html);
+    }
+
+    public function test_reader_can_see_legacy_and_optional_empty_notes_and_separate_truncation_notices(): void
+    {
+        $data = $this->reviewPage();
+        $data['canReview'] = false;
+        $data['currentReviews'] = [[
+            'revision' => 2, 'sha256' => str_repeat('b', 64), 'decision' => 'approved_internal',
+            'note' => null, 'created_at' => '2026-11-17 13:00:00+00',
+        ]];
+        $data['reviews'] = [[
+            'revision' => 1, 'sha256' => str_repeat('a', 64), 'decision' => 'changes_requested',
+            'note' => null, 'created_at' => '2026-11-17 12:30:00+00',
+        ]];
+        $data['currentReviewsTruncated'] = true;
+        $html = view('preview.workspace', $data)->render();
+        $xpath = $this->xpath($html);
+
+        self::assertSame(2, substr_count($html, 'Este parecer foi registrado sem observação.'));
+        self::assertStringContainsString('Mostrando os 100 pareceres mais recentes da versão atual.', $html);
+        self::assertStringNotContainsString('Mostrando os 100 pareceres mais recentes das versões desta página.', $html);
+        self::assertSame(0, $xpath->query('//form[@method="post"]|//*[@data-review-note]')->length);
+        self::assertStringContainsString('Versão 1: Ajustes solicitados', $html);
+        $data['currentReviewsTruncated'] = false;
+        $data['reviewsTruncated'] = true;
+        $html = view('preview.workspace', $data)->render();
+        self::assertStringNotContainsString('Mostrando os 100 pareceres mais recentes da versão atual.', $html);
+        self::assertStringContainsString('Mostrando os 100 pareceres mais recentes das versões desta página.', $html);
+    }
+
+    private function reviewPage(): array
+    {
+        $data = $this->page();
+        $data['project'] = '11111111-1111-4111-8111-111111111111';
+        $data['currentRevision'] = 2;
+        $data['currentSha256'] = str_repeat('b', 64);
+        $data['canEdit'] = false;
+        $data['canReview'] = true;
+        $data['versions'] = [[
+            'revision' => 2, 'sha256' => str_repeat('b', 64),
+            'created_at' => '2026-11-17 12:00:00+00', 'reviewable' => true,
+        ]];
+        return $data;
     }
 
     private function xpath(string $html): \DOMXPath
