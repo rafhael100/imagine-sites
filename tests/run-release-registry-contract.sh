@@ -80,3 +80,6 @@ sudo -n env GITHUB_ACTIONS=true SITES_RELEASE_PACKAGE_CI=1 python3 \
 grep -q '^OK: [1-9][0-9]* persistent release registry assertions;' "$lab/contract.log"
 grep -q '^TECHNICAL PACKAGE CI PASS: [1-9][0-9]* assertions;' "$lab/contract.log"
 grep -q '^TECHNICAL PACKAGE CLI PASS: [1-9][0-9]* assertions;' "$lab/contract.log"
+if [[ "${SITES_PUBLICATION_JOURNAL_CI:-}" == 1 ]]; then
+  grep -q '^PUBLICATION JOURNAL CI PASS: [1-9][0-9]* assertions;' "$lab/contract.log"
+fi

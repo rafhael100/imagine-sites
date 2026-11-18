@@ -24,6 +24,7 @@ use Imagine\Sites\Publication\{
     PortalClientApprovalReceiptSource, IndependentClientApprovalWitness,
     SignedPortalClientApprovalGate,
     SiteReleaseRegistryConflict,
+    PgPublicationJournal, PublicationJournalConflict,
 };
 
 $dir=getenv('RELEASE_REGISTRY_PGDATA');$cluster=getenv('RELEASE_REGISTRY_CLUSTER');
@@ -76,6 +77,28 @@ if (($argv[1]??null)==='compete') {
     } catch (Throwable $e) {
         if ($e instanceof SiteReleaseRegistryConflict) echo "CONFLICT\n";
         else throw $e;
+    }
+    exit(0);
+}
+if (($argv[1]??null)==='journal-compete') {
+    if (getenv('SITES_PUBLICATION_JOURNAL_CI') !== '1') exit(2);
+    $raw = stream_get_contents(STDIN, 1025);
+    if (!is_string($raw) || strlen($raw) > 1024) exit(2);
+    $request = json_decode($raw, true, 8, JSON_THROW_ON_ERROR);
+    if (!is_array($request) || array_keys($request) !== ['operationRef','expectedRevision','leaseSeconds'] ||
+        !is_string($request['operationRef']) ||
+        preg_match('/\A[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}\z/D', $request['operationRef']) !== 1 ||
+        $request['expectedRevision'] !== 1 || $request['leaseSeconds'] !== 60) exit(2);
+    $db = $connect('pj_a_writer');
+    $db->exec("SET application_name='sites_publication_journal_contender'");
+    try {
+        $result = (new PgPublicationJournal($db))->recordAttempt($request['operationRef'], 1, 60);
+        if ($result['operation']['operationRef'] !== $request['operationRef']) {
+            throw new RuntimeException('Publication contender response mismatch');
+        }
+        echo 'ATTEMPT '.$request['operationRef']."\n";
+    } catch (PublicationJournalConflict) {
+        echo "CONFLICT\n";
     }
     exit(0);
 }
@@ -393,6 +416,9 @@ $ok((int)$s->fetchColumn()===1,'conflicting concurrent call appended no extra bi
 require __DIR__.'/fixtures/release-registry/editorial-cycle.php';
 require __DIR__.'/fixtures/release-registry/technical-package.php';
 require __DIR__.'/fixtures/release-registry/technical-package-cli.php';
+if (getenv('SITES_PUBLICATION_JOURNAL_CI') === '1') {
+    require __DIR__.'/fixtures/release-registry/publication-journal.php';
+}
 
 $ok((int)$admin->query('SELECT count(*) FROM sites_core.site_projects WHERE authority_verified OR publishable')->fetchColumn()===0,'no project authority or publication flag was enabled');
 $ok((int)$admin->query('SELECT count(*) FROM sites_core.editorial_revisions WHERE client_accepted OR publishable')->fetchColumn()===0,'internal review is never client acceptance');

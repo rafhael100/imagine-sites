@@ -1,5 +1,13 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 18/11/2026 — continuidade: diário durável de tentativas de publicação
+
+Nova branch isolada `feature/sites-publication-journal-2026-11-18`, sobre a PR #490 / `ad649b3f10bdee93837e9443efc9bf4b1edeb85c`. Migration000007 e wrapper PDO acrescentam intenções idempotentes, tentativa única por empresa/site, lease por relógio PostgreSQL, ACK técnico, reconciliação de expiração e leitura sem token. O histórico é imutável; um ACK tardio após revogação ou reabertura editorial permanece inconclusivo. O replay recupera o mesmo registro e não autoriza envio nem garante exclusividade entre processos do mesmo login.
+
+Workflow novo restrito à branch/base/draft e matriz PHP8.3/8.4; fixture de dois processos concorrentes, grants restritos, epochs, expiração e rollback recusado com histórico. Inventário legado atualizado sem relaxar a lista exata de políticas. **Execução SQL da nova entrega pendente de CI**; PostgreSQL local não iniciado. Detalhes: [relatório do journal](docs/reviews/SITES-PUBLICATION-JOURNAL-2026-11-18.md).
+
+Nenhum provider, transporte, principal ativo, retry, resolução ou desbloqueio instalado. `canPublish=false`, `publicationVerified=false`; aceite do Portal é somente referência declarada neste diário. Os dez gates, o bloqueio de rollback automático e a infraestrutura existente permanecem preservados.
+
 ## 17/11/2026 — continuidade: registro persistente, provisionador e navegação editorial
 
 Base de desenvolvimento: PR #489 em `cac9084b4fbb0b2a5cf50ac843e89010fb9a019c`; branch DRAFT `feature/sites-release-readiness-2026-11-17`. O candidato acrescenta registro Sites de artefato/pedido/contrato/revisão, leitor PDO independente para o verificador de evidências existente, provisionamento `plan/apply/check` das prévias com owner NOLOGIN e ledger Laravel, fila paginada por formato/parecer e histórico paginado que mantém o briefing atual e não oferece revisões duplicadas.
@@ -10,7 +18,9 @@ PR #490 aberta em `88cd4cc452c3be44162fa47c4e0a09c6af5969f9`: primeira execuçã
 
 A segunda entrega, `36f10cfc22bd7c10ab82839c53726481104704e4`, passou nos 16 check-runs, incluindo 191 verificações de registro/ciclo editorial e 56 de navegador no run `44199094329`. A próxima peça acrescentada é a preparação privada do pacote técnico: HTML intacto, manifesto da associação corrente e relatório de verificações, sempre sem autorização de publicação/aceite. O CLI usa leitor SQL restrito e TLS verify-full. A correção dos testes dedicados Laravel em `bb75ece9834b521cc1494b46e132a7755223d20f` exige execução sem skips: o run `44200772489` passou em PHP8.3/8.4; em PHP8.4, o leitor executou 3 testes/12 asserções e o escritor 2 testes/12 asserções.
 
-A preparação privada foi confirmada em `5afa3b653061dfcaac176b2204801cd5a619850a`, com os 16 check-runs aprovados. [Run 44201915769](https://github.com/rafhael100/imagine-sites/actions/runs/44201915769): 270 verificações de registry/ciclo/pacote, incluindo 36 da CLI real com TLS; 250 do workspace; 56 de navegador. Artifact `14381821977`, SHA-256 `0d6caf73d43b1e09e73657c6f389b3714e110553c71be1deade99acb9edb9a29`; filtros desktop/mobile revisados. A continuação acrescenta comparação de duas versões no painel editorial e operação `verify` para detectar adulteração ou obsolescência de pacote exportado, sem sobrescrever arquivos. A evidência desses dois recursos será registrada separadamente na PR após sua rodada de CI.
+A preparação privada foi confirmada em `5afa3b653061dfcaac176b2204801cd5a619850a`, com os 16 check-runs aprovados. [Run 44201915769](https://github.com/rafhael100/imagine-sites/actions/runs/44201915769): 270 verificações de registry/ciclo/pacote, incluindo 36 da CLI real com TLS; 250 do workspace; 56 de navegador. Artifact `14381821977`, SHA-256 `0d6caf73d43b1e09e73657c6f389b3714e110553c71be1deade99acb9edb9a29`; filtros desktop/mobile revisados.
+
+Comparação editorial e `verify` confirmados em `ad649b3f10bdee93837e9443efc9bf4b1edeb85c`, com 16/16 check-runs aprovados. [Run 44203027317](https://github.com/rafhael100/imagine-sites/actions/runs/44203027317): 287 checks SQL do workspace, 295 do registro/pacote (61 da CLI), 85 do navegador, 50 offline do pacote, PHPUnit 80 testes/312 asserções/27 skips explícitos. Artifact `14382942257`, SHA-256 `00074b8bddf202f56cb09b7ce9db531b436538ac883295e7843a6f00b7cc8e9f`; comparação desktop/mobile revisada. A edição permanece na versão corrente ao comparar versões antigas, e pacotes adulterados/obsoletos são recusados sem sobrescrita. A descrição da PR #490 contém a evidência final.
 
 Nenhuma demonstração é promovida a pedido real. Registro técnico, liquidação e aceite continuam fontes independentes. Os dez gates operacionais permanecem BLOCKED, sem merge, deploy, alteração de VPS/18090 ou ativação de publisher.
 
