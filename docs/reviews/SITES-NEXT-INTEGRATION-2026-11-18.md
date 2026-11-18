@@ -28,6 +28,14 @@ A [PR #937, `ecc225c3`](https://github.com/rafhael100/imagine-portal/commit/ecc2
 
 O [SiteBriefDraft na HEAD #938](https://github.com/rafhael100/imagine-portal/blob/74cd2d12378b2cc7ff40fbda61327edcbcf40cd4/apps/portal/app/Domain/SiteIntake/SiteBriefDraft.php) foi comparado integralmente com o da HEAD #936: os bytes são idênticos, conservando SAMPLE/DEMO e os três retornos de autoridade falsos. Essas duas entregas posteriores não fornecem o corpo oficial de briefing necessário à integração central. A revisão editorial e a associação privada de releases continuam usando seus contratos Sites existentes.
 
+### Reconferência durante a recuperação da comparação
+
+Na consulta de continuidade em 18/11/2026, a listagem por criação continuava encerrando na PR #938; as HEADs #937/#938 permaneciam exatamente nos pins acima. O arquivo `SiteBriefDraft` da #938 foi relido e conserva SAMPLE/DEMO, validações sintéticas e os três métodos de autoridade retornando `false`.
+
+A PR #927 avançou de `30715cf49355a8aad39c2ff8c989dcd1cb2566d9` para `86c9f74e890d5d2ae254c63b65dee36af3a58e7f`. A [comparação desses commits](https://github.com/rafhael100/imagine-portal/compare/30715cf49355a8aad39c2ff8c989dcd1cb2566d9...86c9f74e890d5d2ae254c63b65dee36af3a58e7f) contém três commits e 22 paths de inventário, recuperação, materiais/build de Performance e seus testes/workflow. Esse delta não modifica domínio, rota, intake, briefing ou consumidor Sites. O pin anterior da tabela permanece como registro da inspeção histórica; esta conferência registra o avanço posterior.
+
+Não apareceu contrato de briefing oficial versionado nem consumidor Sites no intervalo consultado. Isso continua sendo uma conclusão limitada às fontes acima. O desenvolvimento isolado prosseguiu na reconciliação do diário, custódia de recibos e recuperação da comparação, usando contratos e fluxos já existentes.
+
 ## O que as peças Sites já fazem
 
 | Peça atual | Consequência para a integração |

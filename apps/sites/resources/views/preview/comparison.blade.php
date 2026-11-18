@@ -1,24 +1,36 @@
 <section class="comparison" aria-labelledby="comparison-title">
 <h2 id="comparison-title">Comparar versões</h2>
 <p class="muted">Confira o que mudou no briefing entre duas versões deste projeto, inclusive fora da página do histórico. A comparação mantém o formulário de edição na versão atual {{ $currentRevision }}.</p>
-@if($currentRevision > 1)
-<form class="comparison-form" method="get" action="{{ $navigation->projectUrl($project) }}">
+@php
+    $comparisonInput = $comparisonInput ?? null;
+@endphp
+@if($comparisonInput !== null)
+<p class="field-error" id="comparison-error" data-testid="comparison-error" role="alert">{{ $comparisonInput->message }}</p>
+@endif
+@if($currentRevision > 1 || $comparisonInput !== null)
+<form class="comparison-form" data-testid="comparison-form" method="get" action="{{ $navigation->projectUrl($project) }}">
 @foreach($navigation->comparisonFormParameters() as $name => $value)
 <input type="hidden" name="{{ $name }}" value="{{ $value }}">
 @endforeach
 <div>
 <label for="compare-from">Versão anterior</label>
-<input id="compare-from" name="compare_from" type="number" inputmode="numeric" min="1" max="{{ $currentRevision }}" step="1" required value="{{ $navigation->compareFrom ?? $currentRevision - 1 }}" aria-describedby="comparison-help">
+<input id="compare-from" name="compare_from" type="number" inputmode="numeric" min="1" max="{{ $currentRevision }}" step="1" required value="{{ $comparisonInput !== null ? $comparisonInput->from : ($navigation->compareFrom ?? $currentRevision - 1) }}" aria-describedby="{{ $comparisonInput !== null ? 'comparison-help comparison-error' : 'comparison-help' }}" aria-invalid="{{ $comparisonInput !== null ? 'true' : 'false' }}">
 </div>
 <div>
 <label for="compare-to">Versão posterior</label>
-<input id="compare-to" name="compare_to" type="number" inputmode="numeric" min="1" max="{{ $currentRevision }}" step="1" required value="{{ $navigation->compareTo ?? $currentRevision }}" aria-describedby="comparison-help">
+<input id="compare-to" name="compare_to" type="number" inputmode="numeric" min="1" max="{{ $currentRevision }}" step="1" required value="{{ $comparisonInput !== null ? $comparisonInput->to : ($navigation->compareTo ?? $currentRevision) }}" aria-describedby="{{ $comparisonInput !== null ? 'comparison-help comparison-error' : 'comparison-help' }}" aria-invalid="{{ $comparisonInput !== null ? 'true' : 'false' }}">
 </div>
 <button type="submit">Comparar versões</button>
 </form>
 <p id="comparison-help" class="muted">Informe dois números entre 1 e {{ $currentRevision }}. A versão anterior deve ter um número menor que a posterior.</p>
+@if($currentRevision > 1)
 <p><a href="{{ $navigation->comparisonUrl($project,$currentRevision-1,$currentRevision) }}">Comparar a versão atual com a anterior</a></p>
-@else
+@endif
+@endif
+@if($comparisonInput !== null)
+<p><a href="{{ $navigation->projectUrl($project,$navigation->beforeRevision,$navigation->afterRevision) }}">Limpar comparação</a></p>
+@endif
+@if($currentRevision <= 1)
 <p class="history-note">Este projeto tem uma versão. A comparação estará disponível quando uma nova versão for criada.</p>
 @endif
 @if($comparison !== null)

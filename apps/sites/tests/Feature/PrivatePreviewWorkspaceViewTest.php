@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Preview\PreviewNavigation;
 use App\Preview\PreviewBriefInput;
+use App\Preview\PreviewComparisonInput;
 use Imagine\Sites\Production\PreviewQueueQuery;
 use Tests\TestCase;
 
@@ -292,6 +293,94 @@ final class PrivatePreviewWorkspaceViewTest extends TestCase
         self::assertStringNotContainsString('name="compare_from"', $html);
         self::assertStringNotContainsString('Comparar com a anterior', $html);
         self::assertStringNotContainsString('data-testid="editorial-comparison"', $html);
+    }
+
+    public function test_recoverable_comparison_keeps_fields_context_and_current_briefing_without_a_result(): void
+    {
+        $data = $this->reviewPage();
+        $data['canEdit'] = true;
+        $data['currentRevision'] = 61;
+        $data['form']['headline'] = 'Briefing atual da versão 61';
+        $data['versions'][0]['revision'] = 40;
+        $data['historyOlder'] = 21;
+        $data['historyNewer'] = 40;
+        $cursor = PreviewQueueQuery::cursorFor('2026-11-17T12:00:00.000000Z', $data['project']);
+        $context = [
+            'status' => 'changes_requested', 'format' => 'onepage', 'q' => 'Marca <fictícia> 😀',
+            'cursor' => $cursor, 'before_revision' => '41',
+        ];
+        $data['navigation'] = PreviewNavigation::fromQuery($context, true);
+        $data['comparisonInput'] = PreviewComparisonInput::recover(['compare_from' => '60', 'compare_to' => '1']);
+        $xpath = $this->xpath(view('preview.workspace', $data)->render());
+        $form = '//form[@data-testid="comparison-form"]';
+
+        self::assertSame('get', $xpath->evaluate('string('.$form.'/@method)'));
+        self::assertSame('60', $xpath->evaluate('string('.$form.'//input[@name="compare_from"]/@value)'));
+        self::assertSame('1', $xpath->evaluate('string('.$form.'//input[@name="compare_to"]/@value)'));
+        foreach (['compare_from', 'compare_to'] as $field) {
+            $input = $form.'//input[@name="'.$field.'"]';
+            self::assertSame('number', $xpath->evaluate('string('.$input.'/@type)'));
+            self::assertSame('61', $xpath->evaluate('string('.$input.'/@max)'));
+            self::assertSame('true', $xpath->evaluate('string('.$input.'/@aria-invalid)'));
+            self::assertSame('comparison-help comparison-error', $xpath->evaluate('string('.$input.'/@aria-describedby)'));
+        }
+        self::assertSame('alert', $xpath->evaluate('string(//*[@data-testid="comparison-error"]/@role)'));
+        self::assertStringContainsString('menor que a posterior', $xpath->evaluate('string(//*[@id="comparison-error"])'));
+        self::assertSame(0, $xpath->query('//*[@data-testid="editorial-comparison"]')->length);
+        self::assertSame('61', $xpath->evaluate('string(//input[@name="expected_revision"]/@value)'));
+        self::assertSame('Briefing atual da versão 61', $xpath->evaluate('string(//input[@name="headline"]/@value)'));
+        self::assertSame(1, $xpath->query('//*[@data-version="40"]')->length);
+        foreach ($context as $name => $value) {
+            self::assertSame($value, $xpath->evaluate('string('.$form.'//input[@type="hidden"][@name="'.$name.'"]/@value)'));
+        }
+        self::assertSame($data['navigation']->projectUrl($data['project'], 41),
+            $xpath->evaluate('string(//a[normalize-space(.)="Limpar comparação"]/@href)'));
+        self::assertSame($data['navigation']->historyUrl($data['project'], 21),
+            $xpath->evaluate('string(//a[normalize-space(.)="Versões anteriores →"]/@href)'));
+        foreach ($xpath->query('//form[@method="post"]/@action') as $attribute) {
+            parse_str(parse_url($attribute->value, PHP_URL_QUERY) ?? '', $parameters);
+            self::assertSame($context, $parameters);
+            self::assertArrayNotHasKey('compare_from', $parameters);
+            self::assertArrayNotHasKey('compare_to', $parameters);
+        }
+        self::assertSame(0, $xpath->query('//form[@method="post"]//*[@name="compare_from" or @name="compare_to"]|//fictícia')->length);
+    }
+
+    public function test_empty_comparison_field_stays_empty_while_newer_history_context_is_preserved(): void
+    {
+        $data = $this->reviewPage();
+        $data['currentRevision'] = 9;
+        $data['navigation'] = PreviewNavigation::fromQuery(['after_revision' => '2', 'q' => 'Marca'], true);
+        $data['comparisonInput'] = PreviewComparisonInput::recover(['compare_from' => null, 'compare_to' => '8']);
+        $xpath = $this->xpath(view('preview.workspace', $data)->render());
+
+        self::assertSame('', $xpath->evaluate('string(//input[@name="compare_from"]/@value)'));
+        self::assertSame('8', $xpath->evaluate('string(//input[@name="compare_to"]/@value)'));
+        self::assertSame('2', $xpath->evaluate('string(//form[@data-testid="comparison-form"]//input[@name="after_revision"]/@value)'));
+        self::assertSame('Informe as duas versões para comparar.', $xpath->evaluate('string(//*[@data-testid="comparison-error"])'));
+        self::assertSame($data['navigation']->projectUrl($data['project'], null, 2),
+            $xpath->evaluate('string(//a[normalize-space(.)="Limpar comparação"]/@href)'));
+        self::assertSame(0, $xpath->query('//*[@data-testid="editorial-comparison"]')->length);
+    }
+
+    public function test_single_version_error_has_preserved_fields_and_an_explicit_clear_link(): void
+    {
+        $data = $this->reviewPage();
+        $data['currentRevision'] = 1;
+        $data['versions'][0]['revision'] = 1;
+        $data['comparisonInput'] = PreviewComparisonInput::recover(['compare_from' => '1', 'compare_to' => '1']);
+        $html = view('preview.workspace', $data)->render();
+        $xpath = $this->xpath($html);
+
+        self::assertSame(1, $xpath->query('//form[@data-testid="comparison-form"]')->length);
+        self::assertSame('1', $xpath->evaluate('string(//input[@name="compare_from"]/@value)'));
+        self::assertSame('1', $xpath->evaluate('string(//input[@name="compare_to"]/@value)'));
+        self::assertSame(1, $xpath->query('//*[@data-testid="comparison-error"]')->length);
+        self::assertSame($data['navigation']->projectUrl($data['project']),
+            $xpath->evaluate('string(//a[normalize-space(.)="Limpar comparação"]/@href)'));
+        self::assertStringContainsString('A comparação estará disponível quando uma nova versão for criada.', $html);
+        self::assertSame(0, $xpath->query('//a[normalize-space(.)="Comparar a versão atual com a anterior"]')->length);
+        self::assertSame(0, $xpath->query('//*[@data-testid="editorial-comparison"]')->length);
     }
 
     public function test_review_form_explains_conditional_note_without_limiting_unicode_as_utf16(): void

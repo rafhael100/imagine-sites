@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Preview\PreviewBriefInput;
+use App\Preview\PreviewComparisonInput;
 use App\Preview\PreviewNavigation;
 use App\Preview\PreviewPrincipal;
 use App\Preview\PreviewReviewInput;
@@ -34,6 +35,28 @@ final class PrivatePreviewController
                     : PreviewNavigation::fromQuery($request->query(), $project !== null,
                         $request->isMethod('get') && $action === null);
             } catch (InvalidArgumentException) {
+                $comparisonInput = null;
+                if ($request->isMethod('get') && $project !== null && $action === null) {
+                    $baseQuery = $request->query();
+                    $selection = array_intersect_key($baseQuery, ['compare_from' => true, 'compare_to' => true]);
+                    unset($baseQuery['compare_from'], $baseQuery['compare_to']);
+                    try {
+                        // Validate every remaining filter and history value
+                        // before recovering only a safe comparison form error.
+                        $navigation = PreviewNavigation::fromQuery($baseQuery, true);
+                        $comparisonInput = PreviewComparisonInput::recover($selection);
+                    } catch (InvalidArgumentException) {
+                        // Structural query failures retain the bounded refusal.
+                    }
+                }
+                if ($comparisonInput !== null) {
+                    // The navigation contains no comparison. Read failures,
+                    // revocation and missing projects still reach the ordinary
+                    // outer boundary rather than becoming form validation.
+                    $data = $this->pageData($principal, $project, $navigation);
+                    $data['comparisonInput'] = $comparisonInput;
+                    return $this->renderWorkspace($principal, $data, status: 422);
+                }
                 return $this->secure(response('Filtros, página ou comparação inválidos. Volte ao workspace e selecione novamente.', 422));
             }
             if ($action === 'html') {
