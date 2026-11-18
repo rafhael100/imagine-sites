@@ -347,12 +347,26 @@ if (!isset($admin, $connection, $connect, $password, $caFile, $ok)) {
             $bapCreate($role, 'sites_core.advance_editorial_revision(uuid,integer,text,text)');
             bapSql($bapAdmin, 'INSERT INTO sites_core.editorial_operator_bindings(login_name,tenant_id,duty,active) VALUES(?,?::uuid,?,true)', [$role, $bapTenants['a'], $duty]);
         }
-        $bapProjects = [];
+        $bapIntakeCommands = [];
         foreach (['main', 'atomic', 'adopt', 'race', 'race_conflict', 'lost', 'epoch', 'revoked', 'other', 'company_b'] as $name) {
             $key = $name === 'company_b' ? 'b' : 'a'; $tag = $name.'-'.$bapSuffix;
-            $command = new SiteProjectCommand('1', 'bap-intake-operation-'.$tag, $bapOrgs[$key],
+            $bapIntakeCommands[$name] = new SiteProjectCommand('1', 'bap-intake-operation-'.$tag, $bapOrgs[$key],
                 'bap-order-'.$tag, 'bap-contract-'.$tag, 1, 'onepage', 'bap-intake-key-'.$tag);
-            $intake = (new PortalProjectIntakeRecorder(bapConnection($bapDb($bapRoles['intake_'.$key]))))->record($command);
+        }
+        $bapCliIntakes = [];
+        if (getenv('SITES_PROJECT_INTAKE_RECEIVER_CLI_CI') === '1') {
+            $bapStage = 'private project intake receiver CLI';
+            $bapIntakeFixture = require __DIR__.'/../project-intake-receiver/contract.php';
+            $bapCliIntakes = $bapIntakeFixture($bapAdmin, $bapConnection, $bapPassword, $bapCaFile, $bapTenants,
+                ['main' => $bapIntakeCommands['main'], 'company_b' => $bapIntakeCommands['company_b'],
+                    'lost' => $bapIntakeCommands['lost']], $bapOk);
+        }
+        $bapStage = 'isolated native intake and snapshot setup';
+        $bapProjects = [];
+        foreach ($bapIntakeCommands as $name => $command) {
+            $key = $name === 'company_b' ? 'b' : 'a';
+            $intake = $bapCliIntakes[$name] ??
+                (new PortalProjectIntakeRecorder(bapConnection($bapDb($bapRoles['intake_'.$key]))))->record($command);
             $bapProjects[$name] = ['command' => $command, 'receipt' => $intake, 'key' => $key];
             if ($intake['authorityVerified'] !== false || $intake['clientAccepted'] !== false || $intake['canPublish'] !== false) throw new RuntimeException('Intake authority changed');
         }

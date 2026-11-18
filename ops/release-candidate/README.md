@@ -109,6 +109,33 @@ This command offers no artifact lookup or built-in diagnosis after a lost result
 
 The isolated alternative requires `GITHUB_ACTIONS=true`, `APP_ENV=testing` and `SITES_RELEASE_REGISTRATION_CI=1` together. It fixes `host=localhost`, port `55449`, database `postgres`, server address `127.0.0.1`, and login `rr_a_artifact_writer` or `rr_registration_a_artifact_writer`. The second login is the existing active synthetic author used by the combined fixture after it revokes the first author. This CI allowlist does not renew the revoked actor or establish either actor's SQL authority. Both names retain the same custody, target, TLS, current principal/epoch, plan and write-confirmation checks; staging behavior is unchanged. Offline CLI tests exercise help and early argument/environment refusals with the autoloader and private paths inaccessible; only the disposable PostgreSQL/TLS integration fixture can demonstrate actual registration. This candidate adds no deployment or operational authorization.
 
+## Entrada privada de projeto com recibo nativo
+
+`receive-project-intake.php` planeja e recebe o comando nativo de oito campos,
+usando `PortalProjectIntakeRecorder` e sua API SQL existente. O
+[manual do receptor de projetos](../../docs/PROJECT-INTAKE-RECEIVER-CLI.md)
+descreve os quatro inputs privados, o alvo PostgreSQL/TLS observado e o destino
+exclusivo `/run/sites-project-intake-receipts/<receiptRef>.json`.
+
+```sh
+php ops/release-candidate/receive-project-intake.php --help
+php ops/release-candidate/receive-project-intake.php plan
+```
+
+O plano não reserva um arquivo ou comprova a autorização corrente do binding.
+O registro exige seu `commitmentSha256` e a confirmação
+`SITES_PROJECT_INTAKE_CANDIDATE_ONLY_APPROVED`, habilita a sessão de escrita e
+chama o recorder uma vez. O compromisso inclui os bytes originais do comando,
+inclusive operação e chave de idempotência, além do alvo e do caminho do recibo.
+As projeções públicas têm oito/dez campos; o recibo privado tem os quinze campos
+nativos, incluindo o `siteRef` utilizado na seleção do briefing posterior.
+
+O arquivo é reservado antes do SQL, com exclusividade e modo `0600`, e seu
+descritor permanece aberto até a escrita e conferência. Uma falha pode ocorrer
+depois do commit e deixar uma reserva vazia ou parcial. O comando não remove,
+repara ou substitui o destino e não executa retry. Resposta perdida e arquivo
+incompleto exigem apuração distinta; os três flags de autoridade continuam falsos.
+
 ## Entrada privada de snapshot candidato
 
 `receive-brief-snapshot.php` oferece `plan` e `record` para os JSONs originais de

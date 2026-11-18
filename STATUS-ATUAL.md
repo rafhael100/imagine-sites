@@ -1,9 +1,49 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 18/11/2026 — entrada privada de projetos com recibo nativo
+
+Branch `feature/sites-project-intake-receiver-cli-2026-11-18`, sobre a #529 /
+`d8a5630bf8957e238b71edf92b6e2a406950e49b`. A CLI candidata
+`receive-project-intake.php` oferece plano somente leitura e uma chamada explícita
+ao `PortalProjectIntakeRecorder`. Preserva o comando de oito campos, a função SQL
+e o recibo nativo de quinze campos, inclusive os três indicadores falsos. Os quatro
+arquivos fixados pelo consumidor Portal permanecem byte a byte iguais.
+
+Quatro mounts privados fornecem configuração, comando original, senha e CA.
+O compromisso inclui o alvo canônico, o hash dos bytes do comando e o destino
+completo do recibo. `record` exige esse compromisso e confirmação própria, reserva
+um arquivo exclusivo `0600` e mantém seu descritor até terminar a escrita. O
+recibo privado conserva o `siteRef`; stdout retorna oito campos no plano ou dez
+no registro, sem referências privadas. A autoridade efetiva continua sendo o
+binding nativo corrente `active/can_receive_project`, sem acrescentar época ou
+vencimento a esse contrato.
+
+Banco e arquivo são recursos separados. Uma recusa posterior pode seguir commit;
+a CLI preserva o arquivo reservado, não substitui destinos e não repete a escrita.
+Perder stdout permite conferir um recibo completo já preservado. Recuperar um
+arquivo ausente ou incompleto exige apuração e decisão explícita de replay nativo,
+com novo destino e compromisso, sem presumir ausência do projeto.
+
+**Prova local já concluída:** suíte geral **286 testes/4364 assertions/27 skips**,
+**32 checks sintéticos**, **77 checks offline da CLI**, **123 checks de custódia
+em arquivos temporários privados** e os quatro hashes Portal preservados. Lint e
+revisão independente passaram; os testes offline não simulam sucesso SQL. A
+prova PostgreSQL/TLS está em fechamento; nenhum resultado
+da #529 é atribuído à entrada nova. A fixture define **29 verificações novas**,
+com total esperado de **1178**, e reutiliza três dos dez projetos da composição
+para recebimento normal, stdout descartado e falha de arquivo após commit.
+Confere ainda o replay explícito, isolamento, revogação e custódia, preservando
+as 119 verificações próprias da composição e a cadeia posterior. As contagens
+PostgreSQL permanecem expectativas até a execução do CI.
+[Manual e fronteiras](docs/PROJECT-INTAKE-RECEIVER-CLI.md) ·
+[Workflow dedicado](.github/workflows/sites-project-intake-receiver-cli.yml).
+
 ## 18/11/2026 — campos com quebras de linha preservados no formulário
 
-Branch `fix/sites-preview-multiline-fields-2026-11-18`, sobre a #528 validada no
-HEAD `035e50e979e7cdf45f29a7e2c66d0aa1b5d63944`. O backend aceita CR/LF internos
+A [#529](https://github.com/rafhael100/imagine-sites/pull/529), branch
+`fix/sites-preview-multiline-fields-2026-11-18`, concluiu **11/11 checks SUCCESS**
+no HEAD `d8a5630bf8957e238b71edf92b6e2a406950e49b`, sobre a #528 /
+`035e50e979e7cdf45f29a7e2c66d0aa1b5d63944`. O backend aceita CR/LF internos
 na marca, chamada principal e botão, mas `input` de texto remove essas quebras.
 A view usa `textarea` somente nesses três campos quando o valor contém CR ou
 LF, preservando os controles habituais para valores de uma linha. Não há mudança
@@ -17,8 +57,14 @@ geral local **286/4358/27**, os **32 checks sintéticos**, lint, sintaxe JS e re
 independente haviam passado antes desse ajuste dos testes. A jornada
 reutiliza o projeto e o positivo da versão 2: um POST inválido em descrição
 reapresenta os três campos multilinha; corrigir apenas descrição deve reenviar
-os valores, conservando também a prova dos oito benefícios Unicode. **4 checks
-novos/460 HTTP totais previstos, pendentes do CI próprio.**
+os valores, conservando também a prova dos oito benefícios Unicode. O [HTTP
+44368226611](https://github.com/rafhael100/imagine-sites/actions/runs/44368226611),
+job **135027630937**, confirmou **4 novos/460 totais**, com cleanup. As duas
+capturas do formulário, em 1440/390 pixels, foram conferidas visualmente.
+O [Laravel 44368226606](https://github.com/rafhael100/imagine-sites/actions/runs/44368226606),
+jobs **135027633135 / 135027634111**, confirmou **286/4364/27** e **286/4376/21**
+em PHP 8.3/8.4. Sem nova execução de registry completo, F383 ou workflow de
+containers nesta PR.
 [Recorte, fontes e limites](docs/reviews/SITES-PREVIEW-MULTILINE-FIELDS-2026-11-18.md).
 
 ## 18/11/2026 — inspeção privada do snapshot recebido validada na #528

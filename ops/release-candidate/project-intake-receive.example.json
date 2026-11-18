@@ -1,0 +1,13 @@
+{
+  "schema": "SITES_PROJECT_INTAKE_RECEIVER_V1",
+  "target": {
+    "host": "localhost",
+    "port": 55449,
+    "database": "postgres",
+    "databaseOid": 12345,
+    "login": "pir_b_receiver",
+    "serverAddress": "127.0.0.1",
+    "caSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "receiptRef": "c5300000-0000-4000-8000-000000000001"
+}

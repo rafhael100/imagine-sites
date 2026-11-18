@@ -6,6 +6,28 @@
 
 Essa conclusão delimita a integração; não afirma esgotamento de todo desenvolvimento. O trabalho autorizado em branch isolada pode continuar em componentes com uso concreto e defeitos demonstrados. A inspeção privada do diário é um exemplo: consome a API persistente existente sem criar autoridade ou depender de um briefing inventado.
 
+### Entrada privada de projeto antes do briefing candidato
+
+A branch `feature/sites-project-intake-receiver-cli-2026-11-18`, sobre a #529 /
+`d8a5630bf8957e238b71edf92b6e2a406950e49b`, acrescenta uma
+[entrada privada para o comando nativo CreateProject](../PROJECT-INTAKE-RECEIVER-CLI.md).
+Reutiliza o recorder, o SQL e o recibo de quinze campos que o consumidor Portal
+já valida. Os quatro pins inspecionados nas #953/#954 do Portal ficam idênticos;
+o wrapper local não cria transporte entre produtos.
+
+O plano vincula alvo, bytes originais do comando e destino exclusivo do recibo.
+O registro exige compromisso e confirmação explícita, mantendo o `siteRef` no
+arquivo privado para o briefing posterior. A projeção pública não divulga essas
+referências. A autorização é o binding nativo corrente; o comando não adiciona
+o modelo de épocas usado pelas APIs de snapshot ou de artefato.
+
+A prova dedicada está em preparação e reutiliza três projetos já previstos na
+composição. Deve demonstrar recebimento normal, recuperação do recibo após
+stdout descartado e apuração de falha de arquivo depois do commit, além de
+isolamento e revogação. A suíte geral local **286/4364/27**, os **32 checks
+sintéticos**, **77 offline da CLI** e **123 de custódia privada** passaram; isso
+ainda não é a prova de PostgreSQL desta entrada.
+
 ### Inspeção privada do snapshot recebido validada na #528
 
 A [#528](https://github.com/rafhael100/imagine-sites/pull/528), HEAD

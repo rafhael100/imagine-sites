@@ -14,7 +14,7 @@ A entrada de benefícios agora ignora linhas formadas apenas por espaços Unicod
 
 As mensagens de tamanho excedido do briefing passam a informar o limite em português, mantendo a tentativa completa. A correção usa o formato de mensagem reconhecido pelo Validator instalado; não altera os limites dos cinco campos ou a regra numérica da versão esperada. A [#527](https://github.com/rafhael100/imagine-sites/pull/527), HEAD `6ff2cabc0c32bcaa92de5b94f84c4cc3e7cdd167`, confirmou **14/14 checks SUCCESS**, com **5 novos/456 HTTP totais** e Laravel **284/4310/27** e **284/4322/21** em PHP 8.3/8.4. [Verificação e limites](docs/reviews/SITES-PREVIEW-LIMIT-MESSAGES-2026-11-18.md).
 
-Marca, chamada principal e texto do botão passam a usar uma área de texto quando o valor reapresentado contém quebras de linha já aceitas pelo servidor. Isso evita juntar palavras ao corrigir outro campo. Valores de uma linha mantêm seus controles habituais; os limites continuam iguais. O grupo focado passou com **24 testes/306 asserções** após corrigir a comparação de finais de linha entre versões do parser de testes. As **4 verificações novas/460 HTTP totais** ainda dependem do CI próprio. [Correção, histórico de validação e finais de linha](docs/reviews/SITES-PREVIEW-MULTILINE-FIELDS-2026-11-18.md).
+Marca, chamada principal e texto do botão passam a usar uma área de texto quando o valor reapresentado contém quebras de linha já aceitas pelo servidor. Isso evita juntar palavras ao corrigir outro campo. Valores de uma linha mantêm seus controles habituais; os limites continuam iguais. A [#529](https://github.com/rafhael100/imagine-sites/pull/529), HEAD `d8a5630bf8957e238b71edf92b6e2a406950e49b`, confirmou **11/11 checks SUCCESS**, **4 novas/460 HTTP totais** e Laravel **286/4364/27** e **286/4376/21** em PHP 8.3/8.4. As capturas de formulário em 1440 e 390 pixels foram conferidas visualmente. [Correção, histórico de validação e finais de linha](docs/reviews/SITES-PREVIEW-MULTILINE-FIELDS-2026-11-18.md).
 
 Os campos e o botão da revisão editorial identificam a versão explicitamente. Isso permite escolher o parecer pelo nome do controle, inclusive quando várias versões estão disponíveis na mesma página. Erros e orientações preservadas mantêm essa identificação.
 
@@ -33,6 +33,8 @@ O registro privado de artefatos possui plano somente leitura e gravação explí
 A renderização local também pode conferir um plano, um snapshot candidato do briefing rico e os bytes da entrada editorial escolhida. O modo explícito produz o mesmo HTML inerte e um recibo privado ligado ao hash do plano. Os quatro arquivos são verificados antes e durante a escrita; somente o HTML segue ao registro existente. A proveniência demonstra consistência local, mantendo `authorityVerified`, `canPublish` e `canAcceptRealOrders` falsos.
 
 O armazenamento nativo candidato recebe o manifesto e o corpo rico Onepage como bytes imutáveis, com identidade SQL própria e vínculo ao intake de projeto. A migration 13 mantém uma sequência de `briefRevision` distinta do contador agregado `sourceVersion`, com CAS e replay exato. O recibo técnico tem treze campos e conserva `authorityVerified`, `clientAccepted`, `canPublish` e `canAcceptRealOrders` falsos; ele não autentica a aprovação declarada pelo Portal.
+
+A entrada candidata `receive-project-intake.php` expõe o recebimento nativo de projetos por `plan` e `record`, usando o comando atual de oito campos. Quatro inputs privados, o alvo observado e um destino exclusivo de recibo entram na conferência; a gravação exige o compromisso revisado e uma confirmação explícita. O recibo completo de quinze campos fica em arquivo privado, incluindo o `siteRef` necessário ao briefing posterior. A saída pública contém apenas hashes, tamanho no registro e três flags falsas. SQL, recorder e contrato consumido pelo Portal permanecem idênticos. A validação PostgreSQL desta entrada está pendente nesta revisão; o [manual do receptor de projetos](docs/PROJECT-INTAKE-RECEIVER-CLI.md) explica a custódia e a apuração de falhas após o commit.
 
 Uma conexão de leitura separada recupera a seleção exata do snapshot e revalida o perfil completo antes de alimentar o renderer com a entrada editorial escolhida. Esse consumidor interno continua sem escrever arquivos ou registrar o artefato por conta própria. O armazenamento foi validado na #519; consulte o [manual dos snapshots candidatos](docs/PORTAL-BRIEF-SNAPSHOTS.md).
 
@@ -75,7 +77,7 @@ Esses componentes não constituem homologação operacional. Contrato, pagamento
 | `apps/sites/app/Integration` | Recebimento nativo, leitura exata, renderização de snapshots e composição candidata de registro com recuperação histórica |
 | `contracts` | Regras SQL versionadas e fronteiras dos componentes |
 | `ops/preview-candidate` | Provisionamento explícito e revisável do workspace privado |
-| `ops/release-candidate` | Recebimento e inspeção exata de snapshots, renderização local, registro, associação/revogação, consultas técnicas e `prepare`/`verify` do pacote |
+| `ops/release-candidate` | Recebimento de projetos com recibo privado, recebimento e inspeção exata de snapshots, renderização local, registro, associação/revogação, consultas técnicas e `prepare`/`verify` do pacote |
 | `ops/editorial-candidate` | Transição editorial explícita e consulta exata do head com leitor separado |
 | `ops/publication-candidate` | Solicitação com recibo privado, inspeção somente leitura e reconciliação explícita do diário |
 | `tests/fixtures` | Materiais inteiramente sintéticos para os ensaios descartáveis de CI |
@@ -105,6 +107,8 @@ php tests/brief-artifact-inspection-cli-offline.php
 php tests/brief-artifact-registration-cli-offline.php
 php tests/brief-snapshot-receiver-cli-offline.php
 php tests/brief-snapshot-inspection-cli-offline.php
+php tests/project-intake-receiver-cli-offline.php
+php tests/project-intake-receipt-offline.php
 php tests/editorial-transition-offline.php
 php tests/editorial-transition-cli-offline.php
 php tests/editorial-inspection-offline.php
@@ -150,6 +154,7 @@ O Portal controla contratos, aceite expresso e evento oficial `ENTREGUE`; Sites 
 - [Renderização de briefing local privado](docs/reviews/SITES-LOCAL-ARTIFACT-RENDERING-2026-11-18.md)
 - [Proveniência local do briefing ao HTML](docs/reviews/SITES-LOCAL-RENDER-PROVENANCE-2026-11-18.md)
 - [Snapshots candidatos: armazenamento, leitura exata e consumo](docs/PORTAL-BRIEF-SNAPSHOTS.md)
+- [Recebimento privado de projetos e recibo nativo](docs/PROJECT-INTAKE-RECEIVER-CLI.md)
 - [Inspeção privada de um snapshot conhecido](docs/BRIEF-SNAPSHOT-INSPECTION-CLI.md)
 - [Composição candidata: snapshot, artefato e recibo histórico](docs/STORED-BRIEF-RELEASE-PROVENANCE.md)
 - [Consulta privada do recibo de proveniência](docs/BRIEF-ARTIFACT-INSPECTION.md)
