@@ -77,7 +77,10 @@ const {chromium}=require('playwright');const fs=require('fs'),cp=require('child_
  const conflictBody=await conflict.text();
  ok(conflict.status()===409&&conflictBody.includes('Briefing de outra aba preservado')&&conflictBody.includes('Outra versão foi criada'),'concurrent edit returns409 with briefing retained');
  ok((await a.request.get(one+'/versions/3/html')).status()===403,'validation and conflicts created no extra revision');
- ok(crypto.createHash('sha256').update(await (await a.request.get(one+'/versions/1/html')).body()).digest('hex')===digest,'old immutable version');
+ const firstVersionPreview=new URL(await p.getByRole('link',{name:'Visualizar prévia privada da versão 1 ↗',exact:true}).getAttribute('href'),base).toString();
+ ok(firstVersionPreview===one+'/versions/1/html'&&
+    crypto.createHash('sha256').update(await (await a.request.get(firstVersionPreview)).body()).digest('hex')===digest,
+    'the explicitly named version1 preview still resolves the old immutable bytes among both history cards');
  const own=await a.request.post(one+'/versions/2/review',{form:{_token:await p.locator('input[name=_token]').first().getAttribute('value'),sha256:(await p.locator('[data-version="2"] code').first().textContent()).replace('SHA-256: ',''),decision:'approved_internal'},headers:{'Remote-User':'editor'}});ok(own.status()===403,'own editorial review denied and identity header ignored');
  const ep=await e.newPage();await ep.goto(base+'/_preview');
  const projectId=new URL(one).pathname.split('/').pop();
@@ -108,14 +111,17 @@ const {chromium}=require('playwright');const fs=require('fs'),cp=require('child_
  const comparisonContext=await ctx('author',{javaScriptEnabled:false});
  const comparisonPage=await comparisonContext.newPage();
  ok((await comparisonPage.goto(one)).status()===200,'comparison starts from the actual private project');
- await comparisonPage.locator('input[name=compare_from]').fill('1');
- await comparisonPage.locator('input[name=compare_to]').fill('2');
- await comparisonPage.getByRole('button',{name:'Comparar versões',exact:true}).click();
+ const [initialComparison]=await Promise.all([
+   comparisonPage.waitForNavigation({waitUntil:'load'}),
+   comparisonPage.getByRole('link',{name:'Comparar versão 2 com a versão 1',exact:true}).click(),
+ ]);
  await comparisonPage.waitForURL(url=>url.searchParams.get('compare_from')==='1'&&url.searchParams.get('compare_to')==='2');
  const comparisonPanel=comparisonPage.getByTestId('editorial-comparison');
  const comparedValue=(side,field)=>comparisonPanel.locator('[data-compare-side="'+side+'"] [data-field="'+field+'"]');
- ok(await comparisonPanel.isVisible()&&await comparisonPanel.locator('[data-compare-side="from"][data-compare-revision="1"]').isVisible()&&
-    await comparisonPanel.locator('[data-compare-side="to"][data-compare-revision="2"]').isVisible(),'ordinary GET form compares exact versions without JavaScript');
+ ok(initialComparison!==null&&initialComparison.status()===200&&await comparisonPanel.isVisible()&&
+    await comparisonPanel.locator('[data-compare-side="from"][data-compare-revision="1"]').isVisible()&&
+    await comparisonPanel.locator('[data-compare-side="to"][data-compare-revision="2"]').isVisible(),
+    'the explicitly named history link compares versions1 and2 without JavaScript');
  for(const [field,before,after] of [
    ['headline',original.headline,revisedBrief.headline],
    ['description',original.description,revisedBrief.description],

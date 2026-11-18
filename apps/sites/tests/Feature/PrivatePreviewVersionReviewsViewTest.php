@@ -94,6 +94,20 @@ final class PrivatePreviewVersionReviewsViewTest extends TestCase
         $this->assertQuery($xpath->evaluate('string(//*[@data-version="40"]//a[@data-testid="version-reviews-link"]/@href)'),
             $this->context() + ['review_revision' => '40'], 'version-reviews');
 
+        foreach ([40, 39] as $revision) {
+            $preview = '//a[normalize-space(.)="Visualizar prévia privada da versão '.$revision.' ↗"]';
+            self::assertSame(1, $xpath->query($preview)->length);
+            self::assertSame('/_preview/projects/'.self::PROJECT.'/versions/'.$revision.'/html',
+                $xpath->evaluate('string('.$preview.'/@href)'));
+            self::assertSame('_blank', $xpath->evaluate('string('.$preview.'/@target)'));
+            self::assertSame('noopener', $xpath->evaluate('string('.$preview.'/@rel)'));
+            $comparisonLink = '//a[normalize-space(.)="Comparar versão '.$revision.' com a versão '.($revision - 1).'"]';
+            self::assertSame(1, $xpath->query($comparisonLink)->length);
+            $this->assertQuery($xpath->evaluate('string('.$comparisonLink.'/@href)'),
+                array_replace($this->context(), ['compare_from' => (string) ($revision - 1), 'compare_to' => (string) $revision])
+                    + ['review_revision' => '3', 'review_cursor' => $cursor], null);
+        }
+
         $comparisonForm = '//form[@data-testid="comparison-form"]';
         self::assertSame('3', $xpath->evaluate('string('.$comparisonForm.'//input[@type="hidden" and @name="review_revision"]/@value)'));
         self::assertSame($cursor, $xpath->evaluate('string('.$comparisonForm.'//input[@type="hidden" and @name="review_cursor"]/@value)'));

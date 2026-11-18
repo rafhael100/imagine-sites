@@ -291,7 +291,7 @@ final class PrivatePreviewWorkspaceViewTest extends TestCase
 
         self::assertStringContainsString('A comparação estará disponível quando uma nova versão for criada.', $html);
         self::assertStringNotContainsString('name="compare_from"', $html);
-        self::assertStringNotContainsString('Comparar com a anterior', $html);
+        self::assertSame(0, $this->xpath($html)->query('//a[contains(@href,"compare_from=")]')->length);
         self::assertStringNotContainsString('data-testid="editorial-comparison"', $html);
     }
 
