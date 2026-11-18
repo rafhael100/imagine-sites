@@ -8,7 +8,8 @@ Candidata `integration/sites-brief-snapshot-cli-chain-2026-11-18`, baseada na
 451 HTTP e Laravel 284/4280/27 e 284/4292/21 nas duas versões PHP. Incorpora a entrada da
 [#523](https://github.com/rafhael100/imagine-sites/pull/523), fixada em
 `751b084fdd7a3bbbd276c649de2caf8c2f555b77`, preservando a branch de origem.
-A prova PostgreSQL18/TLS desta composição está pendente do CI próprio.
+A prova PostgreSQL18/TLS desta composição passou em PHP 8.3/8.4, com os runs
+e jobs próprios registrados abaixo.
 
 O receptor existente oferecia uma entrada local para o armazenamento nativo.
 Faltava exercitá-lo com banco real e acompanhar os mesmos bytes até os
@@ -61,13 +62,13 @@ iguais. O inspetor `bai_b_reader` ainda autorizado é reutilizado. A enumeraçã
 de conexão adiciona um caso fechado; as quatro capacidades anteriores mantêm
 suas APIs exatas e suas exigências de leitura/escrita.
 
-## Prova integrada preparada
+## Prova integrada executada
 
 A [fixture](../../tests/fixtures/brief-snapshot-receiver/contract.php) roda após
 o registro privado da #522 e antes do down da migration 14. Reutiliza os intakes
 e projetos nativos existentes, sem outra recepção de pedido ou outbox.
 
-O percurso previsto é:
+O percurso executado foi:
 
 1. Plano do receiver sem mudança de linhas ou catálogo, seguido do recebimento
    da revisão 2 de B, com versão de origem 13 e recibo de onze campos.
@@ -101,9 +102,8 @@ concluídos. A suíte geral local passou com **284 testes/4280 assertions/27 ski
 usando `--do-not-cache-result`; os grupos de regressão passaram com **95 checks**
 do registro privado, **271** do registro anterior e **32** do laboratório sintético.
 O helper foi validado sintaticamente sem executar ações privilegiadas
-locais. A contagem estática da fixture é **29 novas assertions**, somadas às
-**1094 anteriores**, para **1123 previstas**. Esses números ainda não são prova
-de execução em banco.
+locais. A execução real confirmou **29 novas assertions**, somadas às
+**1094 anteriores**, totalizando **1123** em cada versão PHP.
 
 O [workflow próprio](../../.github/workflows/sites-brief-snapshot-cli-chain.yml)
 fixa draft, repositório, branch, base e checkout do HEAD. Preserva quinze opt-ins
@@ -112,6 +112,23 @@ PHP 8.3/8.4 com PostgreSQL18/TLS descartável e cleanup obrigatório.
 O workflow importado da #523 continua limitado à sua branch/base originais;
 a mesma restrição de base também foi aplicada ao filtro do evento para evitar
 uma execução inaplicável na nova PR.
+
+## Evidência final da #526
+
+A [PR #526](https://github.com/rafhael100/imagine-sites/pull/526) concluiu **12/12
+checks SUCCESS** no HEAD `2ffbcb5303afe12593e11a11a4a6dd45a175ac3f`.
+
+| Execução | PHP 8.3 | PHP 8.4 |
+| --- | --- | --- |
+| [Registry 44358994325](https://github.com/rafhael100/imagine-sites/actions/runs/44358994325) | Job **134994843518**: 74 offline; **29 novos/1123 registry totais**. | Job **134994844208**: mesmas contagens. |
+| [Laravel 44358994106](https://github.com/rafhael100/imagine-sites/actions/runs/44358994106) | Job **134994842923**: padrão **284/4280/27**, sintético **284/4292/21**. | Job **134994842386**: mesmas contagens. |
+
+O pipeline confirmou ainda os 27 checks do registro privado, 25 de inspeção,
+119 de composição e 923 anteriores. A composição manteve seu rollback/reapply
+ordenado da migration14. Cleanup removeu os cinco mounts novos, os seis do
+registro e os três da inspeção, além dos recursos anteriores; ambos os clusters
+próprios ficaram inativos. Não houve novo workflow F383, de containers ou HTTP
+nesta PR; essas provas permanecem atribuídas à base #525.
 
 O corpo rico continua candidato e a entrada editorial é escolhida separadamente;
 o renderer não extrai nem inventa conteúdo do briefing. Recebimento técnico,

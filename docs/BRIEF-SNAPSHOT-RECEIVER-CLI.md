@@ -99,9 +99,12 @@ do target e do hash da CA. A versão corrigida passou localmente com **74 checks
 O workflow original da #523 foi preservado com suas condições originais. O
 [workflow da composição](../.github/workflows/sites-brief-snapshot-cli-chain.yml)
 fixa sua própria base/HEAD, executa PHP 8.3/8.4 e acrescenta a prova real com
-PostgreSQL18/TLS. São **29 checks novos previstos/1123 registry totais**, ainda
-pendentes da execução desta candidata. Sucesso offline não equivale a recibo de
-banco; a evidência de cada execução ficará vinculada ao seu HEAD.
+PostgreSQL18/TLS. A [#526](https://github.com/rafhael100/imagine-sites/pull/526),
+HEAD `2ffbcb5303afe12593e11a11a4a6dd45a175ac3f`, concluiu **12/12 checks SUCCESS**.
+O [run 44358994325](https://github.com/rafhael100/imagine-sites/actions/runs/44358994325)
+confirmou **29 novos/1123 registry totais** e 74 offline nas duas versões, com
+cleanup dos arquivos próprios e clusters inativos. [Jobs e limites da prova](reviews/SITES-BRIEF-SNAPSHOT-CLI-CHAIN-2026-11-18.md).
+Sucesso offline continua distinto do recibo efetivamente persistido em banco.
 
 Ficam explicitamente fora deste incremento: origem oficial e exportação
 atômica no Portal, credenciais operacionais, deploy VPS, integração n8n,
