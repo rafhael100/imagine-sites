@@ -46,7 +46,7 @@ foreach ([
 $lookup=(new ReflectionClass(PrivatePublicationRequestLookup::class))->newInstanceWithoutConstructor();
 $target=['host'=>'localhost','port'=>55449,'database'=>'postgres','databaseOid'=>12345,
     'login'=>'pj_lookup_a_reader','serverAddress'=>'127.0.0.1','caSha256'=>str_repeat('a',64)];
-$invoke=static fn (array $t,string $ca,string $siteRef=$site,string $release='release',int $revision=1,
+$invoke=static fn (array $t,string $ca,string $siteRef='11111111-1111-4111-8111-111111111111',string $release='release',int $revision=1,
     string $acceptance='acceptance',string $idempotency='idem'): array =>
     $lookup->readExact($t,$ca,$siteRef,$release,$revision,$acceptance,$idempotency);
 foreach ([
