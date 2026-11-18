@@ -8,6 +8,7 @@ use App\Preview\PreviewBriefInput;
 use App\Preview\PreviewComparisonInput;
 use App\Preview\PreviewNavigation;
 use App\Preview\PreviewPrincipal;
+use App\Preview\PreviewQueueSearchInput;
 use App\Preview\PreviewReviewInput;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -35,6 +36,27 @@ final class PrivatePreviewController
                     : PreviewNavigation::fromQuery($request->query(), $project !== null,
                         $request->isMethod('get') && $action === null);
             } catch (InvalidArgumentException) {
+                $queueSearchInput = null;
+                if ($request->isMethod('get') && $project === null && $action === null) {
+                    $baseQuery = $request->query();
+                    $search = $baseQuery['q'] ?? null;
+                    unset($baseQuery['q']);
+                    try {
+                        // Every other selector must remain valid. Excess text
+                        // is retained only in the form, never in navigation.
+                        $navigation = PreviewNavigation::fromQuery($baseQuery);
+                        $queueSearchInput = PreviewQueueSearchInput::recover($search);
+                    } catch (InvalidArgumentException) {
+                        // Malformed queries keep their existing hard refusal.
+                    }
+                }
+                if ($queueSearchInput !== null) {
+                    // Do not run the invalid search or an unfiltered fallback.
+                    // Rendering rechecks the current read capability; access
+                    // failures still reach the outer authorization boundary.
+                    $data = $this->pageData($principal, null, $navigation, $queueSearchInput);
+                    return $this->renderWorkspace($principal, $data, status: 422);
+                }
                 $comparisonInput = null;
                 if ($request->isMethod('get') && $project !== null && $action === null) {
                     $baseQuery = $request->query();
@@ -121,7 +143,8 @@ final class PrivatePreviewController
         }
     }
 
-    private function pageData(PreviewPrincipal $principal, ?string $project, PreviewNavigation $navigation): array
+    private function pageData(PreviewPrincipal $principal, ?string $project, PreviewNavigation $navigation,
+        ?PreviewQueueSearchInput $queueSearchInput = null): array
     {
         $projects = [];
         $versions = $reviews = $currentReviews = [];
@@ -146,13 +169,14 @@ final class PrivatePreviewController
                 $comparison = (new PrivatePreviewComparison($principal->db))->compare($principal->company, $project,
                     $navigation->compareFrom, $navigation->compareTo);
             }
-        } else {
+        } elseif ($queueSearchInput === null) {
             $queue = (new PrivatePreviewOverview($principal->db))->page($principal->company, $navigation->queue);
             $projects = $queue['items'];
             $queueNext = $queue['next_cursor'];
         }
         return compact('projects', 'project', 'versions', 'reviews', 'brief', 'currentRevision', 'currentSha256', 'comparison',
-            'queueNext', 'historyOlder', 'historyNewer', 'reviewsTruncated', 'currentReviews', 'currentReviewsTruncated', 'navigation');
+            'queueNext', 'historyOlder', 'historyNewer', 'reviewsTruncated', 'currentReviews', 'currentReviewsTruncated', 'navigation',
+            'queueSearchInput');
     }
 
     private function renderWorkspace(PreviewPrincipal $principal, array $data, array $submitted = [], array $fieldErrors = [], int $status = 200, ?array $reviewSubmission = null)
