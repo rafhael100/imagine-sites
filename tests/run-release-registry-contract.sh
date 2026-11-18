@@ -235,6 +235,7 @@ if [[ "${SITES_PUBLICATION_INSPECTION_CI:-}" == 1 ]]; then
 fi
 if [[ "${SITES_RELEASE_REGISTRATION_CI:-}" == 1 ]]; then
   grep -q '^RELEASE REGISTRATION CI PASS: [1-9][0-9]* assertions;' "$lab/contract.log"
+  grep -q '^LOCAL RENDER PROVENANCE REGISTRY CI PASS: 4 new assertions;' "$lab/contract.log"
 fi
 if [[ "${SITES_EDITORIAL_TRANSITION_CI:-}" == 1 ]]; then
   grep -q '^EDITORIAL TRANSITION CI PASS: [1-9][0-9]* assertions;' "$lab/contract.log"

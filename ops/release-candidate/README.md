@@ -265,7 +265,7 @@ Offline CLI tests cover help and bounded argument/environment refusals while aut
 
 ## Local HTML rendering from a private brief
 
-The separate `render.php` command closes the local step before artifact registration: it reads one private technical briefing JSON and writes the existing renderer's exact inert HTML to a new `index.html`. It uses `SiteBrief`, `StaticSiteRenderer` and `InertPreviewAudit`; it preserves the renderer's demonstration disclaimer, escaped text and distinct Onepage/Landing Page layouts. It loads the Composer autoloader without booting Laravel and makes no database or network connection.
+The separate `render.php` command closes the local step before artifact registration. Its original two-option mode reads one private technical briefing JSON and writes the existing renderer's exact inert HTML to a new `index.html`. It uses `SiteBrief`, `StaticSiteRenderer` and `InertPreviewAudit`; it preserves the renderer's demonstration disclaimer, escaped text and distinct Onepage/Landing Page layouts. It loads the Composer autoloader without booting Laravel and makes no database or network connection. The optional provenance mode documented below adds a candidate Onepage source chain and a second private output to this same command.
 
 This is a local rendering input, not a versioned Portal briefing contract, official customer acceptance or commercial authorization. The command neither reads nor promotes a `sites_preview` project. It does not register an artifact, change editorial state, bind a release, prepare a registry-backed package or publish. Those existing commands and their separate authorities still apply to any later step.
 
@@ -292,7 +292,7 @@ php /opt/imagine/ops/release-candidate/render.php render \
   --output=/absolute/private/output/index.html
 ```
 
-The two paths above are illustrative. Supply existing, canonical absolute paths under custody of the invoking user. Both options are required exactly once, in either order; the output basename must be `index.html`. The command accepts no other option, environment selection or approval flag. This local reversible creation does not need a database target, mounted password or CI opt-in. `--help` works without loading the application autoloader or opening private files.
+The two paths above are illustrative. Supply existing, canonical absolute paths under custody of the invoking user. Both options are required exactly once, in either order; the output basename must be `index.html`. The only additional options are the complete provenance group below; there is no environment selection or approval flag. This local reversible creation does not need a database target, mounted password or CI opt-in. `--help` works without loading the application autoloader or opening private files.
 
 The briefing must be a readable regular file, 1–32768 bytes, with one hard link, mode `0400` or `0600`, and root or the effective CLI user as owner. The existing protected reader supplies the bounded read and descriptor checks. The local helper additionally checks every ancestor: canonical directories, no observed symlink component, root or effective-user ownership, and no group/other write permission. A root-owned sticky ancestor such as `/tmp` is permitted; an ordinary writable ancestor is refused.
 
@@ -310,7 +310,7 @@ Successful stdout is exactly one JSON line with seven fields:
 | --- | --- |
 | `schema` | `SITES_LOCAL_RENDERING_RESULT_V1` |
 | `status` | `rendered` |
-| `inputSha256` | SHA-256 of the original JSON bytes, including whitespace and a final newline if present |
+| `inputSha256` | SHA-256 of the original six-field editorial JSON bytes, including whitespace and a final newline if present; this meaning is the same in both modes |
 | `artifactDigest` | SHA-256 of the exact HTML bytes written |
 | `sizeBytes` | HTML byte count |
 | `canPublish` | `false` |
@@ -319,3 +319,71 @@ Successful stdout is exactly one JSON line with seven fields:
 The result contains no path, briefing text, HTML, project reference or credential. Its hashes identify the observed local input and output; they do not certify a Portal revision or grant authority to register, approve or publish. Failure exits with status 1, empty stdout and only `LOCAL_RENDER_DENIED` on stderr. The error does not establish that output creation was rolled back.
 
 The focused offline CLI tests execute both products under their own private `/tmp` directory without database credentials or a simulated CI environment. They compare the file with the direct renderer, verify input preservation, exercise the opposite option order and read-only input mode, refuse existing outputs and unsafe custody, and prove that a changed input snapshot cannot create output. The separate disposable registry fixture consumes the resulting file through the existing explicit registration flow; that integration does not make local rendering itself a database operation.
+
+## Local rendering with candidate briefing provenance
+
+The implemented provenance mode connects four explicit private files to the same local renderer. It validates the candidate source chain and the expected HTML before creating either output. It does not derive the six editorial fields from the rich source, authenticate a Portal briefing, or promote a declaration of approval into authority. See the [candidate contract and synthetic examples](../../contracts/portal-sites/candidates/brief-production-v1/README.md) and the [implementation review](../../docs/reviews/SITES-LOCAL-RENDER-PROVENANCE-2026-11-18.md).
+
+```sh
+php /opt/imagine/ops/release-candidate/render.php render \
+  --brief=/absolute/private/render-input.json \
+  --output=/absolute/private/output/index.html \
+  --plan=/absolute/private/brief-render-plan.json \
+  --snapshot=/absolute/private/brief-snapshot.json \
+  --source-brief=/absolute/private/onepage-brief.json
+```
+
+`--plan`, `--snapshot` and `--source-brief` form an indivisible group: supply all three exactly once, together with the existing `--brief` and `--output`, in any order. Partial groups, repeated or unknown options, relative paths and a caller-selected provenance output path are refused. The four input paths must be distinct, existing canonical paths; their opaque JSON references are never interpreted as paths or URLs.
+
+| Input option | Exact role | File byte limit |
+| --- | --- | ---: |
+| `--plan` | `sites.brief-render-plan.candidate.v0.1` plan, selecting the snapshot, editorial input and expected HTML | 32768 |
+| `--snapshot` | `sites.brief-snapshot.candidate.v0.1` manifest, selecting the rich source and declaring its provenance | 32768 |
+| `--source-brief` | `sites.onepage-brief-payload.candidate.v0.1` rich source: eleven strings and three booleans | 150000 |
+| `--brief` | The existing six-field editorial JSON consumed by `LocalSiteRendering::render()` | 32768 |
+
+Every input must be nonempty and satisfy the same protected file and ancestor checks as the original mode: regular, single-link, mode `0400` or `0600`, root or effective-user ownership, canonical ancestry and no observed symlink component. The rich-source ceiling is a separate technical limit; it neither changes the editorial ceiling nor claims equivalence to the legacy Portal HTTP-body limit.
+
+### Source consistency and supported profile
+
+The plan and snapshot must agree on `tenantRef`, `siteRef`, `snapshotRef` and `briefRevision`. The plan's `snapshot.manifestSha256` must equal the SHA-256 of the complete original snapshot file. The source payload and editorial input must match their respective declared byte counts and SHA-256 values. The resulting HTML must match both `expectedArtifact.sha256` and `expectedArtifact.sizeBytes`. Checks use original bytes, without JSON re-encoding, key sorting, Unicode normalization or removal of a final LF.
+
+The plan and snapshot identify separate operations through `operationId` and `idempotencyKey`. Values between those operations are not compared: equality and inequality are both permitted. `briefRevision = expectedBriefRevision + 1` is checked as a local relationship. There is no database head lookup, revision reservation, durable CAS or idempotency ledger. `sourceVersion` remains the source's aggregate counter, and `sourceState = approved` remains an unauthenticated declaration.
+
+This mode accepts only Onepage, an empty `materials` list, and `logo_unavailable = true` plus `manual_unavailable = true`. The rich source must contain the required company/services text, presentation or `ai_support`, and at least one contact. It validates all fourteen fields, including the legacy per-field UTF-16 limits before logical trimming; it never rewrites the hashed source bytes. No upload, material download, image embedding or remote object resolution occurs. The original two-option renderer continues to accept both Onepage and Landing Page.
+
+The URL profile for nonempty rich-source `current_site` and `contact_site` is deliberately narrower than legacy WHATWG `new URL()`:
+
+- Only absolute HTTP(S), with ASCII scheme letters, is accepted; ASCII uppercase/lowercase variants are allowed.
+- A host must be conventional ASCII DNS, canonical dotted-decimal IPv4, or bracketed IPv6. DNS names with IDNA/`xn--` labels or a trailing dot are refused.
+- An optional decimal port must have one to five digits and a value from `0` through `65535`.
+- User information, backslashes and internal control/whitespace characters are refused. The validator does not normalize abbreviated, hexadecimal or other noncanonical IPv4 spellings into accepted addresses.
+- Non-ASCII path/query text can remain literal. The URL is neither rewritten nor resolved or fetched.
+
+Validation uses an ECMAScript-compatible logical trim of source-field edges; it does not alter the original JSON or stored URL bytes. Email and the separate `domain` field retain their documented source checks. A syntactically accepted reference is not evidence that a domain exists, is controlled by the caller or is ready for publication.
+
+### Two private outputs and the provenance record
+
+The mode creates only `index.html` and `render-provenance.json` in the same existing canonical `0700` directory owned by the effective user. Both destinations must be absent, including empty files, directories, symlinks and dangling links. It creates no parent directories, replaces no earlier result and repairs no permissions.
+
+All four inputs are reread and compared with their initial bytes, hashes, file identities and ancestor identities before reservation, after both output descriptors have been reserved, and after writing. The helper reserves both names exclusively under a restrictive umask before writing either file, retaining both descriptors until the pair has been checked. It writes the exact HTML and compact provenance JSON, flushes and synchronizes both, reads both back, verifies descriptor/path identities and closes both before emitting stdout.
+
+`render-provenance.json` ends with LF and contains exactly seven top-level fields:
+
+| Field | Value |
+| --- | --- |
+| `schemaVersion` | `sites.local-render-provenance.candidate.v0.1` |
+| `status` | `rendered` |
+| `planSha256` | SHA-256 of the original plan file bytes |
+| `artifact` | Object containing `sha256` and `sizeBytes` of the exact HTML |
+| `authorityVerified` | `false` |
+| `canPublish` | `false` |
+| `canAcceptRealOrders` | `false` |
+
+Preserve the original plan, snapshot, source payload and editorial input privately: the plan hash links their declared byte commitments, but a hash does not replace the files or their custody. The record contains no source text, private path or project selector. Successful stdout remains the original seven-field `SITES_LOCAL_RENDERING_RESULT_V1` line listed above; it is emitted only after both outputs are closed.
+
+The pair is not atomic. A failure during the second reservation, a later custody check, a write/close, process interruption or a lost response can leave one or both new files empty, partial or complete. A refusal caught by the command returns exit 1, empty stdout and only `LOCAL_RENDER_DENIED`; interruption or response loss may leave no observable result. There is no rollback claim, cleanup, overwrite, permission repair or automatic retry. Presence of a provenance filename alone is not a completion marker: a later authorized inspection must compare the actual bytes and chain. The existing limitation of observed pathname checks, rather than atomic descriptor-relative traversal, also applies here.
+
+Only `index.html` is consumed by the existing explicit artifact-registration command. The provenance record does not become registry authority, editorial approval, a release binding or a publication package. No database or provider action is added to rendering.
+
+Local validation passed **109** service checks, **137** existing renderer checks, **80** new provenance CLI checks and **87** unchanged original CLI checks. The new CLI cases use owned temporary directories and the real command, including the rich-source byte ceiling, valid-but-mismatched chains, changes to each of the four pinned inputs and occupied/link destinations for either output. These local results do not assert deployment, official Portal authority or a completed PostgreSQL integration run; execution evidence belongs in the linked review.

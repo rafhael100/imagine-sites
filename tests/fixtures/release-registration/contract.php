@@ -256,6 +256,126 @@ try {
         $registrationState() === $registrationRenderBefore && $registrationCustody() === $registrationRenderMounts,
         'registration local renderer refuses an existing output without overwriting its inode or bytes or changing persisted state');
     $registrationRenderingChecks = $checks-$registrationRenderingChecksBefore;
+
+    $registrationStage = 'source-linked local renderer and private provenance';
+    $registrationProvenanceChecksBefore = $checks;
+    $registrationProvenance = (static function () use (
+        $ok,$registrationLab,$registrationBrief,$registrationCommand,$registrationSite,
+        $registrationRenderBrief,$registrationRenderJson,$registrationRenderExpected,
+        $registrationExpectedArtifact,$registrationHtml,$registrationRenderFile,
+        $registrationState,$registrationCustody,&$registrationOutputs,
+    ): array {
+        $repo = dirname(__DIR__,3);
+        $source = json_decode(file_get_contents($repo.
+            '/contracts/portal-sites/candidates/brief-production-v1/examples/onepage-brief.synthetic.json'),
+            true,8,JSON_THROW_ON_ERROR);
+        $source['company_name'] = $registrationBrief->brand;
+        $source['services'] = 'Verificação fictícia de renderização inerte e registro privado.';
+        $sourceJson = json_encode($source,JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE)."\n";
+        $snapshot = [
+            'schemaVersion'=>'sites.brief-snapshot.candidate.v0.1',
+            'operationId'=>'registration-snapshot-operation-a','idempotencyKey'=>'registration-snapshot-key-a',
+            'tenantRef'=>$registrationCommand->tenantRef,'siteRef'=>$registrationSite,
+            'orderRef'=>$registrationCommand->orderRef,'contractRef'=>$registrationCommand->contractRef,
+            'contractRevision'=>$registrationCommand->contractRevision,'productCode'=>'onepage',
+            'sourceProfile'=>'sites.onepage-brief-payload.candidate.v0.1','sourceVersion'=>12,'sourceState'=>'approved',
+            'snapshotRef'=>'8c2a1101-2112-4113-8114-000000000001','expectedBriefRevision'=>0,'briefRevision'=>1,
+            'payload'=>['payloadRef'=>'registration-private-source-a','mediaType'=>'application/json',
+                'sizeBytes'=>strlen($sourceJson),'sha256'=>hash('sha256',$sourceJson)],
+            'materials'=>[],
+        ];
+        $snapshotJson = json_encode($snapshot,JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES)."\n";
+        $plan = [
+            'schemaVersion'=>'sites.brief-render-plan.candidate.v0.1',
+            'operationId'=>'registration-render-operation-a','idempotencyKey'=>'registration-render-key-a',
+            'tenantRef'=>$registrationCommand->tenantRef,'siteRef'=>$registrationSite,
+            'releaseRef'=>'registration-release-a',
+            'snapshot'=>['snapshotRef'=>$snapshot['snapshotRef'],'briefRevision'=>1,
+                'manifestSha256'=>hash('sha256',$snapshotJson)],
+            'renderInput'=>['payloadRef'=>'registration-private-editorial-a','mediaType'=>'application/json',
+                'sizeBytes'=>strlen($registrationRenderJson),'sha256'=>hash('sha256',$registrationRenderJson)],
+            'expectedArtifact'=>['sha256'=>$registrationExpectedArtifact->digest,
+                'sizeBytes'=>$registrationExpectedArtifact->sizeBytes],
+        ];
+        $planJson = json_encode($plan,JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES)."\n";
+        $paths = ['plan'=>$registrationLab.'/registration-render-plan.json',
+            'snapshot'=>$registrationLab.'/registration-brief-snapshot.json',
+            'source'=>$registrationLab.'/registration-rich-brief.json','editorial'=>$registrationRenderBrief];
+        $createPrivate = static function (string $path,string $bytes): void {
+            $oldMask = umask(0077);
+            try { $stream = fopen($path,'x+b'); } finally { umask($oldMask); }
+            if (!is_resource($stream)) throw new RuntimeException('Exclusive provenance input unavailable');
+            try {
+                $stat = fstat($stream);
+                if (!is_array($stat) || ($stat['mode'] & 0170000) !== 0100000 ||
+                    ($stat['mode'] & 07777) !== 0600 || $stat['nlink'] !== 1 ||
+                    $stat['uid'] !== posix_geteuid() || fwrite($stream,$bytes) !== strlen($bytes) ||
+                    !fflush($stream) || !fsync($stream)) {
+                    throw new RuntimeException('Private provenance input creation failed');
+                }
+            } finally { fclose($stream); }
+        };
+        foreach (['plan'=>$planJson,'snapshot'=>$snapshotJson,'source'=>$sourceJson] as $key=>$bytes) {
+            $createPrivate($paths[$key],$bytes);
+        }
+        $directory = $registrationLab.'/registration-linked-rendered';
+        clearstatcache(true,$directory);
+        if (file_exists($directory) || is_link($directory) || !mkdir($directory,0700)) {
+            throw new RuntimeException('Fresh private provenance output directory required');
+        }
+        $output = $directory.'/index.html'; $proofPath = $directory.'/render-provenance.json';
+        $run = static function () use ($repo,$paths,$output,&$registrationOutputs): array {
+            $process = proc_open([getenv('PHP_BIN') ?: PHP_BINARY,$repo.'/ops/release-candidate/render.php','render',
+                '--brief='.$paths['editorial'],'--output='.$output,'--plan='.$paths['plan'],
+                '--snapshot='.$paths['snapshot'],'--source-brief='.$paths['source']],
+                [0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$pipes,$repo);
+            if (!is_resource($process)) throw new RuntimeException('Provenance CLI process unavailable');
+            fclose($pipes[0]); $stdout = stream_get_contents($pipes[1]); $stderr = stream_get_contents($pipes[2]);
+            fclose($pipes[1]); fclose($pipes[2]); $exit = proc_close($process);
+            $registrationOutputs[] = $stdout.$stderr;
+            return ['exit'=>$exit,'stdout'=>$stdout,'stderr'=>$stderr];
+        };
+        $inputsBefore = array_map($registrationRenderFile,$paths);
+        $stateBefore = $registrationState(); $mountsBefore = $registrationCustody();
+        $result = $run(); $public = null;
+        try { $public = json_decode($result['stdout'],true,8,JSON_THROW_ON_ERROR); } catch (JsonException) {}
+        $canonical = is_array($public) ? json_encode($public,JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES)."\n" : null;
+        if (is_array($public)) ksort($public);
+        $ok($result['exit'] === 0 && $result['stderr'] === '' && $result['stdout'] === $canonical &&
+            $public === $registrationRenderExpected,
+            'registration provenance mode preserves the same seven public fields and exact artifact expectation');
+        $html = SiteReleasePreparationFiles::read($output,150000);
+        $proof = json_decode(SiteReleasePreparationFiles::read($proofPath,32768),true,8,JSON_THROW_ON_ERROR);
+        $expectedProof = ['schemaVersion'=>'sites.local-render-provenance.candidate.v0.1','status'=>'rendered',
+            'planSha256'=>hash('sha256',$planJson),'artifact'=>$plan['expectedArtifact'],
+            'authorityVerified'=>false,'canPublish'=>false,'canAcceptRealOrders'=>false];
+        if (is_array($proof['artifact'] ?? null)) ksort($proof['artifact']);
+        ksort($expectedProof['artifact']); ksort($expectedProof); ksort($proof);
+        $outputBefore = $registrationRenderFile($output); $proofBefore = $registrationRenderFile($proofPath);
+        $privatePair = static fn (array $stat): bool => ($stat['mode'] & 07777) === 0600 &&
+            $stat['uid'] === posix_geteuid() && $stat['nlink'] === 1;
+        $ok($html === $registrationHtml && $proof === $expectedProof &&
+            $privatePair($outputBefore) && $privatePair($proofBefore) &&
+            scandir($directory) === ['.','..','index.html','render-provenance.json'],
+            'registration provenance ties the four original inputs to the same private HTML without granting authority');
+        $ok(array_map($registrationRenderFile,$paths) === $inputsBefore &&
+            $registrationState() === $stateBefore && $registrationCustody() === $mountsBefore,
+            'registration provenance rendering leaves all four inputs, mounts, rows and catalogs unchanged');
+        $ok($run() === ['exit'=>1,'stdout'=>'','stderr'=>"LOCAL_RENDER_DENIED\n"] &&
+            $registrationRenderFile($output) === $outputBefore &&
+            $registrationRenderFile($proofPath) === $proofBefore &&
+            array_map($registrationRenderFile,$paths) === $inputsBefore &&
+            scandir($directory) === ['.','..','index.html','render-provenance.json'] &&
+            $registrationState() === $stateBefore && $registrationCustody() === $mountsBefore,
+            'registration provenance refuses an existing output pair without replacement or persisted side effects');
+        return ['html'=>$html,'privateValues'=>[$sourceJson,$snapshotJson,$planJson,$snapshot['snapshotRef'],
+            $snapshot['operationId'],$snapshot['idempotencyKey'],$snapshot['payload']['payloadRef'],
+            $plan['operationId'],$plan['idempotencyKey'],$plan['renderInput']['payloadRef'],
+            ...array_values($paths),$directory,$output,$proofPath]];
+    })();
+    $registrationProvenanceChecks = $checks-$registrationProvenanceChecksBefore;
+    // The unchanged SQL pipeline below now consumes the provenanced output.
+    $registrationHtml = $registrationProvenance['html'];
     $registrationInput = [
         'schema'=>'SITES_RELEASE_REGISTRATION_V1',
         'target'=>[
@@ -469,12 +589,15 @@ try {
     $private = [$password,$registrationSite,$registrationInput['releaseRef'],$registrationCommand->tenantRef,
         $registrationCommand->orderRef,$registrationCommand->contractRef,'rr_a_artifact_writer',
         'rr_registration_a_artifact_writer','Marca fictícia onboarding=aberto.',...$registrationPaths,
-        $registrationRenderBrief,$registrationRenderOutput,$registrationRenderJson];
+        $registrationRenderBrief,$registrationRenderOutput,$registrationRenderJson,
+        ...$registrationProvenance['privateValues']];
     $leaked = false;
     foreach ($registrationOutputs as $output) foreach ($private as $value) if (str_contains($output,$value)) $leaked = true;
     $ok(!$leaked,'registration stdout and stderr disclose no HTML, commercial reference, SQL identity, credential or private path');
     echo 'LOCAL RENDERING REGISTRY CI PASS: '.$registrationRenderingChecks.
         " new assertions; exclusive private render output consumed by existing registration and release pipeline\n";
+    echo 'LOCAL RENDER PROVENANCE REGISTRY CI PASS: '.$registrationProvenanceChecks.
+        " new assertions; private provenance checked and exact HTML consumed by the existing registration pipeline\n";
     echo 'RELEASE REGISTRATION CI PASS: '.($checks-$registrationChecksBefore).
         " assertions; real plan/record CLI, one immutable artifact, restricted authority, TLS, replay and separate package preparation\n";
 } catch (Throwable $error) {
