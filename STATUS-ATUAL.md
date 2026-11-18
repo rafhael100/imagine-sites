@@ -9,12 +9,19 @@ somente ao ramo CI, exige as flags20/21 e move o ensaio para depois dos 1241
 checks e down16 anteriores. A fixture do leitor retorna exatamente aos bytes
 comprovados na #536; SQL, migrations e história persistente não mudam.
 
-A prova prevê **38 novos /1279 totais**: três históricos existentes, writer
+A prova confirmou **38 novos /1279 totais**: três históricos existentes, writer
 original revogado, stdout descartado, recibo privado alimentando o inspector
 separado, isolamento, revogação atual, custódia, snapshots e rollback16.
 Os **63 checks offline** do wrapper e **32 de domínio** passaram localmente,
-com lint/Bash/AST e revisões independentes. PostgreSQL próprio pendente;
-nenhum banco local executado. [Contrato do ensaio](docs/reviews/SITES-PUBLICATION-RECOVERY-COMPOSITION-2026-11-18.md).
+com lint/Bash/AST e revisões independentes. A [#540](https://github.com/rafhael100/imagine-sites/pull/540),
+commit `1c9b4d46949b907c225b1a0cc42e10c572b44e33`, confirmou **12/12 checks SUCCESS**.
+O [registry 44403773102](https://github.com/rafhael100/imagine-sites/actions/runs/44403773102),
+jobs **135153431208 / 135153430438**, confirmou **63 offline, 38 novas /1279
+totais**, snapshots, down16 e cleanup em PHP 8.3/8.4. Ambos os clusters foram
+confirmados inativos. O [Laravel 44403773083](https://github.com/rafhael100/imagine-sites/actions/runs/44403773083),
+jobs **135153429401 / 135153430221**, confirmou **296/4705/27** e **296/4717/21**
+em ambas as versões. Guard749, cinco blocos Bash e188 links passaram. Nenhum
+banco local executado. [Contrato do ensaio](docs/reviews/SITES-PUBLICATION-RECOVERY-COMPOSITION-2026-11-18.md).
 
 ## 18/11/2026 — vocabulário CSS do artefato inerte
 

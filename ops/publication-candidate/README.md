@@ -259,7 +259,8 @@ e cleanup nas duas versões PHP. A [CLI separada da #538](../../docs/PUBLICATION
 consome esse leitor em `recover-request.php plan|recover` e grava o UUID em
 novo recibo privado. Confirmou **63 checks offline**; sua composição PostgreSQL
 está implementada como [ensaio separado](../../docs/reviews/SITES-PUBLICATION-RECOVERY-COMPOSITION-2026-11-18.md),
-com 38 novos/1279 totais previstos, ainda pendentes de execução. O inspector
+com **38 novos/1279 totais confirmados** em PHP 8.3/8.4 na #540, incluindo
+snapshots, rollback16 e cleanup. O inspector
 conserva sua própria API, identidade e alvo;
 não recebe automaticamente o retorno nem herda permissões.
 

@@ -86,10 +86,13 @@ adotado: original8, plano6/resultado13/recibo3, `planSha256` e diretório privad
 em PHP 8.3/8.4 no [run 44400177491](https://github.com/rafhael100/imagine-sites/actions/runs/44400177491).
 A [composição seguinte](SITES-PUBLICATION-RECOVERY-COMPOSITION-2026-11-18.md)
 já implementa a jornada da CLI real e do inspector separado no PostgreSQL
-descartável. Prevê **38 novos /1279 totais**, reutilizando três históricos,
+descartável. Confirmou **38 novos /1279 totais**, reutilizando três históricos,
 incluindo a falha pós-commit anterior, stdout descartado, isolamento, revogação
 e preservação de evidências. **63 offline** e **32 de domínio** passaram
-localmente; a execução PostgreSQL continua pendente.
+localmente. A [#540](https://github.com/rafhael100/imagine-sites/pull/540), commit
+`1c9b4d46949b907c225b1a0cc42e10c572b44e33`, confirmou **12/12 checks SUCCESS**:
+**38 novos/1279 totais**, snapshots, rollback16 e cleanup nas duas versões PHP
+no [run 44403773102](https://github.com/rafhael100/imagine-sites/actions/runs/44403773102).
 
 ### Auditoria do CSS do artefato inerte
 

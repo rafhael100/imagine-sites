@@ -85,10 +85,32 @@ Subprocessos da nova fixture têm prazo de quinze segundos e saída limitada.
 Localmente passaram **63 checks offline** do produto publicado e os **32 checks
 de domínio** obrigatórios. Lint PHP, AST do helper, Bash e diffcheck passaram.
 As revisões independentes conferiram compatibilidade de protocolo, ordem de
-integração e preservação da custódia. **38 novos /1279 totais são contadores
-previstos até a execução real do CI.** Não houve PostgreSQL local.
+integração e preservação da custódia. Na preparação local, **38 novos /1279
+totais eram contadores previstos**; a execução real e sua evidência seguem
+abaixo. Não houve PostgreSQL local.
 
 A prova exercita a recuperação de um ponteiro histórico; não autentica origem
 Portal, pagamento, aceite ou publicação observada. Ausência de recibo ou
 resposta não autoriza repetir o writer. Os dez gates continuam BLOCKED,
 AGI-11-RB01 desabilitado e a entrega permanece em PR draft.
+
+## Evidência final da #540
+
+O commit de implementação `1c9b4d46949b907c225b1a0cc42e10c572b44e33` da
+[#540](https://github.com/rafhael100/imagine-sites/pull/540) confirmou **12/12
+checks SUCCESS**. O [registry 44403773102](https://github.com/rafhael100/imagine-sites/actions/runs/44403773102),
+jobs [PHP 8.3](https://github.com/rafhael100/imagine-sites/actions/runs/44403773102/job/135153431208)
+e [PHP 8.4](https://github.com/rafhael100/imagine-sites/actions/runs/44403773102/job/135153430438),
+confirmou **63 offline**, **33 do leitor** e **38 novos /1279 registry totais**.
+Os 1241 checks predecessores permaneceram completos. O marcador final só é
+emitido depois das comparações de arquivos/linhas/catálogo e do rollback16.
+
+Ambos os logs confirmam o teste negativo de troca de inode, o cleanup próprio
+`RECOVERY CLI PATHS CLEANUP OK` e o cluster descartável inativo. Os helpers
+anteriores também concluíram sua limpeza. O [Laravel 44403773083](https://github.com/rafhael100/imagine-sites/actions/runs/44403773083),
+jobs **135153429401 / 135153430221**, confirmou **296 testes/4705 assertions/27
+skips** e **296/4717/21** em ambas as versões. A revisão local final conferiu
+**749 arquivos**, cinco blocos Bash, **188 links locais** e diffcheck.
+
+A consolidação documental seguinte registra esta evidência sem modificar o
+código, os testes, o workflow ou os contratos do commit comprovado acima.

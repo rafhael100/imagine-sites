@@ -113,8 +113,11 @@ para alimentar a CLI de inspeção com outra identidade autorizada.
 O [workflow dedicado](../.github/workflows/sites-request-recovery-composition.yml)
 prevê **38 novos /1279 totais** em PHP 8.3/8.4, snapshots finais, down16 e
 cleanup limitado aos recursos do laboratório. Os **63 checks offline** e os
-**32 checks de domínio** passaram localmente depois dos ajustes CI. **A prova
-PostgreSQL desta composição ainda está pendente.** [Casos, custódia e limites](reviews/SITES-PUBLICATION-RECOVERY-COMPOSITION-2026-11-18.md).
+**32 checks de domínio** passaram localmente depois dos ajustes CI. A
+[#540](https://github.com/rafhael100/imagine-sites/pull/540), commit
+`1c9b4d46949b907c225b1a0cc42e10c572b44e33`, confirmou **12/12 checks SUCCESS**
+e **38 novos /1279 totais** em PHP 8.3/8.4 no [run 44403773102](https://github.com/rafhael100/imagine-sites/actions/runs/44403773102),
+com snapshots, rollback16, cleanup e clusters inativos. [Casos, custódia e limites](reviews/SITES-PUBLICATION-RECOVERY-COMPOSITION-2026-11-18.md).
 
 **Fora do escopo:** aceitar pedidos comerciais reais, autenticação Portal,
 provider, publicação/rollback, integração n8n, deploy VPS, DNS, pagamento,
