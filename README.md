@@ -8,6 +8,8 @@ Esta branch contém a aplicação Laravel em `apps/sites`, migrations PostgreSQL
 
 O workspace permite gerar versões imutáveis, consultar fila e histórico, buscar projetos por marca ou chamada principal da versão atual, comparar briefings de duas versões e registrar revisão editorial com outra identidade autorizada. Solicitações de ajuste incluem a orientação para o autor, preservada por versão/digest e visível ao consultar o histórico. Os dados de demonstração permanecem separados dos projetos comerciais. O registro técnico associa o artefato à versão editorial e às referências persistidas de pedido/contrato. O CLI privado prepara um pacote de três arquivos e verifica posteriormente seus bytes e a associação corrente. O diário técnico persiste tentativas, ACKs relatados e resultados inconclusivos, sem autorizar envio ou declarar publicação.
 
+Os campos e o botão da revisão editorial identificam a versão explicitamente. Isso permite escolher o parecer pelo nome do controle, inclusive quando várias versões estão disponíveis na mesma página. Erros e orientações preservadas mantêm essa identificação.
+
 Cada versão tem uma consulta própria de pareceres, com 20 registros por página e continuação para os anteriores. Assim, as orientações que excedem o resumo do histórico permanecem acessíveis. A seleção conserva o contexto de busca e comparação e mantém a edição na versão atual do projeto.
 
 Após um erro de validação ou conflito de edição, o workspace identifica o briefing que ainda não foi salvo e conserva os campos para conferência. Um painel nativo na mesma página permite consultar o briefing realmente salvo, sua revisão e digest, sem sair da tentativa ou perder o texto. A navegação pelo histórico e o controle de revisão esperada permanecem preservados.

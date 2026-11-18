@@ -45,7 +45,7 @@ const {chromium}=require('playwright');const fs=require('fs'),cp=require('child_
  await fill('onepage','Uma empresa preparada para crescer');await p.getByRole('button',{name:'Criar demonstração'}).click();await p.waitForURL('**/_preview/projects/*');const one=p.url();
  ok(await p.getByText('Versão 1',{exact:true}).isVisible(),'project created by real Laravel HTTP');
  ok(await p.getByLabel('Formato',{exact:true}).isDisabled(),'existing product is immutable in form');
- ok(await p.getByRole('button',{name:'Registrar revisão editorial'}).count()===0,'author is not offered own-version review');
+ ok(await p.getByRole('button',{name:/^Registrar revisão editorial da versão [1-9][0-9]*$/}).count()===0,'author is not offered own-version review');
  const form=async()=>({
   _token:await p.locator('input[name=_token]').first().getAttribute('value'),product:'onepage',
   brand:await p.getByLabel('Marca fictícia').inputValue(),headline:await p.getByLabel('Chamada principal').inputValue(),
@@ -83,16 +83,16 @@ const {chromium}=require('playwright');const fs=require('fs'),cp=require('child_
  const projectId=new URL(one).pathname.split('/').pop();
  ok(await ep.locator('[data-project="'+projectId+'"]').getByText('Aguardando revisão',{exact:true}).isVisible(),'queue shows current revision awaiting editorial review');
  ok(await ep.getByRole('button',{name:'Criar demonstração'}).count()===0,'reviewer sees queue without author-only form');
- await ep.goto(one);ok(await ep.getByRole('button',{name:'Gerar nova versão privada'}).count()===0,'reviewer sees briefing read-only');await ep.getByLabel('Parecer editorial desta versão').first().selectOption('approved_internal');await ep.getByRole('button',{name:'Registrar revisão editorial'}).first().click();await ep.waitForURL(one);ok(await ep.getByText(/Versão 2: Aprovada internamente/).isVisible(),'different named editorial reviewer');
+ await ep.goto(one);ok(await ep.getByRole('button',{name:'Gerar nova versão privada'}).count()===0,'reviewer sees briefing read-only');await ep.getByLabel('Parecer editorial da versão 2',{exact:true}).selectOption('approved_internal');await ep.getByRole('button',{name:'Registrar revisão editorial da versão 2',exact:true}).click();await ep.waitForURL(one);ok(await ep.getByText(/Versão 2: Aprovada internamente/).isVisible(),'different named editorial reviewer');
  await ep.goto(base+'/_preview');ok(await ep.locator('[data-project="'+projectId+'"]').getByText('Aprovada internamente',{exact:true}).isVisible(),'queue shows exact reviewed current revision');
  await ep.goto(historyUrl);
  ok(await ep.locator('[data-version]').count()===20&&await ep.locator('[data-version="60"]').isVisible(),'history has bounded newest window');
- ok(await ep.getByRole('button',{name:'Registrar revisão editorial'}).count()===0,'already-reviewed newest versions offer no duplicate decision');
+ ok(await ep.getByRole('button',{name:/^Registrar revisão editorial da versão [1-9][0-9]*$/}).count()===0,'already-reviewed newest versions offer no duplicate decision');
  await ep.getByRole('link',{name:'Versões anteriores'}).click();
  ok(await ep.locator('[data-version="40"]').isVisible()&&await ep.locator('[data-version="21"]').isVisible(),'history moves to middle window');
  await ep.getByRole('link',{name:'Versões anteriores'}).click();
  ok(await ep.locator('[data-version="20"]').isVisible()&&await ep.locator('[data-version="1"]').isVisible(),'history reaches oldest versions beyond first window');
- ok(await ep.getByRole('button',{name:'Registrar revisão editorial'}).count()===0,'all prior decisions remain known beyond100 total review records');
+ ok(await ep.getByRole('button',{name:/^Registrar revisão editorial da versão [1-9][0-9]*$/}).count()===0,'all prior decisions remain known beyond100 total review records');
  await ep.getByRole('link',{name:'Versões mais recentes'}).click();
  ok(await ep.locator('[data-version="40"]').isVisible()&&await ep.locator('[data-version="21"]').isVisible(),'history returns to adjacent newer window');
  ok((await a.request.get(historyUrl+'?before_revision=0')).status()===422,'invalid revision boundary rejected');
@@ -102,7 +102,7 @@ const {chromium}=require('playwright');const fs=require('fs'),cp=require('child_
  await p.getByRole('button',{name:'Gerar nova versão privada'}).click();await p.waitForURL(historyUrl);
  ok(await p.locator('[data-version="61"]').isVisible()&&await p.locator('input[name=expected_revision]').inputValue()==='61','edit from history appends61 from real current60');
  await ep.goto(historyUrl);
- ok(await ep.getByRole('button',{name:'Registrar revisão editorial'}).count()===1,'new current version requires its own review while old versions retain prior decisions');
+ ok(await ep.getByRole('button',{name:/^Registrar revisão editorial da versão [1-9][0-9]*$/}).count()===1,'new current version requires its own review while old versions retain prior decisions');
  // The comparison is a real GET journey with page JavaScript disabled. Its
  // selectors identify historical values independently of the current edit form.
  const comparisonContext=await ctx('author',{javaScriptEnabled:false});
@@ -199,7 +199,7 @@ const {chromium}=require('playwright');const fs=require('fs'),cp=require('child_
     await comparisonPage.getByLabel('Chamada principal').inputValue()===comparisonEdit.headline,
     'editing after historical comparison appends62 from actual head61');
  await comparisonContext.close();
- await require('./editorial-feedback.cjs')({a,e,o,p,ep,base,dir,historyUrl,ok});
+ await require('./editorial-feedback.cjs')({ctx,a,e,o,p,ep,base,dir,historyUrl,ok});
  await require('./queue-search.cjs')({ctx,a,o,base,dir,historyUrl,ok});
  const queueSearchRecovery=await require('./queue-search-recovery.cjs')({ctx,a,base,dir,historyUrl,docker,ok});
  const queryLogProbe='SITES_SEARCH_QUERY_LOG_PROBE_20261118';
