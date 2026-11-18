@@ -17,7 +17,7 @@
     "sha256": "6b6a9fdf1af6bd9c0708b82d7d8467622e195626d8d6e47c103e3244e41eca1e"
   },
   "expectedArtifact": {
-    "sha256": "12549ec46a09e83ea76353a43a48723daa99aa30c6bbdd461923f1a800543d15",
-    "sizeBytes": 5167
+    "sha256": "ab999fc8c61d4f22ab250c6d5d86442a0ceca24659d1f4173db3580e4694740e",
+    "sizeBytes": 5223
   }
 }

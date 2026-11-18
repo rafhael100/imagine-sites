@@ -18,12 +18,15 @@ module.exports=async({ctx,base,dir,ok})=>{
    });
  }
  const page=await context.newPage();
+ const layoutPreview=await context.newPage();
  const preview=await previewContext.newPage();
  preview.on('dialog',async dialog=>{dialogs++;await dialog.dismiss();});
  const fields=['brand','headline','description','call_to_action','benefits'];
+ let wrapChecks=0;
+ const wrapOk=(condition,label)=>{ok(condition,label);wrapChecks++;};
  const copy=(product,version)=>{
    const url='https://example.invalid/v'+version;
-   return {
+   const values={
      brand:'Estúdio '+product+' v'+version+' '+url+' onboarding=texto',
      headline:'Referência v'+version+' http://example.invalid/v'+version+' onclick=texto e javascript:exemplo',
      description:'Consulte '+url+'?etapa=1&modo=texto; onload=literal. Trecho literal '+
@@ -33,6 +36,17 @@ module.exports=async({ctx,base,dir,ok})=>{
      benefits:[url+'?etapa=1&modo=texto onclick=literal',
        'Texto v'+version+': &lt;script&gt; e <img data-inert-text-probe="literal" src="'+url+'">'].join('\n'),
    };
+   if(version===2){
+     // Reuse the existing second revision. These are valid ASCII tokens at
+     // the domain limits, not larger inputs or extra generated versions.
+     values.brand=('Brand-'+product+'-v2-onboarding=texto-').padEnd(120,'B');
+     values.headline=('Headline-'+product+'-v2-onclick=texto-').padEnd(180,'H');
+     values.description=(url+'?onload=literal&onboarding=').padEnd(600,'D');
+     values.call_to_action=('Ver-'+url+'/onboarding=').padEnd(80,'C');
+     values.benefits=[('Beneficio-'+product+'-v2-onclick=literal-').padEnd(180,'F'),
+       ...values.benefits.split('\n'),'<script>window.__inertTextExecuted=1</script>'].join('\n');
+   }
+   return values;
  };
  const fill=async values=>{for(const name of fields)await page.locator('#'+name).fill(values[name]);};
  const submit=async(button,revision,label)=>{
@@ -178,9 +192,64 @@ module.exports=async({ctx,base,dir,ok})=>{
           await preview.evaluate(()=>window.__inertTextExecuted===undefined),
           'inert text '+product+' preview '+revision+' creates no active element, handler or script execution');
      }
+
+     // Keep the existing script/isolation checks above. Measure another page
+     // in the already authenticated JavaScript-disabled author context; its
+     // document is the real stored endpoint, never modified or reconstructed.
+     await layoutPreview.setViewportSize({width:320,height:844});
+     const layoutResponse=await layoutPreview.goto(project+'/versions/2/html');
+     const layoutBytes=await layoutResponse.body();
+     wrapOk(layoutResponse.status()===200&&layoutBytes.equals(second.bytes)&&
+       crypto.createHash('sha256').update(layoutBytes).digest('hex')===second.digest&&
+       await layoutPreview.locator('.brand').textContent()===after.brand&&
+       await layoutPreview.locator('.eyebrow').textContent()===after.brand&&
+       await layoutPreview.locator('#hero-title').textContent()===after.headline&&
+       await layoutPreview.locator('.lead').textContent()===after.description&&
+       await layoutPreview.locator('a.btn').textContent()===after.call_to_action&&
+       JSON.stringify(await layoutPreview.locator('.benefits li').allTextContents())===JSON.stringify(after.benefits.split('\n'))&&
+       after.brand.length===120&&after.headline.length===180&&after.description.length===600&&
+       after.call_to_action.length===80&&after.benefits.split('\n')[0].length===180&&
+       [after.brand,after.headline,after.description,after.call_to_action,after.benefits.split('\n')[0]]
+         .every(value=>/^[\x21-\x7e]+$/.test(value)),
+       'renderer wrap '+product+' serves the exact immutable digest and complete limit-length ASCII text, including the long literal URL, without JavaScript');
+     for(const viewport of [{name:'320',width:320,height:844},{name:'390',width:390,height:844},
+       {name:'desktop',width:1440,height:1000}]){
+       await layoutPreview.setViewportSize({width:viewport.width,height:viewport.height});
+       const geometry=await layoutPreview.evaluate(()=>{
+         const selectors=['.brand','.eyebrow','#hero-title','.lead','a.btn','.benefits li',
+           '#benefits-title','#sobre-title','.about p','.contact p','footer .container'];
+         const blocks=[];
+         for(const selector of selectors){
+           document.querySelectorAll(selector).forEach((node,index)=>{
+             const rect=node.getBoundingClientRect(),style=getComputedStyle(node);
+             const range=document.createRange();range.selectNodeContents(node);
+             const fragments=Array.from(range.getClientRects()).filter(part=>part.width>0&&part.height>0);
+             const contained=fragments.length>0&&fragments.every(part=>
+               part.left>=rect.left-1&&part.right<=rect.right+1&&part.left>=-1&&part.right<=innerWidth+1);
+             blocks.push({selector:selector+'['+index+']',left:rect.left,right:rect.right,
+               width:rect.width,height:rect.height,clientWidth:node.clientWidth,scrollWidth:node.scrollWidth,
+               contained,
+               clipped:['hidden','clip'].includes(style.overflowX)||['hidden','clip'].includes(style.overflowY)||
+                 style.textOverflow==='ellipsis'});
+           });
+         }
+         return {viewport:innerWidth,documentWidth:document.documentElement.scrollWidth,
+           bodyWidth:document.body.scrollWidth,blocks};
+       });
+       const overflow=geometry.blocks.filter(block=>block.width<=0||block.height<=0||block.left< -1||
+         block.right>viewport.width+1||block.scrollWidth>block.clientWidth+1||
+         !block.contained||block.clipped);
+       await layoutPreview.screenshot({path:dir+'/renderer-wrap-'+product+'-'+viewport.name+'.png',fullPage:true});
+       wrapOk(geometry.viewport===viewport.width&&geometry.documentWidth<=viewport.width+1&&
+         geometry.bodyWidth<=viewport.width+1&&
+         geometry.blocks.length===9+after.benefits.split('\n').length+(product==='onepage'?2:0)&&overflow.length===0,
+         'renderer wrap '+product+' at '+viewport.width+'px keeps every full text block and glyph range inside its box and page without clipping; '+
+         JSON.stringify({viewport:geometry.viewport,documentWidth:geometry.documentWidth,bodyWidth:geometry.bodyWidth,overflow}));
+     }
    }
    ok(externalAttempts===0&&dialogs===0,
       'inert text browser journey attempts no external requests and opens no script dialogs');
+   console.log('RENDERER WRAP HTTP PASS: '+wrapChecks+' new checks; 439 existing checks retained; two real stored products at 320, 390 and 1440px without JavaScript.');
  } finally {
    await context.close();
    await previewContext.close();

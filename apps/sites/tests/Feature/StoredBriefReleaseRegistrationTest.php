@@ -333,7 +333,7 @@ final class StoredBriefReleaseRegistrationTest extends TestCase
         yield 'plan' => ['plan_sha256', str_repeat('0', 64)];
         yield 'editorial' => ['editorial_sha256', str_repeat('0', 64)];
         yield 'html' => ['artifact_digest', str_repeat('0', 64)];
-        yield 'size' => ['size_bytes', '5167'];
+        yield 'size' => ['size_bytes', '5223'];
         yield 'calendar' => ['recorded_at', '2026-02-30T16:10:00.123456Z'];
         yield 'fraction' => ['recorded_at', '2026-11-18T16:10:00Z'];
         yield 'created type' => ['created', 1];

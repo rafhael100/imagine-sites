@@ -31,7 +31,7 @@ if (PHP_SAPI !== 'cli' || getenv('GITHUB_ACTIONS') !== 'true' || getenv('APP_ENV
 const BAP_RECORD_API = 'sites_core.record_brief_release_artifact(text,text,text)';
 const BAP_READ_API = 'sites_core.read_brief_release_artifact_receipt(uuid,text,text)';
 const BAP_NATIVE_API = 'sites_core.record_release_artifact(uuid,text,text)';
-const BAP_HTML_SHA = '12549ec46a09e83ea76353a43a48723daa99aa30c6bbdd461923f1a800543d15';
+const BAP_HTML_SHA = 'ab999fc8c61d4f22ab250c6d5d86442a0ceca24659d1f4173db3580e4694740e';
 const BAP_GUARD12_SHA = 'a6707a10197400c20651603949abe6ffe4dd48e52fd40b595c3832b42e1a9753';
 
 /** Only fixture-authored labels may be reported; never wrap an internal error. */
@@ -286,7 +286,7 @@ if (!isset($admin, $connection, $connect, $password, $caFile, $ok)) {
         $bapSnapshotTemplate = json_decode(file_get_contents($examples.'brief-snapshot.synthetic.json'), true, 16, JSON_THROW_ON_ERROR);
         $bapPlanTemplate = json_decode(file_get_contents($examples.'brief-render-plan.synthetic.json'), true, 16, JSON_THROW_ON_ERROR);
         $bapCheck(is_string($bapSource) && is_string($bapEditorial) && is_string($bapHtml) &&
-            strlen($bapHtml) === 5167 && hash('sha256', $bapHtml) === BAP_HTML_SHA, 'the existing synthetic renderer oracle remains byte exact');
+            strlen($bapHtml) === 5223 && hash('sha256', $bapHtml) === BAP_HTML_SHA, 'the existing synthetic renderer oracle remains byte exact');
         $bapDb = static fn(string $role, bool $ro = false): PDO => bapDb($role, $ro, $bapPassword, $bapCaFile);
         $bapNoMutation = static function (callable $work, string $label, string $message = 'BRIEF_ARTIFACT_PROVENANCE_DENIED') use ($bapAdmin, $bapCheck): void {
             $before = [bapRows($bapAdmin), bapCatalog($bapAdmin)]; $denied = false;
@@ -411,7 +411,7 @@ if (!isset($admin, $connection, $connect, $password, $caFile, $ok)) {
                 'siteRef' => $selection->siteRef, 'releaseRef' => $selection->releaseRef, 'operationId' => $selection->operationId,
                 'idempotencyKey' => $selection->idempotencyKey, 'snapshotRef' => $selection->snapshotRef, 'briefRevision' => $selection->briefRevision,
                 'manifestSha256' => $selection->manifestSha256, 'planSha256' => $selection->planSha256,
-                'editorialSha256' => hash('sha256', $editorial ?? $bapEditorial), 'artifactDigest' => BAP_HTML_SHA, 'sizeBytes' => 5167,
+                'editorialSha256' => hash('sha256', $editorial ?? $bapEditorial), 'artifactDigest' => BAP_HTML_SHA, 'sizeBytes' => 5223,
                 'recordedAt' => $receipt['recordedAt'] ?? null, 'created' => $created, 'authorityVerified' => false,
                 'clientAccepted' => false, 'canPublish' => false, 'canAcceptRealOrders' => false, 'commitmentSha256' => $commitment,
             ];
@@ -442,7 +442,7 @@ if (!isset($admin, $connection, $connect, $password, $caFile, $ok)) {
         $expectedMainPlan = [
             'schemaVersion' => 'sites.brief-artifact-registration.plan.candidate.v0.1', 'status' => 'planned',
             'commitmentSha256' => $bapMainCommitment, 'planSha256' => hash('sha256', $bapPlans['main']),
-            'artifactDigest' => BAP_HTML_SHA, 'sizeBytes' => 5167, 'authorityVerified' => false,
+            'artifactDigest' => BAP_HTML_SHA, 'sizeBytes' => 5223, 'authorityVerified' => false,
             'clientAccepted' => false, 'canPublish' => false, 'canAcceptRealOrders' => false,
         ];
         bapRequire(array_keys($bapMainPlan) === array_keys($expectedMainPlan), 'initial plan field names and order');
@@ -527,7 +527,7 @@ if (!isset($admin, $connection, $connect, $password, $caFile, $ok)) {
             'editorial LF with rebound digest' => [$bapPlan('main', null, $bapEditorial."\n"), $bapEditorial."\n"]] as $label => [$differentPlan, $editorialBytes]) {
             $different = $bapMakePlan($bapRoles['writer_a'], $differentPlan, $editorialBytes);
             $bapCheck($different['commitmentSha256'] !== $bapMainCommitment && $different['planSha256'] !== $bapMainPlan['planSha256'] &&
-                $different['artifactDigest'] === BAP_HTML_SHA && $different['sizeBytes'] === 5167,
+                $different['artifactDigest'] === BAP_HTML_SHA && $different['sizeBytes'] === 5223,
                 $label.' has a distinct validated commitment despite identical rendered HTML');
             $bapNoMutation(fn() => $bapRecord($bapRoles['writer_a'], $differentPlan, $different['commitmentSha256'], $editorialBytes),
                 $label.' cannot reinterpret an existing release association', 'BRIEF_ARTIFACT_PROVENANCE_CONFLICT');
@@ -583,7 +583,7 @@ if (!isset($admin, $connection, $connect, $password, $caFile, $ok)) {
         $legacy = BriefRenderPlanInput::fromJson($bapPlans['adopt']);
         $legacyTarget = bapTarget($bapAdmin, $bapRoles['writer_legacy'], $bapCaSha);
         $legacyInput = ['schema' => 'SITES_RELEASE_REGISTRATION_V1', 'target' => $legacyTarget,
-            'siteRef' => $legacy->siteRef, 'releaseRef' => $legacy->releaseRef, 'artifactDigest' => BAP_HTML_SHA, 'sizeBytes' => 5167];
+            'siteRef' => $legacy->siteRef, 'releaseRef' => $legacy->releaseRef, 'artifactDigest' => BAP_HTML_SHA, 'sizeBytes' => 5223];
         $before = bapRows($bapAdmin);
         $legacyDb = $bapDb($bapRoles['writer_legacy'], true);
         $legacyRegistration = new PrivateReleaseRegistration($legacyDb);

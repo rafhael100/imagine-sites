@@ -1,11 +1,11 @@
 # Registro privado a partir de briefing armazenado
 
-**Estado em 18/11/2026:** implementação candidata na branch
-`feature/sites-brief-provenance-registration-2026-11-18`, sobre a
-[#521](https://github.com/rafhael100/imagine-sites/pull/521), HEAD
-`73d610513c777c5f3a1709fcb19263d6073139c6`. A nova CLI tem validação offline;
-sua prova própria em PostgreSQL/TLS ainda está pendente. Não houve implantação ou autorização de execução em
-staging, produção ou com dados reais.
+**Estado em 18/11/2026:** implementação candidata validada na
+[#522](https://github.com/rafhael100/imagine-sites/pull/522), ainda draft, HEAD
+`0b735a1794ee3bb965e5a05d5d738083ddac9544`, com **12/12 checks SUCCESS**.
+A branch `feature/sites-brief-provenance-registration-2026-11-18` deriva da #521.
+A prova usa apenas materiais sintéticos e recursos descartáveis de CI; não
+constitui implantação ou autorização operacional.
 
 ## Uso e consumidor
 
@@ -235,9 +235,28 @@ Validação local observada:
 | [`release-registration-offline.php`](../tests/release-registration-offline.php) | 271 checks de regressão do registro anterior. |
 | Suíte geral local | 279 testes / 4250 assertions / 27 skips; skips não representam prova PostgreSQL. |
 | Lint e revisão independente | Concluídos para o wrapper, enum e teste offline. |
-| Integração própria PostgreSQL/TLS da nova CLI | Pendente; nenhuma execução positiva é simulada pelos testes offline. |
+| Integração própria PostgreSQL/TLS da nova CLI | Aprovada em PHP 8.3/8.4, com 27 checks novos e 1094 registry totais; jobs abaixo. |
+
+### Evidência final da #522
+
+| Prova | PHP 8.3 | PHP 8.4 |
+| --- | --- | --- |
+| [Registry, run 44349683339](https://github.com/rafhael100/imagine-sites/actions/runs/44349683339) | [Job 134961579543](https://github.com/rafhael100/imagine-sites/actions/runs/44349683339/job/134961579543) | [Job 134961581119](https://github.com/rafhael100/imagine-sites/actions/runs/44349683339/job/134961581119) |
+| Contagens por job | 95 offline da CLI; 51 do inspetor; 27 novas de registro, 25 de inspeção e 119 da composição; **1094 registry totais**. | Mesmas contagens. |
+| Cleanup | Seis arquivos novos e três do inspetor removidos sob recibos de propriedade; cluster próprio inativo. | Mesmo resultado. |
+| [Laravel, run 44349683049](https://github.com/rafhael100/imagine-sites/actions/runs/44349683049) | [Job 134961577430](https://github.com/rafhael100/imagine-sites/actions/runs/44349683049/job/134961577430) | [Job 134961576714](https://github.com/rafhael100/imagine-sites/actions/runs/44349683049/job/134961576714) |
+| Padrão / sintético | **279/4250/27** e **279/4262/21**. | Mesmas contagens. |
+
+A fixture confirmou um recibo real de doze campos e outro registro com stdout
+descartado, recuperado pelo inspetor sem repetir o writer. As duas jornadas
+acrescentaram somente dois pares de artefato/associação sobre um snapshot já
+existente. Confirmou também a recusa de credencial alterada no mesmo inode
+durante uma leitura realmente bloqueada, antes de qualquer append. Não houve
+nova execução F383 ou de containers na #522; as provas anteriores mantêm seus
+próprios HEADs. A correção posterior do CSS e seus vetores tem validação própria
+no [recorte de texto longo](reviews/SITES-RENDERER-LONG-TEXT-2026-11-18.md).
 
 A prova já aprovada da consulta histórica está registrada no
 [manual de inspeção](BRIEF-ARTIFACT-INSPECTION.md#validação-isolada). Ela não
-substitui a execução da nova CLI de escrita. Os gates comerciais e
+substitui a execução da CLI de escrita identificada acima. Os gates comerciais e
 AGI-11-RB01 permanecem inalterados.
