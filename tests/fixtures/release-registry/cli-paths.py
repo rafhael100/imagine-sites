@@ -5,6 +5,7 @@ import json
 import os
 import pathlib
 import stat
+import subprocess
 import sys
 
 # Fixed repository module; no material is read during import.
@@ -32,24 +33,51 @@ def identity(path):
             'type': stat.S_IFMT(value.st_mode), 'uid': value.st_uid}
 
 
+def exists_at(directory_fd, name):
+    try:
+        os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+        return True
+    except FileNotFoundError:
+        return False
+
+
 def main():
     if os.geteuid() != 0 or os.environ.get('GITHUB_ACTIONS') != 'true' or os.environ.get('SITES_RELEASE_PACKAGE_CI') != '1':
         raise RuntimeError('disposable root fixture required')
     operation, lab_arg, uid_arg, gid_arg = sys.argv[1:]
     lab = pathlib.Path(lab_arg)
     uid, gid = int(uid_arg), int(gid_arg)
-    if uid <= 0 or gid < 0 or lab.is_symlink() or lab.resolve() != lab or not str(lab).startswith('/tmp/sites-release-registry-'):
+    if (uid <= 0 or gid < 0 or lab.is_symlink() or lab.resolve() != lab
+            or lab.parent != pathlib.Path('/tmp') or not lab.name.startswith('sites-release-registry-')):
         raise RuntimeError('owned temporary laboratory required')
-    info = lab.stat()
+    info = lab.lstat()
     if not stat.S_ISDIR(info.st_mode) or info.st_uid != uid or stat.S_IMODE(info.st_mode) != 0o700:
         raise RuntimeError('laboratory custody mismatch')
-    receipt = lab / 'cli-paths.json'
+    lab_fd = os.open(lab, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        if _material.stamp(os.fstat(lab_fd)) != _material.stamp(info):
+            raise RuntimeError('laboratory replaced before open')
+        run(operation, lab, uid, gid, lab_fd)
+    finally:
+        os.close(lab_fd)
+
+
+def run(operation, lab, uid, gid, lab_fd):
+    def current_lab():
+        current = lab.lstat()
+        opened = os.fstat(lab_fd)
+        if (current.st_dev != opened.st_dev or current.st_ino != opened.st_ino
+                or not stat.S_ISDIR(current.st_mode) or current.st_uid != uid
+                or stat.S_IMODE(current.st_mode) != 0o700):
+            raise RuntimeError('laboratory path changed')
+    current_lab()
+    receipt = 'cli-paths.json'
     if operation in ('cleanup', 'verify-mismatch'):
-        if not receipt.exists():
+        if not exists_at(lab_fd, receipt):
             return
-        if receipt.is_symlink() or not receipt.is_file() or receipt.stat().st_nlink != 1:
-            raise RuntimeError('receipt must be a regular file')
-        created = json.loads(receipt.read_text())
+        saved, recorded = _material.read_private(lab_fd, receipt, uid, 1, 16384)
+        current_lab()
+        created = json.loads(saved)
         if not isinstance(created, list):
             raise RuntimeError('invalid ownership receipt')
         paths = []
@@ -74,23 +102,43 @@ def main():
         if operation == 'verify-mismatch':
             if not created or any(not os.path.lexists(p) for p in paths):
                 raise RuntimeError('complete fresh fixture required')
-            import subprocess
-            saved = receipt.read_bytes()
             invalid = json.loads(saved)
             invalid[0]['identity']['ino'] += 1
-            try:
-                receipt.write_text(json.dumps(invalid))
-                refused = subprocess.run([sys.executable, __file__, 'cleanup', lab_arg, uid_arg, gid_arg],
-                                         capture_output=True, check=False)
-                if refused.returncode == 0 or any(not os.path.lexists(p) for p in paths):
-                    raise RuntimeError('wrong identity did not preserve every resource')
-                for entry in created:
-                    if identity(entry['path']) != entry['identity']:
-                        raise RuntimeError('negative cleanup changed a fixture object')
-            finally:
-                receipt.write_bytes(saved)
+            receipt_fd = os.open(receipt, os.O_RDWR | os.O_NOFOLLOW, dir_fd=lab_fd)
+            with os.fdopen(receipt_fd, 'r+b') as record:
+                if _material.stamp(os.fstat(record.fileno())) != _material.stamp(recorded):
+                    raise RuntimeError('receipt replaced before negative test')
+                current_lab()
+                try:
+                    record.seek(0)
+                    record.truncate()
+                    record.write(json.dumps(invalid).encode())
+                    record.flush()
+                    os.fsync(record.fileno())
+                    refused = subprocess.run(
+                        [sys.executable, __file__, 'cleanup', str(lab), str(uid), str(gid)],
+                        capture_output=True, check=False,
+                    )
+                    if refused.returncode == 0 or any(not os.path.lexists(p) for p in paths):
+                        raise RuntimeError('wrong identity did not preserve every resource')
+                    for entry in created:
+                        if identity(entry['path']) != entry['identity']:
+                            raise RuntimeError('negative cleanup changed a fixture object')
+                finally:
+                    # Restore only the opened receipt, never a replacement at
+                    # its pathname while the negative subprocess was running.
+                    record.seek(0)
+                    record.truncate()
+                    record.write(saved)
+                    record.flush()
+                    os.fsync(record.fileno())
+                current_lab()
+                if _material.stamp(os.fstat(record.fileno())) != _material.stamp(
+                        os.stat(receipt, dir_fd=lab_fd, follow_symlinks=False)):
+                    raise RuntimeError('receipt replaced during negative test')
             print('PACKAGE CLI PATHS NEGATIVE OK: mismatched inode receipt refused before any removal')
             return
+        current_lab()
         for entry in reversed(created):
             raw = entry['path']
             path = pathlib.Path(raw)
@@ -117,7 +165,7 @@ def main():
         return
     if operation != 'prepare':
         raise RuntimeError('unknown fixture operation')
-    if receipt.exists() or receipt.is_symlink():
+    if exists_at(lab_fd, receipt):
         raise RuntimeError('fixture already prepared')
     for raw in FILES + LEAVES:
         if os.path.lexists(raw):
@@ -126,9 +174,10 @@ def main():
         path = pathlib.Path(raw)
         if path.is_symlink() or (path.exists() and (not path.is_dir() or path.stat().st_uid != 0 or path.stat().st_mode & 0o022)):
             raise RuntimeError('unsafe existing parent')
-    password, ca = _material.load_material(lab, uid)
+    password, ca = _material.synthetic_material(lab_fd, uid)
+    current_lab()
     created = []
-    fd = os.open(receipt, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    fd = os.open(receipt, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=lab_fd)
     os.fchown(fd, uid, gid)
     with os.fdopen(fd, 'w') as record:
         def remember(path):
@@ -138,6 +187,10 @@ def main():
             json.dump(created, record)
             record.flush()
             os.fsync(record.fileno())
+            current_lab()
+            if _material.stamp(os.fstat(record.fileno())) != _material.stamp(
+                    os.stat(receipt, dir_fd=lab_fd, follow_symlinks=False)):
+                raise RuntimeError('receipt replaced during preparation')
         for raw in PARENTS:
             if not pathlib.Path(raw).exists():
                 os.mkdir(raw, 0o755)
@@ -155,6 +208,7 @@ def main():
             remember(raw)
             with os.fdopen(out, 'wb') as stream:
                 stream.write(payload)
+    current_lab()
     print('PACKAGE CLI PATHS READY: private exact paths reserved; no operational credentials')
 
 

@@ -63,19 +63,23 @@ O erro externo é somente `PUBLICATION_RECONCILIATION_DENIED`, com exit 1 e stdo
 | PHPUnit da aplicação | 134 testes, 1186 assertions e 27 skips |
 | Safety guard em cópia de fontes | Aprovado; dez gates continuam `BLOCKED` |
 | Sintaxe, recusa do exemplo e revisão cruzada | Aprovadas |
-| Reconciliação SQL/TLS e CLI reais | 49 verificações novas / 712 registry previstas; pendentes de CI |
+| Reconciliação SQL/TLS e CLI reais | 49 verificações novas / 712 registry aprovadas em PHP 8.3/8.4 |
 
 Os testes offline não fabricam autoridade SQL. A CLI é exercitada em subprocessos com acesso limitado ao seu diretório: help funciona sem autoload, e argumentos/ambientes recusados não alcançam os inputs privados nem o banco. O exemplo é inelegível pelo parser real. As revisões independentes do serviço e wrapper não encontraram bloqueador.
 
 O workflow `.github/workflows/sites-publication-reconciliation.yml` deriva do workflow da base corrigida. Fixa repositório, draft, branch de origem e SHA `3eacc40b2f323b246015510cad1ac60a5c17239a`, com PHP 8.3/8.4, lint, ensaios offline, PHPUnit e contratos PostgreSQL descartáveis. Conserva os seis opt-ins anteriores e acrescenta `SITES_PUBLICATION_RECONCILIATION_CI=1`. Não adiciona jornada HTTP a esta entrega de CLI.
 
-Na fixture preparada, dois processos CLI reais aguardam o mesmo lock SQL. O ensaio observa ambos em `pg_stat_activity`, com `wait_event_type=Lock` e `wait_event=advisory`, e libera o lock sem ampliar o timeout do candidato. Esses valores e a atualização do snapshot de estatísticas seguem a [documentação oficial do PostgreSQL 18](https://www.postgresql.org/docs/18/monitoring-stats.html). A comparação posterior exige a mesma projeção nos dois processos e exatamente um evento de expiração, preservando todas as linhas e catálogos anteriores.
+Na fixture executada, dois processos CLI reais aguardam o mesmo lock SQL. O ensaio observa ambos em `pg_stat_activity`, com `wait_event_type=Lock` e `wait_event=advisory`, e libera o lock sem ampliar o timeout do candidato. Esses valores e a atualização do snapshot de estatísticas seguem a [documentação oficial do PostgreSQL 18](https://www.postgresql.org/docs/18/monitoring-stats.html). A comparação posterior exige a mesma projeção nos dois processos e exatamente um evento de expiração, preservando todas as linhas e catálogos anteriores.
 
 O helper novo reserva apenas os três arquivos da reconciliação, recusa qualquer path preexistente e lê fontes e recibo por descritores pinados. Confere todas as identidades do recibo antes do primeiro `unlink`; o negativo de recibo exige que todos os arquivos sobrevivam. Não assume propriedade de `/run/secrets` ou de outro diretório. O runner ordena a limpeza reconciliation → binding → editorial → registration → inspection → package. A revisão desse helper não muda a implementação nem amplia as garantias dos helpers anteriores.
 
 A revisão identificou e corrigiu um falso positivo no negativo entre empresas: uma operação B ainda em `requested` falharia também por não ter lease. A fixture agora cria uma tentativa B real, confirma sua expiração pelo relógio do banco e exige sucesso pelo reconciliador B, com comparação integral do evento. Só depois a CLI A precisa recusar o mesmo replay elegível. O reader B já revogado continua revogado. A revisão final do helper, integração, negativos e projeções não encontrou bloqueador.
 
-**O CI da PR #501 permanece pendente, com 49 verificações novas e 712 registry previstas.** Expiração pelo relógio do banco, estados incompatíveis, concorrência de processos, replay, ACK tardio e principal corrente precisam da fixture real; nenhuma contagem SQL desta entrega está aprovada neste checkpoint. Não foi iniciado PostgreSQL local.
+## Evidência concluída da PR #501
+
+HEAD validada: `889bf55bde70e1ba617cb4fcde89e2c284c742e3`; **17/17 check-runs SUCCESS** na conferência final. O [run 44231736687](https://github.com/rafhael100/imagine-sites/actions/runs/44231736687) passou nos jobs [PHP 8.3 / 134558158980](https://github.com/rafhael100/imagine-sites/actions/runs/44231736687/job/134558158980) e [PHP 8.4 / 134558159205](https://github.com/rafhael100/imagine-sites/actions/runs/44231736687/job/134558159205). Ambos confirmam **49 verificações novas, 712 registry, 386 workspace, 271 checks offline do serviço, 81 da CLI e PHPUnit 134 testes/1186 assertions/27 skips**.
+
+Expiração pelo relógio do banco, concorrência de processos, isolamento com operação elegível, replay, ACK tardio e autoridade corrente passaram nas duas versões de PHP. Os seis negativos de recibo, a limpeza reconciliation → binding → editorial → registration → inspection → package e o encerramento dos clusters descartáveis foram confirmados. Não foi iniciado PostgreSQL local; essa evidência vem do laboratório descartável de CI. A custódia dos recibos dos dois helpers antigos é uma correção separada, desenvolvida depois deste checkpoint.
 
 ## Base validada da PR #500
 

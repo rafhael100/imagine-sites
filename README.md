@@ -51,6 +51,7 @@ php tests/release-binding-cli-offline.php
 php tests/editorial-transition-offline.php
 php tests/editorial-transition-cli-offline.php
 python3 tests/fixture-private-material.py
+python3 tests/fixture-receipt-custody.py
 php tests/publication-journal-offline.php
 php tests/publication-inspection-offline.php
 php tests/publication-inspection-cli-offline.php
@@ -79,6 +80,7 @@ O Portal controla contratos, aceite expresso e evento oficial `ENTREGUE`; Sites 
 - [Diário técnico de publicação](contracts/publication-journal/README.md)
 - [Inspeção privada do diário](ops/publication-candidate/README.md)
 - [Reconciliação explícita do diário](docs/reviews/SITES-PUBLICATION-RECONCILIATION-2026-11-18.md)
+- [Custódia dos recibos dos auxiliares de CI](docs/reviews/SITES-FIXTURE-RECEIPT-CUSTODY-2026-11-18.md)
 - [Próxima integração Portal → briefing → geração](docs/reviews/SITES-NEXT-INTEGRATION-2026-11-18.md)
 - [Orientação editorial por versão](docs/reviews/SITES-EDITORIAL-FEEDBACK-2026-11-18.md)
 - [Briefing Unicode e validação por campo](docs/reviews/SITES-BRIEF-UNICODE-VALIDATION-2026-11-18.md)

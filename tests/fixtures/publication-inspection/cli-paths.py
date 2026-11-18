@@ -30,6 +30,14 @@ def identity(path):
             'type': stat.S_IFMT(value.st_mode), 'uid': value.st_uid}
 
 
+def exists_at(directory_fd, name):
+    try:
+        os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+        return True
+    except FileNotFoundError:
+        return False
+
+
 def main():
     if (os.geteuid() != 0 or os.environ.get('GITHUB_ACTIONS') != 'true'
             or os.environ.get('SITES_RELEASE_REGISTRY_CI') != '1'
@@ -40,9 +48,9 @@ def main():
     lab = pathlib.Path(lab_arg)
     uid, gid = int(uid_arg), int(gid_arg)
     if (uid <= 0 or gid < 0 or lab.is_symlink() or lab.resolve() != lab
-            or not str(lab).startswith('/tmp/sites-release-registry-')):
+            or lab.parent != pathlib.Path('/tmp') or not lab.name.startswith('sites-release-registry-')):
         raise RuntimeError('owned temporary laboratory required')
-    info = lab.stat()
+    info = lab.lstat()
     if (not stat.S_ISDIR(info.st_mode) or info.st_uid != uid
             or stat.S_IMODE(info.st_mode) != 0o700):
         raise RuntimeError('laboratory custody mismatch')
@@ -52,15 +60,31 @@ def main():
     if (parent.is_symlink() or parent.resolve() != parent or not parent.is_dir()
             or parent.stat().st_uid != 0 or parent.stat().st_mode & 0o022):
         raise RuntimeError('safe existing secrets parent required')
-    receipt = lab / 'publication-inspection-paths.json'
+    lab_fd = os.open(lab, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        if _material.stamp(os.fstat(lab_fd)) != _material.stamp(info):
+            raise RuntimeError('laboratory replaced before open')
+        run(operation, lab, uid, gid, lab_fd)
+    finally:
+        os.close(lab_fd)
+
+
+def run(operation, lab, uid, gid, lab_fd):
+    def current_lab():
+        current = lab.lstat()
+        opened = os.fstat(lab_fd)
+        if (current.st_dev != opened.st_dev or current.st_ino != opened.st_ino
+                or not stat.S_ISDIR(current.st_mode) or current.st_uid != uid
+                or stat.S_IMODE(current.st_mode) != 0o700):
+            raise RuntimeError('laboratory path changed')
+    current_lab()
+    receipt = 'publication-inspection-paths.json'
     if operation in ('cleanup', 'verify-mismatch'):
-        if not os.path.lexists(receipt):
+        if not exists_at(lab_fd, receipt):
             return
-        recorded = receipt.lstat()
-        if (not stat.S_ISREG(recorded.st_mode) or recorded.st_nlink != 1
-                or recorded.st_uid != uid or stat.S_IMODE(recorded.st_mode) != 0o600):
-            raise RuntimeError('private regular receipt required')
-        created = json.loads(receipt.read_bytes())
+        saved, recorded = _material.read_private(lab_fd, receipt, uid, 1, 16384)
+        current_lab()
+        created = json.loads(saved)
         if not isinstance(created, list):
             raise RuntimeError('invalid ownership receipt')
         paths = []
@@ -82,23 +106,42 @@ def main():
         if operation == 'verify-mismatch':
             if set(paths) != set(FILES) or any(not os.path.lexists(p) for p in paths):
                 raise RuntimeError('complete fresh fixture required')
-            saved = receipt.read_bytes()
             invalid = json.loads(saved)
             invalid[0]['identity']['ino'] += 1
-            try:
-                receipt.write_text(json.dumps(invalid))
-                refused = subprocess.run(
-                    [sys.executable, __file__, 'cleanup', lab_arg, uid_arg, gid_arg],
-                    capture_output=True, check=False,
-                )
-                if refused.returncode == 0 or any(not os.path.lexists(p) for p in paths):
-                    raise RuntimeError('identity mismatch did not preserve every path')
-                if any(identity(entry['path']) != entry['identity'] for entry in created):
-                    raise RuntimeError('negative cleanup changed a fixture object')
-            finally:
-                receipt.write_bytes(saved)
+            receipt_fd = os.open(receipt, os.O_RDWR | os.O_NOFOLLOW, dir_fd=lab_fd)
+            with os.fdopen(receipt_fd, 'r+b') as record:
+                if _material.stamp(os.fstat(record.fileno())) != _material.stamp(recorded):
+                    raise RuntimeError('receipt replaced before negative test')
+                current_lab()
+                try:
+                    record.seek(0)
+                    record.truncate()
+                    record.write(json.dumps(invalid).encode())
+                    record.flush()
+                    os.fsync(record.fileno())
+                    refused = subprocess.run(
+                        [sys.executable, __file__, 'cleanup', str(lab), str(uid), str(gid)],
+                        capture_output=True, check=False,
+                    )
+                    if refused.returncode == 0 or any(not os.path.lexists(p) for p in paths):
+                        raise RuntimeError('identity mismatch did not preserve every path')
+                    if any(identity(entry['path']) != entry['identity'] for entry in created):
+                        raise RuntimeError('negative cleanup changed a fixture object')
+                finally:
+                    # The pathname may have changed during the subprocess;
+                    # restore only the original file already held by this FD.
+                    record.seek(0)
+                    record.truncate()
+                    record.write(saved)
+                    record.flush()
+                    os.fsync(record.fileno())
+                current_lab()
+                if _material.stamp(os.fstat(record.fileno())) != _material.stamp(
+                        os.stat(receipt, dir_fd=lab_fd, follow_symlinks=False)):
+                    raise RuntimeError('receipt replaced during negative test')
             print('INSPECTION CLI PATHS NEGATIVE OK: inode mismatch refused before any removal')
             return
+        current_lab()
         for entry in reversed(created):
             raw = entry['path']
             if not os.path.lexists(raw):
@@ -108,13 +151,14 @@ def main():
             os.unlink(raw)
         print('INSPECTION CLI PATHS CLEANUP OK: only three fixture-owned file paths considered')
         return
-    if operation != 'prepare' or os.path.lexists(receipt):
+    if operation != 'prepare' or exists_at(lab_fd, receipt):
         raise RuntimeError('fresh fixture preparation required')
     if any(os.path.lexists(path) for path in FILES):
         raise RuntimeError('fixed path already exists; refusing reuse')
-    password, ca = _material.load_material(lab, uid)
+    password, ca = _material.synthetic_material(lab_fd, uid)
+    current_lab()
     created = []
-    fd = os.open(receipt, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    fd = os.open(receipt, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=lab_fd)
     os.fchown(fd, uid, gid)
     with os.fdopen(fd, 'w') as record:
         def remember(path):
@@ -124,6 +168,10 @@ def main():
             json.dump(created, record)
             record.flush()
             os.fsync(record.fileno())
+            current_lab()
+            if _material.stamp(os.fstat(record.fileno())) != _material.stamp(
+                    os.stat(receipt, dir_fd=lab_fd, follow_symlinks=False)):
+                raise RuntimeError('receipt replaced during preparation')
         for raw, payload in zip(FILES, (b'{}\n', password, ca)):
             mode = 0o600 if raw == FILES[0] else 0o400
             out = os.open(raw, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, mode)
@@ -131,6 +179,7 @@ def main():
             remember(raw)
             with os.fdopen(out, 'wb') as stream:
                 stream.write(payload)
+    current_lab()
     print('INSPECTION CLI PATHS READY: private exact paths reserved with synthetic material')
 
 
