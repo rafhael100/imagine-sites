@@ -75,6 +75,7 @@ SQL)->fetchAll(PDO::FETCH_ASSOC);
     // SQL serializes complete function/trigger/constraint records, including
     // bytea, before PDO sees them. ACL entries retain every grant; NULL and an
     // empty column ACL both mean that no column grant exists after REVOKE.
+    // aclexplode accepts NULL, but refuses an empty array with no dimensions.
     $catalog = static function (bool $olderOnly = false) use ($admin): array {
         $ignore = $olderOnly ? "(SELECT oid FROM pg_catalog.pg_roles WHERE rolname='sites_core_intake_reader')" : 'NULL::oid';
         $policies = $olderOnly ? " AND NOT(n.nspname='sites_core' AND (c.relname,p.polname) IN
@@ -92,7 +93,7 @@ SQL)->fetchAll(PDO::FETCH_ASSOC);
                 WHERE n.nspname IN ('sites_core','sites_publication','sites_preview') AND c.relkind IN ('r','p','v','m','f','S')",
             'columns' => "SELECT coalesce(jsonb_agg(jsonb_build_array(to_jsonb(a)-'attacl',
                 (SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.grantor,x.grantee,x.privilege_type,x.is_grantable),'[]'::jsonb)
-                 FROM pg_catalog.aclexplode(coalesce(a.attacl,'{}'::aclitem[])) x)) ORDER BY a.attrelid,a.attnum),'[]'::jsonb)::text
+                 FROM pg_catalog.aclexplode(CASE WHEN cardinality(a.attacl)>0 THEN a.attacl ELSE NULL::aclitem[] END) x)) ORDER BY a.attrelid,a.attnum),'[]'::jsonb)::text
                 FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_class c ON c.oid=a.attrelid
                 JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
                 WHERE n.nspname IN ('sites_core','sites_publication','sites_preview') AND NOT a.attisdropped",

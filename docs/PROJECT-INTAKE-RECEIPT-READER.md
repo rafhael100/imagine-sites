@@ -132,3 +132,10 @@ HEAD `b131a7c9888da7b62b0e97c2ff9970a59811001b` da
 A correção acrescenta somente as três políticas esperadas ao inventário exato,
 passando de 45 para 48, sem tolerar políticas desconhecidas ou mudar o produto.
 Essa execução não comprova ainda os 53 checks do leitor nem o rollback final.
+
+O segundo [run F383 44378184715](https://github.com/rafhael100/imagine-sites/actions/runs/44378184715),
+HEAD `23246cb0e6b9b48a1f9ed6a52d84adb0e096c3a7`, passou os inventários e os 65
+checks antigos, mas encontrou uma ACL de coluna vazia na comparação do catálogo.
+O PostgreSQL recusa expandir esse array sem dimensão. A fixture agora fornece
+NULL quando não há grants; entradas não vazias e os demais metadados continuam
+integralmente comparados. O produto e a contagem prevista não mudam.

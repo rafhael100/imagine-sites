@@ -37,6 +37,14 @@ totalizando 48; conserva tabela, comando, role e predicados exatos e continua
 recusando políticas extras ou PUBLIC. Nenhum código de produto foi alterado
 nesse ajuste. O resultado real das 53 verificações permanece pendente.
 
+A segunda execução, HEAD `23246cb0e6b9b48a1f9ed6a52d84adb0e096c3a7`,
+[F383 44378184715](https://github.com/rafhael100/imagine-sites/actions/runs/44378184715),
+confirmou os 172 checks da fundação, 21 de leitura, 39 editoriais e 65 do intake,
+mas a fixture nova parou ao expandir uma ACL de coluna vazia. A comparação agora
+passa NULL ao `aclexplode` quando não há entradas, conservando os grants não
+vazios ordenados e todos os demais metadados. Esse segundo ajuste também se
+limita à fixture; as 53 verificações novas e o rollback final ainda aguardam CI.
+
 ## 18/11/2026 — entrada privada de projetos validada na #530
 
 A [#530](https://github.com/rafhael100/imagine-sites/pull/530), branch
