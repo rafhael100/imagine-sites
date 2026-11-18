@@ -74,4 +74,31 @@ final class PreviewBriefRequestInputTest extends TestCase
             ->assertStatus(422)->assertJsonValidationErrors(['brand', 'headline'])
             ->assertJsonPath('preserved', array_replace($input, ['brand' => '']));
     }
+
+    public function test_request_accepts_eight_benefits_with_unicode_blank_lines_and_preserves_content(): void
+    {
+        $expected = ['Primeiro', "\u{00A0}Segundo\u{2003}", "Terceiro\u{00A0}com\u{2003}espaços",
+            'Quarto  com  espaços', 'Quinto', 'Sexto', 'Sétimo', 'Último'];
+        $benefits = implode("\r\n\u{00A0}\r\n \t\u{2003}\r\n", $expected);
+        $input = array_replace($this->form(), ['benefits' => $benefits]);
+        $this->post('/_test/private-preview-brief-input', $input)
+            ->assertOk()->assertJsonPath('brief.benefits', $expected)
+            ->assertJsonPath('input.benefits', $benefits);
+    }
+
+    public function test_request_rejects_nine_real_benefits_whitespace_only_and_the_existing_raw_field_limit(): void
+    {
+        foreach ([
+            implode("\r\n\u{00A0}\u{2003}\r\n", array_fill(0, 9, 'Benefício real')),
+            "A\n".str_repeat("\u{00A0}", 1497)."\nB",
+        ] as $benefits) {
+            $input = array_replace($this->form(), ['benefits' => $benefits]);
+            $this->post('/_test/private-preview-brief-input', $input)
+                ->assertStatus(422)->assertJsonValidationErrors('benefits')
+                ->assertJsonPath('preserved', $input);
+        }
+        $this->post('/_test/private-preview-brief-input', array_replace($this->form(), [
+            'benefits' => "\u{00A0}\r\n \u{2003}\t",
+        ]))->assertStatus(422)->assertJsonValidationErrors('benefits');
+    }
 }

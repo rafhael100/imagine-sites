@@ -5,7 +5,9 @@
 Candidata em `fix/sites-renderer-long-text-2026-11-18`, construída sobre a
 [#522](https://github.com/rafhael100/imagine-sites/pull/522), HEAD
 `0b735a1794ee3bb965e5a05d5d738083ddac9544`, com 12/12 checks aprovados.
-A prova própria desta correção em PostgreSQL/HTTP ainda está pendente.
+A [#524](https://github.com/rafhael100/imagine-sites/pull/524) concluiu **15/15 checks
+SUCCESS** no HEAD `89d8a99b83d13fd1b5472b55d7f2891809d2cf81`, com a prova própria
+PostgreSQL/HTTP descrita a seguir.
 
 [`SiteBrief`](../../src/Production/SiteBrief.php) aceita marca com 120 caracteres,
 descrição com 600, CTA com 80 e cada benefício com 180. Palavras e URLs literais
@@ -79,8 +81,7 @@ entre os bytes da resposta, o digest exposto no histórico e o HTML que o
 navegador recebeu. Os testes anteriores de conteúdo inerte, escopo e ausência de
 requests externos continuam presentes; as capturas pertencem à prévia real.
 Nenhum CSS é reescrito em memória para simular um resultado anterior. As oito
-verificações novas previstas elevam a jornada de 439 para 447 checks; esses
-valores ainda aguardam execução real.
+verificações novas passaram no CI e elevaram a jornada de 439 para **447 checks**.
 
 O [workflow próprio](../../.github/workflows/sites-renderer-long-text.yml) fixa
 draft, repositório, branch, base e checkout do HEAD revisado. Executa o workspace
@@ -99,7 +100,25 @@ A fixture de snapshots atualizada também é coberta pelo workflow F383 existent
 | PHPUnit padrão | 279 testes / 4250 assertions / 27 skips, com `--do-not-cache-result`. |
 | Lint, diffs e geração do vetor | PASS; somente o CSS e a expectativa correspondente alteraram bytes. |
 | Layout local | Não executado: o navegador não abriu. |
-| PostgreSQL/HTTP próprios desta candidata | Pendentes do CI. |
+| PostgreSQL/HTTP próprios desta candidata | PASS no run 44352671761, conforme evidência abaixo. |
+
+## Evidência final da #524
+
+| Execução | Resultado próprio confirmado |
+| --- | --- |
+| [Run 44352671761](https://github.com/rafhael100/imagine-sites/actions/runs/44352671761), jobs 134972259966 / 134972259276 | PHP 8.3/8.4: **429 workspace + 1094 registry/proveniência**, arquivos privados removidos e clusters próprios inativos. |
+| Mesmo run, job 134972260095 | **8 novos / 447 HTTP totais**, dois produtos em 320/390/1440 px; containers app/proxy/db e redes privada/ingress removidos. |
+| [F383 44352671538](https://github.com/rafhael100/imagine-sites/actions/runs/44352671538), jobs 134972257509 / 134972258209 | PHP 8.3/8.4: **245 briefing / 65 intake**, batch de **14 migrations**, rollback dos dois schemas e cleanup do serviço. |
+| [Laravel 44352671587](https://github.com/rafhael100/imagine-sites/actions/runs/44352671587), jobs 134972257829 / 134972257267 | PHP 8.3/8.4: padrão **279/4250/27**, sintético **279/4262/21**. |
+
+Artefato **14447704981**, `sites-renderer-long-text-preview-http`: **37 arquivos**,
+ZIP de **10134212 bytes**, SHA-256
+`d9e410e55714651afc29d5f96e0fcf1dd977b8196f3d01fe9963054453a0fcea`, conferido após
+download. `result.json` registra 447 checks, origem sintética e flags operacionais
+falsas. As seis capturas pertencem às páginas reais; a revisão visual das quatro
+capturas em 320 e 1440 px confirmou conteúdo contido e quebra integral nos dois
+produtos. A prova geométrica também cobre 390 px. Essa evidência pertence ao CI,
+sem substituir a limitação da tentativa local descrita acima.
 
 Os negativos lexicais do plano agora derivam seu tamanho corrente e exigem uma
 substituição real antes de testar duplicata, número decimal, expoente ou string.

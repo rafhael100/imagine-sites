@@ -61,7 +61,9 @@ final class PreviewBriefInput
             }
             $benefits = array_values(array_filter(
                 array_map('trim', preg_split('/\r\n|\r|\n/', $input['benefits'])),
-                static fn (string $line): bool => $line !== '',
+                // Ignore Unicode whitespace-only lines without trimming or
+                // rewriting any remaining content beyond the existing trim.
+                static fn (string $line): bool => preg_match('/\A\p{White_Space}*\z/u', $line) === 0,
             ));
             if (count($benefits) < 1 || count($benefits) > 8) {
                 $validator->errors()->add('benefits', 'Informe de um a oito benefícios, um por linha.');

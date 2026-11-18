@@ -6,6 +6,8 @@ module.exports=async({ctx,o,base,dir,ok})=>{
  context.setDefaultNavigationTimeout(20000);
  const page=await context.newPage();
  const fields=['brand','headline','description','call_to_action','benefits'];
+ let blankLineChecks=0;
+ const blankLineOk=(condition,label)=>{ok(condition,'benefit blank lines: '+label);blankLineChecks++;};
  const field=name=>page.locator('#'+name);
  const fill=async values=>{for(const name of fields)await field(name).fill(values[name]);};
  const submit=async name=>{
@@ -13,6 +15,7 @@ module.exports=async({ctx,o,base,dir,ok})=>{
    const target=new URL(action,base).toString();
    const [response]=await Promise.all([
      page.waitForResponse(r=>r.request().isNavigationRequest()&&r.request().method()==='POST'&&r.url()===target),
+     page.waitForNavigation({waitUntil:'load'}),
      page.getByRole('button',{name}).click(),
    ]);
    await page.waitForLoadState('load');
@@ -100,10 +103,49 @@ module.exports=async({ctx,o,base,dir,ok})=>{
     'invalid briefing submissions create no revision and leave the original bytes unchanged');
  ok([403,404].includes((await o.request.get(project)).status()),
     'the new Unicode project remains isolated from another company');
- await fill(normal);
- ok((await submit(/^Gerar nova versão privada/)).status()===302&&
+ // Reuse the already planned correction/revision2. Only wholly blank lines
+ // disappear; Unicode spaces belonging to real benefits keep their bytes.
+ const realBenefits=['Atendimento organizado','Informações\u00a0claras',
+   '\u00a0Contato preservado\u00a0','\u2003Prazos combinados\u2003','Planejamento cuidadoso',
+   'Conteúdo com\u2003espaço interno','Orientação compreensível','Próximos passos definidos'];
+ const withBlankLines=[realBenefits[0],'\u00a0',realBenefits[1],realBenefits[2],'\u2003',
+   realBenefits[3],realBenefits[4],'\u00a0\u2003',realBenefits[5],realBenefits[6],realBenefits[7]].join('\n');
+ await fill({...normal,benefits:withBlankLines});
+ const corrected=await submit(/^Gerar nova versão privada/);
+ ok(corrected.status()===302&&
     await page.locator('input[name=expected_revision]').inputValue()==='2'&&
     await field('headline').inputValue()===normal.headline,
     'correcting the briefing succeeds with the same protected browser session');
+ const sentBenefits=new URLSearchParams(corrected.request().postData()).get('benefits');
+ blankLineOk(typeof sentBenefits==='string'&&sentBenefits.replace(/\r\n/g,'\n')===withBlankLines&&
+   await field('benefits').inputValue()===realBenefits.join('\n'),
+   'the real no-JavaScript POST sends NBSP and EM SPACE blank lines but the saved form contains exactly eight intact real benefits');
+ const preview=await context.newPage();
+ const second=await preview.goto(project+'/versions/2/html');
+ const secondBytes=await second.body();
+ const secondDigest=crypto.createHash('sha256').update(secondBytes).digest('hex');
+ blankLineOk(second.status()===200&&
+   JSON.stringify(await preview.locator('.benefits li').allTextContents())===JSON.stringify(realBenefits)&&
+   await page.locator('[data-version="2"] code').textContent()==='SHA-256: '+secondDigest,
+   'the stored HTML has the exact revision2 digest and only eight benefits, preserving Unicode spaces at real-text edges and inside lines');
+ const nineRealBenefits=withBlankLines+'\nNono benefício real';
+ await field('benefits').fill(nineRealBenefits);
+ const ninth=await submit(/^Gerar nova versão privada/);
+ blankLineOk(ninth.status()===422&&await field('benefits').getAttribute('aria-invalid')==='true'&&
+   (await page.locator('#error-benefits').textContent()).includes('Informe de um a oito benefícios, um por linha.')&&
+   await field('benefits').inputValue()===nineRealBenefits&&
+   await field('headline').inputValue()===normal.headline&&
+   await page.locator('input[name=expected_revision]').inputValue()==='2',
+   'nine real benefits still receive the specific count error with the complete attempt and CAS2 preserved');
+ const absentThird=await context.request.get(project+'/versions/3/html');
+ const unchangedFirst=await context.request.get(project+'/versions/1/html');
+ const unchangedSecond=await context.request.get(project+'/versions/2/html');
+ const fresh=await page.goto(project);
+ blankLineOk(absentThird.status()===403&&unchangedFirst.status()===200&&unchangedSecond.status()===200&&
+   (await unchangedFirst.body()).equals(firstBytes)&&(await unchangedSecond.body()).equals(secondBytes)&&
+   fresh.status()===200&&await page.locator('input[name=expected_revision]').inputValue()==='2'&&
+   await page.locator('[data-version]').count()===2&&await field('benefits').inputValue()===realBenefits.join('\n'),
+   'the rejected ninth benefit appends no version and leaves both immutable HTML bodies and the eight-item saved briefing unchanged');
+ console.log('BENEFIT BLANK LINES HTTP PASS: '+blankLineChecks+' new checks; 447 existing checks retained.');
  await context.close();
 };

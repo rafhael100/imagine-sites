@@ -62,8 +62,11 @@ O [run 44349683339](https://github.com/rafhael100/imagine-sites/actions/runs/443
 confirmou **95 offline**, **27 novos/1094 registry totais** em PHP 8.3/8.4 e
 cleanup; a matriz [44349683049](https://github.com/rafhael100/imagine-sites/actions/runs/44349683049)
 confirmou **279/4250/27** e **279/4262/21**. A prova pertence ao renderer e aos
-vetores daquele HEAD; a correção posterior de quebra de texto exige a execução
-própria de seus vetores atualizados.
+vetores daquele HEAD. A correção de quebra de texto foi depois validada na
+[#524](https://github.com/rafhael100/imagine-sites/pull/524), HEAD
+`89d8a99b83d13fd1b5472b55d7f2891809d2cf81`, com **15/15 checks SUCCESS**:
+**429 workspace/1094 registry** em PHP 8.3/8.4, **8 novos/447 HTTP totais**
+e vetores atualizados. [Prova própria do renderer](SITES-RENDERER-LONG-TEXT-2026-11-18.md).
 Produtor Portal, exportação consistente, transporte e materiais reais continuam
 como dependências operacionais distintas.
 

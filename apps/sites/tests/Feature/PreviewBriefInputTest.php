@@ -75,6 +75,49 @@ final class PreviewBriefInputTest extends TestCase
         self::assertSame(['Primeiro', 'Segundo'], $brief->benefits);
     }
 
+    public function test_unicode_whitespace_only_lines_do_not_count_toward_the_eight_benefit_limit(): void
+    {
+        $expected = array_map(static fn (int $number): string => 'Benefício '.$number, range(1, 8));
+        $benefits = implode("\r\n\u{00A0}\r\n \t\u{2003}\u{202F}\u{3000} \t\r\n", $expected);
+        foreach (['onepage', 'landing_page'] as $product) {
+            $brief = PreviewBriefInput::parse(array_replace($this->form(), [
+                'product' => $product, 'benefits' => $benefits,
+            ]));
+            self::assertSame($expected, $brief->benefits);
+        }
+    }
+
+    public function test_blank_line_filter_preserves_content_and_non_whitespace_format_characters(): void
+    {
+        $benefits = " \tPrimeiro  com espaços\t \r\n \u{00A0}Texto\u{2003} \r\n".
+            "\u{00A0}\u{2003}\r\nCom\u{00A0}espaço\u{2003}interno\r\n\u{200B}\r\n\u{FEFF}\r\nÚltimo";
+        $brief = PreviewBriefInput::parse(array_replace($this->form(), ['benefits' => $benefits]));
+        self::assertSame([
+            'Primeiro  com espaços', "\u{00A0}Texto\u{2003}", "Com\u{00A0}espaço\u{2003}interno",
+            "\u{200B}", "\u{FEFF}", 'Último',
+        ], $brief->benefits);
+    }
+
+    public function test_unicode_blank_lines_do_not_allow_nine_benefits_an_empty_list_or_an_oversized_field(): void
+    {
+        foreach ([
+            implode("\r\n\u{00A0}\u{2003}\r\n", array_fill(0, 9, 'Benefit')),
+            "\u{00A0}", "\u{2003}\r\n \u{00A0}\u{202F}\u{3000}\t",
+        ] as $benefits) {
+            $input = array_replace($this->form(), ['benefits' => $benefits]);
+            $errors = $this->assertInvalidField($input, 'benefits');
+            self::assertSame(['Informe de um a oito benefícios, um por linha.'], $errors['benefits']);
+            self::assertSame($input, PreviewBriefInput::preserve($input));
+        }
+
+        // The raw field cap is checked before blank lines are removed.
+        $benefits = "A\n".str_repeat("\u{00A0}", 1497)."\nB";
+        self::assertSame(1501, mb_strlen($benefits, 'UTF-8'));
+        $errors = $this->assertInvalidField(array_replace($this->form(), ['benefits' => $benefits]), 'benefits');
+        self::assertSame(['benefits'], array_keys($errors));
+        self::assertStringContainsString('1500', $errors['benefits'][0]);
+    }
+
     public function test_existing_product_and_expected_revision_are_required_for_revision(): void
     {
         $valid = $this->form() + ['expected_revision' => '2'];
