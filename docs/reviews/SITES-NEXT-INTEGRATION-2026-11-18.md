@@ -6,6 +6,18 @@
 
 Essa conclusão delimita a integração; não afirma esgotamento de todo desenvolvimento. O trabalho autorizado em branch isolada pode continuar em componentes com uso concreto e defeitos demonstrados. A inspeção privada do diário é um exemplo: consome a API persistente existente sem criar autoridade ou depender de um briefing inventado.
 
+### Auditoria do CSS do artefato inerte
+
+A correção sobre a #533 fecha duas formas de declarar recursos que o filtro
+lexical aceitava: identificadores CSS escapados e strings em `image-set()` e seu
+alias. A reprodução foi feita em memória; não observou tráfego de navegador.
+O CSS fixo do renderer não usa essas construções, e os campos de texto continuam
+aceitando seus nomes literais. Os **152 checks F27 e 279 de registro offline**
+passaram, incluindo recusa antes de PDO com compromisso recalculado.
+[Recorte, fontes primárias e limites](SITES-INERT-CSS-ESCAPES-2026-11-18.md).
+A candidata preserva artefatos históricos, schema e os gates existentes;
+CI próprio ainda pendente.
+
 ### Recibo recuperado consumido pelo Portal nativo
 
 Sobre a #532 validada, a branch
@@ -16,7 +28,12 @@ Pedido, comando, validação, ledger e leitura do comprador vêm das implementa�
 nativas do Portal. Sites recebe pela CLI, perde a resposta pública, desativa o
 receiver e recupera por leitor próprio o arquivo privado entregue ao consumidor.
 Os runtimes e bancos são separados; essa prova não acrescenta transporte ou
-origem comercial. O CI próprio ainda está pendente.
+origem comercial. A [#533](https://github.com/rafhael100/imagine-sites/pull/533),
+HEAD `1163c001b4974abbdd93ed51e6dbf54e520c4fb4`, confirmou **12/12 checks SUCCESS**.
+O [run 44389473142](https://github.com/rafhael100/imagine-sites/actions/runs/44389473142)
+passou em PHP 8.3/8.4 com **13 checks Sites, 20 Portal e 216 assertions nativas**,
+conferência final, rollback15 e cleanup dos dois ambientes. A prova é separada
+das 1208 assertions registry da base #532.
 
 ### Recuperação privada do recibo de intake
 

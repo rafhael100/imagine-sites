@@ -170,4 +170,6 @@ O [Laravel 44382215237](https://github.com/rafhael100/imagine-sites/actions/runs
 jobs **135077279527 / 135077278881**, confirmou **296/4705/27** e **296/4717/21**
 nas duas versões. Não houve nova execução HTTP, F383 ou workflow de containers.
 O [ensaio posterior com o consumidor nativo Portal](reviews/SITES-PORTAL-INTAKE-RECOVERY-2026-11-18.md)
-é uma prova separada: não altera esta CLI nem o total 1208.
+foi validado na #533 em PHP 8.3/8.4 com **13 checks Sites, 20 Portal e 216
+assertions nativas**, estado final, rollback15 e cleanup. É uma prova separada:
+não altera esta CLI nem o total 1208.

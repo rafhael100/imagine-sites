@@ -7,6 +7,8 @@ on:
       - 'src/Production/SyntheticReleaseBundle.php'
       - 'src/Production/InertPreviewAudit.php'
       - 'tests/f27-offline-preview-audit.php'
+      - 'tests/release-registration-offline.php'
+      - 'src/Publication/PrivateReleaseRegistration.php'
       - 'tests/f24-run.php'
       - 'apps/sites/routes/console.php'
       - 'apps/sites/tests/Feature/SyntheticReleaseBundleCommandTest.php'
@@ -37,13 +39,20 @@ jobs:
       - name: Verify PHP syntax
         run: |
           php -l src/Production/SyntheticReleaseBundle.php
+          php -l src/Production/InertPreviewAudit.php
           php -l src/Domain/ReleaseManifest.php
           php -l tests/f24-run.php
+          php -l tests/f27-offline-preview-audit.php
+          php -l tests/release-registration-offline.php
           php -l apps/sites/routes/console.php
       - name: Run inert package security and digest tests
         run: |
+          set -euo pipefail
           php tests/f24-run.php
-          php tests/f27-offline-preview-audit.php
+          php tests/f27-offline-preview-audit.php | tee "$RUNNER_TEMP/sites-inert-css-audit.log"
+          grep -q '^152 F1-27 offline preview audit checks passed;' "$RUNNER_TEMP/sites-inert-css-audit.log"
+          php tests/release-registration-offline.php | tee "$RUNNER_TEMP/sites-inert-css-registration.log"
+          grep -q '^RELEASE REGISTRATION OFFLINE PASS: 279 input, exact-byte commitment and default-denial assertions;' "$RUNNER_TEMP/sites-inert-css-registration.log"
       - name: Install locked Laravel dependencies without scripts
         working-directory: apps/sites
         run: composer install --no-interaction --no-progress --prefer-dist --no-scripts

@@ -81,8 +81,9 @@ recorder, comando e schema do recibo originais, sem ativar transporte Portal.
 A [prova dedicada com o Portal nativo](reviews/SITES-PORTAL-INTAKE-RECOVERY-2026-11-18.md)
 consome o arquivo recuperado usando o encoder, validador, ledger e leitura do
 comprador fixados na #954. A implementação fica no repositório Sites e executa
-cada aplicação em seu próprio processo e banco; seu CI permanece identificado
-separadamente da composição da #532.
+cada aplicação em seu próprio processo e banco. A #533 confirmou **13 checks
+Sites, 20 Portal e 216 assertions nativas** em PHP 8.3/8.4, com rollback15 e
+cleanup. Sua prova permanece identificada separadamente da composição da #532.
 
 O workflow de migrations existente (`sites-f1-383-operational-schema.yml`) passa
 a executar o serviço real com o schema nativo e identidades fictícias restritas.

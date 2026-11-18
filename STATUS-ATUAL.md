@@ -1,60 +1,58 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
-## 18/11/2026 — consumidor Portal nativo para o recibo recuperado
+## 18/11/2026 — recusa de CSS escapado e image-set no HTML inerte
 
-Branch `integration/sites-portal-intake-recovery-2026-11-18`, sobre a #532 /
-`6da154611d082f7f7fe4aab87f17c9857403ed02`. O ensaio dedicado usa o Portal
-inalterado em `d1aaab523848baf80325a023f3ebbf4998a3607f` (#954) e as CLIs atuais
-do Sites, em processos e bancos PostgreSQL 18 separados. Acrescenta apenas
-fixture, runner, workflow e documentação. O verifier conferiu localmente os 31
-blobs Portal, os quatro contratos Sites e os dois HEADs exatos, e recusou a
-execução sem opt-in. Essa verificação foi somente de fontes; não executou SQL.
+A branch `fix/sites-inert-css-escapes-2026-11-18` deriva da #533 validada /
+`1163c001b4974abbdd93ed51e6dbf54e520c4fb4`. A auditoria compartilhada passa a
+recusar escapes CSS e as funções `image-set()`/`-webkit-image-set()` dentro do
+bloco de estilo. Os casos reproduzidos anteriormente eram aceitos pelo filtro
+lexical, embora representassem formas de especificar recursos. A reprodução
+foi em memória, sem navegador ou requisição externa observada.
 
-O pedido Onepage e o comando são produzidos pelo teste e encoder nativos do
-Portal. O Sites registra uma vez com stdout descartado, desativa o receiver e
-recupera o native15 pelo leitor independente. O Portal lê somente esse arquivo
-privado e usa seu validador, writer restrito e leitura autorizada do comprador.
-Há negativos para a projeção pública de dez campos, operação/chave divergentes,
-promoção de autoridade e substituição de siteRef; replay conserva um único recibo.
-O teste herdado prossegue com as verificações nativas de pagamento, ownership e
-revogação de contrato. A prova CI própria ainda aguarda execução: **13 checks
-Sites e 20 do hook Portal** previstos, além do teste nativo herdado. Os **32
-checks sintéticos** obrigatórios passaram. Guard em **730 arquivos**, YAML
-sem chaves repetidas, cinco blocos Bash, runner, **161 links locais** e diffcheck
-PASS. Bridge e subclass também recusaram o uso sem opt-in antes de autoload/SQL.
-[Escopo e fontes](docs/reviews/SITES-PORTAL-INTAKE-RECOVERY-2026-11-18.md).
+O renderer fixo não usa essas construções. Texto literal nos cinco campos,
+meta description e bytes dos artefatos permanecem preservados. Os negativos
+recalculam digest, tamanho e compromisso: a auditoria de pacote recusa o HTML e
+o registro recusa `plan`/`record` antes de qualquer chamada à PDO.
 
-A primeira execução da [#533](https://github.com/rafhael100/imagine-sites/pull/533),
-HEAD `e3c7a824bb4de2f94f52b0a70314ed6072354b23`, no
-[run 44386505656](https://github.com/rafhael100/imagine-sites/actions/runs/44386505656),
-parou antes da primeira migration em PHP 8.3/8.4. O preflight, helpers e cleanup
-passaram; zero migrations permaneceram instaladas. A conexão manual da fixture
-não informava seu nome ao Laravel, e o migrator substituía temporariamente o
-default por NULL ao chamar `up()`. O ajuste fornece esse metadado e confere ambos
-os getters de nome e o default, mantendo a mesma PDO atestada. Somente a fixture
-foi corrigida, com lint e diffcheck PASS; a nova jornada CI ainda é necessária.
+Validação local: **152 checks F27**, **279 assertions de registro offline**,
+**296 testes Laravel/4705 assertions/27 skips** e **32 checks sintéticos**
+obrigatórios. Revisão independente do produto e do workflow sem bloqueadores.
+O workflow F1-24 passa a exigir os dois marcadores focados em PHP 8.3/8.4.
+CI próprio ainda pendente; não há mudança de renderer, schema ou autoridade.
+[Recorte, fontes e regressões](docs/reviews/SITES-INERT-CSS-ESCAPES-2026-11-18.md).
 
-No segundo HEAD `03cc9fc7e011d404dcda05e6b0946d492f6e7437`, o
-[run 44387631593](https://github.com/rafhael100/imagine-sites/actions/runs/44387631593)
-confirmou instalação e rollback das quinze migrations nas duas versões. O
-subprocesso chamado pelo Portal recusou corretamente `APP_DEBUG` vazio: PHPUnit
-converte o `false` do XML fixado em booleano e depois em string vazia no ambiente.
-A fixture agora exige configuração Portal efetivamente sem debug e serializa
-`false` explicitamente para o subprocesso. XML e guard do bridge permanecem
-intactos. A conversão foi reproduzida com Loader/PhpHandler reais, sem app ou SQL;
-lint e diffcheck PASS. Cleanup Sites, helpers e serviço/rede Portal confirmados.
+## 18/11/2026 — consumidor Portal nativo validado na #533
 
-A terceira execução, HEAD `dcafa152cee70a8387b7e1d1fcc54e5355f2b28a`,
-[run 44388532734](https://github.com/rafhael100/imagine-sites/actions/runs/44388532734),
-chegou ao comando nativo no bridge. Parou no segundo check, pois a fixture exigia
-FORCE RLS também na tabela global `sites_preview.principals`, cujo contrato
-nativo usa grants restritos. O ajuste compara nomes, tipo e ambos os flags das
-23 tabelas: 22 com RLS habilitada/forçada e essa tabela com ambos falsos, recusando
-ausências, extras e tipos divergentes. Nenhum SQL ou privilégio foi modificado.
-Rollback15 e cleanup passaram nas duas versões; a jornada de recibo aguarda CI.
+A [#533](https://github.com/rafhael100/imagine-sites/pull/533), branch
+`integration/sites-portal-intake-recovery-2026-11-18`, concluiu **12/12 checks
+SUCCESS** no HEAD `1163c001b4974abbdd93ed51e6dbf54e520c4fb4`, sobre a #532.
+Usa o Portal #954 inalterado em `d1aaab523848baf80325a023f3ebbf4998a3607f`
+e as CLIs atuais do Sites, em processos e bancos PostgreSQL 18 separados.
 
+Pedido e comando vêm do Portal nativo. Sites recebe uma vez com stdout descartado,
+desativa o receiver e recupera o native15 pelo leitor independente. O Portal
+consome somente esse arquivo privado com seu validador, writer restrito e leitura
+do comprador. Replay conserva uma linha; a projeção pública, operação/chave
+alteradas, promoção de autoridade e substituição de siteRef são recusadas. O
+teste original prossegue com pagamento, ownership e revogação de contrato.
 
+O [run pareado 44389473142](https://github.com/rafhael100/imagine-sites/actions/runs/44389473142),
+jobs **135102871574 / 135102870964**, confirmou em PHP 8.3/8.4 **13 checks
+Sites, 20 checks Portal e 1 teste nativo/216 assertions**. Os logs mostram as
+31 fontes Portal/quatro contratos Sites conferidos antes e depois, estado final
+Sites idêntico após a recuperação, instalação e rollback das quinze migrations,
+três schemas ausentes, cluster Sites inativo, cleanup recuperação → receiver e
+remoção do serviço/rede Portal. O
+[Laravel 44389473217](https://github.com/rafhael100/imagine-sites/actions/runs/44389473217)
+confirmou **296/4705/27** e **296/4717/21** nas duas versões.
 
+As três tentativas anteriores corrigiram somente pressupostos da fixture sobre
+nome da conexão Laravel, representação de APP_DEBUG e inventário nativo de RLS.
+Produto, SQL, migrations e fontes Portal permaneceram intactos. Validação local:
+**32 checks sintéticos**, guard em **730 arquivos**, cinco blocos Bash e runner,
+**161 links locais** na revisão inicial, lint, diffcheck e recusas sem opt-in.
+A prova é própria e não altera as **1208 assertions registry** da base #532.
+[Contrato, tentativas e limites](docs/reviews/SITES-PORTAL-INTAKE-RECOVERY-2026-11-18.md).
 
 ## 18/11/2026 — recuperação privada do recibo validada na #532
 
