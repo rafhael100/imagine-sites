@@ -8,6 +8,8 @@ Esta branch contém a aplicação Laravel em `apps/sites`, migrations PostgreSQL
 
 O workspace permite gerar versões imutáveis, consultar fila e histórico, buscar projetos por marca ou chamada principal da versão atual, comparar briefings de duas versões e registrar revisão editorial com outra identidade autorizada. Solicitações de ajuste incluem a orientação para o autor, preservada por versão/digest e visível ao consultar o histórico. Os dados de demonstração permanecem separados dos projetos comerciais. O registro técnico associa o artefato à versão editorial e às referências persistidas de pedido/contrato. O CLI privado prepara um pacote de três arquivos e verifica posteriormente seus bytes e a associação corrente. O diário técnico persiste tentativas, ACKs relatados e resultados inconclusivos, sem autorizar envio ou declarar publicação.
 
+O registro privado de artefatos possui plano somente leitura e gravação explícita por hash revisado, usando a API SQL existente. Ele conserva os bytes e a idempotência do registry; a aprovação editorial e a associação da release exigem suas identidades próprias antes de preparar o pacote.
+
 Esses componentes não constituem homologação operacional. Contrato, pagamento, identidade entre serviços, revogação, aceite expresso do cliente, backup externo e publicação exigem suas próprias fontes e evidências. Os dez gates em `config/operational-readiness.json` permanecem `BLOCKED`; os padrões de autorização continuam negadores.
 
 ## Componentes
@@ -20,7 +22,7 @@ Esses componentes não constituem homologação operacional. Contrato, pagamento
 | `src/Integration` | Contratos e adaptadores candidatos de integração com o Portal |
 | `contracts` | Regras SQL versionadas e fronteiras dos componentes |
 | `ops/preview-candidate` | Provisionamento explícito e revisável do workspace privado |
-| `ops/release-candidate` | Comandos `prepare` e `verify` do pacote técnico |
+| `ops/release-candidate` | Registro explícito de artefatos e comandos `prepare`/`verify` do pacote técnico |
 | `ops/publication-candidate` | Consulta privada de uma operação conhecida do diário, somente leitura |
 | `tests/fixtures` | Materiais inteiramente sintéticos para os ensaios descartáveis de CI |
 
@@ -35,6 +37,8 @@ php tests/private-preview-provisioning-offline.php
 php tests/private-preview-upgrade-offline.php
 php tests/private-preview-upgrade-cli-offline.php
 php tests/release-preparation-offline.php
+php tests/release-registration-offline.php
+php tests/release-registration-cli-offline.php
 php tests/publication-journal-offline.php
 php tests/publication-inspection-offline.php
 php tests/publication-inspection-cli-offline.php
@@ -54,6 +58,7 @@ O Portal controla contratos, aceite expresso e evento oficial `ENTREGUE`; Sites 
 - [Provisionamento de prévias](ops/preview-candidate/README.md)
 - [Upgrade explícito do preview gerenciado](docs/reviews/SITES-PREVIEW-MANAGED-UPGRADE-2026-11-18.md)
 - [Preparação e verificação de pacotes](ops/release-candidate/README.md)
+- [Registro privado de artefatos](docs/reviews/SITES-ARTIFACT-REGISTRATION-2026-11-18.md)
 - [Diário técnico de publicação](contracts/publication-journal/README.md)
 - [Inspeção privada do diário](ops/publication-candidate/README.md)
 - [Próxima integração Portal → briefing → geração](docs/reviews/SITES-NEXT-INTEGRATION-2026-11-18.md)

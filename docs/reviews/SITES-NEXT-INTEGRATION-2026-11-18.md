@@ -6,6 +6,8 @@
 
 Essa conclusão delimita a integração; não afirma esgotamento de todo desenvolvimento. O trabalho autorizado em branch isolada pode continuar em componentes com uso concreto e defeitos demonstrados. A inspeção privada do diário é um exemplo: consome a API persistente existente sem criar autoridade ou depender de um briefing inventado.
 
+A ausência de um contrato oficial também não proíbe desenhar propostas reversíveis. Ela limita o que se pode afirmar sobre compatibilidade e consumo de dados reais do Portal. Na continuidade desta revisão, a [comparação de texto literal](SITES-INERT-TEXT-COMPARISON-2026-11-18.md) foi corrigida e o [registro privado de artefatos](SITES-ARTIFACT-REGISTRATION-2026-11-18.md) foi iniciado sobre uma API SQL já definida, com uso concreto na preparação de pacotes. Essas frentes não precisam transformar o briefing sintético em fonte oficial.
+
 ## Evidência do Portal inspecionada
 
 Foram consultados títulos, escopos e referências das PRs #924–#936. As HEADs #924, #935 e #936 foram reconferidas nesta revisão. PR mais recente não significa contrato mais recente da integração: existem linhas paralelas.

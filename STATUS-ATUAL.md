@@ -1,8 +1,14 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 18/11/2026 — continuidade: registro privado de artefatos
+
+Branch `feature/sites-artifact-registration-2026-11-18`, sobre a PR #497 / `fb97fa465d162c23fa1ced8d1e0092ecc30798b7`. O comando `register.php plan|record` recebe bytes privados exatos e usa a API de registro já existente. O plano somente leitura vincula alvo, seletores e HTML; a escrita exige hash revisado, flag exclusiva, nova conferência de custódia e principal SQL restrito. Registra somente o artefato; aprovação editorial e associação continuam separadas. Repetição respeita identidade/bytes/autor/epoch, sem retry automático. **271 checks offline do serviço e 65 da CLI aprovados**, com revisão cruzada, sintaxes, safety guard e regressões de inspeção/preparação. Fixture com **54 checks SQL/CLI previstos**, incluindo consumo separado por `prepare`/`verify` e custódia por descritores; **CI pendente**. [Relatório e escopo](docs/reviews/SITES-ARTIFACT-REGISTRATION-2026-11-18.md).
+
 ## 18/11/2026 — continuidade: texto literal na comparação de versões
 
-Branch `fix/sites-inert-text-audit-2026-11-18`, sobre a PR #496 / `1219c49272b8df387aef7b7e12de4a812d1284c5`. A revisão do fluxo encontrou um falso bloqueio: briefing válido com URL literal ou expressão como `onboarding=aberto` era salvo pelo workspace e recusado posteriormente pela auditoria da comparação. A correção distingue texto escapado dos atributos e estilos ativos, preservando o HTML e o digest originais. **115 checks F27, 20 F24 e PHPUnit 134/1186/27 aprovados**, com regressões dos consumidores, revisão independente e safety guard. A fixture acrescenta 16 checks SQL; fluxo HTTP real preparado; **CI desta entrega pendente**. [Relatório e escopo](docs/reviews/SITES-INERT-TEXT-COMPARISON-2026-11-18.md).
+Branch `fix/sites-inert-text-audit-2026-11-18`, sobre a PR #496 / `1219c49272b8df387aef7b7e12de4a812d1284c5`. A revisão do fluxo encontrou um falso bloqueio: briefing válido com URL literal ou expressão como `onboarding=aberto` era salvo pelo workspace e recusado posteriormente pela auditoria da comparação. A correção distingue texto escapado dos atributos e estilos ativos, preservando o HTML e o digest originais.
+
+**PR #497 validada em `fb97fa465d162c23fa1ced8d1e0092ecc30798b7`: 15/15 check-runs SUCCESS.** O [run 44223033260](https://github.com/rafhael100/imagine-sites/actions/runs/44223033260) passou **273 checks HTTP, 16 novos SQL/386 workspace, 402 registry, 115 F27, 20 F24 e PHPUnit 134/1186/27**, em PHP 8.3/8.4. Capturas desktop/mobile revisadas; artifact `14390993429` conferido por SHA-256 `890c4da894eaabfab6c863f92f74d6e54111d5fd78a5f80b071e3f2b7f6bfd4d`. Revisão independente e safety guard aprovados. [Relatório e escopo](docs/reviews/SITES-INERT-TEXT-COMPARISON-2026-11-18.md).
 
 ## 18/11/2026 — continuidade: consulta privada do diário de publicação
 
