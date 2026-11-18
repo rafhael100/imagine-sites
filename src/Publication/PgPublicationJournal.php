@@ -101,6 +101,41 @@ final readonly class PgPublicationJournal
         return $row;
     }
 
+    /**
+     * Recover one historical operation using the five original request fields
+     * when its UUID was lost. SQL requires an independent reader duty and
+     * rechecks current access. A null result does not prove a failed write.
+     * No writer call, lease, provider request or automatic retry occurs.
+     */
+    public function readByRequest(
+        string $siteId,
+        string $releaseRef,
+        int $expectedBindingRevision,
+        string $portalAcceptanceRef,
+        string $idempotencyKey,
+    ): ?array {
+        if (!PgPublicationJournalGuard::uuid($siteId) ||
+            !PgPublicationJournalGuard::reference($releaseRef) ||
+            $expectedBindingRevision < 1 ||
+            !PgPublicationJournalGuard::reference($portalAcceptanceRef) ||
+            !PgPublicationJournalGuard::reference($idempotencyKey)) {
+            throw new InvalidArgumentException('Publication journal input denied');
+        }
+        $raw = $this->invoke(
+            'SELECT sites_publication.read_request(?::uuid,?::text,?::bigint,?::text,?::text)',
+            [$siteId, $releaseRef, $expectedBindingRevision, $portalAcceptanceRef, $idempotencyKey],
+        );
+        if ($raw === null) return null;
+        $row = PgPublicationJournalGuard::operation($raw);
+        if ($row['siteRef'] !== $siteId || $row['releaseRef'] !== $releaseRef ||
+            $row['bindingRevision'] !== $expectedBindingRevision ||
+            $row['portalAcceptanceRef'] !== $portalAcceptanceRef ||
+            $row['idempotencyKey'] !== $idempotencyKey) {
+            throw new RuntimeException('Publication journal response unavailable');
+        }
+        return $row;
+    }
+
     public function read(string $operationRef): ?array
     {
         if (!PgPublicationJournalGuard::uuid($operationRef)) throw new InvalidArgumentException('Publication journal input denied');
