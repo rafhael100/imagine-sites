@@ -87,10 +87,71 @@ Successful apply stdout is one JSON line containing exactly ten fields: the eigh
 
 Failures emit only `EDITORIAL_TRANSITION_DENIED` on stderr with exit status 1 and no successful JSON result. A failure during or after the SQL call, including a lost response, can follow a committed editorial revision. The command does not promise that every failure rolled back.
 
-**Editorial transitions are not idempotent.** Repeating an already committed request with the same expected revision conflicts with the current head. Never automatically retry or increment the revision after an error, timeout or lost response: doing so can request a different transition without reviewing its current state. This command offers no head lookup or built-in diagnosis. Resolve the outcome through separately authorized access to current editorial history before making a new explicit decision and reviewing a new plan. An error alone does not prove that no transition occurred.
+**Editorial transitions are not idempotent.** Repeating an already committed request with the same expected revision conflicts with the current head. Never automatically retry or increment the revision after an error, timeout or lost response: doing so can request a different transition without reviewing its current state. This command offers no head lookup or built-in diagnosis. The separate [read-only inspector](#read-only-inspection-of-the-current-editorial-revision) can show the current head, but cannot attribute it to the lost call or authorize a retry. Resolve the outcome through separately authorized access to current editorial history before making a new explicit decision and reviewing a new plan. An error alone does not prove that no transition occurred.
 
 ## Isolated CI boundary
 
 The only alternative environment requires `GITHUB_ACTIONS=true`, `APP_ENV=testing` and `SITES_EDITORIAL_TRANSITION_CI=1` together. It fixes `host=localhost`, port `55449`, database `postgres`, server address `127.0.0.1`, and login `rr_a_editor` or `rr_a_reviewer`. This allowlist identifies the two disposable test actors; it does not determine which actions either may perform. The database derives each actor's duty from its existing private binding.
 
 The real database OID, CA fingerprint, file custody, exact plan hash and explicit write confirmation remain mandatory. Offline CLI tests exercise help and early argument/environment refusals with the autoloader and private paths inaccessible. Actual transition success, stale-revision conflicts, tenant isolation, restricted duty and operator deactivation require the separate disposable PostgreSQL/TLS fixture. This candidate provides no deployment authorization or evidence of operational acceptance.
+
+## Read-only inspection of the current editorial revision
+
+The separate `inspect.php` command reads the current editorial head of one known project through `sites_core.read_my_site_editorial_head(uuid)`. It uses a fresh PDO connection and the Composer autoloader without booting Laravel. It makes no transition, records no event, creates no output file and invokes no publication-journal API, Portal endpoint or provider.
+
+This query helps an authorized operator inspect the current state before deciding what to do after a conflict or lost response. It does not identify which call produced that revision. A matching revision, state or digest is not proof that a particular timed-out transition succeeded, and a newer revision may include another operator's work. Inspection never authorizes retrying a transition or incrementing its expected revision automatically.
+
+### Inspection manifest and custody
+
+| Fixed private path | Content |
+| --- | --- |
+| `/run/secrets/editorial_inspection` | Exact `SITES_EDITORIAL_INSPECTION_V1` JSON, 1–16384 bytes, based on `inspection.example.json` |
+| `/run/secrets/sites_editorial_inspection_reader` | Password of the separately provisioned restricted reader, 16–4096 bytes |
+| `/run/secrets/sites_editorial_inspection_ca` | Reviewed PostgreSQL CA PEM, at most 65536 bytes, matching `target.caSha256` |
+
+The manifest contains exactly `schema`, `target` and `siteRef`. Its target contains exactly `host`, `port`, `database`, `databaseOid`, `login`, `serverAddress` and `caSha256`. `siteRef` is a known project UUID. Extra fields, duplicate JSON keys, malformed references, coerced integers and unsafe target coordinates are refused. The example uses invalid placeholders and cannot be executed unchanged.
+
+There is no HTML, expected revision, action, plan hash, tenant override, output path or acceptance claim in this input. A selector or target login does not establish tenant authority. The SQL function uses the current login's active read binding to decide access; an editorial writer or reviewer duty is not granted or inferred by the command.
+
+Each input must be a readable regular file at a canonical absolute path, with no observed symlink component, one hard link, mode `0400` or `0600`, and root or the CLI effective user as owner. `SiteReleasePreparationFiles::read` checks the opened descriptor against the pathname and bounds each read. The wrapper records exact bytes, SHA-256 and identity for all three inputs, including the password. After the query, it rereads all three and refuses to release a result if bytes, digest, inode, ownership, mode, link count, size or modification metadata changed. Access time is excluded. It does not create, repair, rewrite or chmod any input.
+
+### Connection and effective read capability
+
+Staging requires `APP_ENV=staging`, no GitHub Actions or editorial-inspection CI opt-in, and database `sites_staging`. Obtain the hostname, port, database OID, login, server address and CA fingerprint from the reviewed environment inventory. The target describes a direct endpoint whose server-observed address and port match the manifest.
+
+The nonpersistent PDO connection uses `sslmode=verify-full`, the fixed CA mount, `gssencmode=disable` and a 5-second connection timeout. The session remains read-only throughout, with `pg_catalog`, UTF-8, read committed isolation, a 10-second statement timeout and a 3-second lock timeout. The service verifies PostgreSQL 18, TLS, exact target identity, no inherited transaction and the restricted effective API capability before and after reading.
+
+The reader requires schema USAGE and EXECUTE exclusively on `sites_core.read_my_site_editorial_head(uuid)`, without grant option or execution of other core/publication APIs. It does not receive direct table access, transition authority or a journal-reader capability. The new read entry point must already be installed through its separately reviewed migration, and the reader must already be provisioned. The CLI applies no migration or grant and changes no writer or existing status endpoint.
+
+```sh
+php /opt/imagine/ops/editorial-candidate/inspect.php --help
+php /opt/imagine/ops/editorial-candidate/inspect.php inspect
+```
+
+`inspect` takes no options. `plan`, write operations, approval flags, credentials or path overrides are refused. `--help` works before autoload and without environment variables, private files or a database connection. No command selects another revision or retries automatically.
+
+### Result and interpretation
+
+Success is exactly one JSON line with seven fields:
+
+| Field | Value |
+| --- | --- |
+| `schema` | `SITES_EDITORIAL_INSPECTION_RESULT_V1` |
+| `status` | `inspected` |
+| `revision` | Current positive editorial revision, or `null` when the authorized project has no editorial head |
+| `state` | `draft`, `internal_review`, `awaiting_portal_acceptance`, or `null` with no head |
+| `artifactDigest` | Digest recorded in that editorial revision, or `null` with no head |
+| `clientAccepted` | `false` |
+| `canPublish` | `false` |
+
+For an authorized project without editorial history, `revision`, `state` and `artifactDigest` are all null together. An absent project, a project belonging to another tenant or an unauthorized reader receives the same bounded refusal instead. The service validates the returned project identity internally; it does not include it, an actor, tenant, credential, path or private diagnostic in stdout.
+
+The returned digest describes the editorial head. Inspection does not prove that matching HTML exists in the artifact registry, that a release binding is current, that customer acceptance was verified or that anything was published. It does not consume a writer's plan or reservation. The result can become stale after the read, so a later explicit transition still needs its own reviewed inputs, expected revision and SQL authorization.
+
+Failures return exit status 1, empty stdout and only `EDITORIAL_INSPECTION_DENIED` on stderr. The command exposes no exception chain or SQL diagnostic and never switches the session to writing. A refusal does not explain whether a project exists in another tenant or whether a previous transition committed. Use separately authorized investigation when that distinction matters; the current-head query alone cannot reconstruct the origin of an earlier revision.
+
+### Inspection CI boundary
+
+The disposable alternative requires all of `GITHUB_ACTIONS=true`, `APP_ENV=testing` and `SITES_EDITORIAL_INSPECTION_CI=1`. It pins host `localhost`, port `55449`, database `postgres`, observed address `127.0.0.1` and login `ei_a_reader`. The real database OID, CA, private-file custody, read-only session and exclusive read capability remain mandatory. This login pin identifies only the synthetic fixture actor; SQL still controls current read authority and tenant access.
+
+Offline CLI tests cover help and bounded argument/environment refusals with autoload and all private inputs inaccessible. They fabricate no successful query. Current-head reads, null-head behavior, tenant isolation, reader deactivation, transport/target checks and unchanged rows/catalogs require the separate PostgreSQL/TLS fixture. This candidate creates no operational reader, installs nothing in staging and supplies no deployment or publication approval.

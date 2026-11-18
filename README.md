@@ -14,6 +14,8 @@ O registro privado de artefatos possui plano somente leitura e gravação explí
 
 A CLI editorial permite planejar e solicitar uma transição por execução, com revisão esperada, bytes exatos e confirmação explícita do plano. O SQL verifica a função do operador e o estado corrente. O comando não consulta o artefato no registry nem estabelece uma associação; conflitos e respostas perdidas exigem apuração antes de outra decisão, sem retry ou incremento automático da revisão.
 
+A inspeção editorial privada consulta a revisão, o estado e o digest atuais de um site conhecido, inclusive fora da listagem dos 100 mais recentes. Usa uma identidade de leitura separada e mantém a sessão somente leitura. Um projeto autorizado sem revisão retorna os três campos nulos; falta de acesso e site ausente recebem a mesma recusa. A observação não atribui uma transição a uma resposta perdida nem permite repetição automática.
+
 A associação e a revogação privadas têm comandos separados e credenciais próprias, com plano somente leitura e controle da revisão esperada. A associação usa o artefato imutável e a aprovação editorial corrente; a revogação preserva o histórico e invalida o vínculo, permitindo que a preparação e a verificação recusem pacotes que deixaram de ser correntes.
 
 A reconciliação privada permite planejar e solicitar a classificação técnica de uma operação conhecida do diário. O plano vincula seletores e runtime; o SQL decide a revisão e o vencimento. Um resultado `inconclusive` pode incluir ACK tardio e não comprova publicação externa. A execução exige confirmação explícita e preserva tentativa e lease, sem reenvio ou reset automático.
@@ -33,7 +35,7 @@ Esses componentes não constituem homologação operacional. Contrato, pagamento
 | `contracts` | Regras SQL versionadas e fronteiras dos componentes |
 | `ops/preview-candidate` | Provisionamento explícito e revisável do workspace privado |
 | `ops/release-candidate` | Renderização local privada, registro, associação/revogação e `prepare`/`verify` do pacote técnico |
-| `ops/editorial-candidate` | Plano e execução explícita de uma transição editorial pela API existente |
+| `ops/editorial-candidate` | Transição editorial explícita e consulta exata do head com leitor separado |
 | `ops/publication-candidate` | Solicitação com recibo privado, inspeção somente leitura e reconciliação explícita do diário |
 | `tests/fixtures` | Materiais inteiramente sintéticos para os ensaios descartáveis de CI |
 
@@ -56,6 +58,8 @@ php tests/release-binding-offline.php
 php tests/release-binding-cli-offline.php
 php tests/editorial-transition-offline.php
 php tests/editorial-transition-cli-offline.php
+php tests/editorial-inspection-offline.php
+php tests/editorial-inspection-cli-offline.php
 python3 tests/fixture-private-material.py
 python3 tests/fixture-receipt-custody.py
 python3 tests/fixture-publication-request-custody.py
