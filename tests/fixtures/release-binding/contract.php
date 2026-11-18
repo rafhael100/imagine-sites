@@ -244,11 +244,25 @@ try {
         try { $bindingCliDenyRun($bindingCliBindArguments,'world-readable selected input'); }
         finally { chmod($path,$path === $bindingCliManifestPath ? 0600 : 0400); }
     }
-    $bindingCliMount($bindingCliBindInput); rename($bindingCliWriterPath,$bindingCliWriterPath.'.fixture-saved');
+    // /run/secrets belongs to root and is not writable by the fixture actor.
+    // Add a link only inside this actor's private laboratory; the fixed source
+    // now has nlink=2 and must be refused without replacing its directory entry.
+    $bindingCliHardlink = getenv('RELEASE_REGISTRY_LAB_DIR').'/binding-selected-password.fixture-link';
+    if (file_exists($bindingCliHardlink) || is_link($bindingCliHardlink)) {
+        throw new RuntimeException('Fresh private hardlink fixture path required');
+    }
+    $bindingCliMount($bindingCliBindInput);
+    if (!link($bindingCliWriterPath,$bindingCliHardlink)) throw new RuntimeException('Private hardlink fixture unavailable');
     try {
-        symlink($bindingCliWriterPath.'.fixture-saved',$bindingCliWriterPath);
-        $bindingCliDenyRun($bindingCliBindArguments,'symlink to the selected credential');
-    } finally { unlink($bindingCliWriterPath); rename($bindingCliWriterPath.'.fixture-saved',$bindingCliWriterPath); }
+        $bindingCliDenyRun($bindingCliBindArguments,'hard-linked selected credential');
+    } finally {
+        clearstatcache(true,$bindingCliHardlink); $linked = lstat($bindingCliHardlink);
+        if (!is_array($linked) || is_link($bindingCliHardlink) ||
+            [$linked['dev'],$linked['ino'],$linked['uid']] !== $bindingCliIdentities[$bindingCliWriterPath] ||
+            !unlink($bindingCliHardlink)) {
+            throw new RuntimeException('Private hardlink cleanup refused');
+        }
+    }
     $bindingCliWrongCa = file_get_contents(dirname($caFile).'/wrong-ca.pem');
     if (!is_string($bindingCliWrongCa) || $bindingCliWrongCa === $bindingCliCaBytes) throw new RuntimeException('Independent laboratory CA required');
     try {
