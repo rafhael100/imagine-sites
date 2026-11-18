@@ -10,7 +10,7 @@ Branch `feature/sites-publication-inspection-2026-11-18`, sobre a PR #495 / `005
 
 O manifesto `SITES_PUBLICATION_INSPECTION_V1` possui exatamente alvo SQL e UUID de operação. O alvo exige hostname, porta, banco, OID, login, endereço observado e SHA-256 da CA. A referência não concede autoridade e não informa a empresa: a função SQL existente deriva o escopo do principal.
 
-Manifesto, senha e CA são montagens fixas sob `/run/secrets`, verificadas pelo leitor de arquivos privado já existente. O JSON é limitado a16KiB, com tipos estritos e rejeição de chaves adicionais/duplicadas, inclusive escapes equivalentes. O wrapper abre um PDO novo, não persistente, com TLS verify-full, timeouts e sessão somente leitura. Manifesto e CA são conferidos novamente antes da saída.
+Manifesto, senha e CA são montagens fixas sob `/run/secrets`, verificadas pelo leitor de arquivos privado já existente. O JSON é limitado a 16 KiB, com tipos estritos e rejeição de chaves adicionais/duplicadas, inclusive escapes equivalentes. O wrapper abre um PDO novo, não persistente, com TLS verify-full, timeouts e sessão somente leitura. Manifesto e CA são conferidos novamente antes da saída.
 
 `PrivatePublicationInspection` exige `pg_catalog`, PostgreSQL18, identidade efetiva, isolamento read committed, RLS ligado, UTF-8, TLS e alvo observado iguais ao manifesto. Confere EXECUTE de `read_operation` sem grant option e ausência de EXECUTE das outras APIs de core/journal. Não consulta um rótulo privado de duty nem exige acesso adicional ao catálogo de principals. As condições são relidas depois da chamada.
 
@@ -18,7 +18,7 @@ O componente não faz SET ou escrita SQL. A CLI configura apenas a própria sess
 
 ## Significado do resultado
 
-A resposta contém14 campos explícitos: formato/status da consulta, estado técnico, revisões, número da tentativa, digests, datas e os dois indicadores de autoridade falsos. Nenhuma referência comercial, tenant, idempotência, operação, provider, token, senha ou conteúdo é exposta.
+A resposta contém 14 campos explícitos: formato/status da consulta, estado técnico, revisões, número da tentativa, digests, datas e os dois indicadores de autoridade falsos. Nenhuma referência comercial, tenant, idempotência, operação, provider, token, senha ou conteúdo é exposta.
 
 | Estado persistido | Interpretação |
 | --- | --- |
@@ -29,19 +29,30 @@ A resposta contém14 campos explícitos: formato/status da consulta, estado téc
 
 Um lease vencido não altera o resultado por conta própria. Se o banco ainda registra `dispatched`, a consulta devolve esse estado e o prazo, sem chamar reconciliação. A leitura histórica de uma release revogada continua possível para o leitor vigente, conforme o contrato já existente; isso não restaura nem valida o vínculo corrente.
 
-Ausência, empresa alheia, leitor inválido e falha de infraestrutura retornam a mesma recusa limitada, com exit1, stdout vazio e `PUBLICATION_INSPECTION_DENIED` em stderr. Detalhes de PDO, parâmetros e cadeia de exceções são omitidos.
+Ausência, empresa alheia, leitor inválido e falha de infraestrutura retornam a mesma recusa limitada, com exit 1, stdout vazio e `PUBLICATION_INSPECTION_DENIED` em stderr. Detalhes de PDO, parâmetros e cadeia de exceções são omitidos.
 
 ## Verificação
 
-Executado localmente: **150 verificações offline do serviço**, **21 da CLI**, regressões existentes de diário99 e pacote50, lint PHP/Python/Bash, YAML e revisão independente. Os testes offline não simulam um sucesso de banco nem criam segredo ou principal.
+Executado localmente: **150 verificações offline do serviço**, **21 da CLI**, regressões existentes de diário (99) e pacote (50), lint PHP/Python/Bash, YAML e revisão independente. Os testes offline não simulam um sucesso de banco nem criam segredo ou principal.
 
-A fixture real acrescenta **76 verificações esperadas**, incluindo a preparação de uma operação pelo helper existente. Usa dois leitores sintéticos restritos no laboratório PostgreSQL18/TLS já verificado e invoca a CLI efetiva. Compara linhas completas, catálogos, ACLs e arquivos privados antes/depois de leituras e recusas.
+A fixture real passou suas **76 verificações**, incluindo a preparação de uma operação pelo helper existente. Usa dois leitores sintéticos restritos no laboratório PostgreSQL 18/TLS já verificado e invoca a CLI efetiva. Compara linhas completas, catálogos, ACLs e arquivos privados antes/depois de leituras e recusas.
 
 Os cenários incluem os quatro estados técnicos, binding histórico revogado, lease realmente vencido sem reconciliação, repetição, positivo autorizado da outra empresa, negativas cruzadas, alvo/CA/TLS, sessão e privilégios indevidos, custódia, credencial incorreta, expiração/revogação e ausência de valores privados na saída.
 
 O helper de arquivos reserva somente seus três caminhos com criação exclusiva e recibo de identidade. A negativa de recibo deve preservar todos os arquivos; a limpeza verifica o recibo completo antes de remover qualquer caminho e não remove diretórios ou arquivos anteriores. O runner novo usa esse helper somente com a flag explícita de inspeção.
 
-O workflow é restrito a repo, draft, branch e SHA exato da base e executa a matriz PHP8.3/8.4. A interface visual não mudou; seus175 checks e capturas já foram validados na PR #495. **CI PostgreSQL/CLI desta entrega pendente.** PostgreSQL local não foi iniciado.
+O workflow é restrito a repo, draft, branch e SHA exato da base. **O run [44220440360](https://github.com/rafhael100/imagine-sites/actions/runs/44220440360) concluiu com sucesso no SHA funcional `a91877eadc5a69b958af196d72d0ed2e3c999636`**, com os dois jobs aprovados: [PHP 8.3](https://github.com/rafhael100/imagine-sites/actions/runs/44220440360/job/134520656864) e [PHP 8.4](https://github.com/rafhael100/imagine-sites/actions/runs/44220440360/job/134520656626). Na conferência, os 12 check-runs desse SHA estavam SUCCESS; incluem execuções gerais duplicadas por eventos distintos, não 12 suítes diferentes.
+
+| Verificação por versão PHP | Resultado |
+| --- | --- |
+| Inspeção real: PostgreSQL/TLS e CLI | 76 verificações aprovadas |
+| Registry persistente, incluindo a inspeção | 478 verificações aprovadas |
+| Diário persistente, dentro do registry | 107 verificações aprovadas |
+| Workspace e isolamento de empresas | 370 verificações aprovadas |
+| Serviço e CLI offline | 150 + 21 verificações aprovadas |
+| PHPUnit geral | 134 testes, 1186 assertions e 27 skips explícitos |
+
+Os contratos dedicados de banco executaram suas verificações. Os logs confirmam a recusa de recibo com inode divergente antes de qualquer remoção, a limpeza da inspeção antes do pacote e o encerramento do cluster descartável. PostgreSQL local não foi iniciado. A interface visual não mudou; seus 175 checks e capturas foram validados na PR #495. Esta atualização de evidências altera somente documentação e conserva o código funcional exercitado pelo run acima.
 
 ## Continuidade e limites
 
