@@ -1,5 +1,9 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 18/11/2026 — continuidade: texto literal na comparação de versões
+
+Branch `fix/sites-inert-text-audit-2026-11-18`, sobre a PR #496 / `1219c49272b8df387aef7b7e12de4a812d1284c5`. A revisão do fluxo encontrou um falso bloqueio: briefing válido com URL literal ou expressão como `onboarding=aberto` era salvo pelo workspace e recusado posteriormente pela auditoria da comparação. A correção distingue texto escapado dos atributos e estilos ativos, preservando o HTML e o digest originais. **115 checks F27, 20 F24 e PHPUnit 134/1186/27 aprovados**, com regressões dos consumidores, revisão independente e safety guard. A fixture acrescenta 16 checks SQL; fluxo HTTP real preparado; **CI desta entrega pendente**. [Relatório e escopo](docs/reviews/SITES-INERT-TEXT-COMPARISON-2026-11-18.md).
+
 ## 18/11/2026 — continuidade: consulta privada do diário de publicação
 
 Branch `feature/sites-publication-inspection-2026-11-18`, sobre a PR #495. A CLI `inspect` consulta uma operação conhecida pela API SQL existente, com principal restrito, alvo/TLS pinados, sessão somente leitura e resposta limitada a 14 campos técnicos. Não lista operações, altera estado, reconcilia prazo, cria acesso ou chama publisher. Histórico com binding revogado permanece distinguido da autorização corrente.
@@ -7,6 +11,8 @@ Branch `feature/sites-publication-inspection-2026-11-18`, sobre a PR #495. A CLI
 **PR #496 validada no SHA funcional `a91877eadc5a69b958af196d72d0ed2e3c999636`: 12/12 check-runs SUCCESS na conferência da entrega.** O [run 44220440360](https://github.com/rafhael100/imagine-sites/actions/runs/44220440360) passou em PHP 8.3 e 8.4: **76 verificações de inspeção com PostgreSQL/TLS e CLI reais, 478 de registry, 370 de workspace e PHPUnit 134/1186/27**. Os 27 skips da suíte geral são explícitos; os contratos de banco dedicados executaram suas verificações. A negativa de recibo e a limpeza exclusiva dos arquivos da fixture também passaram. Validação offline: **150 checks do serviço e 21 da CLI**, com regressões e revisão independente aprovadas. Esta atualização registra a evidência sem alterar o código funcional validado. [Relatório de inspeção](docs/reviews/SITES-PUBLICATION-INSPECTION-2026-11-18.md).
 
 O [próximo contrato de integração](docs/reviews/SITES-NEXT-INTEGRATION-2026-11-18.md) registra as fontes Portal inspecionadas e as definições que faltam para briefing oficial e geração. O staging existente não foi alterado; os dez gates operacionais continuam BLOCKED.
+
+Conferência da HEAD documental `1219c49272b8df387aef7b7e12de4a812d1284c5`: **17/17 check-runs SUCCESS**. A sincronização do draft acionou automaticamente o [run 44221426152](https://github.com/rafhael100/imagine-sites/actions/runs/44221426152), também aprovado em PHP 8.3/8.4 com as mesmas contagens. A diferença de código para o SHA funcional anterior é nula.
 
 ## 18/11/2026 — continuidade: limites Unicode e briefing inválido
 
