@@ -38,7 +38,8 @@ try {
     $target = $manifest['target'];
     if (($staging && $target['database'] !== 'sites_staging') ||
         ($ci && ($target['database'] !== 'postgres' || $target['host'] !== 'localhost' ||
-            $target['port'] !== 55449 || $target['login'] !== 'pj_inspection_a_reader' ||
+            $target['port'] !== 55449 ||
+            !in_array($target['login'], ['pj_inspection_a_reader', 'pj_request_a_reader'], true) ||
             $target['serverAddress'] !== '127.0.0.1'))) throw new DomainException();
 
     $ca = SiteReleasePreparationFiles::read(PUBLICATION_INSPECTION_CA, 65536);
