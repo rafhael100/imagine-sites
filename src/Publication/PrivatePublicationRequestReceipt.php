@@ -13,6 +13,8 @@ use Throwable;
  */
 final class PrivatePublicationRequestReceipt
 {
+    private const ORIGINAL_SCHEMA = 'SITES_PUBLICATION_REQUEST_RECEIPT_V1';
+    private const RECOVERY_SCHEMA = 'SITES_PUBLICATION_REQUEST_RECOVERY_RECEIPT_V1';
     private const FILE_IDENTITY = ['dev', 'ino', 'mode', 'nlink', 'uid', 'gid', 'size', 'mtime', 'ctime'];
     private const DIRECTORY_IDENTITY = ['dev', 'ino', 'mode', 'uid', 'gid'];
     private bool $writeAttempted = false;
@@ -22,6 +24,7 @@ final class PrivatePublicationRequestReceipt
         private readonly string $parent,
         private readonly string $path,
         private readonly string $planSha256,
+        private readonly string $schema,
         private readonly array $ancestors,
         private readonly array $identity,
         private mixed $stream,
@@ -37,6 +40,18 @@ final class PrivatePublicationRequestReceipt
     /** Reserve a new empty 0600 file before any mutating journal API call. */
     public static function reserve(string $parent, string $receiptRef, string $planSha256): self
     {
+        return self::reserveWithSchema($parent, $receiptRef, $planSha256, self::ORIGINAL_SCHEMA);
+    }
+
+    /** Recovery always has its own storage parent and an incompatible receipt schema. */
+    public static function reserveRecovery(string $parent, string $receiptRef, string $planSha256): self
+    {
+        return self::reserveWithSchema($parent, $receiptRef, $planSha256, self::RECOVERY_SCHEMA);
+    }
+
+    private static function reserveWithSchema(
+        string $parent, string $receiptRef, string $planSha256, string $schema,
+    ): self {
         $stream = null;
         try {
             if (!PgPublicationJournalGuard::digest($planSha256)) throw new RuntimeException();
@@ -50,7 +65,7 @@ final class PrivatePublicationRequestReceipt
                 $identity !== self::opened($path, $stream) || $ancestors !== self::directories($parent)) {
                 throw new RuntimeException();
             }
-            $reservation = new self($parent, $path, $planSha256, $ancestors, $identity, $stream);
+            $reservation = new self($parent, $path, $planSha256, $schema, $ancestors, $identity, $stream);
             $stream = null;
             return $reservation;
         } catch (Throwable) {
@@ -122,7 +137,7 @@ final class PrivatePublicationRequestReceipt
     {
         $keys = ['schema', 'planSha256', 'operationRef'];
         if (count($receipt) !== count($keys) || array_diff($keys, array_keys($receipt)) ||
-            $receipt['schema'] !== 'SITES_PUBLICATION_REQUEST_RECEIPT_V1' ||
+            $receipt['schema'] !== $this->schema ||
             !is_string($receipt['operationRef']) || !PgPublicationJournalGuard::uuid($receipt['operationRef']) ||
             !is_string($receipt['planSha256']) || !hash_equals($this->planSha256, $receipt['planSha256'])) {
             throw new RuntimeException();
