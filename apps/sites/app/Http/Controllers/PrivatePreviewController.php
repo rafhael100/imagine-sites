@@ -150,10 +150,12 @@ final class PrivatePreviewController
         $versions = $reviews = $currentReviews = [];
         $brief = null;
         $comparison = null;
+        $versionReviews = null;
         $currentRevision = $currentSha256 = $queueNext = $historyOlder = $historyNewer = null;
         $reviewsTruncated = $currentReviewsTruncated = false;
         if ($project !== null) {
-            $history = (new PrivatePreviewHistory($principal->db))->page($principal->company, $project,
+            $historyReader = new PrivatePreviewHistory($principal->db);
+            $history = $historyReader->page($principal->company, $project,
                 $navigation->beforeRevision, $navigation->afterRevision);
             $versions = $history['versions'];
             $reviews = $history['reviews'];
@@ -165,6 +167,9 @@ final class PrivatePreviewController
             $historyNewer = $history['newer_after'];
             $reviewsTruncated = $history['reviews_truncated'];
             $currentReviewsTruncated = $history['current_reviews_truncated'];
+            if ($navigation->reviews !== null) {
+                $versionReviews = $historyReader->reviewsForVersion($principal->company, $project, $navigation->reviews);
+            }
             if ($navigation->compareFrom !== null) {
                 $comparison = (new PrivatePreviewComparison($principal->db))->compare($principal->company, $project,
                     $navigation->compareFrom, $navigation->compareTo);
@@ -176,7 +181,7 @@ final class PrivatePreviewController
         }
         return compact('projects', 'project', 'versions', 'reviews', 'brief', 'currentRevision', 'currentSha256', 'comparison',
             'queueNext', 'historyOlder', 'historyNewer', 'reviewsTruncated', 'currentReviews', 'currentReviewsTruncated', 'navigation',
-            'queueSearchInput');
+            'queueSearchInput', 'versionReviews');
     }
 
     private function renderWorkspace(PreviewPrincipal $principal, array $data, array $submitted = [], array $fieldErrors = [], int $status = 200, ?array $reviewSubmission = null)

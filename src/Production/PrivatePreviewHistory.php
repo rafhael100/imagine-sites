@@ -161,6 +161,113 @@ SQL;
         }
     }
 
+    /**
+     * Reads one immutable version's opinions independently of the version window.
+     * An opaque token resolves to a scoped existing row; its real timestamp and
+     * primary-key reviewer determine continuation, without exposing the login.
+     */
+    public function reviewsForVersion(string $company, string $project, PreviewReviewQuery $query): array
+    {
+        foreach ([$company, $project] as $id) {
+            if (preg_match('/\A[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}\z/D', $id) !== 1) {
+                throw new InvalidArgumentException('Invalid private preview history');
+            }
+        }
+
+        try {
+            $runtime = new PrivatePreviewWorkspace($this->db);
+            $runtime->assertSafeRuntime();
+            $this->requireReadable($company);
+
+            // A JSON array gives every hash component an unambiguous boundary.
+            // UTC formatting is independent of the connection's TimeZone. Only
+            // keys are materialized before the bounded page; note bodies are
+            // joined afterwards. No reviewer name leaves this SQL statement.
+            $sql = <<<'SQL'
+WITH selected_version AS (
+ SELECT v.project_id,v.company_id,v.revision,v.sha256
+   FROM sites_preview.versions v
+  WHERE v.project_id=?::uuid AND v.company_id=?::uuid AND v.revision=?::integer
+), requested_cursor AS (
+ SELECT ?::text AS cursor
+), version_keys AS (
+ SELECT r.reviewer,r.created_at,
+        pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
+          pg_catalog.jsonb_build_array('SITES_PREVIEW_REVIEW_CURSOR_V1',v.company_id::text,
+            v.project_id::text,v.revision,v.sha256,
+            pg_catalog.to_char(r.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+            r.reviewer::text)::text,'UTF8')),'hex') AS cursor
+   FROM selected_version v
+   JOIN sites_preview.reviews r ON r.project_id=v.project_id AND r.company_id=v.company_id
+    AND r.revision=v.revision AND r.sha256=v.sha256
+), anchor AS (
+ SELECT k.created_at,k.reviewer FROM version_keys k
+   JOIN requested_cursor q ON k.cursor=q.cursor
+), page_keys AS (
+ SELECT k.created_at,k.reviewer,k.cursor FROM version_keys k
+   CROSS JOIN requested_cursor q LEFT JOIN anchor a ON true
+  WHERE q.cursor IS NULL OR k.created_at<a.created_at
+     OR (k.created_at=a.created_at AND k.reviewer::text COLLATE pg_catalog."C">a.reviewer::text COLLATE pg_catalog."C")
+  ORDER BY k.created_at DESC,k.reviewer::text COLLATE pg_catalog."C" ASC
+SQL;
+            $sql .= ' LIMIT '.(PreviewReviewQuery::PAGE_SIZE + 1);
+            $sql .= <<<'SQL'
+
+), page_reviews AS (
+ SELECT r.revision,r.sha256,r.decision,r.note,r.created_at,k.reviewer,k.cursor
+   FROM selected_version v CROSS JOIN page_keys k
+   JOIN sites_preview.reviews r ON r.project_id=v.project_id AND r.company_id=v.company_id
+    AND r.revision=v.revision AND r.sha256=v.sha256 AND r.reviewer=k.reviewer
+)
+SELECT v.revision,v.sha256,(SELECT count(*)::integer FROM anchor) AS anchor_count,
+ coalesce((SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+   'revision',r.revision,'sha256',r.sha256,'decision',r.decision,'note',r.note,
+   'created_at',r.created_at::text,'cursor',r.cursor)
+   ORDER BY r.created_at DESC,r.reviewer::text COLLATE pg_catalog."C" ASC)
+   FROM page_reviews r),'[]'::jsonb) AS reviews
+ FROM selected_version v
+SQL;
+            $statement = $this->db->prepare($sql);
+            $statement->execute([$project, $company, $query->revision, $query->cursor]);
+            $page = $statement->fetch(PDO::FETCH_ASSOC);
+            $extra = $statement->fetch(PDO::FETCH_ASSOC);
+            $statement->closeCursor();
+            if ($page === false || ($query->cursor !== null && ($page['anchor_count'] ?? null) === 0)) {
+                $runtime->assertSafeRuntime();
+                $this->requireReadable($company);
+                throw new OutOfBoundsException('Private preview reviews unavailable');
+            }
+            if (!is_array($page) || $extra !== false ||
+                array_keys($page) !== ['revision', 'sha256', 'anchor_count', 'reviews'] ||
+                $page['anchor_count'] !== ($query->cursor === null ? 0 : 1)) {
+                throw new RuntimeException('Private preview history unavailable');
+            }
+            $revision = self::revision($page['revision']);
+            $digest = self::digest($page['sha256']);
+            if ($revision !== $query->revision) throw new RuntimeException('Private preview history unavailable');
+            $rows = self::rows($page['reviews'], PreviewReviewQuery::PAGE_SIZE + 1);
+            $tokens = [];
+            foreach ($rows as $row) {
+                $token = self::digest($row['cursor'] ?? null);
+                if (isset($tokens[$token])) throw new RuntimeException('Private preview history unavailable');
+                $tokens[$token] = true;
+            }
+            // The existing decoder preserves exact notes and legacy NULLs,
+            // checks the selected version/digest and omits every private key.
+            $reviews = self::reviews($rows, [$revision => $digest]);
+            $next = count($reviews) > PreviewReviewQuery::PAGE_SIZE
+                ? $rows[PreviewReviewQuery::PAGE_SIZE - 1]['cursor'] : null;
+            $runtime->assertSafeRuntime();
+            $this->requireReadable($company);
+            return ['revision' => $revision, 'sha256' => $digest,
+                'reviews' => array_slice($reviews, 0, PreviewReviewQuery::PAGE_SIZE), 'next_cursor' => $next];
+        } catch (OutOfBoundsException $error) {
+            throw $error;
+        } catch (Throwable) {
+            throw new RuntimeException('Private preview history unavailable');
+        }
+    }
+
     private static function rows(mixed $raw, int $maximum): array
     {
         // A note may require six JSON bytes per code point for escaped controls.

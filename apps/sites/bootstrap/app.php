@@ -23,9 +23,10 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Private editorial notes retain their exact whitespace in storage and
         // failed form responses; their domain validator handles blank text.
-        // Search is bounded and normalized by PreviewQueueQuery, so malformed
-        // bytes must not disappear before that validation.
-        $middleware->trimStrings(except: ['note', 'q']);
+        // Search is bounded and normalized by PreviewQueueQuery. The review
+        // selectors require canonical text: whitespace or NUL must not vanish
+        // before their domain validation either.
+        $middleware->trimStrings(except: ['note', 'q', 'review_revision', 'review_cursor']);
 
         // F1-377: only the disposable GitHub CI-to-CI HTTP fixture may
         // bypass BROWSER CSRF. It authenticates a fictional HMAC command

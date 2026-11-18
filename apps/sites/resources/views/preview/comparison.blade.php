@@ -28,7 +28,7 @@
 @endif
 @endif
 @if($comparisonInput !== null)
-<p><a href="{{ $navigation->projectUrl($project,$navigation->beforeRevision,$navigation->afterRevision) }}">Limpar comparação</a></p>
+<p><a href="{{ $navigation->closeComparisonUrl($project) }}">Limpar comparação</a></p>
 @endif
 @if($currentRevision <= 1)
 <p class="history-note">Este projeto tem uma versão. A comparação estará disponível quando uma nova versão for criada.</p>
@@ -70,7 +70,7 @@
 </article>
 @endforeach
 </div>
-<p><a href="{{ $navigation->projectUrl($project,$navigation->beforeRevision,$navigation->afterRevision) }}">Fechar comparação</a></p>
+<p><a href="{{ $navigation->closeComparisonUrl($project) }}">Fechar comparação</a></p>
 </div>
 @endif
 </section>
