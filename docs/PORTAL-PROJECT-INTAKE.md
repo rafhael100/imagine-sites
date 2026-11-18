@@ -84,7 +84,17 @@ também passou após executar todos os seeds e casos nativos: as onze migrations
 foram revertidas e `sites_core` deixou de existir, sem CASCADE ou limpeza que
 contornasse constraints. Os 32 checks de domínio, sintaxe, pins SQL, JSON/YAML e
 safety guard passaram. A revisão independente do SQL, migration e serviço foi
-concluída sem bloqueadores funcionais. CI remota ainda pendente neste registro.
+concluída sem bloqueadores funcionais. A CI remota foi posteriormente conferida
+no HEAD `9b80387fe1c580436b444a6aad2b63f3baafa37d` da PR #512: 14 checks SUCCESS.
+O [run 44303070110](https://github.com/rafhael100/imagine-sites/actions/runs/44303070110)
+confirmou as 63 verificações nativas, recorder 18/84 e rollback completo em PHP
+8.3/8.4.
+
+A [correção aditiva de cobertura do registry](reviews/SITES-REGISTRY-INTAKE-PERMISSIONS-2026-11-18.md)
+inclui a nova tabela na inspeção de ACLs desse consumidor. O
+[run 44307366977](https://github.com/rafhael100/imagine-sites/actions/runs/44307366977)
+repetiu a prova de recebimento com a migration 12 e confirmou o rollback das
+doze migrations em PHP 8.3/8.4. Isso não modifica o recibo ou sua autoridade.
 
 Para a prova pareada, o adaptador do Portal precisa chamar este serviço e validar
 seu recibo. Uma fixture que apenas reproduza o retorno não demonstra essa ligação.

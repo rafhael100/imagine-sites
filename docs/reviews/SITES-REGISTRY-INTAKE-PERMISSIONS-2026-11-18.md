@@ -39,7 +39,7 @@ A revisão independente do produto e da migration não identificou bloqueadores.
 
 A prova PostgreSQL usa o laboratório descartável já existente, com identidade, diretório, cluster e TLS verificados antes das escritas. As migrations 11/12 entram antes dos 905 checks anteriores do registry. Um novo leitor sintético da empresa B reutiliza um binding válido criado pelo percurso existente, sem renovar atores revogados ou produzir outro artefato.
 
-A mesma consulta deve funcionar normalmente e recusar cada desvio abaixo:
+A mesma consulta funcionou normalmente e recusou cada desvio abaixo:
 
 | Principal afetado | Desvio introduzido somente no laboratório |
 | --- | --- |
@@ -48,11 +48,23 @@ A mesma consulta deve funcionar normalmente e recusar cada desvio abaixo:
 | Definer de leitura | SELECT na coluna com grant option |
 | Definer de escrita | INSERT na coluna |
 
-Cada grant deve ser retirado em `finally`, seguido de uma consulta positiva e conferência de snapshots de dados/catálogo. Um `down/up` controlado deve mostrar que o corpo antigo aceitava a chamada com a ACL direta e que o corpo novo a recusa; a reaplicação ocorre também no caminho de limpeza. O ensaio não apresenta esse resultado como vazamento de dados.
+Cada grant foi retirado em `finally`, seguido de uma consulta positiva e conferência de snapshots de dados/catálogo. O `down/up` controlado mostrou que o corpo antigo aceitava a chamada com a ACL direta e que o corpo novo a recusa; a reaplicação ocorre também no caminho de limpeza. O ensaio não apresenta esse resultado como vazamento de dados.
 
-A fixture implementada contém **13 verificações novas/918 registry previstas**, mantendo as 905 anteriores. A revisão independente conferiu o ator B elegível, a reprodução do corpo anterior, os quatro negativos com SQLSTATE `42501` e motivo específico, retorno nulo da fonte PDO e recuperação sem mudanças de dados/catálogos. PHP lint, Bash e diff check passaram. YAML/Bash do workflow, matriz, onze opt-ins e restrições exatas de draft/base/head foram conferidos. PHP e runner recusaram uma cadeia de opt-ins incompleta antes de iniciar o bootstrap. O safety guard passou em cópia de 608 fontes, mantendo os dez gates BLOCKED.
+A fixture confirmou **13 verificações novas/918 registry**, mantendo as 905 anteriores. A revisão independente conferiu o ator B elegível, a reprodução do corpo anterior, os quatro negativos com SQLSTATE `42501` e motivo específico, retorno nulo da fonte PDO e recuperação sem mudanças de dados/catálogos. PHP lint, Bash e diff check passaram. YAML/Bash do workflow, matriz, onze opt-ins e restrições exatas de draft/base/head foram conferidos. PHP e runner recusaram uma cadeia de opt-ins incompleta antes de iniciar o bootstrap. O safety guard passou em cópia de 608 fontes, mantendo os dez gates BLOCKED.
 
-A matriz dedicada usa PHP 8.3/8.4 e PostgreSQL 18. O workflow nativo F383 existente continua exercitando o recebimento pelo serviço Laravel e a reversão completa das migrations em outro banco descartável. **A nova prova integrada ainda aguarda CI; não houve PostgreSQL local nesta candidata.**
+A matriz dedicada usa PHP 8.3/8.4 e PostgreSQL 18. O workflow nativo F383 existente também exercitou o recebimento pelo serviço Laravel e a reversão completa das migrations em outro banco descartável. Não houve PostgreSQL local nesta candidata; a execução conectada ocorreu na CI.
+
+### Evidência final da PR #515
+
+O HEAD funcional `1732ad5b0d7b60067154c2a3354cd16b99a6658b` teve **14/14 check-runs SUCCESS** na conferência final.
+
+| Execução | Jobs PHP 8.3 / 8.4 | Resultado |
+| --- | --- | --- |
+| [Registry 44307367368](https://github.com/rafhael100/imagine-sites/actions/runs/44307367368) | `134812301128` / `134812300748` | 13 verificações novas e 918 totais, com os dois corpos e quatro negativos reais; clusters inativos e nove auxiliares privados limpos. |
+| [Schema nativo 44307366977](https://github.com/rafhael100/imagine-sites/actions/runs/44307366977) | `134812298794` / `134812299235` | 63 verificações de recebimento; recorder 18 testes/84 assertions; leitura/editorial anteriores; aplicação e rollback completo das 12 migrations. |
+| [Laravel 44307367201](https://github.com/rafhael100/imagine-sites/actions/runs/44307367201) | `134812300330` / `134812300599` | Suíte padrão: 186 testes/1902 assertions/27 skips; opt-in sintético: 186/1914/21. |
+
+A comparação real de `pg_proc` passou antes/depois da substituição, inclusive após a instalação do journal. As consultas e recusas conservaram os snapshots previstos. Os testes desta linha não incluem as alterações da linha de UI #511/#513/#514; os resultados próprios dessas branches estão identificados no STATUS, sem misturar totais.
 
 ## Fronteiras
 
