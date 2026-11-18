@@ -194,25 +194,35 @@ efetivo permitido entre as APIs de `sites_core` e `sites_publication` é
 sem grant option. A nova enumeração é fechada; o manifesto não escolhe SQL.
 Nenhum grant, role, migration ou atributo de binding é criado por esta CLI.
 
-Os testes offline separados verificam argumentos, recusas anteriores à
-conexão e custódia em diretório temporário próprio. Eles não provam commit
-SQL. A execução local única confirmou **77 checks de CLI** e **123 checks de
-custódia do recibo**, sem simular sucesso SQL ou autoridade. O lint dos três
-arquivos PHP da implementação e a conferência dos quatro pins Portal também
-passaram. A fixture de integração deve comprovar recepção real, isolamento,
-replay, revogação, preservação do recibo e falha de persistência após commit.
-O resultado PostgreSQL desta candidata permanece pendente de CI; a evidência
-anterior da base não substitui essa prova.
+## Evidência final da #530
 
-O [workflow dedicado](../.github/workflows/sites-project-intake-receiver-cli.yml)
-fixa a base #529 no HEAD `d8a5630bf8957e238b71edf92b6e2a406950e49b` e executa
-PHP 8.3/8.4 com os dezoito opt-ins do laboratório existente. A fixture prevê
-**29 checks novos/1178 totais**. Substitui três chamadas de intake já previstas
-pelos recibos obtidos na CLI; os dez projetos e os 119 checks próprios da
-composição permanecem. A resposta B é descartada antes de recuperar seu arquivo.
-O caso de arquivo perdido observa uma chamada real bloqueada pelo lock nativo,
-substitui sua reserva e libera o lock antes do timeout. Depois confere o commit
-nas quatro tabelas, a preservação dos dois arquivos e o mesmo `siteRef` em um
-replay explícito para novo destino. O helper remove apenas seus inputs e nomes
-de recibo declarados, depois de validar todo o inventário. Essas são condições
-da prova preparada, ainda sem resultado PostgreSQL atribuído a esta candidata.
+A [#530](https://github.com/rafhael100/imagine-sites/pull/530) concluiu **12/12
+checks SUCCESS** no HEAD `e49d5f8365d70d0e155703a1d3f2362684f04a57`, sobre a
+#529 / `d8a5630bf8957e238b71edf92b6e2a406950e49b`. O
+[workflow dedicado](../.github/workflows/sites-project-intake-receiver-cli.yml)
+executou PHP 8.3/8.4 com os dezoito opt-ins do laboratório existente.
+
+Os **77 checks offline da CLI** e **123 de custódia** usam ajuda/recusas antes
+da conexão e IO temporário real; não simulam commit SQL. A suíte geral local
+confirmou 286/4364/27 e os 32 checks sintéticos. Lint, guard de 710 arquivos,
+YAML/Bash, links e revisões independentes passaram. Os quatro pins Portal foram
+conferidos sem alteração.
+
+| Execução própria | Resultado lido nos logs |
+| --- | --- |
+| [PostgreSQL/TLS 44373979915](https://github.com/rafhael100/imagine-sites/actions/runs/44373979915), jobs **135048052390 / 135048053323** | **29 checks novos/1178 totais**, 77/123 offline, PHP 8.3/8.4. |
+| [Laravel 44373979625](https://github.com/rafhael100/imagine-sites/actions/runs/44373979625), jobs **135048049793 / 135048050381** | **286/4364/27** e **286/4376/21** nas duas versões. |
+
+A fixture substituiu três chamadas de intake já previstas pelos recibos obtidos
+na CLI, mantendo dez projetos e os 119 checks da composição. Recuperou o arquivo
+B após descartar stdout e verificou replay, isolamento, revogação, alvo/TLS e
+custódia. O caso de falha observou a chamada real bloqueada pelo lock nativo,
+substituiu sua reserva e liberou o lock antes do timeout. Comprovou as quatro
+linhas do commit, a preservação dos dois arquivos e o mesmo siteRef em replay
+explícito para novo destino, sem novo append.
+
+O helper removeu somente seus quatro inputs e nomes de recibo declarados, depois
+de validar todo o inventário, antes do cleanup dos auxiliares anteriores.
+Os clusters próprios ficaram inativos e o rollback ordenado da composição passou.
+Não houve nova execução HTTP, F383 ou de containers nesta PR. Esses resultados
+são próprios da #530 e continuam sem ativação operacional.

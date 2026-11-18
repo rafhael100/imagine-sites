@@ -9,7 +9,7 @@ use Illuminate\Database\Connection;
 use PDO;
 use RuntimeException;
 
-/** @internal Shared transaction boundary for the two native snapshot operations. */
+/** @internal Shared transaction boundary for native snapshot and intake receipt operations. */
 final class BriefSnapshotTransaction
 {
     public static function run(Connection $database, bool $readOnly, Closure $operation): mixed

@@ -1,41 +1,70 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
-## 18/11/2026 — entrada privada de projetos com recibo nativo
+## 18/11/2026 — consulta exata do recibo por leitor independente
 
-Branch `feature/sites-project-intake-receiver-cli-2026-11-18`, sobre a #529 /
+Branch `feature/sites-project-intake-receipt-reader-2026-11-18`, sobre a #530 /
+`e49d5f8365d70d0e155703a1d3f2362684f04a57`. O novo
+`StoredProjectIntakeReceiptReader::readExact(SiteProjectCommand)` permite consultar
+o recibo usando os oito campos originais, sem conhecer previamente o siteRef.
+Exige uma identidade de leitura atual, PDO principal fixa, sessão somente leitura,
+uma transação independente e uma seleção exata. Recusa ausência, divergência e
+falhas com o mesmo erro limitado. Não repete a operação de recebimento.
+
+A migration 15 acrescenta `read_portal_project_intake_receipt` e um definer
+NOLOGIN com SELECT somente em bindings, organizações e intakes. A autorização é
+`active/can_read` corrente e EXECUTE exclusivo; o receptor histórico pode estar
+revogado. A função STABLE observa autorização e recibo no snapshot do início da
+instrução, sem prometer lock até commit ou revogação retroativa dessa leitura.
+O recibo conserva seus quinze campos e três flags falsas. SQL001, recorder,
+comando e schema fixados pelo Portal permanecem idênticos.
+
+**Validação local PASS:** grupo novo **10 testes/341 assertions**, suíte geral
+**296/4705/27**, **32 checks sintéticos**, lint e revisão independente do SQL e da
+migration. O grupo novo usa PDO desconectada; a prova real está em preparação
+no workflow F383 existente, preservando as 65 verificações de intake e prevendo
+**53 verificações novas** com leitores próprios e rollback/reaplicação da migration
+15. A comparação do catálogo normaliza a ordem dos grants de função após
+REVOKE/GRANT, conservando todos os privilégios e demais campos. Não se atribui o resultado
+registry da #530 a esse schema novo.
+[Manual e limites](docs/PROJECT-INTAKE-RECEIPT-READER.md).
+
+## 18/11/2026 — entrada privada de projetos validada na #530
+
+A [#530](https://github.com/rafhael100/imagine-sites/pull/530), branch
+`feature/sites-project-intake-receiver-cli-2026-11-18`, concluiu **12/12 checks
+SUCCESS** no HEAD `e49d5f8365d70d0e155703a1d3f2362684f04a57`, sobre a #529 /
 `d8a5630bf8957e238b71edf92b6e2a406950e49b`. A CLI candidata
 `receive-project-intake.php` oferece plano somente leitura e uma chamada explícita
-ao `PortalProjectIntakeRecorder`. Preserva o comando de oito campos, a função SQL
-e o recibo nativo de quinze campos, inclusive os três indicadores falsos. Os quatro
-arquivos fixados pelo consumidor Portal permanecem byte a byte iguais.
+ao recorder nativo. Preserva o comando de oito campos, a função SQL e o recibo de
+quinze campos, inclusive os três indicadores falsos. Os quatro arquivos fixados
+pelo consumidor Portal continuam byte a byte iguais.
 
-Quatro mounts privados fornecem configuração, comando original, senha e CA.
-O compromisso inclui o alvo canônico, o hash dos bytes do comando e o destino
-completo do recibo. `record` exige esse compromisso e confirmação própria, reserva
-um arquivo exclusivo `0600` e mantém seu descritor até terminar a escrita. O
-recibo privado conserva o `siteRef`; stdout retorna oito campos no plano ou dez
-no registro, sem referências privadas. A autoridade efetiva continua sendo o
-binding nativo corrente `active/can_receive_project`, sem acrescentar época ou
-vencimento a esse contrato.
+Quatro inputs privados fornecem configuração, comando original, senha e CA.
+O compromisso inclui alvo, hash dos bytes do comando e destino completo do
+recibo. A escrita exige esse compromisso e confirmação própria, reserva um arquivo
+exclusivo 0600 e mantém seu descritor durante a gravação. O recibo privado conserva
+o siteRef; stdout tem oito/dez campos sem referências privadas. A autoridade
+continua sendo o binding nativo active/can_receive_project, sem epoch ou expiração.
 
-Banco e arquivo são recursos separados. Uma recusa posterior pode seguir commit;
-a CLI preserva o arquivo reservado, não substitui destinos e não repete a escrita.
-Perder stdout permite conferir um recibo completo já preservado. Recuperar um
-arquivo ausente ou incompleto exige apuração e decisão explícita de replay nativo,
-com novo destino e compromisso, sem presumir ausência do projeto.
+Banco e arquivo são recursos separados. O ensaio real comprovou o commit apesar
+da substituição do arquivo reservado durante uma chamada bloqueada, preservou o
+substituto e a reserva movida e recuperou o mesmo siteRef por replay explícito
+para novo destino. A resposta B descartada também deixou um recibo íntegro. A
+CLI não apaga destinos nem executa retry automático.
 
-**Prova local já concluída:** suíte geral **286 testes/4364 assertions/27 skips**,
-**32 checks sintéticos**, **77 checks offline da CLI**, **123 checks de custódia
-em arquivos temporários privados** e os quatro hashes Portal preservados. Lint e
-revisão independente passaram; os testes offline não simulam sucesso SQL. A
-prova PostgreSQL/TLS está em fechamento; nenhum resultado
-da #529 é atribuído à entrada nova. A fixture define **29 verificações novas**,
-com total esperado de **1178**, e reutiliza três dos dez projetos da composição
-para recebimento normal, stdout descartado e falha de arquivo após commit.
-Confere ainda o replay explícito, isolamento, revogação e custódia, preservando
-as 119 verificações próprias da composição e a cadeia posterior. As contagens
-PostgreSQL permanecem expectativas até a execução do CI.
-[Manual e fronteiras](docs/PROJECT-INTAKE-RECEIVER-CLI.md) ·
+**Validação local:** 77 checks da CLI, 123 de custódia temporária, suíte geral
+286/4364/27, 32 sintéticos, lint, YAML/Bash, 710 arquivos no guard, links e
+revisões independentes PASS. Os testes offline não simulam sucesso SQL.
+
+| Prova própria da #530 | Resultado confirmado |
+| --- | --- |
+| [Registry 44373979915](https://github.com/rafhael100/imagine-sites/actions/runs/44373979915), jobs **135048052390 / 135048053323** | PHP 8.3/8.4: **29 novas/1178 totais**, mantendo os dez projetos e 119 checks próprios da composição; 77/123 offline. |
+| [Laravel 44373979625](https://github.com/rafhael100/imagine-sites/actions/runs/44373979625), jobs **135048049793 / 135048050381** | Nas duas versões: **286/4364/27** e **286/4376/21** com opt-in sintético. |
+
+Cleanup dos quatro inputs e recibos declarados antes dos auxiliares anteriores,
+clusters inativos e rollback ordenado da composição confirmados. Sem nova
+execução HTTP, F383 ou workflow de containers nesta PR.
+[Manual e limites](docs/PROJECT-INTAKE-RECEIVER-CLI.md) ·
 [Workflow dedicado](.github/workflows/sites-project-intake-receiver-cli.yml).
 
 ## 18/11/2026 — campos com quebras de linha preservados no formulário

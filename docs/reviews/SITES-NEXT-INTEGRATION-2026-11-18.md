@@ -6,6 +6,23 @@
 
 Essa conclusão delimita a integração; não afirma esgotamento de todo desenvolvimento. O trabalho autorizado em branch isolada pode continuar em componentes com uso concreto e defeitos demonstrados. A inspeção privada do diário é um exemplo: consome a API persistente existente sem criar autoridade ou depender de um briefing inventado.
 
+### Consulta do intake com identidade de leitura independente
+
+Sobre a #530 / `e49d5f8365d70d0e155703a1d3f2362684f04a57`, a branch
+`feature/sites-project-intake-receipt-reader-2026-11-18` acrescenta o
+[leitor exato do recibo nativo](../PROJECT-INTAKE-RECEIPT-READER.md). O comando
+original seleciona o histórico; não é necessário conhecer o siteRef perdido.
+O reader atual utiliza sua própria autorização `active/can_read` e EXECUTE
+exclusivo. A consulta não depende de reativar ou repetir o receiver original.
+
+O SQL aditivo e a migration 15 preservam os quatro pins Portal e o retorno nativo
+de quinze campos. A função STABLE usa o snapshot da instrução para autorização
+e leitura, sem o lock até commit usado pelo writer. O serviço retorna o recibo
+em memória; CLI, arquivo de recuperação e transporte continuam entradas próprias.
+O grupo novo **10/341**, a suíte geral **296/4705/27** e os **32 checks sintéticos**
+passaram. A prova real desta extensão está em preparação no F383 existente,
+com isolamento, revogação entre chamadas e preservação dos dados no down/up15.
+
 ### Entrada privada de projeto antes do briefing candidato
 
 A branch `feature/sites-project-intake-receiver-cli-2026-11-18`, sobre a #529 /
@@ -21,12 +38,17 @@ arquivo privado para o briefing posterior. A projeção pública não divulga es
 referências. A autorização é o binding nativo corrente; o comando não adiciona
 o modelo de épocas usado pelas APIs de snapshot ou de artefato.
 
-A prova dedicada está em preparação e reutiliza três projetos já previstos na
-composição. Deve demonstrar recebimento normal, recuperação do recibo após
-stdout descartado e apuração de falha de arquivo depois do commit, além de
-isolamento e revogação. A suíte geral local **286/4364/27**, os **32 checks
-sintéticos**, **77 offline da CLI** e **123 de custódia privada** passaram; isso
-ainda não é a prova de PostgreSQL desta entrada.
+A [#530](https://github.com/rafhael100/imagine-sites/pull/530), HEAD
+`e49d5f8365d70d0e155703a1d3f2362684f04a57`, concluiu **12/12 checks SUCCESS**.
+O [registry 44373979915](https://github.com/rafhael100/imagine-sites/actions/runs/44373979915)
+confirmou **29 novas/1178 totais**, **77/123 offline** e cleanup em PHP 8.3/8.4.
+Reutilizou três projetos da composição para recebimento normal, recibo após
+stdout descartado e recuperação após commit com arquivo substituído. Conservou
+os dez projetos e 119 checks próprios da composição. O
+[Laravel 44373979625](https://github.com/rafhael100/imagine-sites/actions/runs/44373979625)
+confirmou **286/4364/27** e **286/4376/21** nas duas versões; não houve nova
+execução HTTP, F383 ou de containers. A prova permanece candidata e separada
+da integração de transporte Portal.
 
 ### Inspeção privada do snapshot recebido validada na #528
 
