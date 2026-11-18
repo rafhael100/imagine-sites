@@ -6,8 +6,19 @@ module.exports=async({ctx,a,o,base,dir,historyUrl,ok})=>{
  const ids=()=>rows().evaluateAll(nodes=>nodes.map(node=>node.getAttribute('data-project')));
  const queryUrl=(q,extra={})=>queue+'?'+new URLSearchParams({...extra,q}).toString();
  const submit=async()=>{
-   const response=page.waitForResponse(r=>r.request().isNavigationRequest()&&r.request().method()==='GET');
-   await page.getByRole('button',{name:'Aplicar filtros',exact:true}).click();
+   const expected={
+     q:await page.getByLabel('Buscar projeto',{exact:true}).inputValue(),
+     status:await page.getByLabel('Parecer na fila').inputValue(),
+     format:await page.getByLabel('Formato da fila').inputValue(),
+   };
+   const matches=url=>url.pathname==='/_preview'&&
+     Object.entries(expected).every(([key,value])=>url.searchParams.get(key)===value);
+   const response=page.waitForResponse(r=>r.request().isNavigationRequest()&&
+     r.request().method()==='GET'&&matches(new URL(r.url())));
+   await Promise.all([
+     page.waitForURL(matches,{waitUntil:'load'}),
+     page.getByRole('button',{name:'Aplicar filtros',exact:true}).click(),
+   ]);
    return response;
  };
  await page.goto(queue);
@@ -58,9 +69,11 @@ module.exports=async({ctx,a,o,base,dir,historyUrl,ok})=>{
     'zero-result search is visible and markup remains escaped in the field and message');
  const boundary='😀'.repeat(100);
  await page.getByLabel('Buscar projeto',{exact:true}).fill(boundary);
- ok((await submit()).status()===200&&
-    await page.getByLabel('Buscar projeto',{exact:true}).inputValue()===boundary,
-    '100 astral Unicode codepoints pass the real no-JavaScript GET form');
+ const boundaryResponse=await submit();
+ const boundaryValue=await page.getByLabel('Buscar projeto',{exact:true}).inputValue();
+ ok(boundaryResponse.status()===200&&boundaryValue===boundary,
+    '100 astral Unicode codepoints pass the real no-JavaScript GET form; status='+
+    boundaryResponse.status()+', rendered_codepoints='+Array.from(boundaryValue).length);
  for(const encoded of ['%00','%0A','%7F','%C2%85','%E2%80%A8','%C3%28',encodeURIComponent('漢'.repeat(101))]){
    ok((await a.request.get(queue+'?q='+encoded)).status()===422,
       'invalid or oversized search rejected before database query: '+encoded.slice(0,15));

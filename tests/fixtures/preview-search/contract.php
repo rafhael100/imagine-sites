@@ -11,7 +11,7 @@ if (!isset($admin,$connections,$workspaces,$overviews,$companies,$ok,$count,$ove
 }
 $searchChecksBefore=$count;
 $ok($admin->query('SHOW server_encoding')->fetchColumn()==='UTF8' &&
-    $admin->query('SHOW lc_ctype')->fetchColumn()==='C',
+    $admin->query('SELECT datctype FROM pg_catalog.pg_database WHERE datname=current_database()')->fetchColumn()==='C',
     'Unicode queue search is exercised in a real UTF8 database with C locale');
 
 $searchNextId=1;
