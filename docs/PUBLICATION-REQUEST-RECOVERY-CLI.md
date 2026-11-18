@@ -11,7 +11,7 @@ ou nova tentativa.**
 ```bash
 php ops/publication-candidate/recover-request.php plan
 php ops/publication-candidate/recover-request.php recover \
-  --plan-sha256=<64-hex-lowercase> \
+  --plan-sha256=SHA256_DO_PLANO_REVISADO \
   --authorize-recovery=SITES_PUBLICATION_REQUEST_RECOVERY_ONLY_APPROVED
 ```
 
@@ -82,7 +82,8 @@ Não encontrar uma operação não prova que a solicitação anterior falhou.
 
 Somente `APP_ENV=staging`, sem GitHub Actions e usando banco
 `sites_staging`, ou o laboratório `GITHUB_ACTIONS=true` +
-`APP_ENV=testing` + `SITES_PUBLICATION_REQUEST_RECOVERY_CI=1`,
+`APP_ENV=testing` + `SITES_PUBLICATION_REQUEST_READER_CI=1` +
+`SITES_PUBLICATION_REQUEST_RECOVERY_CI=1`,
 com alvo `localhost:55449/postgres` e principal sintético restrito,
 são candidatos de execução. Essa guarda não cria credenciais nem poderes.
 
@@ -93,6 +94,30 @@ executa em PHP 8.3/8.4. Uma prova PostgreSQL18 real, com leitor ativo,
 revogação e perda de resposta, é necessária para afirmar homologação
 completa da nova CLI; os testes da #536 validam o **leitor SQL**, mas não
 substituem essa jornada do novo wrapper.
+
+## Composição PostgreSQL executável
+
+A branch `integration/sites-request-recovery-composition-2026-11-18`, sobre a
+#539 validada, preserva o serviço, os schemas, argumentos e projeções **6/13/3**
+publicados na #538. O ajuste de produto está restrito ao ramo CI: exige também
+a flag do leitor e admite os leitores próprios `pjrrc_a_reader` e
+`pjrrc_b_reader`, mantendo `pjrr_a_reader`. Staging conserva seu comportamento.
+
+A [fixture completa](../tests/fixtures/publication-request-recovery/contract.php)
+executa depois dos **1241 checks anteriores** e do rollback16. Instala
+temporariamente a mesma migration16 e usa três operações já existentes, sem
+chamar o writer ou acrescentar operação/evento. Compara o resultado público
+com o snapshot nativo, descarta uma resposta e lê o UUID do arquivo privado
+para alimentar a CLI de inspeção com outra identidade autorizada.
+
+O [workflow dedicado](../.github/workflows/sites-request-recovery-composition.yml)
+prevê **38 novos /1279 totais** em PHP 8.3/8.4, snapshots finais, down16 e
+cleanup limitado aos recursos do laboratório. Os **63 checks offline** e os
+**32 checks de domínio** passaram localmente depois dos ajustes CI. A
+[#540](https://github.com/rafhael100/imagine-sites/pull/540), commit
+`1c9b4d46949b907c225b1a0cc42e10c572b44e33`, confirmou **12/12 checks SUCCESS**
+e **38 novos /1279 totais** em PHP 8.3/8.4 no [run 44403773102](https://github.com/rafhael100/imagine-sites/actions/runs/44403773102),
+com snapshots, rollback16, cleanup e clusters inativos. [Casos, custódia e limites](reviews/SITES-PUBLICATION-RECOVERY-COMPOSITION-2026-11-18.md).
 
 **Fora do escopo:** aceitar pedidos comerciais reais, autenticação Portal,
 provider, publicação/rollback, integração n8n, deploy VPS, DNS, pagamento,

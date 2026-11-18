@@ -1,5 +1,28 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 18/11/2026 — composição da recuperação privada do diário
+
+A branch `integration/sites-request-recovery-composition-2026-11-18` deriva da
+#539 / `9f9b19adc21944165e70062017471ede1657975b`, validada com 12/12 SUCCESS.
+Preserva o serviço e contrato CLI da #538. Acrescenta duas identidades próprias
+somente ao ramo CI, exige as flags20/21 e move o ensaio para depois dos 1241
+checks e down16 anteriores. A fixture do leitor retorna exatamente aos bytes
+comprovados na #536; SQL, migrations e história persistente não mudam.
+
+A prova confirmou **38 novos /1279 totais**: três históricos existentes, writer
+original revogado, stdout descartado, recibo privado alimentando o inspector
+separado, isolamento, revogação atual, custódia, snapshots e rollback16.
+Os **63 checks offline** do wrapper e **32 de domínio** passaram localmente,
+com lint/Bash/AST e revisões independentes. A [#540](https://github.com/rafhael100/imagine-sites/pull/540),
+commit `1c9b4d46949b907c225b1a0cc42e10c572b44e33`, confirmou **12/12 checks SUCCESS**.
+O [registry 44403773102](https://github.com/rafhael100/imagine-sites/actions/runs/44403773102),
+jobs **135153431208 / 135153430438**, confirmou **63 offline, 38 novas /1279
+totais**, snapshots, down16 e cleanup em PHP 8.3/8.4. Ambos os clusters foram
+confirmados inativos. O [Laravel 44403773083](https://github.com/rafhael100/imagine-sites/actions/runs/44403773083),
+jobs **135153429401 / 135153430221**, confirmou **296/4705/27** e **296/4717/21**
+em ambas as versões. Guard749, cinco blocos Bash e188 links passaram. Nenhum
+banco local executado. [Contrato do ensaio](docs/reviews/SITES-PUBLICATION-RECOVERY-COMPOSITION-2026-11-18.md).
+
 ## 18/11/2026 — vocabulário CSS do artefato inerte
 
 A branch `fix/sites-inert-css-dialect-2026-11-18` deriva da #538 /
@@ -14,7 +37,13 @@ Os negativos de registro recalculam digest, tamanho e compromisso e são
 recusados antes de qualquer chamada à PDO. Os vetores de 5223 e 5167 bytes
 conservam seus hashes; renderer, contratos SQL e migrations não mudam.
 A suíte Laravel confirmou **296/4705/27** e o domínio **32 checks**.
-CI próprio pendente. [Decisão, provas e limites](docs/reviews/SITES-INERT-CSS-DIALECT-2026-11-18.md).
+A [#539](https://github.com/rafhael100/imagine-sites/pull/539), HEAD
+`9f9b19adc21944165e70062017471ede1657975b`, confirmou **12/12 checks SUCCESS**.
+O [F1-24 44402763812](https://github.com/rafhael100/imagine-sites/actions/runs/44402763812),
+jobs **135149896696 / 135149895914**, confirmou **20/260/293** em PHP 8.3/8.4,
+dois pacotes privados e cleanup. O [Laravel 44402763356](https://github.com/rafhael100/imagine-sites/actions/runs/44402763356),
+jobs **135149895040 / 135149894500**, confirmou **296/4705/27** e **296/4717/21**.
+Guard747, seis blocos Bash e178 links locais passaram. [Decisão e limites](docs/reviews/SITES-INERT-CSS-DIALECT-2026-11-18.md).
 
 ## 18/11/2026 — adoção da CLI de recuperação publicada em paralelo
 

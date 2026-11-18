@@ -87,7 +87,8 @@ try {
     }
 
     $ci = getenv('GITHUB_ACTIONS') === 'true' && getenv('APP_ENV') === 'testing' &&
-        getenv('SITES_PUBLICATION_REQUEST_RECOVERY_CI') === '1';
+        getenv('SITES_PUBLICATION_REQUEST_RECOVERY_CI') === '1' &&
+        getenv('SITES_PUBLICATION_REQUEST_READER_CI') === '1';
     $staging = getenv('GITHUB_ACTIONS') !== 'true' && getenv('APP_ENV') === 'staging' &&
         getenv('SITES_PUBLICATION_REQUEST_RECOVERY_CI') !== '1';
     if (!$ci && !$staging) throw new DomainException();
@@ -100,7 +101,8 @@ try {
     $target = $input['target'];
     if (($staging && $target['database'] !== 'sites_staging') ||
         ($ci && ($target['database'] !== 'postgres' || $target['host'] !== 'localhost' ||
-            $target['port'] !== 55449 || $target['login'] !== 'pjrr_a_reader' ||
+            $target['port'] !== 55449 ||
+            !in_array($target['login'], ['pjrr_a_reader', 'pjrrc_a_reader', 'pjrrc_b_reader'], true) ||
             $target['serverAddress'] !== '127.0.0.1'))) throw new DomainException();
 
     PrivatePublicationRequestReceipt::checkAvailable(PUBLICATION_RECOVERY_OUTPUT, $input['receiptRef']);

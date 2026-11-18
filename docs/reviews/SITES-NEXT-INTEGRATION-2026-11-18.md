@@ -6,13 +6,51 @@
 
 Essa conclusão delimita a integração; não afirma esgotamento de todo desenvolvimento. O trabalho autorizado em branch isolada pode continuar em componentes com uso concreto e defeitos demonstrados. A inspeção privada do diário é um exemplo: consome a API persistente existente sem criar autoridade ou depender de um briefing inventado.
 
+### Conferência adicional do Portal até a #959
+
+A inspeção dos deltas #955–#959 encontrou avanço na admissão D0, mas não uma
+saída de briefing rico utilizável pelo Sites nos arquivos examinados. Na HEAD
+`2fcb55e79e240366f27f63e8e63335f4d2b8be99`, o
+[FirstBriefingRelease](https://github.com/rafhael100/imagine-portal/blob/2fcb55e79e240366f27f63e8e63335f4d2b8be99/apps/portal/app/Domain/Commerce/D0/FirstBriefingRelease.php)
+retorna somente `briefing_available`/`unavailable`. O
+[controller](https://github.com/rafhael100/imagine-portal/blob/2fcb55e79e240366f27f63e8e63335f4d2b8be99/apps/portal/app/Http/Controllers/OnepageFirstBriefingController.php)
+entrega esse valor em `next_step`; a
+[configuração](https://github.com/rafhael100/imagine-portal/blob/2fcb55e79e240366f27f63e8e63335f4d2b8be99/apps/portal/config/portal_onepage_d0.php)
+continua desabilitada. Esse marcador não contém corpo, referência de snapshot,
+revisão ou hash de conteúdo.
+
+Também foram comparados os bytes da fonte local #954 com os três arquivos na
+HEAD #959. Os blobs são idênticos:
+
+| Arquivo Portal | Blob confirmado |
+| --- | --- |
+| `SiteBriefDraft.php` | `a956ef024111bdd47b0667057d8746a69c8b3d9b` |
+| `SitesCreateProjectEncoder.php` | `594df1b476f23909f3ce8277316e7e991d15e6e6` |
+| `PostgresPortalSiteContractSource.php` | `17e92fb3d3b23a7af402feeb813b7351b4618aa7` |
+
+O [encoder](https://github.com/rafhael100/imagine-portal/blob/2fcb55e79e240366f27f63e8e63335f4d2b8be99/apps/portal/app/Domain/SitesIntegration/SitesCreateProjectEncoder.php)
+continua emitindo o comando de oito campos, sem briefing; o
+[draft](https://github.com/rafhael100/imagine-portal/blob/2fcb55e79e240366f27f63e8e63335f4d2b8be99/apps/portal/app/Domain/SiteIntake/SiteBriefDraft.php)
+continua SAMPLE/DEMO, com autoridades falsas. A
+[fonte de contrato](https://github.com/rafhael100/imagine-portal/blob/2fcb55e79e240366f27f63e8e63335f4d2b8be99/apps/portal/app/Infrastructure/Commerce/PostgresPortalSiteContractSource.php)
+permanece a já usada pela composição anterior.
+
+O bloqueio central permanece delimitado: falta o produtor/leitor autorizado
+que vincule corpo, revisão e bytes de briefing ao pedido e ao snapshot
+candidato do Sites. Interpretar `briefing_available` como esse conteúdo
+inventaria uma relação ausente do contrato. Esta leitura não revalidou CI
+Portal, não modificou sua fonte nem afirma ausência universal em outras
+branches. O pareamento comprovado com a #954 permanece preservado.
+
 ### Vocabulário CSS do renderer inerte
 
 Sobre a #538, a correção fecha a aceitação de `image()` e `src()` e restringe
 funções/at-rules ao vocabulário fixo do renderer. O scanner distingue strings,
 comentários e tokens de função, inclusive chamadas aninhadas. **260 checks F27
 e 293 de registro offline** passaram, com os hashes atual e histórico
-preservados. A prova CI própria está pendente. [Recorte e fontes](SITES-INERT-CSS-DIALECT-2026-11-18.md).
+preservados. A #539 / `9f9b19adc21944165e70062017471ede1657975b` confirmou
+**12/12 checks SUCCESS**, com **20/260/293** e cleanup em PHP 8.3/8.4 no
+[run 44402763812](https://github.com/rafhael100/imagine-sites/actions/runs/44402763812). [Recorte e fontes](SITES-INERT-CSS-DIALECT-2026-11-18.md).
 
 ### Texto não vazio na entrada de renderização local
 
@@ -46,8 +84,15 @@ A [#538](https://github.com/rafhael100/imagine-sites/pull/538), HEAD
 adotado: original8, plano6/resultado13/recibo3, `planSha256` e diretório privado
 `publication-recoveries`. Confirmou **12/12 checks SUCCESS** e **63 offline**
 em PHP 8.3/8.4 no [run 44400177491](https://github.com/rafhael100/imagine-sites/actions/runs/44400177491).
-A próxima composição exercitará a CLI real e o inspector separado no
-PostgreSQL descartável; essa prova ainda está pendente.
+A [composição seguinte](SITES-PUBLICATION-RECOVERY-COMPOSITION-2026-11-18.md)
+já implementa a jornada da CLI real e do inspector separado no PostgreSQL
+descartável. Confirmou **38 novos /1279 totais**, reutilizando três históricos,
+incluindo a falha pós-commit anterior, stdout descartado, isolamento, revogação
+e preservação de evidências. **63 offline** e **32 de domínio** passaram
+localmente. A [#540](https://github.com/rafhael100/imagine-sites/pull/540), commit
+`1c9b4d46949b907c225b1a0cc42e10c572b44e33`, confirmou **12/12 checks SUCCESS**:
+**38 novos/1279 totais**, snapshots, rollback16 e cleanup nas duas versões PHP
+no [run 44403773102](https://github.com/rafhael100/imagine-sites/actions/runs/44403773102).
 
 ### Auditoria do CSS do artefato inerte
 
