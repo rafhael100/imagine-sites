@@ -38,9 +38,10 @@ $names=[
     'replay_nonces','editorial_revisions','site_outbox',
     'db_login_bindings','editorial_operator_bindings',
     'release_registry_principals','release_artifacts','release_binding_events',
-    'portal_project_intakes',
+    'portal_project_intakes','portal_brief_principals','portal_brief_snapshots',
 ];
 $registryTables=['release_registry_principals','release_artifacts','release_binding_events'];
+$briefTables=['portal_brief_principals','portal_brief_snapshots'];
 $state=$db->query(
     "SELECT c.relname AS tablename,c.relkind,pg_get_userbyid(c.relowner) AS owner,
             c.relrowsecurity AS rowsecurity,
@@ -50,7 +51,7 @@ $state=$db->query(
       WHERE n.nspname='sites_core' AND c.relkind IN ('r','p','v','m','f')"
 )->fetchAll(PDO::FETCH_ASSOC);
 f383Check(count($state)===count($names),
-    'exact twelve core tables after all reversible Laravel migrations');
+    'exact fourteen core tables after all reversible Laravel migrations');
 $seen=[];
 foreach ($state as $row) {
     $seen[]=$row['tablename'];
@@ -61,6 +62,10 @@ foreach ($state as $row) {
     if (in_array($row['tablename'],$registryTables,true)) {
         f383Check($row['owner']==='sites_core_release_owner',
             'registry table belongs only to its internal owner: '.$row['tablename']);
+    }
+    if (in_array($row['tablename'],$briefTables,true)) {
+        f383Check($row['owner']==='sites_core_brief_owner',
+            'briefing table belongs only to its internal owner: '.$row['tablename']);
     }
 }
 sort($seen);
@@ -115,6 +120,13 @@ $expectedPolicies=[
     'db_login_bindings.intake_binding_lock'=>['UPDATE',['sites_core_intake_definer'],'PERMISSIVE','true','false'],
     'tenant_accounts.intake_tenant_lock'=>['UPDATE',['sites_core_intake_definer'],'PERMISSIVE','true','false'],
     'contract_refs.intake_contract_lock'=>['UPDATE',['sites_core_intake_definer'],'PERMISSIVE','true','false'],
+    'portal_brief_principals.brief_principals_internal_read'=>$readPolicy(['sites_core_brief_owner']),
+    'portal_brief_principals.brief_principals_custody_lock'=>[
+        'UPDATE',['sites_core_brief_owner'],'PERMISSIVE','true','false',
+    ],
+    'portal_brief_snapshots.brief_snapshots_internal_read'=>$readPolicy(['sites_core_brief_reader','sites_core_brief_receiver']),
+    'portal_brief_snapshots.brief_snapshots_internal_write'=>$writePolicy(['sites_core_brief_receiver']),
+    'portal_project_intakes.brief_native_intake_read'=>$readPolicy(['sites_core_brief_receiver']),
 ];
 $actualPolicies=[];
 foreach ($policyRows as $policy) {
@@ -126,7 +138,7 @@ foreach ($policyRows as $policy) {
 }
 ksort($actualPolicies);ksort($expectedPolicies);
 f383Check($actualPolicies===$expectedPolicies,
-    'exact table, command, roles and predicates for all thirty-seven internal policies; no PUBLIC or extra policy');
+    'exact table, command, roles and predicates for all forty-two internal policies; no PUBLIC or extra policy');
 
 $registryRoles=$db->query(
     "SELECT rolname,rolcanlogin,rolsuper,rolbypassrls,rolcreatedb,rolcreaterole,rolreplication,rolinherit
@@ -143,9 +155,44 @@ foreach ($registryRoles as $role) {
             $role['rolname'].' has no '.$attribute.' capability');
     }
 }
-foreach (['db_login_bindings','editorial_operator_bindings','portal_project_intakes',...$registryTables] as $table) {
+foreach (['db_login_bindings','editorial_operator_bindings','portal_project_intakes',...$registryTables,...$briefTables] as $table) {
     f383Check((int)$db->query('SELECT count(*) FROM sites_core.'.$table)->fetchColumn()===0,
         'migration seeds no principal, artifact or binding: '.$table);
+}
+
+$briefRoles=$db->query(
+    "SELECT rolname,rolcanlogin,rolsuper,rolbypassrls,rolcreatedb,rolcreaterole,rolreplication,rolinherit
+       FROM pg_roles WHERE rolname IN
+       ('sites_core_brief_owner','sites_core_brief_receiver','sites_core_brief_reader')
+      ORDER BY rolname"
+)->fetchAll(PDO::FETCH_ASSOC);
+f383Check(array_column($briefRoles,'rolname')===[
+    'sites_core_brief_owner','sites_core_brief_reader','sites_core_brief_receiver',
+],'exact three briefing internal roles exist');
+foreach ($briefRoles as $role) {
+    foreach (['rolcanlogin','rolsuper','rolbypassrls','rolcreatedb','rolcreaterole','rolreplication','rolinherit'] as $attribute) {
+        f383Check(in_array($role[$attribute],[false,'f',0,'0'],true),
+            $role['rolname'].' has no '.$attribute.' capability');
+    }
+}
+$briefFunctions=$db->query(
+    "SELECT p.proname,
+            NOT EXISTS(SELECT 1 FROM aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a
+              WHERE a.grantee=0 AND a.privilege_type='EXECUTE') AS private
+       FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+      WHERE n.nspname='sites_core' AND p.proname IN
+       ('brief_snapshot_immutable','brief_snapshot_principal_epoch','brief_snapshot_storage_input',
+        'brief_snapshot_runtime_safe','brief_snapshot_actor','record_portal_brief_snapshot',
+        'read_portal_brief_snapshot') ORDER BY p.proname"
+)->fetchAll(PDO::FETCH_ASSOC);
+f383Check(array_column($briefFunctions,'proname')===[
+    'brief_snapshot_actor','brief_snapshot_immutable','brief_snapshot_principal_epoch',
+    'brief_snapshot_runtime_safe','brief_snapshot_storage_input',
+    'read_portal_brief_snapshot','record_portal_brief_snapshot',
+],'exact seven briefing functions exist without missing or extra overload');
+foreach ($briefFunctions as $function) {
+    f383Check(in_array($function['private'],[true,'t','1',1],true),
+        'briefing function grants no PUBLIC execute: '.$function['proname']);
 }
 
 $journalTables=['journal_events','journal_operations','journal_principals'];

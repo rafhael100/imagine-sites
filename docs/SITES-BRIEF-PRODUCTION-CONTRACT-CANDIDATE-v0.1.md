@@ -1,6 +1,6 @@
 # Briefing Onepage e produção — contrato candidato v0.1
 
-**Estado: contrato candidato com primeiro consumidor local implementado, sem homologação ou ativação operacional.** Data: 18/11/2026.
+**Estado: contrato candidato com consumo local e armazenamento técnico nativo implementados, sem homologação ou ativação operacional.** Data: 18/11/2026.
 Base da proposta: `1634bc45094abfe51b6e391877b4b7f8fdadf692` (#516). Origem de regras
 consultada: Portal #941, `0e0ccc06755b6ddd938635e5c4c3625ff6497e2c`.
 
@@ -9,13 +9,18 @@ que o vincula a uma entrada editorial separada, já consumível pelo renderer
 local. O [primeiro consumidor local](reviews/SITES-LOCAL-RENDER-PROVENANCE-2026-11-18.md),
 implementado sobre a proposta #517 / `c53eac9eb8060a62eb060e68f3bc5b2956dbbdff`,
 confere esses arquivos e conserva proveniência privada do HTML produzido.
-O recebimento durável e autenticado de
-briefing pelo Sites permanece uma etapa posterior, com requisitos explícitos.
+O [armazenamento nativo candidato](PORTAL-BRIEF-SNAPSHOTS.md), na branch
+`feature/sites-native-brief-snapshots-2026-11-18` sobre a #518 /
+`907e2883393b776eebcba59fafb672aa34c99bf6`, acrescenta persistência imutável,
+CAS, replay e leitura exata sob identidade SQL. Seu consumidor interno renderiza
+os bytes armazenados. A autenticação da aprovação Portal, o exportador oficial
+e o transporte entre serviços continuam exigindo integração própria.
 
 Os schemas e exemplos deste documento não são um contrato oficial do Portal,
 um endpoint, uma autorização de produção ou uma prova de pagamento.
-A proposta #517 não alterou runtime. O incremento local amplia a CLI existente,
-sem migrations, grants, gates, publicação ou rollback automático.
+A proposta #517 não alterou runtime. O incremento local #518 ampliou a CLI
+existente e continua sem DB. O armazenamento candidato acrescenta a migration 13,
+sem LOGIN, principal ativo, grant operacional, endpoint ou mudança dos gates.
 As escolhas identificadas como propostas são decisões de engenharia abertas à
 revisão; não foram atribuídas à implementação legada.
 
@@ -27,6 +32,7 @@ revisão; não foram atribuídas à implementação legada.
 | [CT-01](SITES-CT-01-PORTAL-SITES-v0.1.md) e [fronteiras ARQ-02](SITES-ARQ-02-BOUNDARIES.md) | `SubmitBriefRevision` e `RequestGenerateRelease` já são necessidades identificadas. Portal conserva briefing oficial, contrato e aceite; Sites conserva artefato e publicação técnica. Os nomes lógicos não definem sozinhos o wire contract. |
 | [Recebimento nativo de projeto](PORTAL-PROJECT-INTAKE.md) e [comando existente](../src/Integration/SiteProjectCommand.php) | Pedido, contrato e projeto já têm referências distintas. O Sites gera `siteRef`; o recibo permanece `awaiting_official_authority`. Não é necessário duplicar essa criação para propor briefing. |
 | [`LocalSiteRendering::render`](../src/Production/LocalSiteRendering.php), [`SiteBrief`](../src/Production/SiteBrief.php) e [`render.php`](../ops/release-candidate/render.php) | Existe um consumidor determinístico de seis campos editoriais, sem DB, provider ou rede. Ele não aceita o corpo rico do cliente. |
+| [Snapshot nativo e consumidor persistido](PORTAL-BRIEF-SNAPSHOTS.md) | A migration 13 conserva os dois JSONs originais; um reader separado revalida o perfil e resolve a seleção exata para o renderer. A identidade SQL não autentica a aprovação declarada pelo Portal. |
 | [`register.php`](../ops/release-candidate/register.php), [`PrivateReleaseRegistration`](../src/Publication/PrivateReleaseRegistration.php) e [`PgSiteReleaseRegistry`](../src/Publication/PgSiteReleaseRegistry.php) | Os bytes privados resultantes já podem alimentar uma solicitação explícita de registro, sob as verificações existentes de principal, empresa, digest e referência. Renderizar não executa esse registro. |
 
 O perfil de origem v0.1 é somente **Onepage**. O legado inspecionado exige
@@ -38,11 +44,11 @@ briefing oficial Landing. O documento não transfere silenciosamente essas regra
 
 | Identificador | Significado e limite |
 | --- | --- |
-| `tenantRef`, `orderRef`, `contractRef`, `contractRevision` | Seletores do contexto Portal. Um futuro receptor deve compará-los ao vínculo nativo persistido e à autoridade corrente, derivada da identidade autenticada. O JSON não concede acesso. |
-| `siteRef` | UUID minúsculo do projeto gerado pelo Sites no recebimento nativo. No ensaio local é apenas uma declaração sintética de escopo. |
+| `tenantRef`, `orderRef`, `contractRef`, `contractRevision` | Seletores do contexto Portal. O receptor candidato deriva o tenant do principal SQL corrente e confronta esses valores com o intake imutável. Isso não verifica elegibilidade comercial atual; o JSON não concede acesso. |
+| `siteRef` | UUID minúsculo do projeto gerado pelo Sites no recebimento nativo. No comando local é uma declaração de escopo; no armazenamento candidato precisa coincidir com o intake do tenant autorizado. |
 | `sourceVersion` | Contador agregado do pedido na origem. Salvar, enviar, revisar e enviar/remover material o incrementam. Pode haver nova versão sem alteração do texto. Não equivale à revisão de conteúdo ou de HTML. |
 | `snapshotRef` | UUID minúsculo proposto para identificar uma exportação imutável. O exportador o fixa antes da primeira solicitação e o conserva no replay. Não substitui identidade autenticada. |
-| `briefRevision` | Sequência imutável **proposta** de snapshots aceitos para o projeto. Ainda não existe no banco atual. Cada nova aceitação avança exatamente uma unidade, mesmo que o corpo textual seja igual e outro componente da origem tenha mudado. |
+| `briefRevision` | Sequência imutável dos snapshots candidatos armazenados pela migration 13, por tenant/projeto. Cada nova linha avança exatamente uma unidade; `sourceVersion` também precisa avançar, mas pode saltar ou acompanhar corpo textual idêntico. Não é a revisão editorial. |
 | `editorialRevision` | Sequência editorial já existente no Sites: inclui registrar, revisar, submeter, aprovar internamente e reabrir. Não é a revisão do briefing Portal. |
 | `releaseRef` e digest do artefato | Referência técnica e SHA-256 dos bytes de uma saída. Não representam aceite do cliente, pagamento, publicação observada ou `ENTREGUE`. |
 
@@ -156,7 +162,7 @@ referências: nenhum consumidor deste recorte as visita ou obtém recursos delas
 é explicitamente não suportado nesse incremento. Não se ignora uma lista de
 materiais para produzir sucesso aparente.
 
-## 4. Manifesto de snapshot proposto
+## 4. Manifesto e armazenamento candidato de snapshot
 
 O [schema de snapshot](../contracts/portal-sites/candidates/brief-production-v1/brief-snapshot.schema.json)
 possui exatamente estas dezessete chaves:
@@ -166,7 +172,7 @@ possui exatamente estas dezessete chaves:
 | `schemaVersion` | `sites.brief-snapshot.candidate.v0.1` |
 | `operationId` | Referência opaca da solicitação de snapshot |
 | `idempotencyKey` | Referência opaca própria para repetição dessa solicitação |
-| `tenantRef` | Organização declarada; confrontar com identidade e vínculo nativos em um receptor autenticado |
+| `tenantRef` | Organização declarada; o receptor candidato confronta com o intake do tenant derivado da identidade SQL |
 | `siteRef` | UUID minúsculo do projeto Sites |
 | `orderRef` | Pedido associado ao projeto |
 | `contractRef` | Contrato associado ao contexto da solicitação |
@@ -185,34 +191,52 @@ Referências opacas seguem `^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`, com 1..128
 caracteres e sem controles. UUIDs e SHAs seguem os formatos fechados dos schemas.
 Nenhuma referência autoriza resolver ou ler o recurso.
 
-### Persistência, CAS e replay: proposta para o receptor futuro
+### Persistência, CAS e replay implementados no candidato
 
-O recebimento durável abaixo **não está implementado por esta entrega**, nem
-pelo modo local descrito na seção 6. Ele explicita o comportamento a exigir de
-um futuro consumidor de `SubmitBriefRevision`, sem escolher transporte, endpoint
-ou credenciais:
+A [API SQL](../contracts/portal-sites/002-brief-snapshots.sql) e os serviços
+descritos no [manual de snapshots](PORTAL-BRIEF-SNAPSHOTS.md) implementam o
+recebimento técnico abaixo. Não ativam o transporte lógico de
+`SubmitBriefRevision` nem alteram o comando local sem DB da seção 6.
 
-1. Autenticar o serviço e conferir a capacidade corrente por ação e recurso.
-   Derivar tenant e projeto do vínculo persistido, confrontar pedido/contrato e
-   suas revisões. `can_receive_project` não autoriza receber ou aprovar briefing.
-   O estado aprovado precisa vir de fonte Portal verificável, não do campo JSON.
-2. Resolver replay sob o mesmo escopo de tenant/projeto/tipo de comando, antes
-   de exigir que o head atual ainda seja o CAS antigo. Operação, chave, snapshot
-   e digest do manifesto original devem coincidir. A mesma identidade com
-   conteúdo diferente é conflito; não corrige, renomeia ou cria outra revisão.
-3. Para uma solicitação nova, comparar `expectedBriefRevision` ao head corrente
-   e exigir a equação da revisão. Serializar essa decisão com persistência do
-   snapshot e do recibo. Uma única concorrente pode avançar o head; a outra
-   recebe conflito, sem retry que invente uma nova revisão esperada.
-4. Vincular `sourceVersion` ao mesmo pedido/perfil e exigir avanço para um novo
-   snapshot. A versão da origem pode saltar, mas a revisão Sites avança uma.
-   Uma versão de origem já aceita não pode reaparecer com outros bytes/materiais
-   nem ser recriada com novas chaves para contornar um recibo perdido.
-5. Conservar imutavelmente manifesto original, descritores, proveniência
-   autenticada e resultado técnico. Replay retorna o resultado histórico sem
-   novo evento, sem mover o head para trás e sem afirmar autorização comercial
-   atual. Acesso corrente continua necessário; revogação impede novo acesso ou
-   efeito, mesmo diante de um identificador conhecido.
+1. O receiver confere a capacidade corrente e deriva o tenant de `session_user`.
+   Resolve o projeto pelo intake imutável e confronta pedido, contrato, revisão
+   contratual e produto. `can_receive_project` não autoriza receber briefing:
+   há principal e função SQL próprios. Essa identidade não autentica o estado
+   `approved` declarado no arquivo.
+2. O replay é resolvido no mesmo tenant/projeto antes do CAS do head. Operação,
+   chave, snapshot, `sourceVersion`, hashes e ambos os JSONs originais precisam
+   coincidir. Uma identidade parcialmente coincidente ou conteúdo diferente
+   gera conflito, sem renomear ou criar outra revisão.
+3. Para uma linha nova, o SQL compara `expectedBriefRevision` ao head e exige a
+   equação da revisão. O lock de site serializa a decisão com a gravação;
+   comandos diferentes disputando o mesmo CAS não criam duas revisões.
+   Recorder e reader têm uma tentativa, sem incremento ou retry automático.
+4. `sourceVersion` precisa superar a última versão recebida nesse contexto.
+   Pode saltar, enquanto `briefRevision` avança uma unidade. Uma versão da
+   origem já recebida não pode ser reutilizada por novas chaves.
+5. O armazenamento mantém os JSONs, hashes, identidade/epoch do receiver e
+   timestamp originais. Replay conserva a evidência histórica, inclusive após
+   novo head ou por outro receiver atualmente autorizado. Revogar o receiver
+   anterior não apaga a linha; toda nova gravação, repetição ou leitura continua
+   exigindo a capacidade corrente de quem faz a chamada.
+
+O [recibo técnico](../contracts/portal-sites/candidates/brief-production-v1/brief-snapshot-receipt.schema.json)
+possui treze campos: `schemaVersion`, `status`, `siteRef`, `snapshotRef`,
+`briefRevision`, `sourceVersion`, `manifestSha256`, `payloadSha256`,
+`recordedAt`, `authorityVerified`, `clientAccepted`, `canPublish` e
+`canAcceptRealOrders`. As quatro flags são falsas. `status=recorded` não
+declara criação pela chamada atual; `recordedAt` conserva o timestamp UTC6 da
+linha, conferido pelo PHP por round-trip de calendário.
+
+O reader usa conexão dedicada com default e transação somente leitura e resolve
+exatamente `siteRef`, `snapshotRef`, `briefRevision` e `manifestSha256`.
+O SQL valida estrutura, tipos, hashes e contexto; o objeto PHP compartilhado
+também valida completude, UTF-16 e URL/e-mail/domínio. Um corpo gravado
+diretamente pela API SQL pode satisfazer a estrutura sem satisfazer todo o perfil
+rico. Reader e renderer revalidam os bytes e recusam esse caso. O recibo não
+certifica a semântica rica nem a aprovação da origem.
+
+### Requisitos operacionais ainda separados
 
 O exportador precisa fixar bytes, referências e versão de um estado consistente
 da origem **antes** do envio e conservar esse conjunto para repetir a operação.
@@ -220,12 +244,16 @@ O contador agregado e os arquivos mutáveis do legado não oferecem, por si só,
 essa exportação imutável. A implementação da fonte deve resolver essa lacuna;
 um receptor não pode preenchê-la atribuindo confiança a um hash enviado.
 
+Endpoint, autenticação entre serviços, autorização de dados reais e retenção
+operacional ainda precisam de definição e evidência próprias. O armazenamento
+candidato não demonstra que o Portal emitiu ou aprovou o conteúdo recebido.
+
 Uma falha antes da transação persistente não cria snapshot. Uma falha de commit
-ou perda de resposta pode ser inconclusiva: consultar ou repetir exatamente a
-mesma solicitação recupera a evidência, sem presumir ausência de escrita. Não
-há recibo implementado aqui nem promessa de atomicidade entre DB e arquivos.
-Consulta/revogação e retenção desse registro pertencem ao desenho do receptor,
-não a um contador mantido no processo de renderização.
+ou perda de resposta pode ser inconclusiva; uma nova chamada explícita com a
+solicitação original ou a seleção exata recupera evidência sob autorização
+corrente, sem presumir ausência de escrita. Não há atomicidade entre DB e
+arquivos. `StoredBriefRendering` retorna HTML/proveniência em memória; a relação
+durável entre snapshot e artefato do registry ainda exige uma entrega própria.
 
 ## 5. Plano técnico para o renderer existente
 
@@ -334,7 +362,7 @@ constitui replay durável ou prova de unicidade global da operação.
 Este modo verifica a equação declarada de CAS e a consistência dos seletores;
 não consulta head, recibo de intake, permissão, estado corrente ou pagamento.
 Também não grava uma revisão de briefing em `sites_core`. O sidecar é evidência
-técnica local candidata, não o recibo futuro de `SubmitBriefRevision`.
+técnica local candidata, distinto do recibo persistente descrito na seção 4.
 
 O HTML continua com os mesmos avisos e bytes da demonstração inerte atual. Pode
 ser usado como arquivo privado no `register.php` já existente, com manifesto de
@@ -349,7 +377,8 @@ aprovação, binding, publicação ou promoção automática no render.
 | Pode ser fechado como engenharia candidata agora | Exige fonte, decisão ou evidência adicional para efeito real |
 | --- | --- |
 | Shape estrito, limites técnicos, unidade UTF-16, descritores privados e hashes de bytes exatos | Adoção pelo produtor Portal e captura consistente de uma revisão com autorização corrente |
-| CAS proposto, separação de versões e regra de replay exato | Receptor durável autenticado, capacidade própria, recibo, consulta e revogação por recurso |
+| Armazenamento candidato, identidade SQL, CAS/replay e leitura exata implementados | Produtor e transporte Portal autenticados, aprovação verificável da origem e ativação de capacidades operacionais |
+| Renderização em memória a partir do snapshot persistido e da entrada editorial separada | Relação durável entre snapshot e artefato registrado, com autorização própria e critérios de recuperação |
 | Entrada editorial manual separada e conferência no renderer existente | Aprovação humana comprovada e política de início de produção; um arquivo local não identifica o aprovador |
 | Modo local sem materiais, sidecar privado e integração explícita com registro já existente | Acesso/validação de materiais reais, direitos, retenção, dados pessoais e credenciais operacionais |
 | Exemplos fictícios Onepage e testes do consumidor local | Regras de Landing, obrigatoriedade de domínio na aprovação e demais diferenças de produto |
@@ -361,16 +390,18 @@ Prazos e rodadas dependem do contrato aprovado. A prova de TLS de staging já
 existente não precisa ser repetida para definir este perfil; ela também não
 substitui autorização por recurso, fonte oficial ou aprovação de uso real.
 
-Ausência de contrato oficial não bloqueia a implementação reversível do modo
-local acima, pois existe consumidor e os efeitos são privados e técnicos.
-Bloqueia tratar seus seletores ou resultados como comando oficial autenticado.
+Ausência de contrato oficial não bloqueou o modo local ou o armazenamento
+candidato, pois ambos têm consumidores concretos e efeitos técnicos delimitados.
+Continua impedindo tratar a declaração de aprovação ou o transporte ainda não
+ativado como comando oficial autenticado.
 Os gates de [AGENTS](../AGENTS.md) e [SEC-01](SITES-SEC-01-GATES.md) continuam
 inalterados; AGI-11-RB01 permanece desabilitado.
 
 ## 8. Artefatos revisáveis e critérios de aceitação
 
-Os [três schemas e cinco exemplos](../contracts/portal-sites/candidates/brief-production-v1/README.md)
-são inteiramente sintéticos. O corpo rico não foi reduzido automaticamente aos
+O [conjunto atual de quatro schemas e seis exemplos](../contracts/portal-sites/candidates/brief-production-v1/README.md)
+acrescenta o schema de recibo e seu exemplo fictício aos três schemas e cinco
+exemplos originais da #517. O corpo rico não foi reduzido automaticamente aos
 seis campos. O HTML do exemplo foi produzido pelo renderer existente, sem
 alteração dos templates, avisos ou digest:
 
@@ -386,7 +417,7 @@ Schemas verificam estrutura, não custódia, hash real, regra UTF-16, soma de
 materiais, CAS, identidade ou autoridade. O exemplo de `sourceState=approved`
 é uma declaração fictícia e não uma prova obtida no Portal.
 
-Nesta especificação, os três schemas e seus exemplos foram validados com JSON
+Na proposta documental #517, os três schemas e seus exemplos foram validados com JSON
 Schema 2020-12, os quatro vínculos de bytes foram recalculados e o HTML foi
 reproduzido exatamente pelo renderer existente. Identidade entre arquivos,
 equação de revisão e limites UTF-16 dos exemplos foram conferidos separadamente.
@@ -412,8 +443,25 @@ Os critérios do incremento local são exercitados pelo serviço e comando reais
   acesso a DB, Portal, provider, fila, publicação ou gate novo.
 
 Os testes locais do incremento passaram com 109 checks do serviço, 80 da nova
-CLI e os 137/87 anteriores. A fixture de registro acrescenta quatro verificações,
-cuja execução PostgreSQL remota deve ser comprovada separadamente; definição
-de workflow ou revisão de código não equivalem a resultado de CI.
-O receptor durável futuro exigirá provas próprias de CAS concorrente,
-replay, revogação, isolamento e falha de commit, ligadas ao consumidor real.
+CLI e os 137/87 anteriores. A fixture acrescentou quatro verificações ao
+registro; a [PR #518](https://github.com/rafhael100/imagine-sites/pull/518),
+HEAD `907e2883393b776eebcba59fafb672aa34c99bf6`, confirmou **62 checks de registro/922 registry**
+e limpeza dos clusters no [run 44323010319](https://github.com/rafhael100/imagine-sites/actions/runs/44323010319),
+em PHP 8.3/8.4. A entrega concluiu doze check-runs SUCCESS.
+A matriz Laravel dessa mesma entrega confirmou **206/2174/27** no modo padrão e
+**206/2186/21** no opt-in sintético. Esses números continuam pertencendo à #518.
+
+O incremento de armazenamento tem **45 testes novos**: os onze testes do input
+passaram na execução anterior e ficaram intactos; os serviços passaram após
+ERRMODE com **34 testes/904 assertions**, sem avisos. A extração conservou os
+109 checks existentes de proveniência. A suíte geral 249/3133/27 foi executada
+antes desse último ajuste transacional, portanto não é o resultado final dele.
+O [recibo de exemplo](../contracts/portal-sites/candidates/brief-production-v1/examples/brief-snapshot-receipt.synthetic.json)
+foi validado estruturalmente; seu calendário requer um format checker em JSON
+Schema e não representa commit. O PHP confere o timestamp por round-trip exato.
+
+As provas PostgreSQL de CAS concorrente, replay, revogação, isolamento,
+recuperação e consumo persistido estão na fixture candidata, ainda pendentes de
+CI. A compatibilidade registry prevê **923 checks**; não há resultado atribuído
+à nova branch antes de sua execução. O [manual](PORTAL-BRIEF-SNAPSHOTS.md)
+descreve a reversão e os limites desse armazenamento técnico.

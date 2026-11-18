@@ -5,6 +5,8 @@ declare(strict_types=1);
 // verifier together. It never installs a provider, admits a client or publishes.
 if (PHP_SAPI!=='cli' || getenv('GITHUB_ACTIONS')!=='true' ||
     getenv('SITES_RELEASE_REGISTRY_CI')!=='1') exit(2);
+if (getenv('SITES_BRIEF_SNAPSHOTS_CI') === '1' &&
+    getenv('SITES_REGISTRY_INTAKE_PERMISSIONS_CI') !== '1') exit(2);
 if (getenv('SITES_REGISTRY_INTAKE_PERMISSIONS_CI') === '1') {
     foreach (['SITES_PUBLICATION_JOURNAL_CI', 'SITES_PUBLICATION_INSPECTION_CI',
         'SITES_RELEASE_REGISTRATION_CI', 'SITES_EDITORIAL_TRANSITION_CI', 'SITES_RELEASE_BINDING_CI',
@@ -131,6 +133,9 @@ $connection->transaction(static function():void {
             (require __DIR__.'/../apps/sites/database/migrations/'.$name.'.php')->up();
         }
     }
+    if (getenv('SITES_BRIEF_SNAPSHOTS_CI') === '1') {
+        (require __DIR__.'/../apps/sites/database/migrations/2026_11_18_000013_add_portal_brief_snapshots.php')->up();
+    }
 });
 
 $checks=0;
@@ -138,6 +143,18 @@ $ok=static function(bool $condition,string $label)use(&$checks):void {
     if (!$condition) throw new RuntimeException('ASSERT: '.$label);
     ++$checks;
 };
+if (getenv('SITES_BRIEF_SNAPSHOTS_CI') === '1') {
+    $briefSchema=$admin->query(<<<'SQL'
+SELECT count(*)=2 AND bool_and(c.relkind='r' AND c.relrowsecurity AND c.relforcerowsecurity
+ AND c.relowner='sites_core_brief_owner'::regrole)
+ AND (SELECT count(*) FROM sites_core.portal_brief_principals)=0
+ AND (SELECT count(*) FROM sites_core.portal_brief_snapshots)=0
+FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
+WHERE n.nspname='sites_core' AND c.relname IN ('portal_brief_principals','portal_brief_snapshots')
+SQL)->fetchColumn();
+    $ok($briefSchema===true,'candidate briefing schema is present with forced RLS and no principal or snapshot');
+    echo "NATIVE BRIEF SCHEMA REGISTRY CI PASS: 1 new assertion; both private default-deny tables present before the existing registry pipeline\n";
+}
 $reject=static function(callable $operation,string $label,?string $sqlState=null)use($ok):void {
     try {$operation();} catch (Throwable $e) {
         if ($sqlState==='40001') $ok($e instanceof SiteReleaseRegistryConflict,$label.' typed revision conflict');

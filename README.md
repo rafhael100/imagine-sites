@@ -24,6 +24,10 @@ O registro privado de artefatos possui plano somente leitura e gravação explí
 
 A renderização local também pode conferir um plano, um snapshot candidato do briefing rico e os bytes da entrada editorial escolhida. O modo explícito produz o mesmo HTML inerte e um recibo privado ligado ao hash do plano. Os quatro arquivos são verificados antes e durante a escrita; somente o HTML segue ao registro existente. A proveniência demonstra consistência local, mantendo `authorityVerified`, `canPublish` e `canAcceptRealOrders` falsos.
 
+O armazenamento nativo candidato recebe o manifesto e o corpo rico Onepage como bytes imutáveis, com identidade SQL própria e vínculo ao intake de projeto. A migration 13 mantém uma sequência de `briefRevision` distinta do contador agregado `sourceVersion`, com CAS e replay exato. O recibo técnico tem treze campos e conserva `authorityVerified`, `clientAccepted`, `canPublish` e `canAcceptRealOrders` falsos; ele não autentica a aprovação declarada pelo Portal.
+
+Uma conexão de leitura separada recupera a seleção exata do snapshot e revalida o perfil completo antes de alimentar o renderer com a entrada editorial escolhida. Esse consumidor interno não escreve arquivos ou registra o artefato. O comando de renderização local continua sem DB. Endpoint, transporte, produtor Portal autorizado e a relação durável entre snapshot e artefato do registry permanecem integrações próprias. Consulte o [manual dos snapshots candidatos](docs/PORTAL-BRIEF-SNAPSHOTS.md).
+
 O guard do registry inspeciona permissões de tabela e coluna em todo o schema nativo, incluindo o ledger de recebimento do Portal. A ampliação usa uma migration aditiva que preserva identidade e ACL da função existente; nenhuma capacidade de recebimento, pagamento ou publicação é concedida por essa verificação.
 
 A CLI editorial permite planejar e solicitar uma transição por execução, com revisão esperada, bytes exatos e confirmação explícita do plano. O SQL verifica a função do operador e o estado corrente. O comando não consulta o artefato no registry nem estabelece uma associação; conflitos e respostas perdidas exigem apuração antes de outra decisão, sem retry ou incremento automático da revisão.
@@ -45,9 +49,10 @@ Esses componentes não constituem homologação operacional. Contrato, pagamento
 | Caminho | Responsabilidade |
 | --- | --- |
 | `apps/sites` | Aplicação Laravel, workspace interno, migrations e testes da aplicação |
-| `src/Production` | Briefing, renderer, auditoria de HTML, versões, fila, histórico e comparação |
+| `src/Production` | Briefing, validação compartilhada de snapshots/planos, renderer, auditoria de HTML, versões, fila, histórico e comparação |
 | `src/Publication` | Vínculo da release, evidências, pacote privado e diário persistente de tentativas |
 | `src/Integration` | Contratos e adaptadores candidatos de integração com o Portal |
+| `apps/sites/app/Integration` | Recebimento nativo de projetos e snapshots, leitura exata e renderização dos bytes armazenados |
 | `contracts` | Regras SQL versionadas e fronteiras dos componentes |
 | `ops/preview-candidate` | Provisionamento explícito e revisável do workspace privado |
 | `ops/release-candidate` | Renderização local, registro, associação/revogação, consulta do último evento e `prepare`/`verify` do pacote técnico |
@@ -120,6 +125,8 @@ O Portal controla contratos, aceite expresso e evento oficial `ENTREGUE`; Sites 
 - [Recuperação do formulário de comparação](docs/reviews/SITES-COMPARISON-RECOVERY-2026-11-18.md)
 - [Renderização de briefing local privado](docs/reviews/SITES-LOCAL-ARTIFACT-RENDERING-2026-11-18.md)
 - [Proveniência local do briefing ao HTML](docs/reviews/SITES-LOCAL-RENDER-PROVENANCE-2026-11-18.md)
+- [Snapshots candidatos: armazenamento, leitura exata e consumo](docs/PORTAL-BRIEF-SNAPSHOTS.md)
+- [Schemas e exemplos de briefing, plano e recibo técnico](contracts/portal-sites/candidates/brief-production-v1/README.md)
 - [Próxima integração Portal → briefing → geração](docs/reviews/SITES-NEXT-INTEGRATION-2026-11-18.md)
 - [Orientação editorial por versão](docs/reviews/SITES-EDITORIAL-FEEDBACK-2026-11-18.md)
 - [Briefing Unicode e validação por campo](docs/reviews/SITES-BRIEF-UNICODE-VALIDATION-2026-11-18.md)
