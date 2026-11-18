@@ -20,11 +20,17 @@ A implementação acrescenta `PreviewComparisonInput` e usa a recuperação some
 
 **Validação local aprovada:** 37 testes/466 assertions no recorte de DTO, navegação e views; suíte completa com **141 testes/1310 assertions/27 skips**. Lint, sintaxe JavaScript, YAML, pins, blocos shell, whitespace e revisões independentes do produto e da fixture passaram. O safety guard foi aprovado em cópia de fontes, com os dez gates `BLOCKED`.
 
-A fixture prevê **39 verificações HTTP novas, preservando as 273 existentes, total de 312**. Exercita a correção pelo formulário real sem JavaScript, filtros/busca/cursor, duas direções de paginação do histórico e CAS/head atual. Um POST real com headline de 181 caracteres deve chegar à validação específica do briefing, sem seletores de comparação e sem criar revisão. Snapshots de todas as linhas das cinco tabelas `sites_preview` verificam que a recuperação e esse POST recusado não alteram estado. Arrays, contexto inválido, versão ausente, outra empresa e revogação também são cobertos. Três capturas de erro desktop/mobile e resultado corrigido serão conferidas depois do CI.
+A fixture executou **39 verificações HTTP novas, preservando as 273 existentes, total de 312 aprovadas**. Exercita a correção pelo formulário real sem JavaScript, filtros/busca/cursor, duas direções de paginação do histórico e CAS/head atual. Um POST real com headline de 181 caracteres chegou à validação específica do briefing, sem seletores de comparação e sem criar revisão. Snapshots de todas as linhas das cinco tabelas `sites_preview` verificam que a recuperação e esse POST recusado não alteram estado. Arrays, contexto inválido, versão ausente, outra empresa e revogação também são cobertos. Três capturas de erro desktop/mobile e resultado corrigido foram conferidas: campos e mensagem legíveis, links de correção visíveis e ausência de overflow.
 
 O workflow `.github/workflows/sites-comparison-recovery.yml` fixa draft, repositório, branch e SHA da base. Executa PHPUnit e o contrato PostgreSQL do workspace em PHP 8.3/8.4, além da jornada HTTP com Laravel/FPM, Nginx e PostgreSQL TLS descartáveis. O escopo de regressão segue o fluxo alterado; a cadeia de registro de releases já tem evidência própria na base.
 
-**CI HTTP e PostgreSQL desta HEAD pendente.** As contagens reais, as capturas e a limpeza do ambiente serão registradas depois da execução; nenhum resultado é antecipado. Os testes dedicados executam em CI; nenhum Docker ou PostgreSQL local é iniciado.
+## Evidência concluída da PR #503
+
+HEAD validada: `48d190f22ef9000dc52db55cc6b56510df6f7624`; **19/19 check-runs SUCCESS**. O [run 44234103268](https://github.com/rafhael100/imagine-sites/actions/runs/44234103268) passou nos jobs [PHP 8.3 / 134565952833](https://github.com/rafhael100/imagine-sites/actions/runs/44234103268/job/134565952833), [PHP 8.4 / 134565952590](https://github.com/rafhael100/imagine-sites/actions/runs/44234103268/job/134565952590) e [HTTP / 134565952834](https://github.com/rafhael100/imagine-sites/actions/runs/44234103268/job/134565952834).
+
+As duas versões de PHP confirmaram **386 verificações SQL do workspace e PHPUnit 141 testes/1310 assertions/27 skips**. O navegador confirmou **39 checks novos e 312 totais**, incluindo recuperação real, POST recusado, snapshots inalterados, empresa cruzada e revogação. Clusters SQL, contêineres e redes descartáveis foram encerrados/removidos.
+
+O artifact `14396079009` foi baixado e conferido pelo SHA-256 `244c00f1953794e539bd56b957d071ab667bf6604c756851404cd09b03cf98e5`: 20 arquivos, incluindo as três capturas novas e `result.json` com 312 checks. A inspeção visual aprovou erro desktop/mobile e comparação corrigida. Nenhum Docker ou PostgreSQL local foi iniciado.
 
 ## Base e limites
 

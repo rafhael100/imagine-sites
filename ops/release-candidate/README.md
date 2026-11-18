@@ -200,3 +200,60 @@ The isolated alternative requires `GITHUB_ACTIONS=true`, `APP_ENV=testing` and `
 The database OID, CA fingerprint, file custody, exact plan and explicit action-specific approval remain mandatory. The combined fixture may use the active `rr_registration_a_artifact_writer` through the real registration CLI to create its artifact, then separate editorial operators before binding. That CI-only registration allowlist does not restore the previously revoked author or relax any principal, epoch or tenant guard.
 
 Offline CLI tests cover help and early argument/environment refusals with autoload and private inputs inaccessible. Actual bind/revoke, revision conflicts, repetition, isolation and package invalidation require the separate disposable PostgreSQL/TLS fixture. This candidate adds no deployment authorization or operational acceptance.
+
+## Local HTML rendering from a private brief
+
+The separate `render.php` command closes the local step before artifact registration: it reads one private technical briefing JSON and writes the existing renderer's exact inert HTML to a new `index.html`. It uses `SiteBrief`, `StaticSiteRenderer` and `InertPreviewAudit`; it preserves the renderer's demonstration disclaimer, escaped text and distinct Onepage/Landing Page layouts. It loads the Composer autoloader without booting Laravel and makes no database or network connection.
+
+This is a local rendering input, not a versioned Portal briefing contract, official customer acceptance or commercial authorization. The command neither reads nor promotes a `sites_preview` project. It does not register an artifact, change editorial state, bind a release, prepare a registry-backed package or publish. Those existing commands and their separate authorities still apply to any later step.
+
+### Briefing format and local paths
+
+`render-brief.example.json` contains valid synthetic content. Prepare a private copy before using it; the repository example is not itself a private input. The JSON must be an object of at most 32768 bytes containing exactly these six fields:
+
+| Field | Existing renderer requirement |
+| --- | --- |
+| `productCode` | String `onepage` or `landing_page` |
+| `brand` | Nonblank UTF-8 string, at most 120 Unicode code points |
+| `headline` | Nonblank UTF-8 string, at most 180 Unicode code points |
+| `description` | Nonblank UTF-8 string, at most 600 Unicode code points |
+| `callToAction` | Nonblank UTF-8 string, at most 80 Unicode code points |
+| `benefits` | JSON list of 1–8 nonblank UTF-8 strings, each at most 180 Unicode code points |
+
+NUL, duplicate keys (including escaped equivalents), additional fields, wrong types and unsupported products are refused. The command does not trim or normalize valid text. URLs and text that resembles markup or an event handler remain literal escaped content; they do not create active links, handlers or scripts. The audit checks the rendered HTML before any output file is created.
+
+```sh
+php /opt/imagine/ops/release-candidate/render.php --help
+
+php /opt/imagine/ops/release-candidate/render.php render \
+  --brief=/absolute/private/brief.json \
+  --output=/absolute/private/output/index.html
+```
+
+The two paths above are illustrative. Supply existing, canonical absolute paths under custody of the invoking user. Both options are required exactly once, in either order; the output basename must be `index.html`. The command accepts no other option, environment selection or approval flag. This local reversible creation does not need a database target, mounted password or CI opt-in. `--help` works without loading the application autoloader or opening private files.
+
+The briefing must be a readable regular file, 1–32768 bytes, with one hard link, mode `0400` or `0600`, and root or the effective CLI user as owner. The existing protected reader supplies the bounded read and descriptor checks. The local helper additionally checks every ancestor: canonical directories, no observed symlink component, root or effective-user ownership, and no group/other write permission. A root-owned sticky ancestor such as `/tmp` is permitted; an ordinary writable ancestor is refused.
+
+The immediate output parent must already exist, be canonical, have mode `0700` and belong to the effective CLI user. The destination must be absent: existing files, directories, symlinks and dangling symlinks are refused. The command creates no directories, repairs no permissions and changes no input file. In particular, it does not overwrite an earlier `index.html` even when its bytes would be identical.
+
+### Creation, result and failure handling
+
+Before creating the output, the helper rereads the briefing and compares its exact bytes, SHA-256, inode, ownership, mode, link count, size, modification metadata and observed ancestor identities with the first read. Access time is excluded. An observed change is a refusal. The output is then created exclusively under a restrictive umask as a regular `0600` file. The helper compares the opened descriptor with the pathname, writes all original renderer bytes, flushes and synchronizes the file, and reads the bytes back before confirming its final size and custody.
+
+These checks describe observed custody; PHP pathname operations do not provide an atomic descriptor-relative traversal of every ancestor. They do not promise protection from an undetectable concurrent change by the same trusted user or root. No failure path unlinks, renames or chmods an output. A failure after exclusive creation, a crash or a lost response can leave a new partial or complete private file. Inspect that path through authorized local access before deciding how to proceed; the command never removes it or silently retries.
+
+Successful stdout is exactly one JSON line with seven fields:
+
+| Field | Value |
+| --- | --- |
+| `schema` | `SITES_LOCAL_RENDERING_RESULT_V1` |
+| `status` | `rendered` |
+| `inputSha256` | SHA-256 of the original JSON bytes, including whitespace and a final newline if present |
+| `artifactDigest` | SHA-256 of the exact HTML bytes written |
+| `sizeBytes` | HTML byte count |
+| `canPublish` | `false` |
+| `canAcceptRealOrders` | `false` |
+
+The result contains no path, briefing text, HTML, project reference or credential. Its hashes identify the observed local input and output; they do not certify a Portal revision or grant authority to register, approve or publish. Failure exits with status 1, empty stdout and only `LOCAL_RENDER_DENIED` on stderr. The error does not establish that output creation was rolled back.
+
+The focused offline CLI tests execute both products under their own private `/tmp` directory without database credentials or a simulated CI environment. They compare the file with the direct renderer, verify input preservation, exercise the opposite option order and read-only input mode, refuse existing outputs and unsafe custody, and prove that a changed input snapshot cannot create output. The separate disposable registry fixture consumes the resulting file through the existing explicit registration flow; that integration does not make local rendering itself a database operation.

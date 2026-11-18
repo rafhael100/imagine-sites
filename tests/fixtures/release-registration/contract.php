@@ -157,11 +157,105 @@ try {
     $registrationWriteService = new PrivateReleaseRegistration($registrationWriter);
     $registrationEpoch = (int)$admin->query("SELECT authorization_epoch FROM sites_core.release_registry_principals
         WHERE login_name='rr_a_artifact_writer'")->fetchColumn();
-    $registrationArtifact = (new StaticSiteRenderer())->render(new SiteBrief('onepage',
+    $registrationBrief = new SiteBrief('onepage',
         'Marca fictícia onboarding=aberto.','Consulte https://exemplo.invalid/ com onclick="texto"',
         '<a href="https://referencia.example.invalid/">Referência literal</a>, javascript:exemplo & café.',
-        'Conheça a demonstração',['Texto onfocus="inativo"','URL literal https://beneficio.example.invalid/']));
-    $registrationHtml = $registrationArtifact->html;
+        'Conheça a demonstração',['Texto onfocus="inativo"','URL literal https://beneficio.example.invalid/']);
+    $registrationExpectedArtifact = (new StaticSiteRenderer())->render($registrationBrief);
+
+    $registrationStage = 'local renderer CLI and exclusive private output';
+    $registrationRenderingChecksBefore = $checks;
+    $registrationLab = getenv('RELEASE_REGISTRY_LAB_DIR');
+    if (!is_string($registrationLab) || $registrationLab === '' || realpath($registrationLab) !== $registrationLab ||
+        dirname($registrationLab) !== sys_get_temp_dir() || !str_starts_with(basename($registrationLab),'sites-release-registry-') ||
+        realpath(dirname(getenv('RELEASE_REGISTRY_PGDATA') ?: '')) !== $registrationLab) {
+        throw new RuntimeException('Local rendering requires the verified private registry laboratory');
+    }
+    clearstatcache(true,$registrationLab); $registrationLabStat = lstat($registrationLab);
+    if (!is_array($registrationLabStat) || ($registrationLabStat['mode'] & 0170000) !== 0040000 ||
+        ($registrationLabStat['mode'] & 0777) !== 0700 || $registrationLabStat['uid'] !== posix_geteuid()) {
+        throw new RuntimeException('Local rendering laboratory custody unavailable');
+    }
+    // These are new files inside the existing disposable laboratory, never new
+    // children of /run/secrets or replacements for the reserved CLI mount inodes.
+    $registrationRenderBrief = $registrationLab.'/registration-brief.json';
+    $registrationRenderDirectory = $registrationLab.'/registration-rendered';
+    $registrationRenderOutput = $registrationRenderDirectory.'/index.html';
+    foreach ([$registrationRenderBrief,$registrationRenderDirectory] as $path) {
+        clearstatcache(true,$path);
+        if (file_exists($path) || is_link($path)) throw new RuntimeException('Fresh local rendering paths required');
+    }
+    if (!mkdir($registrationRenderDirectory,0700)) throw new RuntimeException('Private render directory unavailable');
+    $registrationRenderJson = json_encode(get_object_vars($registrationBrief),
+        JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE)."\n";
+    $registrationRenderInput = fopen($registrationRenderBrief,'x+b');
+    if (!is_resource($registrationRenderInput)) throw new RuntimeException('Exclusive local brief unavailable');
+    try {
+        $stat = fstat($registrationRenderInput);
+        if (!is_array($stat) || ($stat['mode'] & 0170000) !== 0100000 || $stat['nlink'] !== 1 ||
+            $stat['uid'] !== posix_geteuid() || !chmod($registrationRenderBrief,0600) ||
+            fwrite($registrationRenderInput,$registrationRenderJson) !== strlen($registrationRenderJson) ||
+            !fflush($registrationRenderInput) || !fsync($registrationRenderInput)) {
+            throw new RuntimeException('Local brief private creation failed');
+        }
+    } finally { fclose($registrationRenderInput); }
+    $registrationRenderFile = static function (string $path): array {
+        $bytes = SiteReleasePreparationFiles::read($path,150000);
+        clearstatcache(true,$path); $stat = lstat($path);
+        if (!is_array($stat)) throw new RuntimeException('Local rendering file disappeared');
+        $state = ['sha256'=>hash('sha256',$bytes)];
+        foreach (['dev','ino','mode','nlink','uid','gid','size','mtime','ctime'] as $field) $state[$field] = $stat[$field];
+        return $state;
+    };
+    $registrationRenderRun = static function () use ($registrationRenderBrief,$registrationRenderOutput,&$registrationOutputs): array {
+        $repo = dirname(__DIR__,3);
+        $process = proc_open([getenv('PHP_BIN') ?: PHP_BINARY,$repo.'/ops/release-candidate/render.php','render',
+            '--brief='.$registrationRenderBrief,'--output='.$registrationRenderOutput],
+            [0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']],$pipes,$repo);
+        if (!is_resource($process)) throw new RuntimeException('Local rendering CLI process unavailable');
+        fclose($pipes[0]); $stdout = stream_get_contents($pipes[1]); $stderr = stream_get_contents($pipes[2]);
+        fclose($pipes[1]); fclose($pipes[2]); $exit = proc_close($process);
+        $registrationOutputs[] = $stdout.$stderr;
+        return ['exit'=>$exit,'stdout'=>$stdout,'stderr'=>$stderr];
+    };
+    $registrationRenderBefore = $registrationState();
+    $registrationRenderMounts = $registrationCustody();
+    $registrationRenderInputBefore = $registrationRenderFile($registrationRenderBrief);
+    $rendered = $registrationRenderRun(); $registrationRendered = null;
+    try { $registrationRendered = json_decode($rendered['stdout'],true,8,JSON_THROW_ON_ERROR); } catch (JsonException) {}
+    $registrationRenderExpected = [
+        'schema'=>'SITES_LOCAL_RENDERING_RESULT_V1','status'=>'rendered',
+        'inputSha256'=>hash('sha256',$registrationRenderJson),
+        'artifactDigest'=>$registrationExpectedArtifact->digest,'sizeBytes'=>$registrationExpectedArtifact->sizeBytes,
+        'canPublish'=>false,'canAcceptRealOrders'=>false,
+    ];
+    $renderedCanonical = is_array($registrationRendered)
+        ? json_encode($registrationRendered,JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES)."\n" : null;
+    if (is_array($registrationRendered)) ksort($registrationRendered);
+    ksort($registrationRenderExpected);
+    $ok($rendered['exit'] === 0 && $rendered['stderr'] === '' && $rendered['stdout'] === $renderedCanonical &&
+        $registrationRendered === $registrationRenderExpected,
+        'registration local renderer CLI returns exactly seven technical fields and hashes the exact input JSON');
+    $registrationHtml = SiteReleasePreparationFiles::read($registrationRenderOutput,150000);
+    $registrationRenderOutputBefore = $registrationRenderFile($registrationRenderOutput);
+    $ok($registrationHtml === $registrationExpectedArtifact->html &&
+        hash('sha256',$registrationHtml) === $registrationRendered['artifactDigest'] &&
+        strlen($registrationHtml) === $registrationRendered['sizeBytes'] &&
+        ($registrationRenderOutputBefore['mode'] & 0777) === 0600 &&
+        $registrationRenderOutputBefore['uid'] === posix_geteuid() && $registrationRenderOutputBefore['nlink'] === 1 &&
+        scandir($registrationRenderDirectory) === ['.','..','index.html'],
+        'registration local renderer creates only the private exact HTML bytes, digest and size from the direct renderer');
+    $ok($registrationState() === $registrationRenderBefore && $registrationCustody() === $registrationRenderMounts &&
+        $registrationRenderFile($registrationRenderBrief) === $registrationRenderInputBefore &&
+        SiteReleasePreparationFiles::read($registrationRenderBrief,32768) === $registrationRenderJson,
+        'registration local rendering leaves the source JSON, fixed mounts and all persisted rows and catalogs unchanged');
+    $ok($registrationRenderRun() === ['exit'=>1,'stdout'=>'','stderr'=>"LOCAL_RENDER_DENIED\n"] &&
+        $registrationRenderFile($registrationRenderOutput) === $registrationRenderOutputBefore &&
+        $registrationRenderFile($registrationRenderBrief) === $registrationRenderInputBefore &&
+        scandir($registrationRenderDirectory) === ['.','..','index.html'] &&
+        $registrationState() === $registrationRenderBefore && $registrationCustody() === $registrationRenderMounts,
+        'registration local renderer refuses an existing output without overwriting its inode or bytes or changing persisted state');
+    $registrationRenderingChecks = $checks-$registrationRenderingChecksBefore;
     $registrationInput = [
         'schema'=>'SITES_RELEASE_REGISTRATION_V1',
         'target'=>[
@@ -170,7 +264,7 @@ try {
             'login'=>'rr_a_artifact_writer','serverAddress'=>'127.0.0.1','caSha256'=>$registrationCaSha,
         ],
         'siteRef'=>$registrationSite,'releaseRef'=>'registration-release-a',
-        'artifactDigest'=>$registrationArtifact->digest,'sizeBytes'=>strlen($registrationHtml),
+        'artifactDigest'=>$registrationRendered['artifactDigest'],'sizeBytes'=>$registrationRendered['sizeBytes'],
     ];
 
     $registrationStage = 'read-only plan and pre-write refusals';
@@ -374,10 +468,13 @@ try {
         'registration refusals preserve every earlier artifact and the only new immutable artifact');
     $private = [$password,$registrationSite,$registrationInput['releaseRef'],$registrationCommand->tenantRef,
         $registrationCommand->orderRef,$registrationCommand->contractRef,'rr_a_artifact_writer',
-        'rr_registration_a_artifact_writer','Marca fictícia onboarding=aberto.',...$registrationPaths];
+        'rr_registration_a_artifact_writer','Marca fictícia onboarding=aberto.',...$registrationPaths,
+        $registrationRenderBrief,$registrationRenderOutput,$registrationRenderJson];
     $leaked = false;
     foreach ($registrationOutputs as $output) foreach ($private as $value) if (str_contains($output,$value)) $leaked = true;
     $ok(!$leaked,'registration stdout and stderr disclose no HTML, commercial reference, SQL identity, credential or private path');
+    echo 'LOCAL RENDERING REGISTRY CI PASS: '.$registrationRenderingChecks.
+        " new assertions; exclusive private render output consumed by existing registration and release pipeline\n";
     echo 'RELEASE REGISTRATION CI PASS: '.($checks-$registrationChecksBefore).
         " assertions; real plan/record CLI, one immutable artifact, restricted authority, TLS, replay and separate package preparation\n";
 } catch (Throwable $error) {

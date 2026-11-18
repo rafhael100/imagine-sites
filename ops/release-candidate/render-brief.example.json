@@ -1,0 +1,12 @@
+{
+  "productCode": "onepage",
+  "brand": "Estúdio de exemplo",
+  "headline": "Uma apresentação feita para demonstrar o fluxo",
+  "description": "Briefing fictício para gerar um arquivo HTML local, sem dados de clientes ou publicação.",
+  "callToAction": "Conheça a demonstração",
+  "benefits": [
+    "Conteúdo de exemplo",
+    "Artefato local para revisão",
+    "Nenhuma autorização comercial"
+  ]
+}
