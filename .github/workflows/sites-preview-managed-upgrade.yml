@@ -36,7 +36,7 @@ jobs:
       github.event.pull_request.draft == true &&
       github.event.pull_request.head.repo.full_name == 'rafhael100/imagine-sites' &&
       github.event.pull_request.head.ref == 'feature/sites-preview-managed-upgrade-2026-11-18' &&
-      github.event.pull_request.base.sha == '528efd1cb7cb5f4618f222fc663fbf0fbea27bea'
+      github.event.pull_request.base.sha == 'f0a2f361d04297bfbafd5d11f55f3ab299a8e000'
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -143,7 +143,7 @@ jobs:
       github.event.pull_request.draft == true &&
       github.event.pull_request.head.repo.full_name == 'rafhael100/imagine-sites' &&
       github.event.pull_request.head.ref == 'feature/sites-preview-managed-upgrade-2026-11-18' &&
-      github.event.pull_request.base.sha == '528efd1cb7cb5f4618f222fc663fbf0fbea27bea'
+      github.event.pull_request.base.sha == 'f0a2f361d04297bfbafd5d11f55f3ab299a8e000'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
@@ -218,7 +218,7 @@ jobs:
       github.event.pull_request.draft == true &&
       github.event.pull_request.head.repo.full_name == 'rafhael100/imagine-sites' &&
       github.event.pull_request.head.ref == 'feature/sites-preview-managed-upgrade-2026-11-18' &&
-      github.event.pull_request.base.sha == '528efd1cb7cb5f4618f222fc663fbf0fbea27bea'
+      github.event.pull_request.base.sha == 'f0a2f361d04297bfbafd5d11f55f3ab299a8e000'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:

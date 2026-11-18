@@ -47,13 +47,15 @@ Não há comando automático de downgrade. A migração já recusa remover notas
 
 ## Verificação
 
-As verificações offline cobrem manifestos e argumentos sem abrir conexão ou ler segredos: 40 casos do upgrade, 44 da CLI e os 26 casos anteriores de provisionamento. A evidência SQL/CLI real desta entrega ainda está pendente.
+As verificações offline cobrem manifestos e argumentos sem abrir conexão ou ler segredos: 40 casos do upgrade, 44 da CLI e os 26 casos anteriores de provisionamento.
 
 O novo job parte de um segundo checkout do provisionador V1 original em `ad649b3f10bdee93837e9443efc9bf4b1edeb85c`, carregado em processo separado. Isso cria uma origem antiga real; não se limita a trocar o nome de um marcador V2. O banco e todos os dados são descartáveis e sintéticos, com a identidade do cluster conferida antes de qualquer escrita.
 
 A fixture cobre histórico populado, duas empresas, registros antigos sem nota, preservação de OID/ACL/bytes/ledger, recusas por deriva, falhas após mudanças transacionais, invocação efetiva da CLI, concorrência de planos e uso da orientação após o upgrade. O provisionamento novo e a jornada HTTP anterior também são reexecutados como regressão.
 
-Resultados, HEAD, contagens efetivas e limitações serão registrados após o CI. Não foi iniciado PostgreSQL local nem executado comando no VPS.
+Na HEAD `79863ad89f5701e0122f320f0437598b90f9193d`, o [run44215333265](https://github.com/rafhael100/imagine-sites/actions/runs/44215333265) aprovou o [job de upgrade134503636106](https://github.com/rafhael100/imagine-sites/actions/runs/44215333265/job/134503636106): **9 checks de seed e 76 de contrato**. A negativa de identidade, as três reversões transacionais e a corrida entre dois processos da CLI foram executadas.
+
+Os jobs de contratos SQL em PHP8.3/8.4 também passaram. O log8.4 confirma 356 verificações do workspace, incluindo33 da busca,107 do journal e61 da CLI de pacote; PHPUnit119 testes/788 assertions/27 skips esperados. A correção de sessão da PR #493 foi validada em `f0a2f361d04297bfbafd5d11f55f3ab299a8e000`, com139 checks de navegador, e incorporada a esta branch. A regressão conjunta da nova HEAD ainda está pendente. Não foi iniciado PostgreSQL local nem executado comando no VPS.
 
 ## Fronteira operacional
 

@@ -12,6 +12,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->web(replace: [
+            \Illuminate\Session\Middleware\StartSession::class => \App\Http\Middleware\PrivatePreviewStartSession::class,
+        ]);
+
         // Private editorial notes retain their exact whitespace in storage and
         // failed form responses; their domain validator handles blank text.
         // Search is bounded and normalized by PreviewQueueQuery, so malformed
