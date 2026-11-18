@@ -16,6 +16,7 @@ final class ReleaseArtifactConnection
     public const BRIEF_SNAPSHOT = 'brief_snapshot';
     public const BRIEF_SNAPSHOT_RECEIVER = 'brief_snapshot_receiver';
     public const PROJECT_INTAKE_RECEIVER = 'project_intake_receiver';
+    public const PROJECT_INTAKE_READER = 'project_intake_reader';
 
     /** Coordinates identify a reviewed endpoint, never a private tenant or duty. */
     public static function target(mixed $target): array
@@ -61,9 +62,10 @@ final class ReleaseArtifactConnection
             self::BRIEF_SNAPSHOT => 'sites_core.read_portal_brief_snapshot(uuid,uuid,integer,text)',
             self::BRIEF_SNAPSHOT_RECEIVER => 'sites_core.record_portal_brief_snapshot(text,text)',
             self::PROJECT_INTAKE_RECEIVER => 'sites_core.record_portal_project_request(text,text,text,text,text,integer,text,text)',
+            self::PROJECT_INTAKE_READER => 'sites_core.read_portal_project_intake_receipt(text,text,text,text,text,integer,text,text)',
             default => throw new RuntimeException(),
         };
-        if (in_array($api, [self::BRIEF_RECEIPT, self::BRIEF_SNAPSHOT], true) && !$readOnly) {
+        if (in_array($api, [self::BRIEF_RECEIPT, self::BRIEF_SNAPSHOT, self::PROJECT_INTAKE_READER], true) && !$readOnly) {
             throw new RuntimeException();
         }
         if ($db->getAttribute(PDO::ATTR_DRIVER_NAME) !== 'pgsql' || $db->inTransaction() ||

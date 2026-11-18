@@ -75,6 +75,9 @@ autorização atual de leitura para recuperar o siteRef persistido, inclusive
 depois da revogação do receptor. Preserva este recorder, seu SQL e o contrato
 de quinze campos. Sua prova PostgreSQL permanece identificada separadamente
 da evidência histórica abaixo.
+A [CLI privada de recuperação](PROJECT-INTAKE-RECOVERY-CLI.md) pode conservar
+esse resultado em um novo arquivo exclusivo usando leitor próprio. Mantém SQL001,
+recorder, comando e schema do recibo originais, sem ativar transporte Portal.
 
 O workflow de migrations existente (`sites-f1-383-operational-schema.yml`) passa
 a executar o serviço real com o schema nativo e identidades fictícias restritas.

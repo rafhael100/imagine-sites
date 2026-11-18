@@ -549,3 +549,22 @@ The pair is not atomic. A failure during the second reservation, a later custody
 Only `index.html` is consumed by the existing explicit artifact-registration command. The provenance record does not become registry authority, editorial approval, a release binding or a publication package. No database or provider action is added to rendering.
 
 Local validation passed **109** service checks, **137** existing renderer checks, **80** new provenance CLI checks and **87** unchanged original CLI checks. The new CLI cases use owned temporary directories and the real command, including the rich-source byte ceiling, valid-but-mismatched chains, changes to each of the four pinned inputs and occupied/link destinations for either output. These local results do not assert deployment, official Portal authority or a completed PostgreSQL integration run; execution evidence belongs in the linked review.
+
+## Exact project intake receipt recovery
+
+[recover-project-intake-receipt.php](recover-project-intake-receipt.php) adds a
+separate `plan` / `recover` entry point over the exact native receipt reader.
+It keeps its fresh TLS connection read-only and writes the unchanged fifteen-field
+receipt into a new private 0600 file under its own output directory. It requires
+the original eight-field command, a current independent reader, four private
+inputs and a reviewed commitment covering the target, raw command hash and output
+path. It performs no receiver fallback or automatic retry.
+
+The public result has eight/ten technical fields and three false authority flags;
+references remain in the private file. An error can leave an empty, partial or
+complete file, which is preserved. A plan checks runtime, not the private tenant
+binding. Authorization follows the STABLE query snapshot rather than reserving
+access through file writing. See the [recovery manual](../../docs/PROJECT-INTAKE-RECOVERY-CLI.md).
+The underlying reader passed **53 new checks plus 65 intake and 245 snapshot
+checks**, with fifteen-migration rollback in [#531](https://github.com/rafhael100/imagine-sites/pull/531).
+The CLI has **83 offline checks**; its own PostgreSQL/TLS composition is pending.

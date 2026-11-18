@@ -1,6 +1,31 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
-## 18/11/2026 — consulta exata do recibo por leitor independente
+## 18/11/2026 — recuperação privada do recibo sem repetir o receiver
+
+Branch `feature/sites-project-intake-recovery-cli-2026-11-18`, sobre a #531 /
+`958ce49899375a99c3dee9b7f40016701a465502`. A candidata
+`recover-project-intake-receipt.php` oferece plano e recuperação do recibo exato
+usando uma identidade de leitura atual. Mantém a sessão somente leitura durante
+toda a operação e usa uma chamada ao serviço existente. Os quatro inputs privados,
+o alvo observado e o destino exclusivo entram no compromisso conferido.
+
+O arquivo privado conserva os quinze campos nativos; stdout contém oito campos
+no plano ou dez após a recuperação, sem referências privadas e com três flags
+falsas. A mesma custódia de recibo reserva o arquivo 0600, sincroniza e relê os
+bytes. Falha pode deixar arquivo vazio, parcial ou completo; a CLI preserva esses
+destinos e não repete automaticamente a consulta. O snapshot STABLE da autorização
+não garante permanência do acesso até o fim da escrita do arquivo.
+
+**Validação local já observada:** **83 checks offline**, sem simular sucesso SQL;
+suíte geral **296/4705/27**, **32 checks sintéticos**, lint do wrapper/enum/teste e
+JSON do exemplo; revisões independentes do wrapper e helper/runner sem bloqueador. Guard sobre **723 arquivos**, cinco blocos Bash e
+runner, **174 links locais** e diffcheck PASS. A prova PostgreSQL/TLS própria prevê **30 novas/1208 totais**: reutiliza três
+intakes e os dez projetos da cadeia anterior, aplica temporariamente a migration
+15 e a remove antes de continuar a composição com o mapa decodificado dos três
+recibos recuperados. Os 29 checks do receiver e 119 da composição ficam intactos. A evidência da #531 abaixo é do
+leitor e não substitui essa jornada CLI. [Manual](docs/PROJECT-INTAKE-RECOVERY-CLI.md).
+
+## 18/11/2026 — consulta exata do recibo validada na #531
 
 Branch `feature/sites-project-intake-receipt-reader-2026-11-18`, sobre a #530 /
 `e49d5f8365d70d0e155703a1d3f2362684f04a57`. O novo
@@ -20,10 +45,9 @@ comando e schema fixados pelo Portal permanecem idênticos.
 
 **Validação local PASS:** grupo novo **10 testes/341 assertions**, suíte geral
 **296/4705/27**, **32 checks sintéticos**, lint e revisão independente do SQL e da
-migration. O grupo novo usa PDO desconectada; a prova real está em preparação
-no workflow F383 existente, preservando as 65 verificações de intake e prevendo
-**53 verificações novas** com leitores próprios e rollback/reaplicação da migration
-15. A comparação do catálogo normaliza a ordem dos grants de função após
+migration. O grupo novo usa PDO desconectada; a prova real abaixo confirmou
+**53 verificações novas**, preservando as 65 de intake e verificando leitores
+próprios e rollback/reaplicação da migration 15. A comparação do catálogo normaliza a ordem dos grants de função após
 REVOKE/GRANT, conservando todos os privilégios e demais campos. Não se atribui o resultado
 registry da #530 a esse schema novo.
 [Manual e limites](docs/PROJECT-INTAKE-RECEIPT-READER.md).
@@ -35,7 +59,7 @@ parou antes da prova nova porque o inventário antigo exigia 45 políticas.
 O teste agora inclui exatamente as três políticas de SELECT do novo definer,
 totalizando 48; conserva tabela, comando, role e predicados exatos e continua
 recusando políticas extras ou PUBLIC. Nenhum código de produto foi alterado
-nesse ajuste. O resultado real das 53 verificações permanece pendente.
+nesse ajuste. A prova das 53 verificações foi concluída no run final abaixo.
 
 A segunda execução, HEAD `23246cb0e6b9b48a1f9ed6a52d84adb0e096c3a7`,
 [F383 44378184715](https://github.com/rafhael100/imagine-sites/actions/runs/44378184715),
@@ -43,7 +67,20 @@ confirmou os 172 checks da fundação, 21 de leitura, 39 editoriais e 65 do inta
 mas a fixture nova parou ao expandir uma ACL de coluna vazia. A comparação agora
 passa NULL ao `aclexplode` quando não há entradas, conservando os grants não
 vazios ordenados e todos os demais metadados. Esse segundo ajuste também se
-limita à fixture; as 53 verificações novas e o rollback final ainda aguardam CI.
+limita à fixture. A execução seguinte confirmou as 53 verificações e o rollback.
+
+A [#531](https://github.com/rafhael100/imagine-sites/pull/531), HEAD
+`958ce49899375a99c3dee9b7f40016701a465502`, concluiu **13/13 checks SUCCESS**.
+O [F383 44379689221](https://github.com/rafhael100/imagine-sites/actions/runs/44379689221),
+jobs **135068216968 / 135068217454**, confirmou em PHP 8.3/8.4 **53 checks novos**,
+**65 de intake** e **245 de snapshots**, grupo PHP **10/341**, down/up15 e rollback
+final das quinze migrations, com os dois schemas próprios ausentes e cleanup.
+O [Laravel 44379688946](https://github.com/rafhael100/imagine-sites/actions/runs/44379688946)
+confirmou **296/4705/27** e **296/4717/21** nas duas versões. O ensaio de
+[containers 44379688772](https://github.com/rafhael100/imagine-sites/actions/runs/44379688772)
+passou com containers e redes removidos. Não houve nova execução registry ou HTTP
+na #531; o total 1178 pertence à base #530.
+
 
 ## 18/11/2026 — entrada privada de projetos validada na #530
 

@@ -6,6 +6,18 @@
 
 Essa conclusão delimita a integração; não afirma esgotamento de todo desenvolvimento. O trabalho autorizado em branch isolada pode continuar em componentes com uso concreto e defeitos demonstrados. A inspeção privada do diário é um exemplo: consome a API persistente existente sem criar autoridade ou depender de um briefing inventado.
 
+### Recuperação privada do recibo de intake
+
+Sobre a #531 validada, a branch
+`feature/sites-project-intake-recovery-cli-2026-11-18` acrescenta a
+[CLI de recuperação exata](../PROJECT-INTAKE-RECOVERY-CLI.md). Ela conserva o
+recibo nativo em novo arquivo privado com leitor próprio e PDO sempre somente
+leitura, permitindo recuperar o siteRef sem repetir o receiver histórico.
+Quatro inputs fixos, compromisso e reserva exclusiva mantêm a custódia; a saída
+pública tem oito/dez campos técnicos. Os 83 checks offline passaram, e a prova
+PostgreSQL/TLS da composição está em preparação. A leitura histórica conserva o
+contrato recebido pelo Portal e não autentica a origem comercial.
+
 ### Consulta do intake com identidade de leitura independente
 
 Sobre a #530 / `e49d5f8365d70d0e155703a1d3f2362684f04a57`, a branch
@@ -19,9 +31,17 @@ O SQL aditivo e a migration 15 preservam os quatro pins Portal e o retorno nativ
 de quinze campos. A função STABLE usa o snapshot da instrução para autorização
 e leitura, sem o lock até commit usado pelo writer. O serviço retorna o recibo
 em memória; CLI, arquivo de recuperação e transporte continuam entradas próprias.
-O grupo novo **10/341**, a suíte geral **296/4705/27** e os **32 checks sintéticos**
-passaram. A prova real desta extensão está em preparação no F383 existente,
-com isolamento, revogação entre chamadas e preservação dos dados no down/up15.
+A [#531](https://github.com/rafhael100/imagine-sites/pull/531), HEAD
+`958ce49899375a99c3dee9b7f40016701a465502`, concluiu **13/13 checks SUCCESS**.
+O [F383 44379689221](https://github.com/rafhael100/imagine-sites/actions/runs/44379689221),
+jobs **135068216968 / 135068217454**, confirmou em PHP 8.3/8.4 **53 checks novos**,
+**65 de intake** e **245 de snapshots**, grupo PHP **10/341**, down/up15 e rollback
+final das quinze migrations, com os dois schemas próprios ausentes e cleanup.
+O [Laravel 44379688946](https://github.com/rafhael100/imagine-sites/actions/runs/44379688946)
+confirmou **296/4705/27** e **296/4717/21** nas duas versões. O ensaio de
+[containers 44379688772](https://github.com/rafhael100/imagine-sites/actions/runs/44379688772)
+passou com containers e redes removidos. Não houve nova execução registry ou HTTP
+na #531; o total 1178 pertence à base #530.
 
 ### Entrada privada de projeto antes do briefing candidato
 

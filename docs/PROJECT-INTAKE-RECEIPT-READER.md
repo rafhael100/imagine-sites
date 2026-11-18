@@ -102,7 +102,8 @@ O leitor pode ser usado para apurar um recibo cujo arquivo não foi concluído
 pela [CLI de recebimento](PROJECT-INTAKE-RECEIVER-CLI.md). Essa CLI continua
 mantendo seus destinos e regras de replay. A consulta nova devolve o resultado
 em memória; não cria transporte Portal, rota HTTP ou arquivo de recuperação.
-Essas entradas terão de conservar a mesma autorização e o contrato privado.
+A [CLI candidata de recuperação](PROJECT-INTAKE-RECOVERY-CLI.md) acrescenta essa
+entrada privada na entrega seguinte, conservando a autorização e o contrato.
 
 ## Evidência desta candidata
 
@@ -115,15 +116,27 @@ A suíte geral local confirmou **296 testes/4705 assertions/27 skips**, e os
 não encontrou bloqueadores; os quatro pins Portal permanecem idênticos.
 
 A [fixture PostgreSQL](../tests/fixtures/project-intake-receipt/contract.php)
-prevê **53 verificações próprias**, separadas das 65 anteriores, no
+confirmou **53 verificações próprias**, separadas das 65 anteriores, no
 [workflow F383 existente](../.github/workflows/sites-f1-383-operational-schema.yml).
 Reutiliza
 recibos nativos já gravados e o receptor A já revogado, acrescentando leitores
 separados e snapshots completos de estado. O ensaio anterior de resposta perdida
-já contém um replay; a consulta nova deve demonstrar ausência de chamadas ao writer
+já contém um replay; a consulta nova demonstrou ausência de chamadas ao writer
 e de novos registros durante sua própria execução. Isolamento, seletores,
-revogação entre chamadas e down/up da migration terão evidência própria.
-Os resultados PostgreSQL desta candidata permanecem pendentes de CI.
+revogação entre chamadas e down/up da migration foram verificados.
+
+A [#531](https://github.com/rafhael100/imagine-sites/pull/531), HEAD
+`958ce49899375a99c3dee9b7f40016701a465502`, concluiu **13/13 checks SUCCESS**.
+O [F383 44379689221](https://github.com/rafhael100/imagine-sites/actions/runs/44379689221),
+jobs **135068216968 / 135068217454**, confirmou em PHP 8.3/8.4 **53 checks novos**,
+**65 de intake** e **245 de snapshots**, grupo PHP **10/341**, down/up15 e rollback
+final das quinze migrations, com os dois schemas próprios ausentes e cleanup.
+O [Laravel 44379688946](https://github.com/rafhael100/imagine-sites/actions/runs/44379688946)
+confirmou **296/4705/27** e **296/4717/21** nas duas versões. O ensaio de
+[containers 44379688772](https://github.com/rafhael100/imagine-sites/actions/runs/44379688772)
+passou com containers e redes removidos. Não houve nova execução registry ou HTTP
+na #531; o total 1178 pertence à base #530.
+
 
 O primeiro [run F383 44377646550](https://github.com/rafhael100/imagine-sites/actions/runs/44377646550),
 HEAD `b131a7c9888da7b62b0e97c2ff9970a59811001b` da
@@ -131,7 +144,8 @@ HEAD `b131a7c9888da7b62b0e97c2ff9970a59811001b` da
 15 nas duas versões, mas parou no inventário de políticas anterior ao módulo novo.
 A correção acrescenta somente as três políticas esperadas ao inventário exato,
 passando de 45 para 48, sem tolerar políticas desconhecidas ou mudar o produto.
-Essa execução não comprova ainda os 53 checks do leitor nem o rollback final.
+Essa primeira execução não comprovou os 53 checks nem o rollback final; o run
+final acima confirmou ambos depois das correções de fixture.
 
 O segundo [run F383 44378184715](https://github.com/rafhael100/imagine-sites/actions/runs/44378184715),
 HEAD `23246cb0e6b9b48a1f9ed6a52d84adb0e096c3a7`, passou os inventários e os 65
