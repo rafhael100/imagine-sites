@@ -1,10 +1,18 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 18/11/2026 — continuidade: busca por marca ou chamada principal na fila
+
+Branch `feature/sites-queue-search-2026-11-18`, sobre a PR #492 / `ae3a9bd58c89d0c76b7d983c0206a9cad6bf80f8`. A busca consulta somente o briefing da versão atual, junto com os filtros de parecer/formato e a paginação. O contexto acompanha a abertura de projetos, histórico, comparação e retorno à fila. Alterar ou limpar a busca retorna à primeira página; limpar apenas a busca conserva os demais filtros.
+
+O termo é literal, limitado a100 codepoints Unicode/400 bytes e validado antes de aparar espaços nas bordas. Maiúsculas/minúsculas usam casefold Unicode do PostgreSQL18, inclusive em banco localeC. `%`, `_` e barra invertida não se tornam curingas; acentos e composição Unicode não são normalizados. Campo vazio passa pelo middleware Laravel sem erro e controles inválidos não são aparados silenciosamente. Nenhuma migration, grant ou autoridade nova.
+
+Validação local: **PHPUnit119 testes/788 asserções/27 skips explícitos**, lint e suites offline aprovados. **CI SQL/HTTP desta busca pendente**. Detalhes: [relatório de busca na fila](docs/reviews/SITES-QUEUE-SEARCH-2026-11-18.md).
+
 ## 18/11/2026 — continuidade: parecer editorial com orientação persistida
 
 Branch `feature/sites-editorial-feedback-2026-11-18`, sobre a PR #491 / b2210ec. O revisor informa os ajustes na própria versão; o autor consulta a orientação corrente mesmo em páginas antigas do histórico. Texto e decisão são preservados em422/409, sem sessão e sem reaplicar o envio a outra revisão. A nova versão mantém o parecer anterior no histórico e aguarda avaliação própria.
 
-Migration000008 preserva reviews legadas, OID/ACL da assinatura antiga e histórico; novos ajustes exigem nota com até2000 caracteres Unicode. O provisionamento novo aplica004+008 atomicamente com fingerprint composto, e instalações managedV1 exigem upgrade explícito. Validação local: PHPUnit102/509/27 skips explícitos, lint e verificações offline aprovados. **CI SQL/HTTP desta entrega pendente**. Detalhes: [relatório de orientação editorial](docs/reviews/SITES-EDITORIAL-FEEDBACK-2026-11-18.md).
+Migration000008 preserva reviews legadas, OID/ACL da assinatura antiga e histórico; novos ajustes exigem nota com até2000 caracteres Unicode. O provisionamento novo aplica004+008 atomicamente com fingerprint composto, e instalações managedV1 exigem upgrade explícito. Validação local: PHPUnit102/509/27 skips explícitos, lint e verificações offline aprovados. **PR #492 validada em ae3a9bd58c89d0c76b7d983c0206a9cad6bf80f8: 17/17 check-runs aprovados**. [Run44209215949](https://github.com/rafhael100/imagine-sites/actions/runs/44209215949): 323 verificações do workspace,402 do registry/ciclo/pacote/diário,101 de navegador; PHP8.3/8.4. Migrations/rollback e integração Laravel dedicada sem skips no [run44209215528](https://github.com/rafhael100/imagine-sites/actions/runs/44209215528). Capturas desktop/mobile revisadas; artefato14385586419, SHA-256 `3327e822d7738ddcb6210b5d2fea6120095fb832e8c0ab0f665762aac9fe758d`. Detalhes: [relatório de orientação editorial](docs/reviews/SITES-EDITORIAL-FEEDBACK-2026-11-18.md).
 
 ## 18/11/2026 — continuidade: diário durável de tentativas de publicação
 

@@ -198,6 +198,9 @@ const {chromium}=require('playwright');const fs=require('fs'),cp=require('child_
     'editing after historical comparison appends62 from actual head61');
  await comparisonContext.close();
  await require('./editorial-feedback.cjs')({a,e,o,p,ep,base,dir,historyUrl,ok});
+ await require('./queue-search.cjs')({ctx,a,o,base,dir,historyUrl,ok});
+ const queryLogProbe='SITES_SEARCH_QUERY_LOG_PROBE_20261118';
+ ok((await a.request.get(base+'/_preview?q='+queryLogProbe)).status()===200,'synthetic query log probe completes a normal private search');
  ok([403,404].includes((await o.request.get(one)).status()),'cross company workspace denied');ok((await o.request.get(one+'/versions/1/html')).status()===403,'cross company bytes denied');
  await p.setViewportSize({width:1440,height:1000});await p.goto(one);await p.screenshot({path:dir+'/workspace-desktop.png',fullPage:true});
  await p.setViewportSize({width:390,height:844});await p.screenshot({path:dir+'/workspace-mobile.png',fullPage:true});ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'mobile no horizontal overflow');
@@ -215,9 +218,13 @@ const {chromium}=require('playwright');const fs=require('fs'),cp=require('child_
  await p.setViewportSize({width:1440,height:1000});await p.goto(one+'/versions/1/html');await p.screenshot({path:dir+'/onepage-desktop.png',fullPage:true});
  docker(['exec','-T','db','psql','-U','postgres','-d','sites_preview_http_ci','-v','ON_ERROR_STOP=1','-c',"UPDATE sites_preview.principals SET revoked_at=now() WHERE database_login='sites_preview_author'"]);
  ok((await a.request.get(one+'/versions/1/html')).status()===403,'revocation blocks repeated HTML request');
+ const revokedSearch=await a.request.get(base+'/_preview?q='+encodeURIComponent('Navegação CI'));
+ ok(revokedSearch.status()===403&&!(await revokedSearch.text()).includes('Navegação CI 01'),'revocation blocks a previously valid queue search');
  const revokedComparison=await a.request.get(one+'?compare_from=1&compare_to=2');
  ok(revokedComparison.status()===403&&!(await revokedComparison.text()).includes(revisedBrief.headline),
     'revocation blocks a comparison that previously succeeded without exposing historical copy');
+ const privateLogs=docker(['logs','--no-color','app','proxy']);
+ ok(!privateLogs.includes(queryLogProbe),'the query-only synthetic search term is absent from app and proxy logs');
  const audit=docker(['exec','-T','db','psql','-U','postgres','-d','sites_preview_http_ci','-Atc','SELECT count(*) FROM sites_preview.audit']);ok(Number(audit.trim())>=6,'persistent DB audit');
  await b.close();fs.writeFileSync(dir+'/result.json',JSON.stringify({schema:'SITES_DEMO_HTTP_CI_V1',checks,source:'synthetic_separate_laravel_nginx_pg18_tls',operational:false,installed_on_vps:false}));console.log('PREVIEW HTTP BROWSER PASS: '+checks+' checks; persisted Laravel/FPM/PG18 verify-full, nominal proxy auth, CSRF, two products, versions, escaped editorial comparison without JavaScript, separate editorial principal, revocation, restart, desktop/mobile.');
 })().catch(e=>{console.error('PREVIEW HTTP BROWSER FAILED:',e.message);process.exit(1)});

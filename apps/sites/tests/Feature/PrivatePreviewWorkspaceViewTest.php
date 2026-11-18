@@ -420,6 +420,69 @@ final class PrivatePreviewWorkspaceViewTest extends TestCase
         self::assertStringContainsString('Mostrando os 100 pareceres mais recentes das versões desta página.', $html);
     }
 
+    public function test_queue_search_is_escaped_accessible_and_resets_pagination_when_submitted(): void
+    {
+        $data = $this->page();
+        $search = '\"><img src=x onerror=alert(1)> 100%_\\';
+        $cursor = PreviewQueueQuery::cursorFor('2026-11-17T12:00:00.000000Z', '11111111-1111-4111-8111-111111111111');
+        $data['navigation'] = PreviewNavigation::fromQuery([
+            'status' => 'changes_requested', 'format' => 'onepage', 'q' => $search, 'cursor' => $cursor,
+        ]);
+        $html = view('preview.workspace', $data)->render();
+        $xpath = $this->xpath($html);
+        $form = '//form[@data-testid="queue-filters"]';
+        $input = $form.'//input[@name="q"]';
+
+        self::assertSame('get', $xpath->evaluate('string('.$form.'/@method)'));
+        self::assertSame('/_preview', $xpath->evaluate('string('.$form.'/@action)'));
+        self::assertSame('Buscar projeto', $xpath->evaluate('string('.$form.'//label[@for="queue-search"])'));
+        self::assertSame('search', $xpath->evaluate('string('.$input.'/@type)'));
+        self::assertSame($search, $xpath->evaluate('string('.$input.'/@value)'));
+        self::assertSame('queue-search-help', $xpath->evaluate('string('.$input.'/@aria-describedby)'));
+        self::assertSame(0, $xpath->query($input.'/@maxlength|'.$form.'//input[@name="cursor"]|//img|//script')->length);
+        self::assertSame('/_preview?status=changes_requested&format=onepage',
+            $xpath->evaluate('string(//a[normalize-space(.)="Limpar busca"]/@href)'));
+        self::assertStringContainsString($search, $xpath->evaluate('string(//*[@data-testid="queue-empty"])'));
+        self::assertSame(1, $xpath->query('//*[@data-testid="preview-queue"]')->length);
+        self::assertSame(0, $xpath->query('//form[@method="post"]//*[@name="q"]')->length);
+    }
+
+    public function test_search_context_is_rendered_in_get_forms_and_actions_but_never_post_fields(): void
+    {
+        $data = $this->reviewPage();
+        $data['canEdit'] = true;
+        $data['navigation'] = PreviewNavigation::fromQuery([
+            'q' => 'Marca ç 😀', 'status' => 'awaiting_review', 'before_revision' => '3',
+        ], true);
+        $html = view('preview.workspace', $data)->render();
+        $xpath = $this->xpath($html);
+
+        self::assertSame('Marca ç 😀', $xpath->evaluate('string(//form[@method="get"]//input[@name="q"]/@value)'));
+        self::assertSame(0, $xpath->query('//form[@method="post"]//*[@name="q"]')->length);
+        self::assertSame(2, $xpath->query('//form[@method="post"]')->length);
+        foreach ($xpath->query('//form[@method="post"]/@action') as $attribute) {
+            parse_str(parse_url($attribute->value, PHP_URL_QUERY) ?? '', $parameters);
+            self::assertSame('Marca ç 😀', $parameters['q']);
+            self::assertSame('awaiting_review', $parameters['status']);
+        }
+        self::assertSame(0, $xpath->query('//*[@data-testid="preview-queue"]')->length);
+    }
+
+    public function test_empty_and_maximum_unicode_search_render_without_a_utf16_limit(): void
+    {
+        $data = $this->page();
+        $html = view('preview.workspace', $data)->render();
+        $xpath = $this->xpath($html);
+        self::assertSame('', $xpath->evaluate('string(//input[@name="q"]/@value)'));
+        self::assertSame(0, $xpath->query('//a[normalize-space(.)="Limpar busca"]')->length);
+        self::assertStringContainsString('Nenhum projeto encontrado nesta página com os filtros escolhidos.', $html);
+
+        $data['navigation'] = PreviewNavigation::fromQuery(['q' => str_repeat('😀', 100)]);
+        $xpath = $this->xpath(view('preview.workspace', $data)->render());
+        self::assertSame(str_repeat('😀', 100), $xpath->evaluate('string(//input[@name="q"]/@value)'));
+        self::assertSame(0, $xpath->query('//input[@name="q"]/@maxlength')->length);
+    }
+
     private function reviewPage(): array
     {
         $data = $this->page();

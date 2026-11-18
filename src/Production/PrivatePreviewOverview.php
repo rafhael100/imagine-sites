@@ -60,6 +60,17 @@ final readonly class PrivatePreviewOverview
                 $predicates[] = 'q.product=?';
                 $parameters[] = $navigation->product;
             }
+            if ($navigation->search !== '') {
+                // PostgreSQL 18's built-in Unicode collation keeps caseless
+                // matching independent of the database's C locale. strpos
+                // treats %, _ and backslashes as literal characters, and both
+                // terms are bound values. Only the latest brief participates.
+                $predicates[] = '(pg_catalog.strpos(pg_catalog.casefold(q.brand COLLATE pg_catalog.pg_unicode_fast),'
+                    .'pg_catalog.casefold(?::text COLLATE pg_catalog.pg_unicode_fast))>0 OR '
+                    .'pg_catalog.strpos(pg_catalog.casefold(q.headline COLLATE pg_catalog.pg_unicode_fast),'
+                    .'pg_catalog.casefold(?::text COLLATE pg_catalog.pg_unicode_fast))>0)';
+                array_push($parameters, $navigation->search, $navigation->search);
+            }
             if ($navigation->cursor !== null) {
                 $predicates[] = '(q.latest_created_at<?::timestamptz OR (q.latest_created_at=?::timestamptz AND q.id>?::uuid))';
                 array_push($parameters, $navigation->cursorTime, $navigation->cursorTime, $navigation->cursorId);
