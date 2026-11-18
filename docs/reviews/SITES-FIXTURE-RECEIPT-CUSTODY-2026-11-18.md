@@ -35,7 +35,13 @@ A regressão `tests/fixture-receipt-custody.py` reproduz a substituição do rec
 
 Sintaxe Python, YAML, pins, sete flags, blocos shell, whitespace e revisão independente aprovados. O safety guard passou em uma cópia apenas das fontes, mantendo os dez gates `BLOCKED`. Nenhum helper administrativo foi executado localmente em `/run`, e não foi iniciado PostgreSQL local.
 
-O workflow `.github/workflows/sites-fixture-receipt-custody.yml` fixa draft, repositório, branch e SHA da base, com PHP 8.3/8.4, sete opt-ins e o mesmo laboratório PostgreSQL descartável. Executa a regressão nova e os ensaios reais de preparação, negativos e limpeza de todos os candidatos. **O CI desta correção permanece pendente**; os 712 checks de registry da base são uma expectativa de regressão, não um resultado antecipado da nova HEAD.
+O workflow `.github/workflows/sites-fixture-receipt-custody.yml` fixa draft, repositório, branch e SHA da base, com PHP 8.3/8.4, sete opt-ins e o mesmo laboratório PostgreSQL descartável. Executa a regressão nova e os ensaios reais de preparação, negativos e limpeza de todos os candidatos. **O CI desta correção foi concluído**, com os resultados reais registrados abaixo.
+
+## Evidência concluída da PR #502
+
+HEAD validada: `5234e3ca36aeadbb363435ebef1f23a26ea9852e`; **17/17 check-runs SUCCESS**. O [run 44232778190](https://github.com/rafhael100/imagine-sites/actions/runs/44232778190) passou nos jobs [PHP 8.3 / 134561588857](https://github.com/rafhael100/imagine-sites/actions/runs/44232778190/job/134561588857) e [PHP 8.4 / 134561588420](https://github.com/rafhael100/imagine-sites/actions/runs/44232778190/job/134561588420).
+
+Ambos confirmam **14 testes de recibo, 18 de material privado, 712 registry, 49 reconciliação, 386 workspace e PHPUnit 134 testes/1186 assertions/27 skips**. Os dois helpers corrigidos executaram preparação, negativo de inode e limpeza no runner real. Os seis negativos, a ordem completa de limpeza e o encerramento dos clusters descartáveis passaram.
 
 ## Base validada
 
