@@ -91,8 +91,10 @@ module.exports=async({ctx,a,o,base,dir,historyUrl,ok})=>{
  ok(filledBoundary===boundary,'100 astral codepoints fill the actual search input; codepoints='+
     Array.from(filledBoundary).length);
  const boundaryResponse=await submit();
+ ok(boundaryResponse.status()===200,
+    '100 astral Unicode codepoints receive a workspace response through the proxy; status='+boundaryResponse.status());
  const boundaryValue=await page.getByLabel('Buscar projeto',{exact:true}).inputValue();
- ok(boundaryResponse.status()===200&&boundaryValue===boundary,
+ ok(boundaryValue===boundary,
     '100 astral Unicode codepoints pass the real no-JavaScript GET form; status='+
     boundaryResponse.status()+', rendered_codepoints='+Array.from(boundaryValue).length);
  for(const encoded of ['%00','%0A','%7F','%C2%85','%E2%80%A8','%C3%28',encodeURIComponent('漢'.repeat(101))]){
@@ -112,7 +114,7 @@ module.exports=async({ctx,a,o,base,dir,historyUrl,ok})=>{
  await page.getByLabel('Descrição',{exact:true}).fill('Conteúdo inteiramente fictício para localizar projetos.');
  await page.getByLabel('Chamada do botão').fill('Conheça a proposta');
  await page.getByLabel('Benefícios').fill('Informações claras');
- await page.getByRole('button',{name:'Criar demonstração',exact:true}).click();
+ await page.getByRole('button',{name:'Criar demonstração →',exact:true}).click();
  await page.waitForURL(url=>url.pathname.startsWith('/_preview/projects/'));
  const project=new URL(page.url());
  const projectId=project.pathname.split('/').pop();
@@ -137,7 +139,7 @@ module.exports=async({ctx,a,o,base,dir,historyUrl,ok})=>{
 
  await page.goto(base+project.pathname+'?'+new URLSearchParams({status:'awaiting_review',format:'onepage',q:'órbita'}));
  await page.getByLabel('Chamada principal').fill('Título atualizado privado');
- await page.getByRole('button',{name:'Gerar nova versão privada',exact:true}).click();
+ await page.getByRole('button',{name:'Gerar nova versão privada →',exact:true}).click();
  await page.waitForURL(url=>url.pathname===project.pathname&&url.searchParams.get('q')==='órbita');
  ok(await page.locator('input[name=expected_revision]').inputValue()==='2',
     'editing from a searched result appends the current version and preserves navigation');

@@ -38,9 +38,17 @@ Não há migration, alteração de schema, owner, role, grants ou estado editori
 
 O Laravel exclui `q` de `TrimStrings`, para que bytes inválidos e controles não desapareçam antes da validação do domínio. Somente `q=null` recebe o tratamento de busca vazia; arrays e tipos inválidos são recusados. A interface não usa um maxlength baseado em UTF-16 que impediria 100 emojis válidos. Valores e mensagens são escapados pelo Blade.
 
+## Navegação e sessão
+
+O ensaio de100 emojis revelou uma resposta de navegador sem o formulário esperado. Uma reprodução local da pilha web comprovou que o middleware padrão salva a URL anterior inteira no cookie de sessão cifrado e gera cabeçalhos maiores que4KiB com essa busca. O log inicial não registrou o status retornado pelo proxy; portanto, não se atribui a ele um502 observado.
+
+`PrivatePreviewStartSession` remove o histórico `_previous` ao iniciar e salvar as requisições de `/_preview` e seus subcaminhos. Os links explícitos continuam transportando filtros/página, e o token CSRF e os demais dados da sessão permanecem. URLs antigas já armazenadas também são removidas antes do controller. As outras rotas conservam o comportamento Laravel, inclusive o resolvedor de cache usado no bloqueio de sessão.
+
+A regressão usa cookies cifrados reais entre requisições separadas, reproduz cabeçalhos maiores que4KiB em uma rota comum e exige cabeçalhos abaixo desse limite no preview, com CSRF válido aceito e token ausente/incorreto recusado. Nenhum buffer do proxy foi ampliado. Referência: [Nginx — fastcgi_buffer_size](https://nginx.org/en/docs/http/ngx_http_fastcgi_module.html#fastcgi_buffer_size).
+
 ## Verificação
 
-Validação local executada: **119 testes PHPUnit, 788 asserções, 27 skips explícitos** dos cenários que exigem banco/opt-in; suites offline de provisionamento 26, diário 99 e pacote 50; sintaxe PHP/JavaScript, YAML e whitespace.
+Validação local executada após a correção da sessão: **122 testes PHPUnit, 854 asserções, 27 skips explícitos** dos cenários que exigem banco/opt-in. A regressão de sessão tem3 testes/66 asserções dentro desse total; suites offline de provisionamento26, diário99 e pacote50, sintaxe PHP/JavaScript, YAML e whitespace foram aprovados.
 
 O workflow desta entrega é restrito ao draft, branch e SHA exato da base. Os ensaios usam apenas fixtures sintéticas e bancos descartáveis:
 
@@ -49,7 +57,7 @@ O workflow desta entrega é restrito ao draft, branch e SHA exato da base. Os en
 - Capturas desktop/mobile do campo e do resultado; verificação de overflow.
 - Regressões do workspace, orientação editorial, registry, pacote, diário e migrations Laravel.
 
-**CI SQL/HTTP desta busca pendente.** PostgreSQL local não foi iniciado. Resultados definitivos, HEAD e artefatos serão registrados na descrição da PR após a execução.
+Na HEAD `528efd1cb7cb5f4618f222fc663fbf0fbea27bea`, o [run44213463495](https://github.com/rafhael100/imagine-sites/actions/runs/44213463495) aprovou os contratos SQL em PHP8.3/8.4:33 verificações específicas de busca e356 totais do workspace. A regressão HTTP encontrou o problema de sessão descrito acima; a validação integral com a correção ainda está pendente. PostgreSQL local não foi iniciado. Resultados definitivos, HEAD e artefatos serão registrados na descrição da PR após a execução.
 
 ## Limites
 
