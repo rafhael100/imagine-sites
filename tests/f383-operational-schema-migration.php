@@ -38,6 +38,7 @@ $names=[
     'replay_nonces','editorial_revisions','site_outbox',
     'db_login_bindings','editorial_operator_bindings',
     'release_registry_principals','release_artifacts','release_binding_events',
+    'portal_project_intakes',
 ];
 $registryTables=['release_registry_principals','release_artifacts','release_binding_events'];
 $state=$db->query(
@@ -49,7 +50,7 @@ $state=$db->query(
       WHERE n.nspname='sites_core' AND c.relkind IN ('r','p','v','m','f')"
 )->fetchAll(PDO::FETCH_ASSOC);
 f383Check(count($state)===count($names),
-    'exact eleven core tables after all reversible Laravel migrations');
+    'exact twelve core tables after all reversible Laravel migrations');
 $seen=[];
 foreach ($state as $row) {
     $seen[]=$row['tablename'];
@@ -101,6 +102,19 @@ $expectedPolicies=[
     'release_registry_principals.publication_journal_registry_principals'=>$readPolicy(['sites_publication_writer']),
     'release_artifacts.publication_journal_artifacts'=>$readPolicy(['sites_publication_writer']),
     'release_binding_events.publication_journal_bindings'=>$readPolicy(['sites_publication_writer']),
+    'db_login_bindings.intake_binding_read'=>$readPolicy(['sites_core_intake_definer']),
+    'tenant_accounts.intake_tenant_read'=>$readPolicy(['sites_core_intake_definer']),
+    'contract_refs.intake_contract_read'=>$readPolicy(['sites_core_intake_definer']),
+    'site_projects.intake_project_read'=>$readPolicy(['sites_core_intake_definer']),
+    'site_outbox.intake_outbox_read'=>$readPolicy(['sites_core_intake_definer']),
+    'portal_project_intakes.intake_receipt_read'=>$readPolicy(['sites_core_intake_definer']),
+    'contract_refs.intake_contract_insert'=>$writePolicy(['sites_core_intake_definer']),
+    'site_projects.intake_project_insert'=>$writePolicy(['sites_core_intake_definer']),
+    'site_outbox.intake_outbox_insert'=>$writePolicy(['sites_core_intake_definer']),
+    'portal_project_intakes.intake_receipt_insert'=>$writePolicy(['sites_core_intake_definer']),
+    'db_login_bindings.intake_binding_lock'=>['UPDATE',['sites_core_intake_definer'],'PERMISSIVE','true','false'],
+    'tenant_accounts.intake_tenant_lock'=>['UPDATE',['sites_core_intake_definer'],'PERMISSIVE','true','false'],
+    'contract_refs.intake_contract_lock'=>['UPDATE',['sites_core_intake_definer'],'PERMISSIVE','true','false'],
 ];
 $actualPolicies=[];
 foreach ($policyRows as $policy) {
@@ -112,7 +126,7 @@ foreach ($policyRows as $policy) {
 }
 ksort($actualPolicies);ksort($expectedPolicies);
 f383Check($actualPolicies===$expectedPolicies,
-    'exact table, command, roles and predicates for all twenty-four internal policies; no PUBLIC or extra policy');
+    'exact table, command, roles and predicates for all thirty-seven internal policies; no PUBLIC or extra policy');
 
 $registryRoles=$db->query(
     "SELECT rolname,rolcanlogin,rolsuper,rolbypassrls,rolcreatedb,rolcreaterole,rolreplication,rolinherit
@@ -129,7 +143,7 @@ foreach ($registryRoles as $role) {
             $role['rolname'].' has no '.$attribute.' capability');
     }
 }
-foreach (['db_login_bindings','editorial_operator_bindings',...$registryTables] as $table) {
+foreach (['db_login_bindings','editorial_operator_bindings','portal_project_intakes',...$registryTables] as $table) {
     f383Check((int)$db->query('SELECT count(*) FROM sites_core.'.$table)->fetchColumn()===0,
         'migration seeds no principal, artifact or binding: '.$table);
 }

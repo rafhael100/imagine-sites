@@ -1,4 +1,20 @@
 # STATUS-ATUAL — Imagine Sites Engine
+## 18/11/2026 — recebimento nativo pendente do Portal (candidato em revisão)
+
+Sobre a HEAD Sites #510 `61a8d1db212d298051e6f64f8b923e545a4c6bb3`, o serviço Laravel
+`PortalProjectIntakeRecorder` grava referências, projeto, outbox bloqueado e recibo
+no schema nativo `sites_core`, com capacidade de recebimento própria default false.
+Recibo somente após commit; replay exato conserva site/operação/chave, conflitos
+são recusados e `tenantRef` é comparado à referência da organização do vínculo SQL.
+A validação local passou em PHP8.4/PostgreSQL18 com 63 verificações reais,
+18 testes/84 assertions novos e suíte completa de 186 testes/1902 assertions/27 skips.
+Down/reapply da migration preservou projetos e não restaurou capacidades; os 32
+checks de domínio e o safety guard passaram. O rollback exato do batch 1 também
+removeu `sites_core` após todos os seeds/casos nativos. Revisão independente de
+SQL/migration/serviço concluída sem bloqueadores funcionais; CI remota pendente.
+Nenhum transporte, autoridade financeira, geração, instalação ou publicação foi
+ativado; os dez gates permanecem BLOCKED. Detalhes: [contrato do recebimento](docs/PORTAL-PROJECT-INTAKE.md).
+
 
 ## 18/11/2026 — continuidade: consulta privada da associação
 
