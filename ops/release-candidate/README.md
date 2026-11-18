@@ -107,4 +107,96 @@ This command offers no artifact lookup or built-in diagnosis after a lost result
 
 ### Registration CI boundary
 
-The isolated alternative requires `GITHUB_ACTIONS=true`, `APP_ENV=testing` and `SITES_RELEASE_REGISTRATION_CI=1` together. It fixes `host=localhost`, port `55449`, database `postgres`, login `rr_a_artifact_writer` and server address `127.0.0.1`. The real database OID, CA fingerprint, file custody, plan hash and write confirmation remain mandatory. Offline CLI tests exercise help and early argument/environment refusals with the autoloader and private paths inaccessible; only the disposable PostgreSQL/TLS integration fixture can demonstrate actual registration. This candidate adds no deployment or operational authorization.
+The isolated alternative requires `GITHUB_ACTIONS=true`, `APP_ENV=testing` and `SITES_RELEASE_REGISTRATION_CI=1` together. It fixes `host=localhost`, port `55449`, database `postgres`, server address `127.0.0.1`, and login `rr_a_artifact_writer` or `rr_registration_a_artifact_writer`. The second login is the existing active synthetic author used by the combined fixture after it revokes the first author. This CI allowlist does not renew the revoked actor or establish either actor's SQL authority. Both names retain the same custody, target, TLS, current principal/epoch, plan and write-confirmation checks; staging behavior is unchanged. Offline CLI tests exercise help and early argument/environment refusals with the autoloader and private paths inaccessible; only the disposable PostgreSQL/TLS integration fixture can demonstrate actual registration. This candidate adds no deployment or operational authorization.
+
+## Explicit release binding and revocation candidate
+
+The separate `binding.php` command connects an existing immutable artifact and the current internal editorial approval through `bind_release_artifact`, or revokes a registry association through `revoke_release_binding`. It uses the existing SQL entry points and separately provisioned actors. It creates no migration, role, grant, project, artifact or editorial approval. It does not call a provider, prepare a package or establish payment, customer acceptance or publication authority.
+
+### Binding input and action-specific custody
+
+| Fixed path | Content | Used by |
+| --- | --- | --- |
+| `/run/secrets/release_binding` | Exact `SITES_RELEASE_BINDING_V1` JSON, at most 16384 bytes, based on `binding.example.json` | Both actions |
+| `/run/secrets/sites_release_binding_ca` | Reviewed PostgreSQL CA PEM, at most 65536 bytes, matching `target.caSha256` | Both actions |
+| `/run/secrets/sites_release_binding_writer` | Existing binding writer's password, 16–4096 bytes | `action=bind` only |
+| `/run/secrets/sites_release_binding_revoker` | Existing revoker's password, 16–4096 bytes | `action=revoke` only |
+
+Each execution reads exactly the manifest, CA and password selected by the manifest action. `plan` follows that same selection; it does not require or open the other password. The wrapper first reads and validates the manifest. A `bind` or `revoke` command that differs from its `action` is refused before opening either password or a PDO connection. The CA fingerprint and target constraints are also checked before reading the selected password.
+
+The common manifest keys are exactly `schema`, `target`, `action`, `siteRef` and `expectedBindingRevision`. The target contains exactly `host`, `port`, `database`, `databaseOid`, `login`, `serverAddress` and `caSha256`.
+
+| Action | Additional manifest keys | Revision inputs on 64-bit PHP |
+| --- | --- | --- |
+| `bind` | `releaseRef`, `editorialRevision` | `expectedBindingRevision`: 0 through 9223372036854775806; `editorialRevision`: 1 through 2147483647 |
+| `revoke` | None; `releaseRef` and `editorialRevision` are refused | `expectedBindingRevision`: 1 through 9223372036854775806 |
+
+All revision values are JSON integers, without coercion. A site UUID and opaque release reference are selectors, not tenant authority. Duplicate keys, extra fields and unsafe target coordinates are refused. The example intentionally contains invalid placeholders and cannot be executed unchanged. To describe revocation, use the common keys with `action=revoke`, the reviewed revoker target and a positive expected binding revision; remove both bind-only keys.
+
+This command takes no HTML input, `expectedDigest`, supplied artifact digest, output path or commercial authority claim. For bind, the existing SQL function derives the artifact digest from the stored artifact and requires it to match the current internally approved editorial revision. The binder cannot supply replacement bytes or override that relationship.
+
+Each of the three selected files must satisfy the existing private-file custody checks: canonical path, no symlinks or hard links, regular file with mode `0400` or `0600`, and root or the CLI effective user as owner. Files must be readable by that user. The command records bytes, SHA-256 and identity, then rereads those same three files after connection and planning. Any observed change in bytes, digest, inode, ownership, mode, link count, size or modification metadata is refused before the write. Access time is excluded. The command does not create, repair, rewrite or chmod inputs.
+
+### Target, read-only plan and explicit write
+
+Staging requires `APP_ENV=staging`, no GitHub Actions or binding CI opt-in, and `target.database=sites_staging`. Supply the target from separately reviewed environment inventory. The hostname must match the server certificate, and the direct endpoint's observed port, address, database OID and login must match the manifest.
+
+A fresh nonpersistent PDO connection uses the fixed CA, `sslmode=verify-full`, `gssencmode=disable`, a 5-second connection timeout, `pg_catalog`, UTF-8, read committed isolation, a 10-second statement timeout and a 3-second lock timeout. It begins read-only. The service checks PostgreSQL 18, TLS, target identity and restricted effective execution capability for the selected action. The SQL function independently checks its current principal, duty, epoch, tenant and state when invoked; a manifest login name does not replace those checks.
+
+First obtain and review the plan for the manifest action:
+
+```sh
+php /opt/imagine/ops/release-candidate/binding.php plan
+```
+
+The plan does not change SQL data, inspect a private binding head, establish a current principal duty or reserve an association. Its hash commits to the canonical manifest, including action, target, site, expected binding revision and the bind-only selectors when present. It does not claim that the project, artifact, approval or requested binding is currently available.
+
+Plan stdout is exactly one JSON line with seven fields:
+
+| Field | Value |
+| --- | --- |
+| `schema` | `SITES_RELEASE_BINDING_PLAN_V1` |
+| `status` | `planned` |
+| `planSha256` | Lowercase SHA-256 of the canonical plan input |
+| `action` | `bind` or `revoke`, from the reviewed manifest |
+| `expectedBindingRevision` | The supplied revision commitment; not a looked-up head |
+| `canPublish` | `false` |
+| `canAcceptRealOrders` | `false` |
+
+For a reviewed bind manifest:
+
+```sh
+php /opt/imagine/ops/release-candidate/binding.php bind \
+  --plan-sha256=REPLACE_WITH_REVIEWED_64_CHARACTER_LOWERCASE_PLAN_SHA256 \
+  --authorize-bind=SITES_RELEASE_BINDING_ONLY_APPROVED
+```
+
+For a separately reviewed revoke manifest:
+
+```sh
+php /opt/imagine/ops/release-candidate/binding.php revoke \
+  --plan-sha256=REPLACE_WITH_REVIEWED_64_CHARACTER_LOWERCASE_PLAN_SHA256 \
+  --authorize-revoke=SITES_RELEASE_REVOCATION_ONLY_APPROVED
+```
+
+Each write requires exactly its two options, once each, in either order. The other action's flag or approval value is refused. `plan` accepts no options, and flags belonging to artifact registration or editorial transitions do not authorize a binding write.
+
+The wrapper recalculates the plan on the new read-only connection, checks the supplied hash and rereads the selected inputs. It then disables read-only mode only in that session and invokes one `apply` call. The service revalidates the exact plan and runtime before using the existing bind or revoke API. It does not choose another revision, change credentials or retry automatically.
+
+### Results, revocation scope and inconclusive outcomes
+
+Successful bind stdout has exactly ten fields: the seven plan fields with `schema=SITES_RELEASE_BINDING_RESULT_V1` and `status=bound`, plus `bindingRevision`, `editorialRevision` and the registry-derived `artifactDigest`. Successful revoke stdout has exactly eight fields: the same seven fields with that result schema and `status=revoked`, plus `bindingRevision`. Both authority flags remain false. Site/release references, login names, paths, credentials and commercial identifiers are excluded.
+
+The result has no `created` or `replayed` field. The existing SQL revision and repetition rules determine the returned binding revision. The CLI does not infer whether a returned revision was newly appended or represented an already matching event, and a success does not authorize an unreviewed repeat.
+
+Revocation changes the registry association and makes a package tied to the old current association stale. It preserves stored artifacts, editorial history, binding history and previously exported package bytes. It does not unpublish a site at an external provider, retract customer consent or permanently prevent a later authorized bind. External publication, external rollback and future binding decisions require their own authorities and explicit actions.
+
+Failures emit only `RELEASE_BINDING_DENIED` on stderr with exit status 1 and no successful JSON result. A failure during or after SQL, including a lost response or failed postcheck, can follow a committed event. The error does not establish rollback, artifact absence, creation or replay. Do not automatically retry or increment the expected revision. Resolve the outcome through separately authorized access to current registry state before deciding on another reviewed action. This command offers no private head lookup or built-in recovery procedure.
+
+### Binding CI boundary
+
+The isolated alternative requires `GITHUB_ACTIONS=true`, `APP_ENV=testing` and `SITES_RELEASE_BINDING_CI=1` together. It fixes `host=localhost`, port `55449`, database `postgres` and server address `127.0.0.1`. A bind manifest requires the synthetic target login `rr_a_binding_writer`; a revoke manifest requires `rr_a_revoker`. The selected password mount must match the existing actor. These pins constrain the disposable fixture; the SQL function still determines current authority and state.
+
+The database OID, CA fingerprint, file custody, exact plan and explicit action-specific approval remain mandatory. The combined fixture may use the active `rr_registration_a_artifact_writer` through the real registration CLI to create its artifact, then separate editorial operators before binding. That CI-only registration allowlist does not restore the previously revoked author or relax any principal, epoch or tenant guard.
+
+Offline CLI tests cover help and early argument/environment refusals with autoload and private inputs inaccessible. Actual bind/revoke, revision conflicts, repetition, isolation and package invalidation require the separate disposable PostgreSQL/TLS fixture. This candidate adds no deployment authorization or operational acceptance.

@@ -40,7 +40,7 @@ Os helpers de pacote, inspeção e registro passam a compartilhar `tests/fixture
 
 O teste offline `tests/fixture-private-material.py` passou **18 casos** de links, hard links, modo, proprietário, material inválido e substituição de inode antes do open ou após a leitura. Trabalha apenas em `TemporaryDirectory` próprio; não cria mounts de `/run` nem inicia banco. Essa correção comum não autoriza o uso dos helpers fora do runner descartável.
 
-## Evidência e execução pendente
+## Evidência concluída da PR #499
 
 | Verificação local | Resultado |
 | --- | --- |
@@ -50,14 +50,14 @@ O teste offline `tests/fixture-private-material.py` passou **18 casos** de links
 | PHPUnit local | 134 testes / 1186 assertions / 27 skips explícitos |
 | Sintaxe PHP e revisão cruzada de serviço/wrapper | Aprovadas |
 | Exemplo JSON inelegível pelo parser real | Recusado como esperado |
-| PostgreSQL/TLS e CLI editorial reais | 68 checks novos previstos; pendentes de CI |
-| Registry integrado com a nova fixture | 600 checks previstos; pendentes de CI |
+| PostgreSQL/TLS e CLI editorial reais | 68 checks novos aprovados em PHP 8.3/8.4 |
+| Registry integrado com a nova fixture | 600 checks aprovados em PHP 8.3/8.4 |
 
 Os testes offline exercitam os parsers, o compromisso com os bytes, recusas e o isolamento do adaptador. Os testes da CLI limitam o subprocesso ao diretório do comando: help funciona sem autoload e os argumentos/ambientes recusados não podem acessar os inputs privados nem o banco. Eles não fabricam um resultado positivo de autoridade SQL.
 
-A fixture real prevê **68 verificações novas**, elevando o registry integrado de 532 para **600 verificações esperadas**. Exercita as seis ações em sete revisões explícitas, operadores separados, plano sem mutação, CAS obsoleto, isolamento por tenant, operador inativo, TLS/CA e custódia. O caminho posterior registra artefatos por outro autor, associa a aprovação por um binder separado, prepara/verifica o pacote e comprova a invalidação após `reopen`. Snapshots completos verificam que cada apply acrescenta somente a revisão esperada e preserva o restante. Essas contagens são previsão da fixture, não resultados executados.
+A fixture real executou **68 verificações novas**, elevando o registry integrado de 532 para **600 verificações aprovadas**. Exercita as seis ações em sete revisões explícitas, operadores separados, plano sem mutação, CAS obsoleto, isolamento por tenant, operador inativo, TLS/CA e custódia. O caminho posterior registra artefatos por outro autor, associa a aprovação por um binder separado, prepara/verifica o pacote e comprova a invalidação após `reopen`. Snapshots completos verificam que cada apply acrescenta somente a revisão esperada e preserva o restante. Os dois jobs confirmaram essas contagens, os quatro negativos de recibo antes de qualquer remoção e a limpeza editorial → registration → inspection → package, com encerramento dos clusters descartáveis.
 
-O workflow `.github/workflows/sites-editorial-transition.yml` fixa repositório, draft, branch e SHA da base. Executa PHP 8.3/8.4, os ensaios offline, PHPUnit e os contratos PostgreSQL descartáveis. Conserva os opt-ins do registry, diário, inspeção e registro, acrescentando `SITES_EDITORIAL_TRANSITION_CI=1`. Não adiciona jornada HTTP a esta entrega de CLI. **A execução CI da PR #499 permanece pendente; não há contagem SQL editorial aprovada nem SHA de execução dessa entrega.**
+O workflow `.github/workflows/sites-editorial-transition.yml` fixa repositório, draft, branch e SHA da base. Executa PHP 8.3/8.4, os ensaios offline, PHPUnit e os contratos PostgreSQL descartáveis. Conserva os opt-ins do registry, diário, inspeção e registro, acrescentando `SITES_EDITORIAL_TRANSITION_CI=1`. Não adiciona jornada HTTP a esta entrega de CLI. **HEAD validada: `9789cd050e1d4b88b9c469149cb796985ed615a2`; 18/18 check-runs SUCCESS na conferência final.** O [run 44227302252](https://github.com/rafhael100/imagine-sites/actions/runs/44227302252) passou nos jobs [PHP 8.3 / 134543515207](https://github.com/rafhael100/imagine-sites/actions/runs/44227302252/job/134543515207) e [PHP 8.4 / 134543515677](https://github.com/rafhael100/imagine-sites/actions/runs/44227302252/job/134543515677). Ambos confirmam 307 verificações offline do serviço, 76 da CLI, 18 testes de custódia, 68 SQL/CLI editoriais, 600 registry, 54 registro, 76 inspeção, 386 workspace e PHPUnit 134 testes/1186 assertions/27 skips. O ensaio sintético com containers também passou. Nenhuma interface visual mudou nesta entrega.
 
 ### Base validada
 
