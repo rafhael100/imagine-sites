@@ -1,5 +1,7 @@
 module.exports=async({ctx,a,o,base,dir,historyUrl,ok})=>{
  const context=await ctx('author',{javaScriptEnabled:false});
+ context.setDefaultTimeout(20000);
+ context.setDefaultNavigationTimeout(20000);
  const page=await context.newPage();
  const queue=base+'/_preview';
  const rows=()=>page.locator('[data-project]');
@@ -15,10 +17,26 @@ module.exports=async({ctx,a,o,base,dir,historyUrl,ok})=>{
      Object.entries(expected).every(([key,value])=>url.searchParams.get(key)===value);
    const response=page.waitForResponse(r=>r.request().isNavigationRequest()&&
      r.request().method()==='GET'&&matches(new URL(r.url())));
-   await Promise.all([
-     page.waitForURL(matches,{waitUntil:'load'}),
-     page.getByRole('button',{name:'Aplicar filtros',exact:true}).click(),
-   ]);
+   try {
+     await Promise.all([
+       response,
+       page.waitForURL(matches,{waitUntil:'load',timeout:20000}),
+       page.getByRole('button',{name:'Aplicar filtros',exact:true}).click(),
+     ]);
+   } catch(error) {
+     const actual=new URL(page.url());
+     const rendered=await page.getByLabel('Buscar projeto',{exact:true}).inputValue({timeout:1000}).catch(()=>null);
+     console.error('SEARCH_SUBMIT_DIAGNOSTIC '+JSON.stringify({
+       expectedCodepoints:Array.from(expected.q).length,
+       queryCodepoints:Array.from(actual.searchParams.get('q')||'').length,
+       renderedCodepoints:rendered===null?null:Array.from(rendered).length,
+       queryMatches:actual.searchParams.get('q')===expected.q,
+       renderedMatches:rendered===expected.q,
+       statusMatches:actual.searchParams.get('status')===expected.status,
+       formatMatches:actual.searchParams.get('format')===expected.format,
+     }));
+     throw error;
+   }
    return response;
  };
  await page.goto(queue);
@@ -69,6 +87,9 @@ module.exports=async({ctx,a,o,base,dir,historyUrl,ok})=>{
     'zero-result search is visible and markup remains escaped in the field and message');
  const boundary='😀'.repeat(100);
  await page.getByLabel('Buscar projeto',{exact:true}).fill(boundary);
+ const filledBoundary=await page.getByLabel('Buscar projeto',{exact:true}).inputValue();
+ ok(filledBoundary===boundary,'100 astral codepoints fill the actual search input; codepoints='+
+    Array.from(filledBoundary).length);
  const boundaryResponse=await submit();
  const boundaryValue=await page.getByLabel('Buscar projeto',{exact:true}).inputValue();
  ok(boundaryResponse.status()===200&&boundaryValue===boundary,
