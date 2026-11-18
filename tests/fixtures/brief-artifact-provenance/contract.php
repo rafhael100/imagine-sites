@@ -143,7 +143,14 @@ function bapCatalog(PDO $db): array
             WHERE n.nspname IN ('sites_core','sites_publication') ORDER BY k.oid",
     ];
     $result = [];
-    foreach ($queries as $name => $query) $result[$name] = $db->query($query)->fetchAll(PDO::FETCH_ASSOC);
+    // PDO_PGSQL exposes bytea (including pg_trigger.tgargs) as a fresh stream
+    // resource on each fetch. Compare every catalog value in SQL-serialized
+    // rows instead of comparing PHP resource identities. No field is omitted.
+    // https://www.php.net/manual/en/ref.pdo-pgsql.php
+    foreach ($queries as $name => $query) $result[$name] = $db->query(
+        "SELECT coalesce(jsonb_agg(to_jsonb(catalog_row) ORDER BY to_jsonb(catalog_row)::text),'[]'::jsonb)::text FROM (".
+        $query.') catalog_row',
+    )->fetchColumn();
     return $result;
 }
 
@@ -871,7 +878,10 @@ if (!isset($admin, $connection, $connect, $password, $caFile, $ok)) {
                     AND k.conname<>'brief_snapshots_provenance_identity' ORDER BY k.oid",
             ];
             $result = [];
-            foreach ($queries as $name => $query) $result[$name] = $bapAdmin->query($query)->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($queries as $name => $query) $result[$name] = $bapAdmin->query(
+                "SELECT coalesce(jsonb_agg(to_jsonb(catalog_row) ORDER BY to_jsonb(catalog_row)::text),'[]'::jsonb)::text FROM (".
+                $query.') catalog_row',
+            )->fetchColumn();
             return $result;
         };
         $bapStage = 'ordered migration 14 rollback and reapplication';
