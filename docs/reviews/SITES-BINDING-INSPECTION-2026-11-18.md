@@ -44,20 +44,24 @@ Uma observação pode ajudar a comparar o histórico com os dados de um plano co
 
 O número retornado não constitui uma reserva de CAS. Não há retry, incremento de revisão, reconciliação, bind ou revoke automático. Outra decisão exige entradas revisadas e as conferências correntes da API de escrita correspondente. O último evento `bound` também não comprova pagamento, aceite expresso, elegibilidade de publicação ou publicação externa.
 
-## Verificação executada e pendente
+## Verificação executada
 
 O serviço passou em **172 assertions offline** de formato, ambiguidade JSON, pins e recusas de sessão/conexão. A CLI passou em **49 checks offline** de ajuda, argumentos e ambiente, com autoloader e mounts indisponíveis. Esses testes não fabricam uma consulta SQL positiva. A suíte completa da aplicação passou em **168 testes, 1818 assertions e 27 skips explícitos**, com `--do-not-cache-result`. Lint dos arquivos PHP, sintaxe YAML/shell do workflow, matriz PHP 8.3/8.4, pins de draft/base/head e dez opt-ins passaram.
 
 As revisões independentes do serviço, testes, CLI, exemplo e manual não identificaram bloqueadores. SQL e migration foram lidos separadamente e seus hashes conferidos: contrato `c5a62ac65d4dcad98a6ef68f7c87b80f424cd0427cd262d52cdf374789bf02a1`, corpo da função `4e3c9069a99223296b0fe95311fe8e5e27bcfd2ef900fb2afae80144b15a6a04`.
 
-A fixture PostgreSQL/CLI está implementada e revisada independentemente como décimo opt-in da cadeia descartável, com **55 verificações novas/905 registry previstas**, preservando as 850 anteriores. O workspace mantém suas 404 verificações. A fixture cria dois leitores separados e um binder sintético próprio; usa as APIs reais para artefatos, revisão editorial, associação e revogação. A resposta da escrita é descartada antes da inspeção, sem inferir atribuição da chamada.
+A fixture PostgreSQL/CLI está implementada e revisada independentemente como décimo opt-in da cadeia descartável, com **55 verificações novas/905 registry confirmadas em CI**, preservando as 850 anteriores. O workspace mantém suas 404 verificações. A fixture cria dois leitores separados e um binder sintético próprio; usa as APIs reais para artefatos, revisão editorial, associação e revogação. A resposta da escrita é descartada antes da inspeção, sem inferir atribuição da chamada.
 
 Os casos cobrem projeto próprio vazio, último bound e revoked, evento preservado após inativação do binder e reabertura editorial, leitor da outra empresa com resultado positivo próprio, desconhecido/empresa diferente e tentativa de tenant via sessão. O ator histórico desativado é o binder novo, não o autor do artefato. Alterações intencionais de ativação/prazo do leitor avançam seu epoch; os snapshots de cada leitura são tomados depois dessas alterações e devem permanecer iguais. A revogação definitiva do leitor fica por último, sem restauração.
 
-Também são conferidos grants extras, coluna privada, grant option, membership, FORCE RLS, política, sessão, OID, TLS real, CA não confiável e custódia dos três inputs. Up/down/reapply preservam linhas, funções antigas, OIDs, ACLs, roles, políticas e triggers; grants de leitores não voltam implicitamente. O helper novo reserva três paths próprios, testa recusa por inode divergente e participa da limpeza antes do auxiliar editorial. PHP lint, AST Python, Bash e revisão cruzada passaram. **Os 55/905 e a CLI conectada ainda aguardam CI; nenhuma execução PostgreSQL local foi feita.**
+Também são conferidos grants extras, coluna privada, grant option, membership, FORCE RLS, política, sessão, OID, TLS real, CA não confiável e custódia dos três inputs. Up/down/reapply preservam linhas, funções antigas, OIDs, ACLs, roles, políticas e triggers; grants de leitores não voltam implicitamente. O helper novo reserva três paths próprios, testa recusa por inode divergente e participa da limpeza antes do auxiliar editorial. PHP lint, AST Python, Bash e revisão cruzada passaram. **O [run 44296336981](https://github.com/rafhael100/imagine-sites/actions/runs/44296336981) confirmou 55/905 registry, 404 workspace e a CLI conectada em PostgreSQL 18 com PHP 8.3 e 8.4.** Ambos os logs confirmam o encerramento dos clusters e a limpeza dos arquivos próprios; a execução PostgreSQL ocorreu no laboratório CI, sem instalação local.
 
 ## Fronteiras
 
 O workspace demonstrativo, o fluxo comercial do Portal, os escritores existentes e as autoridades de publicação conservam seus contratos. A entrega não fornece um corpo oficial de briefing nem substitui o aceite do cliente. O [acompanhamento da integração](SITES-NEXT-INTEGRATION-2026-11-18.md) distingue o novo marcador sintético do Portal do insumo versionado ainda necessário.
 
 O desenvolvimento permanece em draft. Não houve instalação em staging, uso de dados reais ou alteração de infraestrutura. Os dez gates operacionais continuam BLOCKED.
+
+## Evidência final da PR #510
+
+HEAD `61a8d1db212d298051e6f64f8b923e545a4c6bb3`, com **14/14 check-runs SUCCESS**. O [run de migrações 44296337182](https://github.com/rafhael100/imagine-sites/actions/runs/44296337182) também passou em PHP 8.3/8.4: esquema operacional, leitura isolada por role/empresa, escrita editorial e rollback em banco descartável vazio. A [PR #510](https://github.com/rafhael100/imagine-sites/pull/510) permanece draft. Os resultados verificam o candidato e não constituem aprovação operacional.

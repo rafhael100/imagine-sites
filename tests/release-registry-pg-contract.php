@@ -5,6 +5,14 @@ declare(strict_types=1);
 // verifier together. It never installs a provider, admits a client or publishes.
 if (PHP_SAPI!=='cli' || getenv('GITHUB_ACTIONS')!=='true' ||
     getenv('SITES_RELEASE_REGISTRY_CI')!=='1') exit(2);
+if (getenv('SITES_REGISTRY_INTAKE_PERMISSIONS_CI') === '1') {
+    foreach (['SITES_PUBLICATION_JOURNAL_CI', 'SITES_PUBLICATION_INSPECTION_CI',
+        'SITES_RELEASE_REGISTRATION_CI', 'SITES_EDITORIAL_TRANSITION_CI', 'SITES_RELEASE_BINDING_CI',
+        'SITES_PUBLICATION_RECONCILIATION_CI', 'SITES_PUBLICATION_REQUEST_CI',
+        'SITES_EDITORIAL_INSPECTION_CI', 'SITES_RELEASE_BINDING_INSPECTION_CI'] as $requiredRegistryIntakeFlag) {
+        if (getenv($requiredRegistryIntakeFlag) !== '1') exit(2);
+    }
+}
 require __DIR__.'/../apps/sites/vendor/autoload.php';
 $app=require __DIR__.'/../apps/sites/bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
@@ -116,6 +124,12 @@ $connection->transaction(static function():void {
         '2026_11_17_000005_add_release_registry',
         '2026_11_17_000006_allow_editorial_reopen'] as $name) {
         (require __DIR__.'/../apps/sites/database/migrations/'.$name.'.php')->up();
+    }
+    if (getenv('SITES_REGISTRY_INTAKE_PERMISSIONS_CI') === '1') {
+        foreach (['2026_11_18_000011_add_portal_project_intake',
+            '2026_11_18_000012_expand_release_registry_permission_guard'] as $name) {
+            (require __DIR__.'/../apps/sites/database/migrations/'.$name.'.php')->up();
+        }
     }
 });
 
@@ -442,6 +456,9 @@ if (getenv('SITES_EDITORIAL_INSPECTION_CI') === '1') {
 }
 if (getenv('SITES_RELEASE_BINDING_INSPECTION_CI') === '1') {
     require __DIR__.'/fixtures/release-binding-inspection/contract.php';
+}
+if (getenv('SITES_REGISTRY_INTAKE_PERMISSIONS_CI') === '1') {
+    require __DIR__.'/fixtures/registry-intake-permissions/contract.php';
 }
 
 $ok((int)$admin->query('SELECT count(*) FROM sites_core.site_projects WHERE authority_verified OR publishable')->fetchColumn()===0,'no project authority or publication flag was enabled');

@@ -3,6 +3,13 @@ set -euo pipefail
 # Own disposable CI cluster only. Never attach to an existing service or target.
 test "${GITHUB_ACTIONS:-}" = true
 test "${SITES_RELEASE_REGISTRY_CI:-}" = 1
+if [[ "${SITES_REGISTRY_INTAKE_PERMISSIONS_CI:-}" == 1 ]]; then
+  for flag in SITES_PUBLICATION_JOURNAL_CI SITES_PUBLICATION_INSPECTION_CI SITES_RELEASE_REGISTRATION_CI \
+    SITES_EDITORIAL_TRANSITION_CI SITES_RELEASE_BINDING_CI SITES_PUBLICATION_RECONCILIATION_CI \
+    SITES_PUBLICATION_REQUEST_CI SITES_EDITORIAL_INSPECTION_CI SITES_RELEASE_BINDING_INSPECTION_CI; do
+    test "${!flag:-}" = 1
+  done
+fi
 : "${PG_BIN:?Existing authenticated PostgreSQL18 tooling required}"
 : "${PHP_BIN:?PHP with the locked application dependencies required}"
 repo=$(cd "$(dirname "$0")/.." && pwd)
@@ -246,4 +253,7 @@ if [[ "${SITES_EDITORIAL_INSPECTION_CI:-}" == 1 ]]; then
 fi
 if [[ "${SITES_RELEASE_BINDING_INSPECTION_CI:-}" == 1 ]]; then
   grep -q '^RELEASE BINDING INSPECTION CI PASS: [1-9][0-9]* assertions;' "$lab/contract.log"
+fi
+if [[ "${SITES_REGISTRY_INTAKE_PERMISSIONS_CI:-}" == 1 ]]; then
+  grep -q '^REGISTRY INTAKE PERMISSIONS CI PASS: [1-9][0-9]* assertions; 905 existing assertions retained[.]' "$lab/contract.log"
 fi
