@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Preview\PreviewNavigation;
+use App\Preview\PreviewBriefInput;
 use Imagine\Sites\Production\PreviewQueueQuery;
 use Tests\TestCase;
 
@@ -60,6 +61,57 @@ final class PrivatePreviewWorkspaceViewTest extends TestCase
         self::assertStringContainsString('Registrar revisão editorial', $html);
         self::assertStringNotContainsString('name="brand"', $html);
         self::assertStringNotContainsString('Gerar nova versão privada', $html);
+    }
+
+    public function test_briefing_form_explains_codepoint_limits_without_utf16_truncation(): void
+    {
+        $data = $this->page();
+        foreach (['brand' => 120, 'headline' => 180, 'description' => 600, 'call_to_action' => 80] as $field => $limit) {
+            $data['form'][$field] = str_repeat('😀', $limit);
+        }
+        $data['form']['benefits'] = implode("\n", array_fill(0, 8, str_repeat('😀', 180)));
+        $html = view('preview.workspace', $data)->render();
+        $xpath = $this->xpath($html);
+
+        foreach (['brand' => 120, 'headline' => 180, 'description' => 600, 'call_to_action' => 80, 'benefits' => 1500] as $field => $limit) {
+            $input = '//*[@id="'.$field.'"]';
+            self::assertSame(1, $xpath->query($input.'/@required')->length);
+            self::assertSame(0, $xpath->query($input.'/@maxlength')->length);
+            self::assertSame('help-'.$field, $xpath->evaluate('string('.$input.'/@aria-describedby)'));
+            self::assertStringContainsString((string) $limit, $xpath->evaluate('string(//*[@id="help-'.$field.'"])'));
+            $value = in_array($field, ['description', 'benefits'], true) ? $input : $input.'/@value';
+            self::assertSame($data['form'][$field], $xpath->evaluate('string('.$value.')'));
+        }
+        self::assertStringContainsString('Até 180 caracteres por benefício e 1500 no campo.', $html);
+        self::assertStringContainsString('Os limites são conferidos ao enviar.', $html);
+    }
+
+    public function test_failed_briefing_keeps_valid_text_current_revision_and_navigation_context(): void
+    {
+        $data = $this->page();
+        $data['project'] = '11111111-1111-4111-8111-111111111111';
+        $data['currentRevision'] = 7;
+        $data['navigation'] = PreviewNavigation::fromQuery(['status' => 'changes_requested', 'q' => 'Marca 😀'], true);
+        $data['form'] = PreviewBriefInput::preserve([
+            'product' => 'onepage', 'brand' => "Marca\0oculta", 'headline' => str_repeat('😀', 181),
+            'description' => '<strong>Texto preservado</strong>', 'call_to_action' => 'Conheça',
+            'benefits' => "Primeiro\nSegundo", 'expected_revision' => '2', 'company' => 'untrusted',
+        ]);
+        $data['fieldErrors'] = ['brand' => ['Digite novamente este campo.'], 'headline' => ['Use até 180 caracteres.']];
+        $html = view('preview.workspace', $data)->render();
+        $xpath = $this->xpath($html);
+
+        self::assertSame('', $xpath->evaluate('string(//input[@name="brand"]/@value)'));
+        self::assertSame($data['form']['headline'], $xpath->evaluate('string(//input[@name="headline"]/@value)'));
+        self::assertSame($data['form']['description'], $xpath->evaluate('string(//textarea[@name="description"])'));
+        self::assertSame($data['form']['benefits'], $xpath->evaluate('string(//textarea[@name="benefits"])'));
+        self::assertSame('7', $xpath->evaluate('string(//input[@name="expected_revision"]/@value)'));
+        self::assertSame('help-brand error-brand', $xpath->evaluate('string(//input[@name="brand"]/@aria-describedby)'));
+        self::assertSame('true', $xpath->evaluate('string(//input[@name="brand"]/@aria-invalid)'));
+        self::assertSame($data['navigation']->projectUrl($data['project']), $xpath->evaluate('string(//form[@method="post"]/@action)'));
+        self::assertSame(0, $xpath->query('//input[@name="company"]|//form[@method="post"]//input[@name="q"]')->length);
+        self::assertStringNotContainsString("\0", $html);
+        self::assertStringContainsString('&lt;strong&gt;Texto preservado&lt;/strong&gt;', $html);
     }
 
     public function test_validation_errors_render_all_groups_and_escape_preserved_briefing(): void

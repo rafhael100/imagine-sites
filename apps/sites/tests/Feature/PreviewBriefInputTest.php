@@ -96,6 +96,61 @@ final class PreviewBriefInputTest extends TestCase
         }
     }
 
+    public function test_each_field_accepts_unicode_at_its_limit_and_reports_one_extra_codepoint(): void
+    {
+        foreach (['á', '😀', "e\u{0301}"] as $unit) {
+            foreach (['brand' => 120, 'headline' => 180, 'description' => 600, 'call_to_action' => 80, 'benefits' => 180] as $field => $limit) {
+                $input = array_replace($this->form(), [$field => str_repeat($unit, intdiv($limit, mb_strlen($unit, 'UTF-8')))]);
+                $brief = PreviewBriefInput::parse($input);
+                $property = $field === 'call_to_action' ? 'callToAction' : $field;
+                self::assertSame($input[$field], $field === 'benefits' ? $brief->benefits[0] : $brief->{$property});
+                $input[$field] .= 'x';
+                $this->assertInvalidField($input, $field);
+                self::assertSame($input, PreviewBriefInput::preserve($input));
+            }
+        }
+    }
+
+    public function test_nul_and_invalid_utf8_have_field_errors_before_benefit_line_trimming(): void
+    {
+        foreach (["\0Texto", "Tex\0to", "Texto\0", "\0", "Texto\xFF"] as $invalid) {
+            foreach (['brand', 'headline', 'description', 'call_to_action', 'benefits'] as $field) {
+                $input = array_replace($this->form(), [$field => $invalid]);
+                $errors = $this->assertInvalidField($input, $field);
+                self::assertContains('Este texto contém caracteres inválidos. Digite novamente este campo.', $errors[$field]);
+                self::assertSame(array_replace($input, [$field => '']), PreviewBriefInput::preserve($input));
+            }
+        }
+        foreach (["Primeiro\n\0Segundo", "Primeiro\0\r\nSegundo", "Primeiro\r\n\0\r\nSegundo"] as $benefits) {
+            $this->assertInvalidField(array_replace($this->form(), ['benefits' => $benefits]), 'benefits');
+        }
+    }
+
+    public function test_preservation_is_bounded_keeps_long_valid_text_and_excludes_authority_and_revision(): void
+    {
+        $input = array_replace($this->form(), ['description' => str_repeat('a', 20000), 'brand' => "\n  Marca á 😀  \n"]);
+        $input += ['expected_revision' => '7', 'company' => 'untrusted', '_token' => 'PRIVATE-TEST-CSRF', 'q' => 'not briefing'];
+        $preserved = PreviewBriefInput::preserve($input);
+        self::assertSame(20000, strlen($preserved['description']));
+        self::assertSame($input['brand'], $preserved['brand']);
+        self::assertSame(array_keys($this->form()), array_keys($preserved));
+        self::assertSame([], PreviewBriefInput::preserve([]));
+        foreach ([['nested' => 'text'], false, 123, str_repeat('a', PreviewBriefInput::MAX_FORM_BYTES + 1)] as $invalid) {
+            self::assertSame('', PreviewBriefInput::preserve(['brand' => $invalid])['brand']);
+        }
+    }
+
+    private function assertInvalidField(array $input, string $field): array
+    {
+        try {
+            PreviewBriefInput::parse($input);
+            self::fail('Invalid briefing accepted');
+        } catch (ValidationException $error) {
+            self::assertArrayHasKey($field, $error->errors());
+            return $error->errors();
+        }
+    }
+
     private function assertValidationFails(array $input): void
     {
         try {

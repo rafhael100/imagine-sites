@@ -53,6 +53,7 @@ O Portal controla contratos, aceite expresso e evento oficial `ENTREGUE`; Sites 
 - [Preparação e verificação de pacotes](ops/release-candidate/README.md)
 - [Diário técnico de publicação](contracts/publication-journal/README.md)
 - [Orientação editorial por versão](docs/reviews/SITES-EDITORIAL-FEEDBACK-2026-11-18.md)
+- [Briefing Unicode e validação por campo](docs/reviews/SITES-BRIEF-UNICODE-VALIDATION-2026-11-18.md)
 - [Busca na fila editorial](docs/reviews/SITES-QUEUE-SEARCH-2026-11-18.md)
 - [Regras do repositório](AGENTS.md)
 

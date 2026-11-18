@@ -1,10 +1,16 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 18/11/2026 — continuidade: limites Unicode e briefing inválido
+
+Branch `feature/sites-brief-unicode-validation-2026-11-18`, sobre a PR #494. Os cinco campos deixam de bloquear emojis válidos pela contagem UTF-16 do navegador e exibem limites e erros acessíveis. Domínio e parser recusam NUL antes do banco; o middleware não o remove silenciosamente nas extremidades. Respostas422 preservam os demais campos e texto válido acima do limite, limpando somente o campo malformado com orientação para redigitar.
+
+Suíte local integrada: **134 testes/1186 assertions/27 skips explícitos**, com regressões de busca, notas e sessão. Fixture SQL com14 checks novos e jornada de navegador sem JavaScript preparadas. **CI desta entrega pendente**. Nenhuma migration ou autoridade nova; detalhes no [relatório de briefing](docs/reviews/SITES-BRIEF-UNICODE-VALIDATION-2026-11-18.md).
+
 ## 18/11/2026 — continuidade: atualização explícita do preview gerenciado V1
 
 Branch `feature/sites-preview-managed-upgrade-2026-11-18`, na sequência da PR #493. O candidato ganha `upgrade-plan`, `upgrade-apply` e `upgrade-check`, com manifesto próprio, origem V1 exata e autorização de CLI distinta. Somente a migration000008 é aplicada sob o owner existente. A linha004 conserva ID/batch;008 entra em batch posterior, com origem registrada e verificada no marcador V2. DDL, ledger, marcador e postcheck são atômicos; não há renovação de bindings, reparo de permissões ou downgrade automático.
 
-Instalação nova continua com seu fluxo e batch conjunto. A fixture parte do provisionador V1 original pinado, em processo separado, com PostgreSQL/TLS descartável e histórico fictício populado. **PR #494, HEAD79863ad89f5701e0122f320f0437598b90f9193d: upgrade real aprovado com9 checks de seed e76 de contrato**, incluindo falhas transacionais e concorrência da CLI, no [run44215333265](https://github.com/rafhael100/imagine-sites/actions/runs/44215333265). Regressões SQL em PHP8.3/8.4 aprovadas; correção de sessão validada na PR #493 incorporada, aguardando a nova regressão conjunta do navegador. Nenhum V1 no VPS foi confirmado ou atualizado. Detalhes: [relatório de upgrade gerenciado](docs/reviews/SITES-PREVIEW-MANAGED-UPGRADE-2026-11-18.md).
+Instalação nova continua com seu fluxo e batch conjunto. A fixture parte do provisionador V1 original pinado, em processo separado, com PostgreSQL/TLS descartável e histórico fictício populado. **PR #494, HEAD79863ad89f5701e0122f320f0437598b90f9193d: upgrade real aprovado com9 checks de seed e76 de contrato**, incluindo falhas transacionais e concorrência da CLI, no [run44215333265](https://github.com/rafhael100/imagine-sites/actions/runs/44215333265). **Validação final em c85657477c50aa1ba66b4fc2ef0af134c5c25686:14/14 check-runs SUCCESS**. [Run44217150101](https://github.com/rafhael100/imagine-sites/actions/runs/44217150101): upgrade9+76, workspace356 e registry402, navegador139; PHP8.3/8.4 e PHPUnit122/854/27 skips explícitos. Correção de sessão da PR #493 incorporada. Nenhum V1 no VPS foi confirmado ou atualizado. Detalhes: [relatório de upgrade gerenciado](docs/reviews/SITES-PREVIEW-MANAGED-UPGRADE-2026-11-18.md).
 
 ## 18/11/2026 — continuidade: busca por marca ou chamada principal na fila
 

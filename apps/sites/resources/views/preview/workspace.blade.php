@@ -58,14 +58,16 @@
 @if($project)<p class="muted">O formato é definido na criação do projeto.</p>@endif
 @foreach(['brand'=>['Marca fictícia',120], 'headline'=>['Chamada principal',180], 'description'=>['Descrição',600], 'call_to_action'=>['Chamada do botão',80], 'benefits'=>['Benefícios (um por linha, até oito)',1500]] as $field => [$label,$max])
 <label for="{{ $field }}">{{ $label }}</label>
+{{-- Native maxlength counts UTF-16 units, while briefing limits count Unicode code points. --}}
 @if(in_array($field,['description','benefits'],true))
-<textarea id="{{ $field }}" name="{{ $field }}" required maxlength="{{ $max }}" @if(isset($fieldErrors[$field]))aria-invalid="true" aria-describedby="error-{{ $field }}"@endif>{{ $form[$field] }}</textarea>
+<textarea id="{{ $field }}" name="{{ $field }}" required aria-describedby="help-{{ $field }}@if(isset($fieldErrors[$field])) error-{{ $field }}@endif" @if(isset($fieldErrors[$field]))aria-invalid="true"@endif>{{ $form[$field] }}</textarea>
 @else
-<input id="{{ $field }}" name="{{ $field }}" required maxlength="{{ $max }}" value="{{ $form[$field] }}" @if(isset($fieldErrors[$field]))aria-invalid="true" aria-describedby="error-{{ $field }}"@endif>
+<input id="{{ $field }}" name="{{ $field }}" required value="{{ $form[$field] }}" aria-describedby="help-{{ $field }}@if(isset($fieldErrors[$field])) error-{{ $field }}@endif" @if(isset($fieldErrors[$field]))aria-invalid="true"@endif>
 @endif
+<p class="muted" id="help-{{ $field }}">@if($field==='benefits')Até 180 caracteres por benefício e {{ $max }} no campo.@else Até {{ $max }} caracteres.@endif</p>
 @if(isset($fieldErrors[$field]))<p class="field-error" id="error-{{ $field }}">{{ $fieldErrors[$field][0] }}</p>@endif
 @endforeach
-<p class="muted">Cada benefício aceita até 180 caracteres. Acentos contam como uma letra.</p>
+<p class="muted">Os limites são conferidos ao enviar. Emojis simples contam como um caractere; acentos combinados e emojis compostos podem contar como mais de um.</p>
 <button type="submit">{{ $project ? 'Gerar nova versão privada →' : 'Criar demonstração →' }}</button>
 </form>
 @elseif($project)

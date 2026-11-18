@@ -144,9 +144,9 @@ final class PrivatePreviewController
             'call_to_action' => $brief['callToAction'] ?? '', 'benefits' => implode("\n", $brief['benefits'] ?? []),
         ];
         // Preserve failed input only in this no-store response, never in the cookie session.
-        foreach ($form as $key => $value) {
-            if (is_string($submitted[$key] ?? null) && strlen($submitted[$key]) <= 16384 && !($key === 'product' && $data['project'] !== null)) {
-                $form[$key] = $submitted[$key];
+        foreach (PreviewBriefInput::preserve($submitted) as $key => $value) {
+            if (!($key === 'product' && $data['project'] !== null)) {
+                $form[$key] = $value;
             }
         }
         if ($reviewSubmission !== null) {
