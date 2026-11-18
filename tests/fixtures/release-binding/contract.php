@@ -232,8 +232,6 @@ try {
         'missing explicit bind authorization');
     $bindingCliDeny($bindingCliBindInput,['bind','--plan-sha256='.$bindingCliInitialPlan['planSha256'],
         '--authorize-revoke=SITES_RELEASE_REVOCATION_ONLY_APPROVED'],'revocation authorization cannot authorize bind');
-    $bindingCliDeny($bindingCliBindInput,$bindingCliArguments('revoke',$bindingCliInitialPlan['planSha256']),
-        'write command cannot change the manifest action');
     $bindingCliDeny($bindingCliBindInput,$bindingCliArguments('bind',str_repeat('0',64)),'different reviewed plan hash');
     $badOid = $bindingCliBindInput; ++$badOid['target']['databaseOid'];
     $bindingCliDeny($badOid,['plan'],'different physical database OID');
@@ -241,7 +239,7 @@ try {
     $bindingCliDeny($externalDigest,['plan'],'external artifact digest is not a binding selector');
     foreach ([$bindingCliManifestPath,$bindingCliCaPath,$bindingCliWriterPath] as $path) {
         $bindingCliMount($bindingCliBindInput); chmod($path,0644);
-        try { $bindingCliDenyRun($bindingCliBindArguments,'world-readable selected input'); }
+        try { $bindingCliDenyRun(['plan'],'world-readable selected input'); }
         finally { chmod($path,$path === $bindingCliManifestPath ? 0600 : 0400); }
     }
     // /run/secrets belongs to root and is not writable by the fixture actor.
@@ -262,7 +260,7 @@ try {
     $bindingCliMount($bindingCliBindInput);
     if (!link($bindingCliWriterPath,$bindingCliHardlink)) throw new RuntimeException('Private hardlink fixture unavailable');
     try {
-        $bindingCliDenyRun($bindingCliBindArguments,'hard-linked selected credential');
+        $bindingCliDenyRun(['plan'],'hard-linked selected credential');
     } finally {
         clearstatcache(true,$bindingCliHardlink); $linked = lstat($bindingCliHardlink);
         if (!is_array($linked) || is_link($bindingCliHardlink) ||
@@ -279,7 +277,7 @@ try {
         $bindingCliDeny($wrongCaInput,['plan'],'matching CA hash with untrusted server certificate');
     } finally { $bindingCliWritePrivate($bindingCliCaPath,$bindingCliCaBytes,0400); }
     $admin->exec('GRANT EXECUTE ON FUNCTION sites_core.revoke_release_binding(uuid,bigint) TO rr_a_binding_writer');
-    try { $bindingCliDeny($bindingCliBindInput,$bindingCliBindArguments,'binder cannot hold both mutation capabilities'); }
+    try { $bindingCliDeny($bindingCliBindInput,['plan'],'binder cannot hold both mutation capabilities'); }
     finally { $admin->exec('REVOKE EXECUTE ON FUNCTION sites_core.revoke_release_binding(uuid,bigint) FROM rr_a_binding_writer'); }
     $bindingCliReadDb = $connect('rr_a_binding_writer');
     $bindingCliReadDb->exec("SET search_path=pg_catalog; SET client_encoding='UTF8'; SET default_transaction_read_only=on");
@@ -345,6 +343,10 @@ try {
         $bindingCliDenyCurrent($wrongReview,'binding requires the exact currently approved editorial revision');
         $futureCas = $bindingCliBindInput; $futureCas['expectedBindingRevision'] = 1;
         $bindingCliDenyCurrent($futureCas,'future binding CAS cannot invent a previous association');
+        // Artifact and review now exist, so an incorrect command cannot be
+        // hidden by an unrelated missing-artifact refusal.
+        $bindingCliDeny($bindingCliBindInput,$bindingCliArguments('revoke',$bindingCliInitialPlan['planSha256']),
+            'write command cannot change the manifest action');
         // The nonselected credential intentionally violates custody. Successful
         // plan and bind prove it is not opened as a fourth active input.
         chmod($bindingCliRevokerPath,0644);
