@@ -1,10 +1,20 @@
 #!/usr/bin/env python3
 """Reserve exact CLI paths in a disposable GitHub runner; never reuse a path."""
+import importlib.util
 import json
 import os
 import pathlib
 import stat
 import sys
+
+# Fixed repository module; no material is read during import.
+sys.dont_write_bytecode = True
+_material_spec = importlib.util.spec_from_file_location(
+    'sites_fixture_private_material',
+    pathlib.Path(__file__).resolve().parent.parent / 'release-registry' / 'private_material.py',
+)
+_material = importlib.util.module_from_spec(_material_spec)
+_material_spec.loader.exec_module(_material)
 
 FILES = (
     '/run/secrets/release_preparation',
@@ -116,10 +126,7 @@ def main():
         path = pathlib.Path(raw)
         if path.is_symlink() or (path.exists() and (not path.is_dir() or path.stat().st_uid != 0 or path.stat().st_mode & 0o022)):
             raise RuntimeError('unsafe existing parent')
-    password = (lab / 'password').read_bytes()
-    ca = (lab / 'tls' / 'ca.pem').read_bytes()
-    if not 32 <= len(password) <= 256 or b'\n' in password or b'\r' in password or not 100 <= len(ca) <= 65536:
-        raise RuntimeError('synthetic custody material invalid')
+    password, ca = _material.load_material(lab, uid)
     created = []
     fd = os.open(receipt, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
     os.fchown(fd, uid, gid)

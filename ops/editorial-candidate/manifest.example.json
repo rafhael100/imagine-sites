@@ -1,0 +1,17 @@
+{
+  "schema": "SITES_EDITORIAL_TRANSITION_V1",
+  "target": {
+    "host": "REPLACE_WITH_CERTIFICATE_HOSTNAME",
+    "port": 5432,
+    "database": "sites_staging",
+    "databaseOid": 0,
+    "login": "replace_with_existing_editorial_operator",
+    "serverAddress": "REPLACE_WITH_OBSERVED_ADDRESS",
+    "caSha256": "REPLACE_WITH_REVIEWED_CA_SHA256"
+  },
+  "siteRef": "REPLACE_WITH_EXISTING_SITE_UUID",
+  "expectedRevision": 0,
+  "action": "register",
+  "artifactDigest": "REPLACE_WITH_EXACT_HTML_SHA256",
+  "sizeBytes": 0
+}
