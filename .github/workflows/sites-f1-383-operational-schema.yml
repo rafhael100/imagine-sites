@@ -17,10 +17,14 @@ on:
       - 'apps/sites/app/Editorial/EditorialRevisionWriter.php'
       - 'apps/sites/tests/Feature/EditorialRevisionWriterTest.php'
       - 'contracts/portal-sites/001-project-intake.sql'
+      - 'contracts/portal-sites/003-project-intake-receipts.sql'
       - 'contracts/portal-sites/v1/project-intake-receipt.schema.json'
       - 'apps/sites/app/Integration/PortalProjectIntakeRecorder.php'
+      - 'apps/sites/app/Integration/StoredProjectIntakeReceiptReader.php'
       - 'apps/sites/tests/Feature/PortalProjectIntakeRecorderTest.php'
+      - 'apps/sites/tests/Feature/StoredProjectIntakeReceiptReaderTest.php'
       - 'tests/portal-project-intake-pg-contract.php'
+      - 'tests/fixtures/project-intake-receipt/**'
       - 'contracts/portal-sites/002-brief-snapshots.sql'
       - 'contracts/release-registry/005-brief-artifact-provenance.sql'
       - 'src/Production/Brief*.php'
@@ -62,6 +66,7 @@ jobs:
       SITES_F384_READER_LAB: '1'
       SITES_F385_EDITORIAL_LAB: '1'
       SITES_PROJECT_INTAKE_TESTS: '1'
+      SITES_PROJECT_INTAKE_RECEIPT_TESTS: '1'
       SITES_BRIEF_SNAPSHOT_TESTS: '1'
       SITES_BRIEF_PROVENANCE_SCHEMA_TESTS: '1'
       DB_CONNECTION: pgsql
@@ -100,6 +105,10 @@ jobs:
           php -l tests/portal-project-intake-pg-contract.php
           php -l apps/sites/database/migrations/2026_11_18_000013_add_portal_brief_snapshots.php
           php -l apps/sites/database/migrations/2026_11_18_000014_add_brief_artifact_provenance.php
+          php -l apps/sites/database/migrations/2026_11_18_000015_add_portal_project_intake_reader.php
+          php -l apps/sites/app/Integration/StoredProjectIntakeReceiptReader.php
+          php -l apps/sites/tests/Feature/StoredProjectIntakeReceiptReaderTest.php
+          php -l tests/fixtures/project-intake-receipt/contract.php
           php -l src/Production/BriefCandidateJson.php
           php -l src/Production/BriefSnapshotInput.php
           php -l src/Production/BriefRenderProvenance.php
@@ -154,15 +163,27 @@ jobs:
         working-directory: apps/sites
         run: php vendor/bin/phpunit --no-configuration --bootstrap vendor/autoload.php --do-not-cache-result --fail-on-skipped --fail-on-warning tests/Feature/EditorialRevisionWriterTest.php
       - name: Native pending intake through the application service and native schema
+        env:
+          SITES_PROJECT_INTAKE_RECEIPT_PG_CONTAINER: ${{ job.services.postgres.id }}
         run: |
           set -euo pipefail
+          test -n "$SITES_PROJECT_INTAKE_RECEIPT_PG_CONTAINER"
+          DB_SERVER_ADDRESS="$(docker inspect --format '{{range .NetworkSettings.Networks}}{{println .IPAddress}}{{end}}' "$SITES_PROJECT_INTAKE_RECEIPT_PG_CONTAINER")"
+          export DB_SERVER_ADDRESS
           if SITES_PROJECT_INTAKE_TESTS=0 php tests/portal-project-intake-pg-contract.php; then
             echo 'Unsafe: native intake test ran without disposable database opt-in'
             exit 1
           fi
-          php tests/portal-project-intake-pg-contract.php
+          if SITES_PROJECT_INTAKE_RECEIPT_TESTS=0 php tests/fixtures/project-intake-receipt/contract.php; then
+            echo 'Unsafe: native intake receipt test ran without its own opt-in'
+            exit 1
+          fi
+          php tests/portal-project-intake-pg-contract.php | tee "$RUNNER_TEMP/sites-native-project-intake.log"
+          grep -q '^PASS native Portal project intake: 65 checks;' "$RUNNER_TEMP/sites-native-project-intake.log"
+          grep -q '^NATIVE PROJECT INTAKE RECEIPT CI PASS: 53 new checks; 65 existing checks retained;' "$RUNNER_TEMP/sites-native-project-intake.log"
           cd apps/sites
           php vendor/bin/phpunit --do-not-cache-result --fail-on-warning tests/Feature/PortalProjectIntakeRecorderTest.php
+          php vendor/bin/phpunit --do-not-cache-result --fail-on-warning tests/Feature/StoredProjectIntakeReceiptReaderTest.php
       - name: Candidate briefing snapshots through native receipt, exact read and existing renderer
         env:
           SITES_BRIEF_PG_CONTAINER: ${{ job.services.postgres.id }}
@@ -184,13 +205,13 @@ jobs:
         working-directory: apps/sites
         run: |
           set -euo pipefail
-          # The same batch includes both native ledgers and their dependent provenance relation.
+          # The batch includes both native ledgers, provenance and the additive receipt reader.
           php -r '
             $db=new PDO("pgsql:host=127.0.0.1;dbname=sites_f383_lab",
               "postgres","f383-fictional-admin-only");
             $count=(int)$db->query("SELECT count(*) FROM migrations WHERE batch=1")->fetchColumn();
-            if($count!==14)exit(1);
-            echo "F1-383 PASS: exactly 14 migrations in the disposable batch.\n";
+            if($count!==15)exit(1);
+            echo "F1-383 PASS: exactly 15 migrations in the disposable batch.\n";
           '
           php artisan migrate:rollback --batch=1 --force --no-ansi
           php -r '

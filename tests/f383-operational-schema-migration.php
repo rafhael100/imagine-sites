@@ -118,6 +118,9 @@ $expectedPolicies=[
     'site_projects.intake_project_read'=>$readPolicy(['sites_core_intake_definer']),
     'site_outbox.intake_outbox_read'=>$readPolicy(['sites_core_intake_definer']),
     'portal_project_intakes.intake_receipt_read'=>$readPolicy(['sites_core_intake_definer']),
+    'db_login_bindings.intake_receipt_reader_binding'=>$readPolicy(['sites_core_intake_reader']),
+    'tenant_accounts.intake_receipt_reader_tenant'=>$readPolicy(['sites_core_intake_reader']),
+    'portal_project_intakes.intake_receipt_reader_history'=>$readPolicy(['sites_core_intake_reader']),
     'contract_refs.intake_contract_insert'=>$writePolicy(['sites_core_intake_definer']),
     'site_projects.intake_project_insert'=>$writePolicy(['sites_core_intake_definer']),
     'site_outbox.intake_outbox_insert'=>$writePolicy(['sites_core_intake_definer']),
@@ -146,7 +149,7 @@ foreach ($policyRows as $policy) {
 }
 ksort($actualPolicies);ksort($expectedPolicies);
 f383Check($actualPolicies===$expectedPolicies,
-    'exact table, command, roles and predicates for all forty-five internal policies; no PUBLIC or extra policy');
+    'exact table, command, roles and predicates for all forty-eight internal policies; no PUBLIC or extra policy');
 
 $registryRoles=$db->query(
     "SELECT rolname,rolcanlogin,rolsuper,rolbypassrls,rolcreatedb,rolcreaterole,rolreplication,rolinherit

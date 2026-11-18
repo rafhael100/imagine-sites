@@ -136,6 +136,12 @@ depois do commit e deixar uma reserva vazia ou parcial. O comando não remove,
 repara ou substitui o destino e não executa retry. Resposta perdida e arquivo
 incompleto exigem apuração distinta; os três flags de autoridade continuam falsos.
 
+A [#530](https://github.com/rafhael100/imagine-sites/pull/530) confirmou **12/12
+checks SUCCESS**, **29 novas/1178 registry totais** em PHP 8.3/8.4 e **77/123
+checks offline**. O [run 44373979915](https://github.com/rafhael100/imagine-sites/actions/runs/44373979915)
+comprovou a recuperação após commit e o cleanup dos quatro inputs e recibos
+declarados antes dos auxiliares anteriores, com os clusters inativos.
+
 ## Entrada privada de snapshot candidato
 
 `receive-brief-snapshot.php` oferece `plan` e `record` para os JSONs originais de

@@ -69,6 +69,13 @@ persistidas; o Portal deve validar os quinze campos antes de conservar o víncul
 
 ## Verificação e limites
 
+A candidata aditiva oferece também a [consulta exata do recibo por leitor
+independente](PROJECT-INTAKE-RECEIPT-READER.md). Usa o comando original e a
+autorização atual de leitura para recuperar o siteRef persistido, inclusive
+depois da revogação do receptor. Preserva este recorder, seu SQL e o contrato
+de quinze campos. Sua prova PostgreSQL permanece identificada separadamente
+da evidência histórica abaixo.
+
 O workflow de migrations existente (`sites-f1-383-operational-schema.yml`) passa
 a executar o serviço real com o schema nativo e identidades fictícias restritas.
 Não é criado um novo serviço ou laboratório de integração. Os testes incluem

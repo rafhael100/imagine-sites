@@ -312,3 +312,12 @@ $admin->exec('DROP FUNCTION sites_core.intake_test_wait_'.$suffix.'()');
 $final=$admin->query("SELECT count(*) FILTER (WHERE p.authority_verified OR p.publishable OR p.lifecycle_state<>'awaiting_official_authority' OR c.external_payment_verified OR c.official_entitlement_verified OR o.delivery_state<>'blocked' OR o.payload_sha256<>i.command_digest OR p.command_digest<>i.command_digest OR p.operation_ref<>i.operation_id OR p.portal_order_ref<>i.portal_order_ref) FROM sites_core.portal_project_intakes i JOIN sites_core.site_projects p USING(tenant_id,site_id) JOIN sites_core.contract_refs c ON c.tenant_id=i.tenant_id AND c.contract_ref=i.contract_ref JOIN sites_core.site_outbox o ON o.tenant_id=i.tenant_id AND o.event_id=i.event_id")->fetchColumn();
 intakeCheck((int)$final===0, 'all durable requests retain their exact project/outbox identity and every operational gate stays false/blocked');
 echo "PASS native Portal project intake: {$checks} checks; committed receipts, replay/conflicts, cross-tenant denial, lost response, concurrent callers, revocation ordering; no production authority.\n";
+
+if (getenv('SITES_PROJECT_INTAKE_RECEIPT_TESTS') === '1') {
+    (require __DIR__.'/fixtures/project-intake-receipt/contract.php')($admin, [
+        'checks' => $checks, 'receiverA' => $a, 'receiverB' => $b,
+        'tenantA' => $tenantA, 'tenantB' => $tenantB,
+        'first' => $first, 'receipt' => $receipt, 'forB' => $forB, 'receiptB' => $receiptB,
+        'lost' => $lost, 'recovered' => $recovered, 'race' => $race, 'raceReceipt' => $raceReceipt,
+    ]);
+}
