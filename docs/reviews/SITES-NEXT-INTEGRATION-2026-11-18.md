@@ -43,10 +43,22 @@ também passaram. Clusters próprios foram encerrados e os laboratórios conclu�
 cleanup. As correções da fixture trataram comparação de catálogo `bytea`/streams
 e ciclos Laravel/PDO, sem alteração de produto.
 
-A [CLI candidata de consulta](../BRIEF-ARTIFACT-INSPECTION.md) é uma continuação
-separada, com **51 checks offline PASS** e **25 checks PostgreSQL previstos ainda
-pendentes**. Produtor Portal, exportação consistente, transporte e materiais
-reais permanecem dependências operacionais distintas.
+A [CLI privada de consulta](../BRIEF-ARTIFACT-INSPECTION.md) foi validada na
+[#521](https://github.com/rafhael100/imagine-sites/pull/521), HEAD
+`73d610513c777c5f3a1709fcb19263d6073139c6`, com **12/12 checks SUCCESS**.
+O [run 44346085528](https://github.com/rafhael100/imagine-sites/actions/runs/44346085528)
+confirmou **51 checks offline**, **25 novos/1067 registry totais** em PHP 8.3/8.4,
+remoção dos três arquivos privados e clusters próprios inativos. A matriz
+[Laravel 44346084649](https://github.com/rafhael100/imagine-sites/actions/runs/44346084649)
+confirmou **279/4250/27** e **279/4262/21**; F383 e containers continuam com a prova
+anterior identificada pela #520.
+
+A [CLI candidata de registro composto](../STORED-BRIEF-REGISTRATION-CLI.md)
+acrescenta plano real somente leitura e uma chamada explícita de registro com
+compromisso confirmado, duas identidades e seis entradas privadas. As **95
+verificações offline** passaram; a prova PostgreSQL própria permanece pendente.
+Produtor Portal, exportação consistente, transporte e materiais reais continuam
+como dependências operacionais distintas.
 
 ### Armazenamento técnico candidato e consumo persistido validados na #519
 
@@ -182,7 +194,7 @@ Os nomes lógicos `SubmitBriefRevision` e `RequestGenerateRelease` já constam e
 2. **Leitura e entrega autorizadas:** identidade entre serviços e escopo por empresa/recurso, revogação corrente, acesso aos materiais privados e custódia/retenção operacionais. Referência recebida no JSON não concede acesso. O candidato já tem tabelas, capacidade SQL, replay e reader negados por padrão; ativação de grants, transporte e uso real exigem fonte e autorização próprias.
 3. **Consumidor de produção autorizado:** o modo local e o consumidor do snapshot persistido já vinculam bytes e geram HTML inerte; a composição durável com o registry possui prova SQL própria na #520. Continua necessário comprovar qual operação pode iniciar produção real e a aprovação humana da entrada editorial. Para IA/ferramenta externa, definir previamente ferramenta, orçamento e dados permitidos; a fixture não substitui execução autorizada.
 
-O desenvolvimento em draft fechou a relação técnica persistente com o registry, mantendo revisões de briefing e editorial distintas. A #519 conserva as provas do receptor e a #520 acrescenta as de registro/associação e recuperação histórica. A CLI posterior de consulta ainda aguarda sua própria prova. A composição pareada com o Portal deve usar fontes fixadas dos dois repositórios; um sucesso só do Sites não comprova o produtor Portal ou o transporte.
+O desenvolvimento em draft fechou a relação técnica persistente com o registry, mantendo revisões de briefing e editorial distintas. A #519 conserva as provas do receptor e a #520 acrescenta as de registro/associação e recuperação histórica. A CLI de consulta possui prova própria na #521; a entrada privada de registro composto segue como candidata com CI pendente. A composição pareada com o Portal deve usar fontes fixadas dos dois repositórios; um sucesso só do Sites não comprova o produtor Portal ou o transporte.
 
 ## Dependências operacionais e alçadas preservadas
 

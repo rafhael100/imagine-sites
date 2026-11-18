@@ -25,8 +25,12 @@ Os quatro campos `authorityVerified`, `clientAccepted`, `canPublish` e
 
 Não houve endpoint, comando, provider, transporte, dispatcher ou ativação de
 principal operacional na #520. A [CLI posterior de consulta](BRIEF-ARTIFACT-INSPECTION.md)
-consome apenas a leitura histórica: seus **51 checks offline** passaram e seus
-**25 checks PostgreSQL previstos** ainda aguardam execução própria. O produtor oficial do Portal, transporte
+consome apenas a leitura histórica e foi validada na [#521](https://github.com/rafhael100/imagine-sites/pull/521),
+HEAD `73d610513c777c5f3a1709fcb19263d6073139c6`, com **12/12 checks SUCCESS**,
+**51 offline** e **25 novos/1067 registry totais** nas duas versões PHP.
+A [entrada privada de registro](STORED-BRIEF-REGISTRATION-CLI.md) é a continuação
+candidata com confirmação explícita e identidades separadas; sua prova própria de
+PostgreSQL ainda está pendente. O produtor oficial do Portal, transporte
 autenticado, materiais e aceite comercial continuam como integrações próprias.
 O fluxo de revisão, associação comercial, preparação e verificação de pacote
 existente é exercitado pela fixture; não recebe um atalho por existir proveniência.

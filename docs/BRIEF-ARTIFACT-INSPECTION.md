@@ -1,9 +1,11 @@
 # Consulta privada do recibo de proveniência
 
-**Estado em 18/11/2026:** implementação candidata na branch
-`feature/sites-brief-provenance-inspection-2026-11-18`, sobre a
-[#520](https://github.com/rafhael100/imagine-sites/pull/520). A prova do próprio
-CLI em PostgreSQL/TLS ainda está pendente. Não existe ativação operacional.
+**Estado em 18/11/2026:** implementação candidata validada na
+[#521](https://github.com/rafhael100/imagine-sites/pull/521), ainda draft, com
+**12/12 checks SUCCESS**, HEAD `73d610513c777c5f3a1709fcb19263d6073139c6`.
+A branch `feature/sites-brief-provenance-inspection-2026-11-18` deriva da
+[#520](https://github.com/rafhael100/imagine-sites/pull/520). Há prova própria
+PostgreSQL/TLS da consulta; não existe ativação operacional.
 
 ## Para que serve
 
@@ -19,6 +21,13 @@ Não acrescenta tabela, migração, parser JSON, contrato de transporte ou camin
 de escrita. A consulta confirma uma associação técnica persistida; não
 comprova execução do renderer, elegibilidade atual do pacote, aprovação do
 cliente ou permissão para publicar.
+
+A [CLI de registro a partir do snapshot armazenado](STORED-BRIEF-REGISTRATION-CLI.md)
+usa essa consulta como caminho de apuração após uma resposta perdida. A escrita
+tem seis mounts, reader de snapshot e writer distintos; esta inspeção conserva
+seus três mounts e um reader histórico separado. Não reutiliza credencial do
+writer, não chama a função de escrita e não depende de seu replay continuar
+autorizado.
 
 ## Comandos e entradas
 
@@ -56,6 +65,11 @@ Os seletores precisam vir do contexto privado já conhecido pelo chamador.
 Não há listagem, descoberta por prefixo ou troca pela revisão mais recente.
 Um plano com bytes diferentes, mesmo que gere o mesmo HTML, seleciona outro
 hash e não encontra silenciosamente o registro anterior.
+
+Para uma tentativa de `register-provenance.php`, conserve em ambiente privado
+o plano original e os campos `siteRef` e `releaseRef` nele contidos. Use o
+`planSha256` público conferido naquela execução; não use `commitmentSha256`
+como seletor nem altere o plano para investigar uma resposta perdida.
 
 ## Custódia e conexão
 
@@ -142,7 +156,22 @@ e serviços existentes são preservados fora do laboratório próprio.
 
 **Validação local observada:** 51 checks offline de ajuda e recusas antes de
 conexão, lint PHP, AST Python e revisão independente dos contratos/custódia.
-Os 25 checks previstos da fixture não foram executados localmente.
-Contagens e runs PostgreSQL aprovados serão registrados após execução real. Nenhum teste
-autoriza merge, deploy ou dados reais. Os dez gates de prontidão continuam
-BLOCKED e AGI-11-RB01 permanece desativado.
+O teste offline não simula consulta SQL bem-sucedida.
+
+No HEAD final `73d610513c777c5f3a1709fcb19263d6073139c6`, a execução própria
+em PostgreSQL/TLS foi aprovada nas duas versões PHP:
+
+| Evidência | PHP 8.3 | PHP 8.4 |
+| --- | --- | --- |
+| [Registry, run 44346085528](https://github.com/rafhael100/imagine-sites/actions/runs/44346085528) | [Job 134948726218](https://github.com/rafhael100/imagine-sites/actions/runs/44346085528/job/134948726218) | [Job 134948724966](https://github.com/rafhael100/imagine-sites/actions/runs/44346085528/job/134948724966) |
+| Contagens registry por job | 51 offline; 25 novas de inspeção; 119 da composição; 1067 totais. | Mesmas contagens. |
+| Cleanup por job | Três arquivos próprios removidos; cluster próprio inativo. | Mesmo resultado. |
+| [Laravel, run 44346084649](https://github.com/rafhael100/imagine-sites/actions/runs/44346084649) | [Job 134948727283](https://github.com/rafhael100/imagine-sites/actions/runs/44346084649/job/134948727283) | [Job 134948726466](https://github.com/rafhael100/imagine-sites/actions/runs/44346084649/job/134948726466) |
+| Suíte padrão | 279 testes / 4250 assertions / 27 skips. | Mesmo resultado. |
+| Modo sintético | 279 testes / 4262 assertions / 21 skips. | Mesmo resultado. |
+
+A #521 não possui nova prova F383 ou de containers: essas evidências pertencem
+à base #520. Os resultados acima também não provam a execução da nova CLI de
+registro, que possui validação própria pendente. Nenhum teste autoriza merge,
+deploy ou dados reais. Os dez gates de prontidão continuam BLOCKED e
+AGI-11-RB01 permanece desativado.
