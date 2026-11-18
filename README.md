@@ -21,6 +21,7 @@ Esses componentes não constituem homologação operacional. Contrato, pagamento
 | `contracts` | Regras SQL versionadas e fronteiras dos componentes |
 | `ops/preview-candidate` | Provisionamento explícito e revisável do workspace privado |
 | `ops/release-candidate` | Comandos `prepare` e `verify` do pacote técnico |
+| `ops/publication-candidate` | Consulta privada de uma operação conhecida do diário, somente leitura |
 | `tests/fixtures` | Materiais inteiramente sintéticos para os ensaios descartáveis de CI |
 
 ## Verificação local
@@ -35,6 +36,8 @@ php tests/private-preview-upgrade-offline.php
 php tests/private-preview-upgrade-cli-offline.php
 php tests/release-preparation-offline.php
 php tests/publication-journal-offline.php
+php tests/publication-inspection-offline.php
+php tests/publication-inspection-cli-offline.php
 php apps/sites/vendor/bin/phpunit -c apps/sites/phpunit.xml --do-not-cache-result
 ```
 
@@ -52,6 +55,8 @@ O Portal controla contratos, aceite expresso e evento oficial `ENTREGUE`; Sites 
 - [Upgrade explícito do preview gerenciado](docs/reviews/SITES-PREVIEW-MANAGED-UPGRADE-2026-11-18.md)
 - [Preparação e verificação de pacotes](ops/release-candidate/README.md)
 - [Diário técnico de publicação](contracts/publication-journal/README.md)
+- [Inspeção privada do diário](ops/publication-candidate/README.md)
+- [Próxima integração Portal → briefing → geração](docs/reviews/SITES-NEXT-INTEGRATION-2026-11-18.md)
 - [Orientação editorial por versão](docs/reviews/SITES-EDITORIAL-FEEDBACK-2026-11-18.md)
 - [Briefing Unicode e validação por campo](docs/reviews/SITES-BRIEF-UNICODE-VALIDATION-2026-11-18.md)
 - [Busca na fila editorial](docs/reviews/SITES-QUEUE-SEARCH-2026-11-18.md)

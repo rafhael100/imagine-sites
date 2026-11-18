@@ -30,11 +30,11 @@ A ajuda de cada campo e seu erro são associados por `aria-describedby`, com `ar
 
 Após incorporar a correção de sessão da busca, a suíte local completa passou com **134 testes/1186 assertions/27 skips explícitos** das integrações que exigem PostgreSQL ou opt-in. Os testes novos incluem domínio, parser, a pilha real de middleware global, preservação segura e renderização Blade; notas, busca e CSRF permanecem cobertos pelas regressões existentes.
 
-A fixture SQL acrescenta **14 verificações esperadas**, ainda pendentes de execução: os dois produtos com todos os campos no limite de quatro bytes, round-trip de JSONB/HTML/SHA, comparação histórica, composição Unicode e CRLF, isolamento entre empresas e recusas sem escrita. O contador agregado anterior não foi reescrito.
+A fixture SQL acrescenta **14 verificações aprovadas no CI**: os dois produtos com todos os campos no limite de quatro bytes, round-trip de JSONB/HTML/SHA, comparação histórica, composição Unicode e CRLF, isolamento entre empresas e recusas sem escrita. O contador agregado anterior não foi reescrito.
 
 A jornada HTTP cria e edita pelo formulário real com JavaScript desativado, verifica texto válido acima do limite, digests e ausência de revisão extra. Negativos de NUL usam corpos HTTP com `%00` explicitamente conferidos; a resposta422 real é renderizada no mesmo navegador para verificar a retenção dos campos. Isso evita depender de como a automação de teclado trata um caractere de controle. UTF-8 malformado também é enviado como bytes URL-encoded exatos. Há capturas desktop/mobile e correção posterior com a mesma sessão protegida.
 
-O workflow permanece restrito a repo, draft, branch e SHA exato da base. Reexecuta o workspace e registry em PHP8.3/8.4, o upgrade gerenciado9+76 e o navegador HTTPS/FPM/PG18 descartável. **CI desta entrega ainda pendente.** Não foi iniciado PostgreSQL local.
+O workflow permanece restrito a repo, draft, branch e SHA exato da base. Reexecuta o workspace e registry em PHP8.3/8.4, o upgrade gerenciado9+76 e o navegador HTTPS/FPM/PG18 descartável. **PR #495 validada na HEAD `00597a48cd4513a32dff9bbc3f9c639e09e2a9e3`, com16/16 check-runs SUCCESS na conferência da entrega**. O [run44217865114](https://github.com/rafhael100/imagine-sites/actions/runs/44217865114) aprovou175 checks de navegador,14 específicos do briefing e370 totais do workspace,402 do registry,134/1186/27 do PHPUnit e upgrade9+76. Matriz PHP8.3/8.4. Artifact14389791091 com15 arquivos; download conferido por SHA-256 `239022cba81dd16e56a34d3c5737360882f0c47a32bbeefd08624d0998d2aebe`. Capturas do erro desktop/mobile e do workspace com ajuda por campo inspecionadas, legíveis e sem overflow. Não foi iniciado PostgreSQL local.
 
 ## Fronteiras
 
