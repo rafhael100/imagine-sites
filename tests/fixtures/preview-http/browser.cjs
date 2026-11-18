@@ -200,6 +200,7 @@ const {chromium}=require('playwright');const fs=require('fs'),cp=require('child_
  await comparisonContext.close();
  await require('./editorial-feedback.cjs')({a,e,o,p,ep,base,dir,historyUrl,ok});
  await require('./queue-search.cjs')({ctx,a,o,base,dir,historyUrl,ok});
+ const queueSearchRecovery=await require('./queue-search-recovery.cjs')({ctx,a,base,dir,historyUrl,docker,ok});
  const queryLogProbe='SITES_SEARCH_QUERY_LOG_PROBE_20261118';
  ok((await a.request.get(base+'/_preview?q='+queryLogProbe)).status()===200,'synthetic query log probe completes a normal private search');
  ok([403,404].includes((await o.request.get(one)).status()),'cross company workspace denied');ok((await o.request.get(one+'/versions/1/html')).status()===403,'cross company bytes denied');
@@ -227,6 +228,7 @@ const {chromium}=require('playwright');const fs=require('fs'),cp=require('child_
  ok(revokedComparison.status()===403&&!(await revokedComparison.text()).includes(revisedBrief.headline),
     'revocation blocks a comparison that previously succeeded without exposing historical copy');
  await comparisonRecovery.verifyRevocation();
+ await queueSearchRecovery.verifyRevocation();
  const privateLogs=docker(['logs','--no-color','app','proxy']);
  ok(!privateLogs.includes(queryLogProbe),'the query-only synthetic search term is absent from app and proxy logs');
  const audit=docker(['exec','-T','db','psql','-U','postgres','-d','sites_preview_http_ci','-Atc','SELECT count(*) FROM sites_preview.audit']);ok(Number(audit.trim())>=6,'persistent DB audit');

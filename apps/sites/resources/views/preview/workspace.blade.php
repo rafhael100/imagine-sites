@@ -15,6 +15,7 @@
 <body>
 @php
     $formatDate = static fn (string $value): string => \Carbon\CarbonImmutable::parse($value)->setTimezone('America/Sao_Paulo')->format('d/m/Y H:i');
+    $queueSearchInput = $queueSearchInput ?? null;
 @endphp
 <header><strong class="brand">imagine<span>.</span></strong><a href="{{ $navigation->queueUrl() }}">← Voltar à fila</a></header>
 <main>
@@ -89,8 +90,10 @@
 <p class="muted">O parecer exibido corresponde à versão atual de cada projeto.</p>
 <form class="queue-filters" data-testid="queue-filters" method="get" action="/_preview">
 <div class="queue-search"><label for="queue-search">Buscar projeto</label>
-<input type="search" id="queue-search" name="q" value="{{ $navigation->queue->search }}" placeholder="Marca ou chamada principal" aria-describedby="queue-search-help">
-<p class="muted queue-search-help" id="queue-search-help">Marca ou chamada principal da versão atual. Até 100 caracteres.</p></div>
+<input type="search" id="queue-search" name="q" value="{{ $queueSearchInput?->search ?? $navigation->queue->search }}" placeholder="Marca ou chamada principal" aria-describedby="queue-search-help{{ $queueSearchInput !== null ? ' queue-search-error' : '' }}" aria-invalid="{{ $queueSearchInput !== null ? 'true' : 'false' }}">
+<p class="muted queue-search-help" id="queue-search-help">Marca ou chamada principal da versão atual. Até 100 caracteres.</p>
+@if($queueSearchInput !== null)<p class="field-error" id="queue-search-error" data-testid="queue-search-error" role="alert">{{ $queueSearchInput->message }}</p>@endif
+</div>
 <div><label for="queue-status">Parecer na fila</label><select id="queue-status" name="status">
 <option value="all" @selected($navigation->queue->status==='all')>Todos os pareceres</option>
 @foreach($statusLabels as $value=>$label)
@@ -103,9 +106,10 @@
 <option value="landing_page" @selected($navigation->queue->product==='landing_page')>Landing Page</option>
 </select></div>
 <button type="submit">Aplicar filtros</button>
-@if($navigation->queue->search !== '')<a href="{{ $navigation->queueUrlWithoutSearch() }}">Limpar busca</a>@endif
+@if($queueSearchInput !== null || $navigation->queue->search !== '')<a href="{{ $navigation->queueUrlWithoutSearch() }}">Limpar busca</a>@endif
 <a href="/_preview">Limpar filtros</a>
 </form>
+@if($queueSearchInput === null)
 @forelse($projects as $p)
 <div class="item" data-project="{{ $p['id'] }}">
 <a class="project-title" href="{{ $navigation->projectUrl($p['id']) }}">{{ $p['brand'] }}</a>
@@ -121,6 +125,7 @@
 @if($navigation->queue->cursor !== null)<a href="{{ $navigation->queueUrlFor(null) }}">Voltar ao início da fila</a>@endif
 @if($queueNext !== null)<a href="{{ $navigation->queueUrlFor($queueNext) }}">Próximos projetos →</a>@endif
 </nav>
+@endif
 @else
 <p class="muted">Versão atual: {{ $currentRevision }}. Datas no horário de Brasília.</p>
 @if($navigation->beforeRevision !== null || $navigation->afterRevision !== null)
