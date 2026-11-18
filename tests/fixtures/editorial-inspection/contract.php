@@ -8,7 +8,7 @@ use Imagine\Sites\Production\{SiteBrief,StaticSiteRenderer};
 // The parent proves the exact disposable cluster, directory, login and TLS
 // before any write. This ninth opt-in runs after every earlier registry fixture.
 if (PHP_SAPI !== 'cli' || getenv('GITHUB_ACTIONS') !== 'true' || getenv('APP_ENV') !== 'testing' ||
-    !isset($admin,$connection,$login,$caFile,$password,$tenants,$commands,$seedProject,$connect,$editorialWriters,
+    !isset($admin,$connection,$caFile,$password,$tenants,$commands,$seedProject,$connect,$editorialWriters,
         $editorialCliRows,$inspectionState,$ok,$checks)) {
     throw new RuntimeException('Editorial inspection requires the verified disposable registry fixture');
 }
@@ -450,7 +450,14 @@ try {
     $expectedBindings = $admin->query($bindingsSql)->fetchAll(PDO::FETCH_ASSOC);
     foreach ($expectedBindings as &$binding) if ($binding['login_name'] === 'ei_a_reader') $binding['active'] = false;
     unset($binding);
-    $eiRevoker = $connect($login);
+    // Included fixtures share PHP scope and reuse $login in their own loops.
+    // Derive the second administrator from the already verified connection,
+    // never from a loop variable left by an earlier fixture.
+    $eiAdminLogin = $admin->query('SELECT session_user')->fetchColumn();
+    if (!is_string($eiAdminLogin) || $eiAdminLogin !== $connection->getConfig('username')) {
+        throw new RuntimeException('Original verified fixture administrator required');
+    }
+    $eiRevoker = $connect($eiAdminLogin);
     $eiRevoker->exec("SET statement_timeout='400ms'; SET lock_timeout='300ms'");
     $eiChild = null; $eiBlockedRun = null; $eiWaiting = false; $eiStillWaiting = false; $eiReleasedInBudget = false;
     $waitSql = "SELECT a.pid FROM pg_stat_activity a JOIN pg_locks l ON l.pid=a.pid

@@ -51,3 +51,7 @@ O workflow dedicado fixa draft, repositório, branch e SHA da base, com PHP 8.3/
 ## Limites preservados
 
 Esta candidata não instala a função nem provisiona leitores no staging. Não altera APIs públicas, revisão, registry, diário ou fonte oficial do briefing. O workspace permanece `demonstration_only`, os dez gates permanecem `BLOCKED`, e o Portal conserva contrato, pagamento, aceite expresso e `ENTREGUE`.
+
+### Ajuste da primeira execução de CI
+
+O [run inicial 44242703028](https://github.com/rafhael100/imagine-sites/actions/runs/44242703028) passou as suítes offline, os 386 checks do workspace e toda a cadeia anterior, mas falhou no novo ensaio concorrente em PHP 8.3/8.4. A fixture reutilizava `$login`, variável sobrescrita por um include anterior com o nome de um leitor. A conexão de controle foi corrigida para usar o `session_user` observado do administrador já verificado, conferido com a configuração efetiva da conexão. O produto, as permissões e os limites de tempo permaneceram iguais. A limpeza dos oito helpers e o encerramento dos clusters foram confirmados mesmo na falha. A execução corrigida ainda está pendente.
