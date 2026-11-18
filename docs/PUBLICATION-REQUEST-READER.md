@@ -144,7 +144,8 @@ confirmou **296/4705/27** e **296/4717/21**.
 A [CLI da #538](PUBLICATION-REQUEST-RECOVERY-CLI.md) consome esse leitor e grava
 um novo recibo privado. Seus **63 checks offline** passaram nas duas versões;
 a evidência SQL do leitor não substitui a prova própria da composição CLI,
-que permanece pendente.
+cuja [fixture própria](reviews/SITES-PUBLICATION-RECOVERY-COMPOSITION-2026-11-18.md)
+prevê 38 novos/1279 totais e permanece pendente de execução PostgreSQL.
 
 Os dez gates continuam BLOCKED e AGI-11-RB01 desabilitado. Histórico técnico,
 ACK e recuperação de referência não autorizam envio, publicação, aceite do

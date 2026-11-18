@@ -45,7 +45,8 @@ exigem uma futura revisão explícita do dialeto.
 **260 checks F27 e 293 de registro offline** passaram localmente. Os testes
 preservam os vetores de 5223 e 5167 bytes com seus hashes originais, aceitam as
 mesmas palavras como texto escapado e recusam pacotes com digest recalculado.
-O CI desta ampliação permanece pendente. [Decisão, fontes primárias e prova](reviews/SITES-INERT-CSS-DIALECT-2026-11-18.md).
+A #539 confirmou **12/12 checks SUCCESS**, com **20/260/293** em PHP 8.3/8.4,
+dois pacotes privados e cleanup. [Decisão, fontes primárias e prova](reviews/SITES-INERT-CSS-DIALECT-2026-11-18.md).
 
 ## Limites de segurança
 

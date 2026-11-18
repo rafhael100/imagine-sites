@@ -5,6 +5,8 @@ declare(strict_types=1);
 // verifier together. It never installs a provider, admits a client or publishes.
 if (PHP_SAPI!=='cli' || getenv('GITHUB_ACTIONS')!=='true' ||
     getenv('SITES_RELEASE_REGISTRY_CI')!=='1') exit(2);
+if (getenv('SITES_PUBLICATION_REQUEST_RECOVERY_CI') === '1' &&
+    getenv('SITES_PUBLICATION_REQUEST_READER_CI') !== '1') exit(2);
 if (getenv('SITES_PUBLICATION_REQUEST_READER_CI') === '1' &&
     getenv('SITES_PROJECT_INTAKE_RECOVERY_CLI_CI') !== '1') exit(2);
 if (getenv('SITES_BRIEF_SNAPSHOTS_CI') === '1' &&
@@ -520,6 +522,17 @@ if (getenv('SITES_PUBLICATION_REQUEST_READER_CI') === '1') {
     if (!is_int($publicationRequestReaderChecks) || $publicationRequestReaderChecks < 1 ||
         $checks !== $publicationRequestReaderBefore + $publicationRequestReaderChecks) {
         throw new RuntimeException('Exact publication request reader check accounting required');
+    }
+}
+if (getenv('SITES_PUBLICATION_REQUEST_RECOVERY_CI') === '1') {
+    if ($checks !== 1241) throw new RuntimeException('Complete predecessor request reader proof required');
+    $publicationRequestRecoveryBefore = $checks;
+    $publicationRequestRecoveryChecks = (require __DIR__.'/fixtures/publication-request-recovery/contract.php')(
+        $admin, $connection, $connect, $tenants, $password, $caFile, $ok,
+    );
+    if ($publicationRequestRecoveryChecks !== 38 || $checks !== 1279 ||
+        $checks !== $publicationRequestRecoveryBefore + $publicationRequestRecoveryChecks) {
+        throw new RuntimeException('Exact publication request recovery check accounting required');
     }
 }
 echo "OK: $checks persistent release registry assertions; actual core/editorial/migration/PDO/evidence path, synthetic CI only\n";

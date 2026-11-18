@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reserve recovery-only reader mounts and isolated receipt directory in CI."""
+"""Reserve exact recovery CLI inputs and a new private output directory in disposable CI."""
 import importlib.util
 import json
 import os
@@ -22,10 +22,14 @@ FILES = (
 )
 DIRECTORY = '/var/lib/imagine-sites/publication-recoveries'
 ALLOWED = set(FILES + (DIRECTORY,))
-# Only the declared fixture receipts and its two failure probes may be removed.
-# A failed apply may have left its own empty reservation, so zero bytes is valid.
+# Only these fixture destinations may be inventoried for removal. A failed
+# lookup can leave an empty private reservation. Prior request receipts, their
+# sentinel and the detached original reservation are never owned by this helper.
 OUTPUT_NAMES = {
-    'ci-recovery-main.json', 'ci-recovery-wrong.json', 'ci-recovery-revoked.json',
+    'ci-recovery-lost.json', 'ci-recovery-ack.json', 'ci-recovery-b.json',
+    'ci-recovery-discarded.json', 'ci-recovery-preflight.json',
+    'ci-recovery-cross.json', 'ci-recovery-missing.json',
+    'ci-recovery-revoked.json', 'ci-recovery-b-final.json',
 }
 
 
@@ -46,8 +50,9 @@ def exists_at(directory_fd, name):
 def main():
     if (os.geteuid() != 0 or os.environ.get('GITHUB_ACTIONS') != 'true'
             or os.environ.get('SITES_RELEASE_REGISTRY_CI') != '1'
+            or os.environ.get('SITES_PUBLICATION_REQUEST_READER_CI') != '1'
             or os.environ.get('SITES_PUBLICATION_REQUEST_RECOVERY_CI') != '1'):
-        raise RuntimeError('disposable root recovery fixture required')
+        raise RuntimeError('disposable root publication request recovery fixture required')
     operation, lab_arg, uid_arg, gid_arg = sys.argv[1:]
     lab = pathlib.Path(lab_arg)
     uid, gid = int(uid_arg), int(gid_arg)

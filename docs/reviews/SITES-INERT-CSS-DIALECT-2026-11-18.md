@@ -76,9 +76,23 @@ e `plan`/`record` precisam recusar antes de qualquer acesso à PDO.
 O [workflow F1-24](../../.github/workflows/sites-f1-24-release-bundle.yml)
 exige os novos contadores em PHP 8.3/8.4, além dos vinte checks de pacote,
 recusa sem opt-in, dois pacotes privados com `publishable=false` e cleanup.
-**CI próprio ainda pendente.** Esta mudança não demanda nova execução de
+**Na preparação local, o CI ainda estava pendente; a evidência final segue abaixo.**
+Esta mudança não demanda nova execução de
 PostgreSQL ou navegador; preserva a prova separada dos contratos anteriores.
 
 Os dez gates continuam BLOCKED e AGI-11-RB01 desabilitado. O dialeto permanece
 específico de prévias inertes; a auditoria não constitui sanitização genérica
 nem aprovação de publicação.
+
+## Evidência final da #539
+
+A [#539](https://github.com/rafhael100/imagine-sites/pull/539), HEAD
+`9f9b19adc21944165e70062017471ede1657975b`, confirmou **12/12 checks SUCCESS**.
+O [F1-24 44402763812](https://github.com/rafhael100/imagine-sites/actions/runs/44402763812),
+jobs **135149896696 / 135149895914**, confirmou **20 checks de pacote, 260 de
+auditoria e 293 de registro** em PHP 8.3/8.4. Recusou uso sem opt-in, criou os
+dois pacotes privados com `publishable=false` e concluiu sua remoção.
+O [Laravel 44402763356](https://github.com/rafhael100/imagine-sites/actions/runs/44402763356),
+jobs **135149895040 / 135149894500**, confirmou **296/4705/27** e **296/4717/21**
+em ambas as versões. Logs reais conferidos; guard747, seis blocos Bash e178
+links locais passaram. Sem nova prova de PostgreSQL ou navegador neste recorte.

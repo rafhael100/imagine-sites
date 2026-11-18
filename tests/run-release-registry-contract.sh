@@ -125,7 +125,7 @@ cleanup() {
       cleanup "$lab" "$(id -u)" "$(id -g)" || failed=1
   fi
   if [[ "${SITES_PUBLICATION_REQUEST_RECOVERY_CI:-}" == 1 && -f "$lab/publication-request-recovery-paths.json" ]]; then
-    sudo -n env GITHUB_ACTIONS=true SITES_RELEASE_REGISTRY_CI=1 SITES_PUBLICATION_REQUEST_RECOVERY_CI=1 \
+    sudo -n env GITHUB_ACTIONS=true SITES_RELEASE_REGISTRY_CI=1 SITES_PUBLICATION_REQUEST_READER_CI=1 SITES_PUBLICATION_REQUEST_RECOVERY_CI=1 \
       python3 "$repo/tests/fixtures/publication-request-recovery/cli-paths.py" \
       cleanup "$lab" "$(id -u)" "$(id -g)" || failed=1
   fi
@@ -339,10 +339,10 @@ if [[ "${SITES_PROJECT_INTAKE_RECOVERY_CLI_CI:-}" == 1 ]]; then
 fi
 if [[ "${SITES_PUBLICATION_REQUEST_RECOVERY_CI:-}" == 1 ]]; then
   test "${SITES_PUBLICATION_REQUEST_READER_CI:-}" = 1
-  sudo -n env GITHUB_ACTIONS=true SITES_RELEASE_REGISTRY_CI=1 SITES_PUBLICATION_REQUEST_RECOVERY_CI=1 \
+  sudo -n env GITHUB_ACTIONS=true SITES_RELEASE_REGISTRY_CI=1 SITES_PUBLICATION_REQUEST_READER_CI=1 SITES_PUBLICATION_REQUEST_RECOVERY_CI=1 \
     python3 "$repo/tests/fixtures/publication-request-recovery/cli-paths.py" \
     prepare "$lab" "$(id -u)" "$(id -g)"
-  sudo -n env GITHUB_ACTIONS=true SITES_RELEASE_REGISTRY_CI=1 SITES_PUBLICATION_REQUEST_RECOVERY_CI=1 \
+  sudo -n env GITHUB_ACTIONS=true SITES_RELEASE_REGISTRY_CI=1 SITES_PUBLICATION_REQUEST_READER_CI=1 SITES_PUBLICATION_REQUEST_RECOVERY_CI=1 \
     python3 "$repo/tests/fixtures/publication-request-recovery/cli-paths.py" \
     verify-mismatch "$lab" "$(id -u)" "$(id -g)"
 fi
@@ -416,9 +416,12 @@ if [[ "${SITES_PROJECT_INTAKE_RECOVERY_CLI_CI:-}" == 1 ]]; then
   fi
 fi
 if [[ "${SITES_PUBLICATION_REQUEST_RECOVERY_CI:-}" == 1 ]]; then
-  grep -q '^PUBLICATION REQUEST RECOVERY CLI PG PASS: [1-9][0-9]* checks;' "$lab/contract.log"
+  grep -q '^PUBLICATION REQUEST RECOVERY CLI CI PASS: 38 assertions; 1241 existing assertions retained;' "$lab/contract.log"
+  grep -q '^OK: 1279 persistent release registry assertions;' "$lab/contract.log"
 fi
 if [[ "${SITES_PUBLICATION_REQUEST_READER_CI:-}" == 1 ]]; then
   grep -q '^PUBLICATION REQUEST READER CI PASS: 33 assertions; 1208 existing assertions retained;' "$lab/contract.log"
-  grep -q '^OK: 1241 persistent release registry assertions;' "$lab/contract.log"
+  if [[ "${SITES_PUBLICATION_REQUEST_RECOVERY_CI:-}" != 1 ]]; then
+    grep -q '^OK: 1241 persistent release registry assertions;' "$lab/contract.log"
+  fi
 fi
