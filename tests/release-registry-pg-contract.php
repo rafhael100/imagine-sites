@@ -5,6 +5,8 @@ declare(strict_types=1);
 // verifier together. It never installs a provider, admits a client or publishes.
 if (PHP_SAPI!=='cli' || getenv('GITHUB_ACTIONS')!=='true' ||
     getenv('SITES_RELEASE_REGISTRY_CI')!=='1') exit(2);
+if (getenv('SITES_PUBLICATION_REQUEST_LOOKUP_CI') === '1' &&
+    getenv('SITES_PUBLICATION_JOURNAL_CI') !== '1') exit(2);
 if (getenv('SITES_BRIEF_SNAPSHOTS_CI') === '1' &&
     getenv('SITES_REGISTRY_INTAKE_PERMISSIONS_CI') !== '1') exit(2);
 if (getenv('SITES_BRIEF_ARTIFACT_PROVENANCE_CI') === '1' &&
@@ -455,6 +457,9 @@ require __DIR__.'/fixtures/release-registry/technical-package.php';
 require __DIR__.'/fixtures/release-registry/technical-package-cli.php';
 if (getenv('SITES_PUBLICATION_JOURNAL_CI') === '1') {
     require __DIR__.'/fixtures/release-registry/publication-journal.php';
+}
+if (getenv('SITES_PUBLICATION_REQUEST_LOOKUP_CI') === '1') {
+    require __DIR__.'/fixtures/publication-request-lookup/contract.php';
 }
 if (getenv('SITES_PUBLICATION_INSPECTION_CI') === '1') {
     require __DIR__.'/fixtures/publication-inspection/contract.php';
