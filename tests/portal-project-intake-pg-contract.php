@@ -89,11 +89,12 @@ function intakeSqlDenied(callable $work, string $state='42501', ?string $message
     }
     throw new RuntimeException('Expected SQL rejection.');
 }
-function intakeSnapshot(PDO $db, bool $includeBrief=false): array
+function intakeSnapshot(PDO $db, bool $includeBrief=false, bool $includeProvenance=false): array
 {
     $result=[];
     $tables=['contract_refs','site_projects','site_outbox','portal_project_intakes'];
     if ($includeBrief) $tables[]='portal_brief_snapshots';
+    if ($includeProvenance) $tables[]='release_artifact_provenance';
     foreach ($tables as $table) {
         $result[$table]=$db->query('SELECT coalesce(jsonb_agg(to_jsonb(t) ORDER BY to_jsonb(t)::text),\'[]\'::jsonb)::text FROM sites_core.'.$table.' t')->fetchColumn();
     }
@@ -207,14 +208,16 @@ $admin->exec('RESET ROLE');
 intakeSqlDenied(fn()=>$admin->exec('UPDATE sites_core.portal_project_intakes SET contract_revision=2'));
 intakeSqlDenied(fn()=>$admin->exec('DELETE FROM sites_core.portal_project_intakes'));
 if ($admin->query("SELECT to_regclass('sites_core.portal_brief_snapshots') IS NOT NULL")->fetchColumn()===true) {
-    $beforeTruncate=intakeSnapshot($admin,true);
+    $withProvenance=$admin->query("SELECT to_regclass('sites_core.release_artifact_provenance') IS NOT NULL")->fetchColumn()===true;
+    $beforeTruncate=intakeSnapshot($admin,true,$withProvenance);
+    $truncateDependents='TRUNCATE sites_core.portal_project_intakes, sites_core.portal_brief_snapshots'.
+        ($withProvenance ? ', sites_core.release_artifact_provenance' : '');
     // The later FK prevents a single-table TRUNCATE before any trigger runs.
-    // Naming both known tables reaches the intake trigger without CASCADE;
+    // Naming the known dependent tables reaches the intake trigger without CASCADE;
     // its own message distinguishes it from the briefing table's trigger.
     foreach ([
         ['TRUNCATE sites_core.portal_project_intakes','0A000',null],
-        ['TRUNCATE sites_core.portal_project_intakes, sites_core.portal_brief_snapshots',
-            '42501','Project intake receipt is immutable'],
+        [$truncateDependents,'42501','Project intake receipt is immutable'],
     ] as [$truncateSql,$truncateState,$truncateMessage]) {
         $admin->beginTransaction();
         try {
@@ -223,8 +226,8 @@ if ($admin->query("SELECT to_regclass('sites_core.portal_brief_snapshots') IS NO
             if ($admin->inTransaction()) $admin->rollBack();
         }
     }
-    intakeCheck(intakeSnapshot($admin,true)===$beforeTruncate,
-        'FK and immutable intake trigger refusals preserve both ledgers and all native intake rows');
+    intakeCheck(intakeSnapshot($admin,true,$withProvenance)===$beforeTruncate,
+        'FK and immutable intake trigger refusals preserve every named ledger and all native intake rows');
 } else {
     intakeSqlDenied(fn()=>$admin->exec('TRUNCATE sites_core.portal_project_intakes'),
         '42501','Project intake receipt is immutable');

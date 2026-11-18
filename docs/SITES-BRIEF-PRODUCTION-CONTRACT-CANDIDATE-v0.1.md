@@ -1,6 +1,6 @@
 # Briefing Onepage e produção — contrato candidato v0.1
 
-**Estado: contrato candidato com consumo local e armazenamento técnico nativo implementados, sem homologação ou ativação operacional.** Data: 18/11/2026.
+**Estado: consumo local e armazenamento nativo validados; composição persistente com o registry em implementação candidata, sem homologação ou ativação operacional.** Data: 18/11/2026.
 Base da proposta: `1634bc45094abfe51b6e391877b4b7f8fdadf692` (#516). Origem de regras
 consultada: Portal #941, `0e0ccc06755b6ddd938635e5c4c3625ff6497e2c`.
 
@@ -9,19 +9,22 @@ que o vincula a uma entrada editorial separada, já consumível pelo renderer
 local. O [primeiro consumidor local](reviews/SITES-LOCAL-RENDER-PROVENANCE-2026-11-18.md),
 implementado sobre a proposta #517 / `c53eac9eb8060a62eb060e68f3bc5b2956dbbdff`,
 confere esses arquivos e conserva proveniência privada do HTML produzido.
-O [armazenamento nativo candidato](PORTAL-BRIEF-SNAPSHOTS.md), na branch
-`feature/sites-native-brief-snapshots-2026-11-18` sobre a #518 /
-`907e2883393b776eebcba59fafb672aa34c99bf6`, acrescenta persistência imutável,
+O [armazenamento nativo candidato](PORTAL-BRIEF-SNAPSHOTS.md), validado na #519 /
+`cdfad4464d65355962d487396911fe06092dfde5`, acrescenta persistência imutável,
 CAS, replay e leitura exata sob identidade SQL. Seu consumidor interno renderiza
-os bytes armazenados. A autenticação da aprovação Portal, o exportador oficial
-e o transporte entre serviços continuam exigindo integração própria.
+os bytes armazenados. A branch `feature/sites-brief-artifact-provenance-2026-11-18`
+implementa a [composição com o registry](STORED-BRIEF-RELEASE-PROVENANCE.md),
+com associação persistente e consulta histórica exata. Seus novos ensaios SQL
+ainda dependem de execução. A autenticação da aprovação Portal, o exportador
+oficial, o transporte e os materiais reais continuam exigindo integração própria.
 
 Os schemas e exemplos deste documento não são um contrato oficial do Portal,
 um endpoint, uma autorização de produção ou uma prova de pagamento.
 A proposta #517 não alterou runtime. O incremento local #518 ampliou a CLI
 existente e continua sem DB. O armazenamento candidato acrescenta a migration 13,
 sem LOGIN, principal ativo, grant operacional, endpoint ou mudança dos gates.
-As escolhas identificadas como propostas são decisões de engenharia abertas à
+A composição acrescenta a migration 14 e serviços internos, preservando a API
+de registro anterior e o comando local sem DB. As escolhas identificadas como propostas são decisões de engenharia abertas à
 revisão; não foram atribuídas à implementação legada.
 
 ## 1. Evidência e consumidor concreto
@@ -33,6 +36,7 @@ revisão; não foram atribuídas à implementação legada.
 | [Recebimento nativo de projeto](PORTAL-PROJECT-INTAKE.md) e [comando existente](../src/Integration/SiteProjectCommand.php) | Pedido, contrato e projeto já têm referências distintas. O Sites gera `siteRef`; o recibo permanece `awaiting_official_authority`. Não é necessário duplicar essa criação para propor briefing. |
 | [`LocalSiteRendering::render`](../src/Production/LocalSiteRendering.php), [`SiteBrief`](../src/Production/SiteBrief.php) e [`render.php`](../ops/release-candidate/render.php) | Existe um consumidor determinístico de seis campos editoriais, sem DB, provider ou rede. Ele não aceita o corpo rico do cliente. |
 | [Snapshot nativo e consumidor persistido](PORTAL-BRIEF-SNAPSHOTS.md) | A migration 13 conserva os dois JSONs originais; um reader separado revalida o perfil e resolve a seleção exata para o renderer. A identidade SQL não autentica a aprovação declarada pelo Portal. |
+| [Composição persistente em implementação](STORED-BRIEF-RELEASE-PROVENANCE.md) | PHP lê/renderiza internamente; a chamada SQL composta registra pelo registry existente e liga a seleção exata, sem aceitar sidecar externo ou adotar artefato antigo sem relação. |
 | [`register.php`](../ops/release-candidate/register.php), [`PrivateReleaseRegistration`](../src/Publication/PrivateReleaseRegistration.php) e [`PgSiteReleaseRegistry`](../src/Publication/PgSiteReleaseRegistry.php) | Os bytes privados resultantes já podem alimentar uma solicitação explícita de registro, sob as verificações existentes de principal, empresa, digest e referência. Renderizar não executa esse registro. |
 
 O perfil de origem v0.1 é somente **Onepage**. O legado inspecionado exige
@@ -252,8 +256,9 @@ Uma falha antes da transação persistente não cria snapshot. Uma falha de comm
 ou perda de resposta pode ser inconclusiva; uma nova chamada explícita com a
 solicitação original ou a seleção exata recupera evidência sob autorização
 corrente, sem presumir ausência de escrita. Não há atomicidade entre DB e
-arquivos. `StoredBriefRendering` retorna HTML/proveniência em memória; a relação
-durável entre snapshot e artefato do registry ainda exige uma entrega própria.
+arquivos. `StoredBriefRendering` continua retornando HTML/proveniência em memória.
+A composição separada descrita na seção 6 usa esse resultado interno para
+registrar a associação; a validação da #519 não é prova da nova migration 14.
 
 ## 5. Plano técnico para o renderer existente
 
@@ -368,9 +373,49 @@ O HTML continua com os mesmos avisos e bytes da demonstração inerte atual. Pod
 ser usado como arquivo privado no `register.php` já existente, com manifesto de
 registro explícito usando `siteRef`, `releaseRef`, digest e tamanho correspondentes.
 Esse passo conserva sua autorização SQL e semântica própria de replay por ator/
-epoch. O registro atual não ingere o sidecar nem persiste a relação com o briefing:
-essa ligação durável ainda requer uma entrega própria. Não há registro,
-aprovação, binding, publicação ou promoção automática no render.
+epoch. Essa API antiga não ingere o sidecar nem persiste a relação com o briefing.
+A composição abaixo fecha a ligação por outro percurso explícito; não modifica
+esse comando. Não há registro, aprovação, binding, publicação ou promoção
+automática no render local.
+
+### Composição persistente posterior, separada do comando local
+
+Em implementação candidata na migration 14, `StoredBriefReleaseRegistration`
+recebe o plano e o editorial como bytes originais e um alvo explícito de sete
+campos. O parser compartilhado `BriefRenderPlanInput` valida os seletores e o
+HTML esperado antes de qualquer PDO. O serviço lê/renderiza internamente por
+`StoredBriefRendering`; não aceita artefato público ou sidecar como prova.
+A entrada editorial continua separada do corpo rico.
+
+O plano de confirmação inclui alvo canônico, plano/editorial originais e HTML
+sob domínio próprio. `commitmentSha256` identifica esse conjunto completo;
+`planSha256` continua sendo o SHA dos bytes do plano de renderização. Dois
+snapshots ou serializações que gerem o mesmo HTML têm compromissos distintos.
+O registro exige `expectedCommitmentSha256` e uma identidade SQL com a API
+composta exclusiva, alternativa à antiga. A API anterior conserva seu contrato.
+
+A função composta chama `record_release_artifact` existente e insere a
+associação na mesma transação, com FK para o snapshot exato no banco do writer.
+Conserva plano/editorial originais, sem duplicar corpo rico ou HTML na relação.
+Recusa adoção retroativa de artefato já existente sem associação. SQL confere
+estrutura, hashes e vínculo; PHP revalida o perfil completo, gera e audita HTML.
+A relação SQL, isoladamente, não certifica execução do renderer ou aprovação
+humana. A leitura somente leitura termina antes da escrita e não mantém
+autorização atômica entre as duas sessões.
+
+| Resultado composto | Conteúdo e limite |
+| --- | --- |
+| Plano — dez campos | `schemaVersion`, `status=planned`, `commitmentSha256`, `planSha256`, `artifactDigest`, `sizeBytes` e quatro flags falsas. Consulta o snapshot exato; não reserva autoridade de escrita. |
+| Registro — vinte campos | Schema/status, treze campos técnicos SQL, quatro flags falsas e o compromisso confirmado. `created` é recebido do registry; replay conserva autor/epoch e timestamp históricos conforme suas regras existentes. |
+| Consulta histórica — dezoito campos | Schema/status, doze campos técnicos e quatro flags falsas; seleciona site/release/`planSha256` exatos. Não devolve `created`, compromisso antigo, JSON bruto ou login privado. |
+
+As quatro flags são `authorityVerified`, `clientAccepted`, `canPublish` e
+`canAcceptRealOrders`, sempre falsas. Um reader atual separado recupera a
+associação histórica sem repetir o writer de época anterior. Erro ou perda da
+resposta pode ocorrer após commit; não há retry, adoção ou avanço automático.
+Esta composição não cria CLI, HTTP, provider ou transporte Portal. O
+[manual próprio](STORED-BRIEF-RELEASE-PROVENANCE.md) detalha alvos, projeções,
+recuperação e limites. A prova PostgreSQL do incremento ainda está pendente.
 
 ## 7. Fronteiras de decisão e autoridade
 
@@ -378,7 +423,7 @@ aprovação, binding, publicação ou promoção automática no render.
 | --- | --- |
 | Shape estrito, limites técnicos, unidade UTF-16, descritores privados e hashes de bytes exatos | Adoção pelo produtor Portal e captura consistente de uma revisão com autorização corrente |
 | Armazenamento candidato, identidade SQL, CAS/replay e leitura exata implementados | Produtor e transporte Portal autenticados, aprovação verificável da origem e ativação de capacidades operacionais |
-| Renderização em memória a partir do snapshot persistido e da entrada editorial separada | Relação durável entre snapshot e artefato registrado, com autorização própria e critérios de recuperação |
+| Composição persistente snapshot/artefato em implementação, com entrada editorial separada e leitura histórica exata | Execução da nova prova PostgreSQL, ativação operacional autorizada e evidência de aprovação humana; a relação técnica não concede autoridade oficial |
 | Entrada editorial manual separada e conferência no renderer existente | Aprovação humana comprovada e política de início de produção; um arquivo local não identifica o aprovador |
 | Modo local sem materiais, sidecar privado e integração explícita com registro já existente | Acesso/validação de materiais reais, direitos, retenção, dados pessoais e credenciais operacionais |
 | Exemplos fictícios Onepage e testes do consumidor local | Regras de Landing, obrigatoriedade de domínio na aprovação e demais diferenças de produto |
@@ -390,8 +435,8 @@ Prazos e rodadas dependem do contrato aprovado. A prova de TLS de staging já
 existente não precisa ser repetida para definir este perfil; ela também não
 substitui autorização por recurso, fonte oficial ou aprovação de uso real.
 
-Ausência de contrato oficial não bloqueou o modo local ou o armazenamento
-candidato, pois ambos têm consumidores concretos e efeitos técnicos delimitados.
+Ausência de contrato oficial não bloqueou o modo local, o armazenamento ou a
+composição candidata, que têm consumidores concretos e efeitos técnicos delimitados.
 Continua impedindo tratar a declaração de aprovação ou o transporte ainda não
 ativado como comando oficial autenticado.
 Os gates de [AGENTS](../AGENTS.md) e [SEC-01](SITES-SEC-01-GATES.md) continuam
@@ -451,17 +496,29 @@ em PHP 8.3/8.4. A entrega concluiu doze check-runs SUCCESS.
 A matriz Laravel dessa mesma entrega confirmou **206/2174/27** no modo padrão e
 **206/2186/21** no opt-in sintético. Esses números continuam pertencendo à #518.
 
-O incremento de armazenamento tem **45 testes novos**: os onze testes do input
-passaram na execução anterior e ficaram intactos; os serviços passaram após
-ERRMODE com **34 testes/904 assertions**, sem avisos. A extração conservou os
-109 checks existentes de proveniência. A suíte geral 249/3133/27 foi executada
-antes desse último ajuste transacional, portanto não é o resultado final dele.
+A [PR #519](https://github.com/rafhael100/imagine-sites/pull/519), HEAD
+`cdfad4464d65355962d487396911fe06092dfde5`, concluiu **15/15 checks SUCCESS**.
+O [F383 44336308019](https://github.com/rafhael100/imagine-sites/actions/runs/44336308019)
+confirmou **241 checks de briefing**, **65 de intake**, recorder **18/84**,
+grupos de leitura/editorial **3/12** e **2/12**, rollback das **13 migrations**
+e ausência dos dois schemas. O [registry 44336307622](https://github.com/rafhael100/imagine-sites/actions/runs/44336307622)
+confirmou **923 checks**, incluindo **62 de registro**, os quatro checks antigos/
+quatro novos de renderização e a presença do schema, com clusters inativos.
+A [matriz Laravel 44336308278](https://github.com/rafhael100/imagine-sites/actions/runs/44336308278)
+confirmou **251/3140/27** e **251/3152/21** em PHP 8.3/8.4; o
+[ensaio de containers 44336308134](https://github.com/rafhael100/imagine-sites/actions/runs/44336308134)
+concluiu a limpeza. Esses resultados pertencem à base de snapshots, não à
+composição com a migration 14.
+
 O [recibo de exemplo](../contracts/portal-sites/candidates/brief-production-v1/examples/brief-snapshot-receipt.synthetic.json)
 foi validado estruturalmente; seu calendário requer um format checker em JSON
 Schema e não representa commit. O PHP confere o timestamp por round-trip exato.
+O [manual de snapshots](PORTAL-BRIEF-SNAPSHOTS.md) descreve a reversão e os limites
+dessa capacidade já validada.
 
-As provas PostgreSQL de CAS concorrente, replay, revogação, isolamento,
-recuperação e consumo persistido estão na fixture candidata, ainda pendentes de
-CI. A compatibilidade registry prevê **923 checks**; não há resultado atribuído
-à nova branch antes de sua execução. O [manual](PORTAL-BRIEF-SNAPSHOTS.md)
-descreve a reversão e os limites desse armazenamento técnico.
+Na composição em implementação, o grupo PHP focado passou com **39 testes/
+1172 assertions**, formado por **28 novos e onze Unit existentes**, sem representar
+toda a suíte. As regressões **109** de proveniência e **271** do registro antigo
+passaram, assim como lint e diffcheck. A fixture PostgreSQL própria e a
+compatibilidade do novo conjunto ainda precisam executar. Nenhum número de PR
+ou resultado de CI é presumido para essa composição.

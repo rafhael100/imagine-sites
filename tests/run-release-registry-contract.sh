@@ -3,6 +3,9 @@ set -euo pipefail
 # Own disposable CI cluster only. Never attach to an existing service or target.
 test "${GITHUB_ACTIONS:-}" = true
 test "${SITES_RELEASE_REGISTRY_CI:-}" = 1
+if [[ "${SITES_BRIEF_ARTIFACT_PROVENANCE_CI:-}" == 1 ]]; then
+  test "${SITES_BRIEF_SNAPSHOTS_CI:-}" = 1
+fi
 if [[ "${SITES_BRIEF_SNAPSHOTS_CI:-}" == 1 ]]; then
   test "${SITES_REGISTRY_INTAKE_PERMISSIONS_CI:-}" = 1
 fi
@@ -263,4 +266,8 @@ if [[ "${SITES_REGISTRY_INTAKE_PERMISSIONS_CI:-}" == 1 ]]; then
 fi
 if [[ "${SITES_BRIEF_SNAPSHOTS_CI:-}" == 1 ]]; then
   grep -q '^NATIVE BRIEF SCHEMA REGISTRY CI PASS: 1 new assertion;' "$lab/contract.log"
+fi
+if [[ "${SITES_BRIEF_ARTIFACT_PROVENANCE_CI:-}" == 1 ]]; then
+  grep -q '^BRIEF ARTIFACT PREDECESSOR CI PASS: 923 assertions;' "$lab/contract.log"
+  grep -q '^BRIEF ARTIFACT PROVENANCE CI PASS: [1-9][0-9]* new assertions; 923 existing assertions retained[.]' "$lab/contract.log"
 fi
