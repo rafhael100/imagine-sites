@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-As melhorias de interface e o recebimento persistente do Portal avançaram em duas linhas a partir da #510. A candidata `integration/sites-workspace-native-intake-2026-11-18` reúne esse código num único ponto de revisão e valida sua coexistência.
+As melhorias de interface e o recebimento persistente do Portal avançaram em duas linhas a partir da #510. A [PR #516](https://github.com/rafhael100/imagine-sites/pull/516), branch `integration/sites-workspace-native-intake-2026-11-18`, reúne esse código num único ponto de revisão e valida sua coexistência. O HEAD funcional é `a92b365a789b3d09638feb95becc5e2dc1d384ca`.
 
 A base é a [#515](https://github.com/rafhael100/imagine-sites/pull/515), HEAD documental `a260f9be5dbe11208e287386890169ff9c0fd1cb`, que já inclui o recebimento nativo da #512 e a correção de permissões do registry. O delta de interface foi extraído da [#514](https://github.com/rafhael100/imagine-sites/pull/514), HEAD `c5df3ee02f040028cd2655b963c7a7dced07ab7c`, contra a base comum `61a8d1db212d298051e6f64f8b923e545a4c6bb3`.
 
@@ -28,19 +28,25 @@ A revisão independente da composição confirmou a separação das conexões: o
 
 Os dois workflows passaram por leitura de YAML, verificação dos guards e sintaxe dos doze blocos de shell. O workflow novo exige o draft, a origem no mesmo repositório, as branches exatas e o SHA da base; faz checkout do HEAD sem persistir credenciais. O scan de segurança sobre **622 arquivos de fonte**, sem `vendor`, passou e confirmou os dez gates BLOCKED.
 
-A matriz preparada separa os laboratórios e conserva suas identidades e gates:
+A matriz separa os laboratórios e conserva suas identidades e gates. Resultados lidos nos logs do HEAD funcional:
 
-| Execução | Prova prevista |
+| Execução | Prova confirmada |
 | --- | --- |
-| Workspace PostgreSQL 18, PHP 8.3/8.4 | 429 verificações, incluindo pareceres paginados, isolamento, revogação e snapshots de leitura/escrita. |
-| Registry PostgreSQL 18/TLS, PHP 8.3/8.4 | 918 verificações, incluindo migration 12, reprodução do corpo anterior e quatro ACLs indevidas restauradas. |
-| Navegador HTTPS real | 439 verificações com FPM/Nginx, formulários nativos, CSRF, contexto sem JavaScript, desktop/mobile e limpeza própria. |
-| Schema nativo F383 existente | Recebimento persistente, 63 verificações do intake, testes do recorder e rollback completo das 12 migrations. |
-| Laravel geral existente | Suíte completa do conjunto em PHP 8.3/8.4, nos modos padrão e sintético previstos. |
+| Workspace PostgreSQL 18, PHP 8.3/8.4 | **429 verificações**, incluindo 25 de pareceres paginados; isolamento, revogação e snapshots de leitura/escrita preservados. |
+| Registry PostgreSQL 18/TLS, PHP 8.3/8.4 | **918 verificações**, incluindo 13 da cobertura de ACL; migration 12, reprodução do corpo anterior e quatro permissões indevidas restauradas. |
+| Navegador HTTPS real | **439 verificações**, incluindo 39 de paginação e 6 de identificação acessível por versão; FPM/Nginx, formulários nativos, CSRF, contexto sem JavaScript e desktop/mobile. |
+| Schema nativo F383, PHP 8.3/8.4 | **63 verificações do intake**, recorder **18 testes/84 assertions**, reader 3/12, editorial 2/12; rollback das **12 migrations** com schema ausente ao final. |
+| Laravel geral, PHP 8.3/8.4 | Padrão: **206 testes/2174 assertions/27 skips**. Opt-in sintético: **206/2186/21**. Sem falhas. |
+
+O [workflow integrado 44311588248](https://github.com/rafhael100/imagine-sites/actions/runs/44311588248) passou nos jobs SQL `134826819495` (PHP 8.3) e `134826820070` (PHP 8.4), com marcadores de inatividade dos dois clusters. O navegador passou no job `134826820039`, com remoção dos containers, redes e materiais próprios.
+
+O [workflow nativo 44311587726](https://github.com/rafhael100/imagine-sites/actions/runs/44311587726) passou nos jobs `134826816208` e `134826816549`. A [matriz Laravel 44311587816](https://github.com/rafhael100/imagine-sites/actions/runs/44311587816) passou nos jobs `134826817539` e `134826817056`. Os ensaios existentes de [ingresso HTTP assinado 44311587926](https://github.com/rafhael100/imagine-sites/actions/runs/44311587926) e [containers locais 44311587778](https://github.com/rafhael100/imagine-sites/actions/runs/44311587778) também passaram sobre esta composição, com remoção de seus recursos descartáveis.
 
 A inclusão de `apps/sites/bootstrap/app.php` no filtro do workflow F383 mantém a comprovação nativa quando o bootstrap da aplicação compartilhada muda. Não há cenário, seed ou total artificialmente acrescentado apenas para a consolidação.
 
-**A execução conectada da candidata ainda aguarda CI.** Os resultados das PRs de origem constam no STATUS por SHA; não são apresentados como se já tivessem sido executados nesta composição.
+**17/17 check-runs SUCCESS** no HEAD funcional `a92b365a789b3d09638feb95becc5e2dc1d384ca`. Os resultados das PRs de origem constam no STATUS por SHA; não são usados como substituto dos resultados novos acima.
+
+O artifact `14430817072`, `sites-workspace-native-intake-preview-http`, contém 31 arquivos, tem 5307544 bytes e SHA-256 `81e812da3346e7f6c4c0e5ac5a6068585736ba412d25924c725be0a57f0b813d`. Tamanho, digest e caminhos do ZIP foram verificados antes da extração. As capturas do workspace desktop **1440×2413** e mobile **390×4377** foram revisadas visualmente: estrutura legível, links de versão explícitos, digests com quebra de linha e controles contidos na largura disponível.
 
 ## Integração com o Portal
 
