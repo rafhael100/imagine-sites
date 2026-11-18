@@ -1,8 +1,36 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 18/11/2026 — inspeção privada do snapshot recebido, candidata em validação
+
+Branch `feature/sites-brief-snapshot-inspection-2026-11-18`, sobre a #527 validada
+no HEAD `6ff2cabc0c32bcaa92de5b94f84c4cc3e7cdd167`. A nova CLI
+`inspect-brief-snapshot.php inspect` reutiliza `StoredBriefSnapshotReader::readExact`
+e sua API SQL existente. A seleção é `siteRef`, `snapshotRef`, `briefRevision`
+e SHA dos bytes originais do manifesto, com reader corrente separado e três
+mounts privados. Não procura a última revisão nem repete o receiver.
+
+O resultado contém exatamente dez campos: schema/status, hashes do manifesto
+e corpo, `briefRevision`, `sourceVersion` e quatro capacidades falsas. Não há
+timestamp, JSON bruto ou referência privada em stdout. A consulta permite
+apurar uma resposta de recebimento perdida sem atribuir autoria a uma tentativa
+nem transformar a declaração `approved` em autoridade Portal. SQL, migrations
+e serviços existentes permanecem intactos.
+
+**Validação local PASS:** **56 checks offline**, suíte geral **284 testes/4310
+assertions/27 skips**, **32 checks sintéticos**, lint PHP, AST do helper e diffcheck.
+A fixture acrescenta leitores próprios e consulta A/B1/B2/B3 já existentes,
+incluindo histórico após revogação do receiver; cobre isolamento, seletores,
+TLS/custódia, capabilities exclusivas e revogação corrente. Conserva as 29 checks
+do receiver, sem novos snapshots ou artefatos. **As 26 checks novas/1149 registry
+totais são previstas; PostgreSQL/TLS e cleanup próprios ainda estão PENDENTES
+do CI.** [Contrato e limites](docs/BRIEF-SNAPSHOT-INSPECTION-CLI.md) ·
+[Workflow dedicado](.github/workflows/sites-brief-snapshot-inspection.yml).
+
 ## 18/11/2026 — mensagens de limite de tamanho em português
 
-Branch `fix/sites-preview-limit-messages-2026-11-18`, sobre a #526 validada no
+A [#527](https://github.com/rafhael100/imagine-sites/pull/527), branch
+`fix/sites-preview-limit-messages-2026-11-18`, concluiu **14/14 checks SUCCESS**
+no HEAD `6ff2cabc0c32bcaa92de5b94f84c4cc3e7cdd167`, sobre a #526 validada no
 HEAD `2ffbcb5303afe12593e11a11a4a6dd45a175ac3f`. A chave inline `max.string`
 era ignorada pelo Validator instalado; o briefing recusava corretamente os
 campos longos, mas exibia a mensagem padrão em inglês. O ajuste usa `max` com
@@ -12,8 +40,16 @@ de versão esperada. As cinco mensagens passam a informar campo e teto em portug
 **Prova local:** grupo focado **21/367**, suíte geral **284/4310/27**, laboratório
 sintético **32**, lint e sintaxe JS PASS. A jornada HTTP reutiliza o negativo de
 marca e acrescenta somente quatro negativos nos outros campos; confere mensagem
-exata, tentativa integral e ausência de nova versão. **Cinco checks novos/456
-totais previstos, pendentes do CI próprio.** [Recorte e mensagens](docs/reviews/SITES-PREVIEW-LIMIT-MESSAGES-2026-11-18.md).
+exata, tentativa integral e ausência de nova versão.
+
+| Prova final da #527 | Resultado confirmado |
+| --- | --- |
+| [HTTP 44360758121](https://github.com/rafhael100/imagine-sites/actions/runs/44360758121), job **135001148995** | **5 novos/456 totais**, com cleanup. |
+| [Laravel 44360757901](https://github.com/rafhael100/imagine-sites/actions/runs/44360757901), jobs **135001148241 / 135001148149** | PHP 8.3/8.4: **284/4310/27** e **284/4322/21**, incluindo o opt-in sintético. |
+| [F383 44360757993](https://github.com/rafhael100/imagine-sites/actions/runs/44360757993), jobs **135001147443 / 135001148334** | **65 intake/245 briefing**, 14 migrations, rollback dos dois schemas e cleanup. |
+| [Containers 44360758038](https://github.com/rafhael100/imagine-sites/actions/runs/44360758038), job **135001147730** | PASS, com cleanup dos recursos próprios. |
+
+[Recorte e mensagens](docs/reviews/SITES-PREVIEW-LIMIT-MESSAGES-2026-11-18.md).
 
 ## 18/11/2026 — composição da entrada privada de snapshots com a proveniência
 

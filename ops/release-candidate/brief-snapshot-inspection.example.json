@@ -1,0 +1,16 @@
+{
+  "schema": "SITES_BRIEF_SNAPSHOT_INSPECTION_V1",
+  "target": {
+    "host": "REPLACE_WITH_CERTIFICATE_HOSTNAME",
+    "port": 5432,
+    "database": "sites_staging",
+    "databaseOid": 0,
+    "login": "replace_with_existing_snapshot_reader",
+    "serverAddress": "REPLACE_WITH_OBSERVED_ADDRESS",
+    "caSha256": "REPLACE_WITH_REVIEWED_CA_SHA256"
+  },
+  "siteRef": "REPLACE_WITH_EXISTING_SITE_UUID",
+  "snapshotRef": "REPLACE_WITH_ORIGINAL_SNAPSHOT_UUID",
+  "briefRevision": 0,
+  "manifestSha256": "REPLACE_WITH_ORIGINAL_SNAPSHOT_JSON_SHA256"
+}

@@ -125,6 +125,43 @@ Portal ou concede publicação. Ele foi incorporado da #523 com os testes
 negativos corrigidos e atores CI próprios; sua prova real permanece identificada
 separadamente da implementação de origem.
 
+## Inspeção privada de um snapshot conhecido
+
+`inspect-brief-snapshot.php` consulta uma seleção conhecida com um reader
+atualmente autorizado, usando `StoredBriefSnapshotReader::readExact` existente.
+Serve para apurar o snapshot após perda da resposta de recebimento, sem repetir
+o receiver. A revisão histórica continua selecionável depois de uma revisão
+mais recente ou da revogação do receiver original.
+
+```sh
+php ops/release-candidate/inspect-brief-snapshot.php --help
+php ops/release-candidate/inspect-brief-snapshot.php inspect
+```
+
+O comando usa três entradas fixas: `/run/secrets/brief_snapshot_inspection`
+(configuração, até 16384 bytes), `/run/secrets/sites_brief_snapshot_inspection_reader`
+(senha, 16–4096 bytes) e `/run/secrets/sites_brief_snapshot_inspection_ca`
+(CA, até 65536 bytes). A configuração `SITES_BRIEF_SNAPSHOT_INSPECTION_V1`
+contém `schema`, `target` de sete campos, `siteRef`, `snapshotRef`,
+`briefRevision` e `manifestSha256`. Este último é o hash dos bytes originais do
+manifesto armazenado; não é o compromisso de confirmação da escrita.
+
+A sessão permanece somente leitura e exige a capacidade exclusiva de leitura
+exata. A custódia dos três inputs e a identidade PostgreSQL/TLS são revalidadas
+antes e depois da consulta. O resultado `SITES_BRIEF_SNAPSHOT_INSPECTION_RESULT_V1`
+tem dez campos: schema/status, hashes do manifesto e corpo, `briefRevision`,
+contador agregado `sourceVersion` e quatro flags falsas. Não emite timestamp, conteúdo, referências privadas ou
+arquivo de saída. Recusas retornam exit 1, stdout vazio e somente
+`BRIEF_SNAPSHOT_INSPECTION_DENIED` seguido de LF.
+
+**Validação local:** 56 checks offline e suíte geral 284/4310/27 PASS.
+**Prova PostgreSQL/TLS própria: 26 checks novos/1149 totais ainda PENDENTES.**
+O [manual da inspeção de snapshot](../../docs/BRIEF-SNAPSHOT-INSPECTION-CLI.md)
+detalha os seletores, a interpretação de resultado/recusa e os guards. A
+[inspeção de proveniência](../../docs/BRIEF-ARTIFACT-INSPECTION.md) continua sendo
+a consulta separada do artefato já registrado; nenhuma dessas leituras autoriza
+publicação ou concede autorização futura ao registro.
+
 ## Registro composto a partir de briefing armazenado
 
 A nova `register-provenance.php` consome `StoredBriefReleaseRegistration` para ler um snapshot exato, validar seu perfil, gerar o HTML internamente e registrar artefato e associação na mesma chamada SQL. O [manual de registro armazenado](../../docs/STORED-BRIEF-REGISTRATION-CLI.md) descreve o manifesto, as projeções e as fronteiras de autorização. A API antiga acima permanece independente; a nova CLI não recebe HTML ou sidecar, não adota artefato preexistente sem associação e não cria grants ou migrações.
