@@ -18,6 +18,8 @@
     $formatDate = static fn (string $value): string => \Carbon\CarbonImmutable::parse($value)->setTimezone('America/Sao_Paulo')->format('d/m/Y H:i');
     $queueSearchInput = $queueSearchInput ?? null;
     $hasUnsavedBrief = $hasUnsavedBrief ?? false;
+    $revisionLimitReached = $project !== null && $currentRevision > \App\Preview\PreviewBriefInput::MAX_EXPECTED_REVISION;
+    $canAppendVersion = $canAppendVersion ?? ($canEdit && !$revisionLimitReached);
 @endphp
 <header><strong class="brand">imagine<span>.</span></strong><a href="{{ $navigation->queueUrl() }}">← Voltar à fila</a></header>
 <main>
@@ -46,12 +48,15 @@
 @endif
 <div class="layout">
 <section>
-<h2>{{ $hasUnsavedBrief ? 'Briefing ainda não salvo' : ($project ? ($canEdit ? 'Revisar briefing' : 'Briefing da versão atual') : ($canEdit ? 'Novo projeto demonstrativo' : 'Seu acesso ao workspace')) }}</h2>
+<h2>{{ $hasUnsavedBrief ? 'Briefing ainda não salvo' : ($project ? ($canAppendVersion ? 'Revisar briefing' : 'Briefing da versão atual') : ($canAppendVersion ? 'Novo projeto demonstrativo' : 'Seu acesso ao workspace')) }}</h2>
+@if($revisionLimitReached)
+<p class="history-note" data-testid="revision-limit-notice" role="note"><strong>Limite de versões atingido.</strong> Este projeto não pode gerar novas versões. Você pode consultar o briefing, as prévias e o histórico. A revisão editorial continua disponível de acordo com seu acesso.</p>
+@endif
 @if($hasUnsavedBrief)
-<p class="history-note unsaved-brief" id="unsaved-brief-notice" data-testid="unsaved-brief-notice">Este briefing ainda não foi salvo. @if($canEdit)Confira os campos antes de enviar novamente.@else O texto da tentativa foi mantido para consulta.@endif</p>
+<p class="history-note unsaved-brief" id="unsaved-brief-notice" data-testid="unsaved-brief-notice">Este briefing ainda não foi salvo. @if($canAppendVersion)Confira os campos antes de enviar novamente.@else O texto da tentativa foi mantido para consulta.@endif</p>
 @if($project)@include('preview.saved-current-brief')@endif
 @endif
-@if($canEdit)
+@if($canAppendVersion)
 <p class="muted">Cada geração preserva a versão anterior. Os campos aceitam somente texto.</p>
 @if($project && !$hasUnsavedBrief)<p class="history-note">Este briefing corresponde à versão atual {{ $currentRevision }}.</p>@endif
 <form method="post" data-testid="briefing-form" @if($hasUnsavedBrief)aria-describedby="unsaved-brief-notice"@endif action="{{ $project ? $navigation->projectUrl($project,$navigation->beforeRevision,$navigation->afterRevision) : $navigation->createUrl() }}">
@@ -78,13 +83,13 @@
 <button type="submit">{{ $project ? 'Gerar nova versão privada →' : 'Criar demonstração →' }}</button>
 </form>
 @elseif($project || $hasUnsavedBrief)
-<dl>
-<dt>Formato</dt><dd>{{ ['onepage'=>'Site Onepage', 'landing_page'=>'Landing Page'][$form['product']] ?? 'Formato não selecionado' }}</dd>
+<dl data-testid="briefing-readonly">
+<dt>Formato</dt><dd data-field="product">{{ ['onepage'=>'Site Onepage', 'landing_page'=>'Landing Page'][$form['product']] ?? 'Formato não selecionado' }}</dd>
 @foreach(['brand'=>'Marca fictícia','headline'=>'Chamada principal','description'=>'Descrição','call_to_action'=>'Chamada do botão','benefits'=>'Benefícios'] as $field=>$label)
-<dt>{{ $label }}</dt><dd>{{ $form[$field] }}</dd>
+<dt>{{ $label }}</dt><dd data-field="{{ $field }}">{{ $form[$field] }}</dd>
 @endforeach
 </dl>
-<p class="muted">A geração de versões está disponível ao responsável pela edição.</p>
+@if(!$revisionLimitReached)<p class="muted">A geração de versões está disponível ao responsável pela edição.</p>@endif
 @else
 <p>{{ $canReview ? 'Abra um projeto na fila para conferir a prévia e registrar seu parecer editorial.' : 'Abra um projeto para consultar o briefing, as versões e o histórico de revisão.' }}</p>
 @endif
@@ -135,7 +140,7 @@
 @else
 <p class="muted">Versão atual: {{ $currentRevision }}. Datas no horário de Brasília.</p>
 @if($navigation->beforeRevision !== null || $navigation->afterRevision !== null)
-<p class="history-note">O histórico pode mostrar versões anteriores. @if($hasUnsavedBrief)O briefing ainda não salvo foi mantido nesta página para consulta.@else O briefing de edição continua na versão atual.@endif</p>
+<p class="history-note">O histórico pode mostrar versões anteriores. @if($hasUnsavedBrief)O briefing ainda não salvo foi mantido nesta página para consulta.@elseif($revisionLimitReached)O briefing salvo da versão atual continua disponível para consulta.@else O briefing de edição continua na versão atual.@endif</p>
 @endif
 @forelse($versions as $v)
 <div class="item" data-version="{{ $v['revision'] }}">

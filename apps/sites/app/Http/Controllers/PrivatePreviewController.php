@@ -184,6 +184,10 @@ final class PrivatePreviewController
         $principal->requireCapability('read');
         $canEdit = $principal->allows('edit');
         $canReview = $principal->allows('review');
+        // Permission and numeric room for a successor are separate. The last
+        // persisted INTEGER revision remains available for reading/review.
+        $canAppendVersion = $canEdit && ($data['project'] === null ||
+            $data['currentRevision'] <= PreviewBriefInput::MAX_EXPECTED_REVISION);
         // A recovered POST is an unsaved form, even when its expected revision
         // has been refreshed from the current head. Keep that source explicit
         // for both editors and a reader whose edit access changed meanwhile.
@@ -211,7 +215,7 @@ final class PrivatePreviewController
                 }
             }
         }
-        return $this->secure(response()->view('preview.workspace', $data + compact('form', 'fieldErrors', 'canEdit', 'canReview', 'reviewSubmission', 'hasUnsavedBrief'), $status));
+        return $this->secure(response()->view('preview.workspace', $data + compact('form', 'fieldErrors', 'canEdit', 'canReview', 'canAppendVersion', 'reviewSubmission', 'hasUnsavedBrief'), $status));
     }
 
     private function secure($response)

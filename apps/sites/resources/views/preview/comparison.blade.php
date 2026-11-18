@@ -1,6 +1,6 @@
 <section class="comparison" aria-labelledby="comparison-title">
 <h2 id="comparison-title">Comparar versões</h2>
-<p class="muted">Confira o que mudou no briefing entre duas versões deste projeto, inclusive fora da página do histórico. @if($hasUnsavedBrief)O briefing ainda não salvo foi mantido abaixo. Você pode consultar os dados salvos da versão {{ $currentRevision }} junto dele.@else A comparação mantém o formulário de edição na versão atual {{ $currentRevision }}.@endif</p>
+<p class="muted">Confira o que mudou no briefing entre duas versões deste projeto, inclusive fora da página do histórico. @if($hasUnsavedBrief)O briefing ainda não salvo foi mantido abaixo. Você pode consultar os dados salvos da versão {{ $currentRevision }} junto dele.@elseif($revisionLimitReached)O briefing salvo da versão atual {{ $currentRevision }} continua disponível para consulta.@else A comparação mantém o formulário de edição na versão atual {{ $currentRevision }}.@endif</p>
 @php
     $comparisonInput = $comparisonInput ?? null;
 @endphp

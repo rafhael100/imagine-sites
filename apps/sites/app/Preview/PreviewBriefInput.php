@@ -17,6 +17,10 @@ final class PreviewBriefInput
     // HTTP envelope large enough for all valid fields, including the CSRF token.
     public const MAX_FORM_BYTES = 32768;
 
+    // PostgreSQL stores revision as INTEGER; append writes expected + 1.
+    // Its largest readable revision must therefore not be a writable CAS.
+    public const MAX_EXPECTED_REVISION = 2147483646;
+
     public static function parse(array $input, ?string $existingProduct = null): SiteBrief
     {
         $validator = Validator::make($input, [
@@ -28,7 +32,7 @@ final class PreviewBriefInput
             'call_to_action' => ['required', 'string', 'max:80'],
             'benefits' => ['required', 'string', 'max:1500'],
             'expected_revision' => $existingProduct === null
-                ? ['prohibited'] : ['required', 'integer', 'min:1', 'max:10000'],
+                ? ['prohibited'] : ['required', 'integer', 'min:1', 'max:'.self::MAX_EXPECTED_REVISION],
         ], [
             'required' => 'Preencha o campo :attribute.',
             'string' => 'Use somente texto no campo :attribute.',

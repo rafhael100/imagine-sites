@@ -89,6 +89,38 @@ final class PreviewBriefInputTest extends TestCase
         }
     }
 
+    public function test_expected_revision_accepts_the_old_boundary_and_last_writable_postgresql_integer(): void
+    {
+        foreach (['onepage', 'landing_page'] as $product) {
+            $form = array_replace($this->form(), ['product' => $product]);
+            $expected = PreviewBriefInput::parse($form + ['expected_revision' => '1'], $product);
+            foreach ([1, '1', 10000, '10000', 10001, '10001', 2147483646, '2147483646'] as $revision) {
+                // Exercise Laravel's real integer/max validation. This proves
+                // form admissibility, not existence, authority or a SQL append.
+                self::assertEquals($expected,
+                    PreviewBriefInput::parse($form + ['expected_revision' => $revision], $product));
+            }
+        }
+    }
+
+    public function test_expected_revision_rejects_the_readable_maximum_and_larger_values_before_append(): void
+    {
+        foreach (['onepage', 'landing_page'] as $product) {
+            $form = array_replace($this->form(), ['product' => $product]);
+            foreach ([2147483647, '2147483647', 2147483648, '2147483648', PHP_INT_MAX, (string) PHP_INT_MAX] as $revision) {
+                try {
+                    PreviewBriefInput::parse($form + ['expected_revision' => $revision], $product);
+                    self::fail('A revision with no PostgreSQL INTEGER successor was accepted');
+                } catch (ValidationException $error) {
+                    self::assertSame(['expected_revision'], array_keys($error->errors()));
+                    self::assertSame([
+                        'Recarregue o projeto para conferir a versão atual antes de gerar novamente.',
+                    ], $error->errors()['expected_revision']);
+                }
+            }
+        }
+    }
+
     public function test_new_project_does_not_accept_a_revision_or_array_fields(): void
     {
         foreach ([$this->form() + ['expected_revision' => '1'], array_replace($this->form(), ['brand' => ['invalid']])] as $input) {

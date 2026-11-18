@@ -10,6 +10,8 @@ O workspace permite gerar versões imutáveis, consultar fila e histórico, busc
 
 Após um erro de validação ou conflito de edição, o workspace identifica o briefing que ainda não foi salvo e conserva os campos para conferência. Um painel nativo na mesma página permite consultar o briefing realmente salvo, sua revisão e digest, sem sair da tentativa ou perder o texto. A navegação pelo histórico e o controle de revisão esperada permanecem preservados.
 
+A geração aceita revisões acima de 10.000 e respeita o maior sucessor armazenável pelo banco. Ao atingir a última revisão representável, o projeto mantém briefing, prévias, histórico, comparação e revisão editorial; a interface informa o limite e deixa de oferecer uma geração impossível.
+
 Na fila, uma busca segura acima do limite permanece no formulário com mensagem de correção e filtros selecionados. O limite da consulta continua em 100 caracteres; a resposta de erro pode preservar até 200, sem executar a busca inválida ou mostrar resultados alternativos. Corrigir ou limpar inicia novamente a primeira página.
 
 O registro privado de artefatos possui plano somente leitura e gravação explícita por hash revisado, usando a API SQL existente. Ele conserva os bytes e a idempotência do registry; a aprovação editorial e a associação da release exigem suas identidades próprias antes de preparar o pacote.
@@ -102,6 +104,7 @@ O Portal controla contratos, aceite expresso e evento oficial `ENTREGUE`; Sites 
 - [Orientação editorial por versão](docs/reviews/SITES-EDITORIAL-FEEDBACK-2026-11-18.md)
 - [Briefing Unicode e validação por campo](docs/reviews/SITES-BRIEF-UNICODE-VALIDATION-2026-11-18.md)
 - [Texto literal e comparação de versões](docs/reviews/SITES-INERT-TEXT-COMPARISON-2026-11-18.md)
+- [Limite de versões e consulta do projeto terminal](docs/reviews/SITES-PREVIEW-REVISION-CEILING-2026-11-18.md)
 - [Busca na fila editorial](docs/reviews/SITES-QUEUE-SEARCH-2026-11-18.md)
 - [Regras do repositório](AGENTS.md)
 
