@@ -1,0 +1,197 @@
+name: Sites recovered intake consumed by pinned native Portal (isolated draft)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['feature/sites-project-intake-recovery-cli-2026-11-18']
+    paths:
+      - '.github/workflows/sites-portal-intake-recovery.yml'
+      - 'tests/fixtures/portal-intake-recovery/**'
+      - 'tests/run-portal-intake-recovery-contract.sh'
+      - 'tests/fixtures/project-intake-receiver/**'
+      - 'tests/fixtures/project-intake-recovery/**'
+      - 'tests/fixtures/common/**'
+      - 'apps/sites/**'
+      - 'src/Integration/**'
+      - 'src/Production/**'
+      - 'src/Publication/**'
+      - 'contracts/portal-sites/**'
+      - 'contracts/release-registry/**'
+      - 'ops/release-candidate/**'
+permissions:
+  contents: read
+concurrency:
+  group: sites-portal-intake-recovery-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  native-portal-recovery:
+    name: Native Portal recovery / PHP ${{ matrix.php }}
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'integration/sites-portal-intake-recovery-2026-11-18' &&
+      github.event.pull_request.base.ref == 'feature/sites-project-intake-recovery-cli-2026-11-18' &&
+      github.event.pull_request.base.sha == '6da154611d082f7f7fe4aab87f17c9857403ed02'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: portal_native_test_bootstrap
+          POSTGRES_DB: portal_native_orders_ci
+          # Exact native Portal laboratory contract; no product credentials.
+          POSTGRES_HOST_AUTH_METHOD: trust
+          PGDATA: /var/lib/postgresql/18/docker
+        ports:
+          - '127.0.0.1:5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U portal_native_test_bootstrap -d portal_native_orders_ci"
+          --health-interval 5s --health-timeout 4s --health-retries 12
+    env:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      SITES_PORTAL_INTAKE_RECOVERY_CI: '1'
+      SITES_PORTAL_RECOVERY_SOURCE: ${{ github.workspace }}
+      SITES_PORTAL_RECOVERY_PORTAL_SOURCE: ${{ github.workspace }}/portal-source
+      SITES_PORTAL_RECOVERY_HEAD: ${{ github.event.pull_request.head.sha }}
+      PORTAL_NATIVE_ORDER_TEST: DISPOSABLE_PG18
+      PORTAL_NATIVE_ORDER_TEST_PORT: '5432'
+      PORTAL_NATIVE_ORDER_TEST_DATA: /var/lib/postgresql/18/docker
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      LOG_CHANNEL: stderr
+    steps:
+      - name: Checkout exact Sites candidate
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Checkout unchanged pinned native Portal consumer
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: rafhael100/imagine-portal
+          ref: d1aaab523848baf80325a023f3ebbf4998a3607f
+          path: portal-source
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo,pdo_pgsql,mbstring,dom,xml,curl,fileinfo,intl,bcmath,zip,sodium,posix
+          tools: composer:v2
+          coverage: none
+      - name: Verify exact source pins and dedicated fixture syntax
+        run: |
+          set -euo pipefail
+          python3 tests/fixtures/portal-intake-recovery/verify-portal-source.py
+          php -l tests/fixtures/portal-intake-recovery/sites-bridge.php
+          php -l tests/fixtures/portal-intake-recovery/NativePortalIntakeRecoveryTest.php
+          bash -n tests/run-portal-intake-recovery-contract.sh
+      - name: Locked dependencies in separate application roots
+        run: |
+          set -euo pipefail
+          for app in apps/sites portal-source/apps/portal; do
+            composer --working-dir="$app" validate --strict --no-check-publish
+            composer --working-dir="$app" install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+            composer --working-dir="$app" dump-autoload --no-interaction --no-scripts --no-plugins
+          done
+          python3 tests/fixtures/portal-intake-recovery/verify-portal-source.py
+      - name: Extract authenticated official PG18 tooling without system installation
+        run: |
+          set -euo pipefail
+          . /etc/os-release
+          test "$ID" = ubuntu
+          test "$VERSION_CODENAME" = noble
+          test "$(dpkg --print-architecture)" = amd64
+          tooling=$(mktemp -d "$RUNNER_TEMP/sites-portal-intake-recovery-pg18-XXXXXXXX")
+          mkdir -p "$tooling/lists/partial" "$tooling/cache/archives/partial" "$tooling/debs" "$tooling/root"
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc -o "$tooling/pgdg.asc"
+          fingerprint=$(gpg --batch --show-keys --with-colons "$tooling/pgdg.asc" | awk -F: '$1 == "fpr" {print $10; exit}')
+          test "$fingerprint" = B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8
+          test -r /usr/share/keyrings/ubuntu-archive-keyring.gpg
+          # All APT indexes/cache/config are local. Normal signature/hash checks remain enabled.
+          # No system APT hooks, package installation, maintainer scripts or global files.
+          cat > "$tooling/apt.conf" <<EOF
+          Dir::Etc::parts "-";
+          Dir::Etc::main "-";
+          Dir::Etc::sourcelist "$tooling/sources.list";
+          Dir::Etc::sourceparts "-";
+          Dir::State::lists "$tooling/lists";
+          Dir::Cache "$tooling/cache";
+          Dir::Log "$tooling";
+          EOF
+          cat > "$tooling/sources.list" <<EOF
+          deb [signed-by=$tooling/pgdg.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://archive.ubuntu.com/ubuntu noble main universe
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://archive.ubuntu.com/ubuntu noble-updates main universe
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://security.ubuntu.com/ubuntu noble-security main universe
+          EOF
+          export APT_CONFIG="$tooling/apt.conf"
+          apt-get --error-on=any update -qq
+          cd "$tooling/debs"
+          # Other runtime libraries are supplied by the standard Noble runner and checked below.
+          apt-get download postgresql-18 postgresql-client-18 libpq5 liburing2
+          for package in ./*.deb; do
+            dpkg-deb --show "$package"
+            sha256sum "$package"
+            dpkg-deb --extract "$package" "$tooling/root"
+          done
+          pg_bin="$tooling/root/usr/lib/postgresql/18/bin"
+          runtime_lib="$tooling/root/usr/lib/x86_64-linux-gnu"
+          export LD_LIBRARY_PATH="$runtime_lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          for binary in postgres initdb pg_ctl pg_controldata psql; do
+            ldd "$pg_bin/$binary" > "$tooling/$binary.ldd"
+            cat "$tooling/$binary.ldd"
+            if grep -q 'not found' "$tooling/$binary.ldd"; then
+              echo 'Required local runtime library unavailable; stopping before cluster creation' >&2
+              exit 1
+            fi
+          done
+          "$pg_bin/initdb" --version | grep -E '^initdb \(PostgreSQL\) 18[.]'
+          "$pg_bin/postgres" --version | grep -E '^postgres \(PostgreSQL\) 18[.]'
+          echo "PG_BIN=$pg_bin" >> "$GITHUB_ENV"
+          echo "SITES_PG_RUNTIME_LIB=$runtime_lib" >> "$GITHUB_ENV"
+      - name: Attest this job's separate Portal database service
+        env:
+          PORTAL_TEST_PG_SERVICE_ID: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          docker inspect --format '{{json .NetworkSettings.Networks}}' "$PORTAL_TEST_PG_SERVICE_ID" > "$RUNNER_TEMP/sites-portal-recovery-network.json"
+          python3 - <<'PYTHON'
+          import ipaddress, json, os
+          from pathlib import Path
+          networks = json.loads((Path(os.environ['RUNNER_TEMP']) / 'sites-portal-recovery-network.json').read_text())
+          addresses = {network['IPAddress'] for network in networks.values() if network.get('IPAddress')}
+          if len(addresses) != 1:
+              raise SystemExit('One unambiguous disposable Portal service address is required.')
+          address = ipaddress.ip_address(addresses.pop())
+          allowed = [ipaddress.ip_network(network) for network in ('10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16')]
+          if address.version != 4 or not any(address in network for network in allowed):
+              raise SystemExit('Private disposable Portal service address required.')
+          with open(os.environ['GITHUB_ENV'], 'a') as environment:
+              environment.write(f'PORTAL_NATIVE_ORDER_TEST_SERVER_ADDRESS={address}\n')
+          PYTHON
+      - name: Native order through receipt loss, receiver revocation and Portal ledger
+        run: |
+          set -euo pipefail
+          export LD_LIBRARY_PATH="$SITES_PG_RUNTIME_LIB${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          export PHP_BIN="$(command -v php)"
+          bash tests/run-portal-intake-recovery-contract.sh | tee "$RUNNER_TEMP/sites-portal-intake-recovery.log"
+          grep -Fxq 'PORTAL INTAKE RECOVERY SITES PREFLIGHT PASS' "$RUNNER_TEMP/sites-portal-intake-recovery.log"
+          grep -Fxq 'PORTAL INTAKE RECOVERY SITES SCHEMA UP PASS: 15 tracked migrations' "$RUNNER_TEMP/sites-portal-intake-recovery.log"
+          grep -Fxq 'PORTAL INTAKE RECOVERY BRIDGE PASS: 13 checks' "$RUNNER_TEMP/sites-portal-intake-recovery.log"
+          grep -Fxq 'PORTAL INTAKE RECOVERY PORTAL PASS: 20 checks' "$RUNNER_TEMP/sites-portal-intake-recovery.log"
+          grep -Eq '^OK \(1 test, [1-9][0-9]* assertions\)$' "$RUNNER_TEMP/sites-portal-intake-recovery.log"
+          grep -Fxq 'PORTAL INTAKE RECOVERY SITES FINAL PASS' "$RUNNER_TEMP/sites-portal-intake-recovery.log"
+          grep -Fxq 'PORTAL INTAKE RECOVERY SITES SCHEMA DOWN PASS: 15 tracked migrations; three schemas absent' "$RUNNER_TEMP/sites-portal-intake-recovery.log"
+          grep -Fxq 'PORTAL INTAKE RECOVERY PAIRED CONTRACT PASS: pinned native Portal consumer and recovered private Sites receipt' "$RUNNER_TEMP/sites-portal-intake-recovery.log"
+          grep -Fxq 'PORTAL INTAKE RECOVERY SITES CLUSTER INACTIVE' "$RUNNER_TEMP/sites-portal-intake-recovery.log"
+          grep -q '^PROJECT INTAKE RECOVERY CLI PATHS CLEANUP OK:' "$RUNNER_TEMP/sites-portal-intake-recovery.log"
+          grep -q '^PROJECT INTAKE RECEIVER CLI PATHS CLEANUP OK:' "$RUNNER_TEMP/sites-portal-intake-recovery.log"
+          python3 tests/fixtures/portal-intake-recovery/verify-portal-source.py

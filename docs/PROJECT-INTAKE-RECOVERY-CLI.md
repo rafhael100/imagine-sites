@@ -139,7 +139,7 @@ projetos e as verificações anteriores. Aplica temporariamente a migration 15,
 exercita a CLI com leitores próprios e a remove antes de continuar os demais
 contratos. O mapa devolvido é decodificado dos três arquivos recuperados e
 conferido contra o native15 original; seus siteRefs alimentam os snapshots,
-renderização e registros posteriores. A fixture prevê **30 checks novos/1208
+renderização e registros posteriores. A fixture confirmou **30 checks novos/1208
 registry totais**, preservando os **29 do receiver** e **119 próprios da composição**. Os arquivos e recibos do receiver permanecem intactos. O cleanup possui
 recibo de ownership próprio e valida o inventário completo antes de remover
 somente os caminhos declarados da recuperação.
@@ -148,9 +148,26 @@ O caso `lost` já teve replay explícito no predecessor. A nova prova verifica u
 leitura independente depois da revogação do receiver, sem outra chamada ao writer
 durante a recuperação. O offline confirmou **83 checks**, sem simular sucesso SQL. A suíte geral
 confirmou **296 testes/4705 assertions/27 skips**, e os **32 checks sintéticos**
-passaram. Resultados da composição serão registrados após o CI; a prova da
-biblioteca não substitui a CLI.
+passaram. A prova CLI própria da #532 está registrada abaixo.
 
 Os quatro pins consumidos pelo Portal permanecem intactos. Transporte Portal,
 produtor oficial de briefing, aceite, publicação e dez gates operacionais
 continuam com suas evidências próprias.
+
+## Evidência final da #532
+
+A [#532](https://github.com/rafhael100/imagine-sites/pull/532), HEAD
+`6da154611d082f7f7fe4aab87f17c9857403ed02`, concluiu **12/12 checks SUCCESS**.
+O [registry 44382215425](https://github.com/rafhael100/imagine-sites/actions/runs/44382215425),
+jobs **135077280635 / 135077280347**, confirmou em PHP 8.3/8.4 **30 novas/1208
+totais**, **83/77/123 checks offline**, a continuidade pelos três recibos
+recuperados e zero append durante a consulta. A migration 15 foi removida antes
+de retomar a composição; seu rollback anterior de catorze migrations permaneceu
+intacto. Cleanup da recuperação antes do receiver, demais auxiliares e clusters
+inativos confirmados nos dois jobs.
+
+O [Laravel 44382215237](https://github.com/rafhael100/imagine-sites/actions/runs/44382215237),
+jobs **135077279527 / 135077278881**, confirmou **296/4705/27** e **296/4717/21**
+nas duas versões. Não houve nova execução HTTP, F383 ou workflow de containers.
+O [ensaio posterior com o consumidor nativo Portal](reviews/SITES-PORTAL-INTAKE-RECOVERY-2026-11-18.md)
+é uma prova separada: não altera esta CLI nem o total 1208.

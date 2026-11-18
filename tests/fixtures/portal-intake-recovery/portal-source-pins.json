@@ -1,0 +1,137 @@
+{
+  "schema": "SITES_PORTAL_INTAKE_RECOVERY_SOURCE_V1",
+  "repository": "rafhael100/imagine-portal",
+  "commit": "d1aaab523848baf80325a023f3ebbf4998a3607f",
+  "files": [
+    {
+      "path": ".github/workflows/portal-native-onepage-pg18.yml",
+      "gitBlobSha": "bbe778a797d63095eee3be86c9f2f5eb58d84b9f"
+    },
+    {
+      "path": "apps/portal/app/Domain/SitesIntegration/DenyingPortalSiteContractSource.php",
+      "gitBlobSha": "0b4d0fec947f72a404dff34968574972060e945b"
+    },
+    {
+      "path": "apps/portal/app/Domain/SitesIntegration/PortalSiteContractSource.php",
+      "gitBlobSha": "9733da25486bc038b63a5621698b29c918f6a970"
+    },
+    {
+      "path": "apps/portal/app/Domain/SitesIntegration/PortalSitesPendingReceiptValidator.php",
+      "gitBlobSha": "cdb26e8e5b8ebe6349f6f29fba183fd78bc54710"
+    },
+    {
+      "path": "apps/portal/app/Domain/SitesIntegration/SiteContractSnapshot.php",
+      "gitBlobSha": "44cbfad8ed0c112455ccc7b862a86b57f6c5f9a9"
+    },
+    {
+      "path": "apps/portal/app/Domain/SitesIntegration/SitesCreateProjectEncoder.php",
+      "gitBlobSha": "594df1b476f23909f3ce8277316e7e991d15e6e6"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/Commerce/OnepageOrderCommands.php",
+      "gitBlobSha": "7bf3be1d3d95a276795654fc913704d99a2780c9"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/Commerce/PostgresOnepageOrders.php",
+      "gitBlobSha": "183f84f99abb7a6e3c6244504529d57da0d6b248"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/Commerce/PostgresOnepageSiteReceiptWriter.php",
+      "gitBlobSha": "f84ee07e704a83d8c997f8ad558b977bac8f0798"
+    },
+    {
+      "path": "apps/portal/app/Infrastructure/Commerce/PostgresPortalSiteContractSource.php",
+      "gitBlobSha": "17e92fb3d3b23a7af402feeb813b7351b4618aa7"
+    },
+    {
+      "path": "apps/portal/bootstrap/app.php",
+      "gitBlobSha": "1085719c5683acf7fa298c8efc78fcc5d0d6005e"
+    },
+    {
+      "path": "apps/portal/bootstrap/providers.php",
+      "gitBlobSha": "73eb9586e1012c0548fe06cb9a7efe3770a457fd"
+    },
+    {
+      "path": "apps/portal/composer.json",
+      "gitBlobSha": "18e621d2557145bfc34339d229cc8be5ee002f6d"
+    },
+    {
+      "path": "apps/portal/composer.lock",
+      "gitBlobSha": "13e6715405e4719ab5dc56b8f22dcce1c855a66d"
+    },
+    {
+      "path": "apps/portal/database/migrations/2026_11_09_000002_create_portal_identity_foundation.php",
+      "gitBlobSha": "f952bd64cb51be2ea18122ec232f6862bc1d522a"
+    },
+    {
+      "path": "apps/portal/database/migrations/2026_11_09_000003_add_mfa_replay_counter_to_portal_identities.php",
+      "gitBlobSha": "3a5c99b8a50cf8b9473f912db6477309d7ea5fcb"
+    },
+    {
+      "path": "apps/portal/database/migrations/2026_11_10_000004_add_org_revision_to_portal_sessions.php",
+      "gitBlobSha": "b8dee597906106dea33fabc79ce24bcf561d5e9a"
+    },
+    {
+      "path": "apps/portal/database/migrations/2026_11_10_000005_create_portal_auth_throttle_buckets.php",
+      "gitBlobSha": "7cb48e75b4de17fd7d9091f5dad81a8eed7b2b4d"
+    },
+    {
+      "path": "apps/portal/database/migrations/2026_11_10_000008_add_session_purpose_to_portal_auth_sessions.php",
+      "gitBlobSha": "737d43aa4271229e9c34bc2fa4759014ea11b21d"
+    },
+    {
+      "path": "apps/portal/database/migrations/2026_11_11_000012_fence_portal_membership_revision.php",
+      "gitBlobSha": "86e75433868b1f6ecc2fd74344b70c8e256e1ec5"
+    },
+    {
+      "path": "apps/portal/database/migrations/2026_11_11_000013_fence_portal_organization_revision.php",
+      "gitBlobSha": "7f6eb9526ed56f4306fbe0e6eda961b14142e63f"
+    },
+    {
+      "path": "apps/portal/database/migrations/2026_11_11_000014_guard_portal_session_issuance.php",
+      "gitBlobSha": "d00b2d0db13f788ff40b3964cb2b5b20eaf1f699"
+    },
+    {
+      "path": "apps/portal/database/migrations/2026_11_12_000016_fence_portal_identity_revision.php",
+      "gitBlobSha": "a7528d5d461f1653efb13ecc3f4fb86ed66dbec8"
+    },
+    {
+      "path": "apps/portal/database/security/portal_browser_auth.sql",
+      "gitBlobSha": "42bb622b01e1b89f7ec99214ac104da2262c3774"
+    },
+    {
+      "path": "apps/portal/database/security/portal_browser_principal_candidate.sql",
+      "gitBlobSha": "2ea9540009989b17656e18b588f0e7a60ed3762a"
+    },
+    {
+      "path": "apps/portal/database/security/portal_onepage_orders.sql",
+      "gitBlobSha": "4f44d9ac9dda0662008d34b0210cd5d6c1e49209"
+    },
+    {
+      "path": "apps/portal/database/security/portal_onepage_site_receipts.sql",
+      "gitBlobSha": "2102fb9399ec8f43b5cca1768ee33b61339de3c0"
+    },
+    {
+      "path": "apps/portal/phpunit.xml",
+      "gitBlobSha": "74795aca9e8174ae6d0a60632c9a48c58fc50e01"
+    },
+    {
+      "path": "apps/portal/tests/Integration/NativeOnepageOrdersPgTest.php",
+      "gitBlobSha": "30712b7920e249c21facee30ce379dc9c1ec82b5"
+    },
+    {
+      "path": "apps/portal/tests/Integration/OnepageEntryPaymentsPgAssertions.php",
+      "gitBlobSha": "060a909b0030b5b6a4fa218665ea2e92b05d2b6f"
+    },
+    {
+      "path": "apps/portal/tests/TestCase.php",
+      "gitBlobSha": "fe1ffc2ff1abc1c23522418994879623c5647859"
+    }
+  ],
+  "sitesContractSha256": {
+    "apps/sites/app/Integration/PortalProjectIntakeRecorder.php": "0c2f3ef5edc6b931b665edc980adba464e23523635b5c6351ac94242e7aca15d",
+    "src/Integration/SiteProjectCommand.php": "e3d9b9e955c5eeaafa0e8ce1aada39a0c941dcc2ae78cf13a5b6873a1ffefbdd",
+    "contracts/portal-sites/001-project-intake.sql": "1f0f25b7f810a6e6893de67480e4bad81000d29e5af3d7c0facfdda42f242ab6",
+    "contracts/portal-sites/v1/project-intake-receipt.schema.json": "2a5774591cefdc02fd595597c4905988ff948a65b653cf46ac27ec5fc3dbd56e"
+  }
+}

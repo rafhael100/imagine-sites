@@ -6,6 +6,18 @@
 
 Essa conclusão delimita a integração; não afirma esgotamento de todo desenvolvimento. O trabalho autorizado em branch isolada pode continuar em componentes com uso concreto e defeitos demonstrados. A inspeção privada do diário é um exemplo: consome a API persistente existente sem criar autoridade ou depender de um briefing inventado.
 
+### Recibo recuperado consumido pelo Portal nativo
+
+Sobre a #532 validada, a branch
+`integration/sites-portal-intake-recovery-2026-11-18` prepara um
+[ensaio pareado dedicado](SITES-PORTAL-INTAKE-RECOVERY-2026-11-18.md) com o
+Portal #954 / `d1aaab523848baf80325a023f3ebbf4998a3607f`, preservado integralmente.
+Pedido, comando, validação, ledger e leitura do comprador vêm das implementações
+nativas do Portal. Sites recebe pela CLI, perde a resposta pública, desativa o
+receiver e recupera por leitor próprio o arquivo privado entregue ao consumidor.
+Os runtimes e bancos são separados; essa prova não acrescenta transporte ou
+origem comercial. O CI próprio ainda está pendente.
+
 ### Recuperação privada do recibo de intake
 
 Sobre a #531 validada, a branch
@@ -14,8 +26,14 @@ Sobre a #531 validada, a branch
 recibo nativo em novo arquivo privado com leitor próprio e PDO sempre somente
 leitura, permitindo recuperar o siteRef sem repetir o receiver histórico.
 Quatro inputs fixos, compromisso e reserva exclusiva mantêm a custódia; a saída
-pública tem oito/dez campos técnicos. Os 83 checks offline passaram, e a prova
-PostgreSQL/TLS da composição está em preparação. A leitura histórica conserva o
+pública tem oito/dez campos técnicos. A
+[#532](https://github.com/rafhael100/imagine-sites/pull/532), HEAD
+`6da154611d082f7f7fe4aab87f17c9857403ed02`, concluiu **12/12 checks SUCCESS**.
+O [registry 44382215425](https://github.com/rafhael100/imagine-sites/actions/runs/44382215425)
+confirmou **30 novas/1208 totais**, **83 offline**, três recibos recuperados
+consumidos pela composição e cleanup em PHP 8.3/8.4. O
+[Laravel 44382215237](https://github.com/rafhael100/imagine-sites/actions/runs/44382215237)
+confirmou **296/4705/27** e **296/4717/21**. A leitura histórica conserva o
 contrato recebido pelo Portal e não autentica a origem comercial.
 
 ### Consulta do intake com identidade de leitura independente

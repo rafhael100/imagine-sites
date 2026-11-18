@@ -38,7 +38,9 @@ A entrada candidata `receive-project-intake.php` expõe o recebimento nativo de 
 
 O novo leitor candidato `StoredProjectIntakeReceiptReader::readExact` recupera o recibo de um intake conhecido pelos oito campos do comando, incluindo o `siteRef` perdido com uma resposta. Usa uma identidade de leitura corrente e independente do receptor original, sem repetir o writer. A migration 15 acrescenta uma API somente leitura e seu definer, preservando os quatro arquivos fixados pelo Portal. O recibo histórico continua com quinze campos e três indicadores falsos. A [#531](https://github.com/rafhael100/imagine-sites/pull/531), HEAD `958ce49899375a99c3dee9b7f40016701a465502`, confirmou **13/13 checks SUCCESS**, **53 novas/65 intake/245 snapshots**, rollback das quinze migrations e cleanup em PHP 8.3/8.4. Laravel confirmou **296/4705/27** e **296/4717/21**. [Contrato de consulta e momento da autorização](docs/PROJECT-INTAKE-RECEIPT-READER.md).
 
-A candidata `recover-project-intake-receipt.php` usa esse leitor para gravar o recibo completo em novo arquivo privado 0600, inclusive após revogação do receiver. Oferece plano e recuperação por compromisso explícito, mantendo o banco somente leitura. A saída pública contém hashes e estado técnico; o arquivo conserva os quinze campos nativos. **83 checks offline** passaram; a composição PostgreSQL/TLS tem prova própria em preparação. [Manual da recuperação privada](docs/PROJECT-INTAKE-RECOVERY-CLI.md).
+A candidata `recover-project-intake-receipt.php` usa esse leitor para gravar o recibo completo em novo arquivo privado 0600, inclusive após revogação do receiver. Oferece plano e recuperação por compromisso explícito, mantendo o banco somente leitura. A saída pública contém hashes e estado técnico; o arquivo conserva os quinze campos nativos. A [#532](https://github.com/rafhael100/imagine-sites/pull/532), HEAD `6da154611d082f7f7fe4aab87f17c9857403ed02`, confirmou **12/12 checks SUCCESS**, **83 offline** e **30 novas/1208 registry totais** em PHP 8.3/8.4, com os três recibos recuperados alimentando a composição e cleanup confirmado. [Manual da recuperação privada](docs/PROJECT-INTAKE-RECOVERY-CLI.md).
+
+Um [ensaio dedicado com o consumidor Portal nativo](docs/reviews/SITES-PORTAL-INTAKE-RECOVERY-2026-11-18.md) está implementado sobre a #532. Usa o Portal #954 fixado e inalterado, bancos separados e as duas CLIs reais: descarta a resposta de recebimento, desativa o receiver, recupera o arquivo nativo e o entrega ao validador, ledger e leitor do comprador. Acrescenta somente prova e documentação; seu resultado PostgreSQL próprio ainda aguarda CI.
 
 Uma conexão de leitura separada recupera a seleção exata do snapshot e revalida o perfil completo antes de alimentar o renderer com a entrada editorial escolhida. Esse consumidor interno continua sem escrever arquivos ou registrar o artefato por conta própria. O armazenamento foi validado na #519; consulte o [manual dos snapshots candidatos](docs/PORTAL-BRIEF-SNAPSHOTS.md).
 
@@ -160,6 +162,8 @@ O Portal controla contratos, aceite expresso e evento oficial `ENTREGUE`; Sites 
 - [Snapshots candidatos: armazenamento, leitura exata e consumo](docs/PORTAL-BRIEF-SNAPSHOTS.md)
 - [Recebimento privado de projetos e recibo nativo](docs/PROJECT-INTAKE-RECEIVER-CLI.md)
 - [Consulta exata do recibo nativo de projeto](docs/PROJECT-INTAKE-RECEIPT-READER.md)
+- [Recuperação privada do recibo de projeto](docs/PROJECT-INTAKE-RECOVERY-CLI.md)
+- [Consumo do recibo recuperado pelo Portal nativo](docs/reviews/SITES-PORTAL-INTAKE-RECOVERY-2026-11-18.md)
 - [Inspeção privada de um snapshot conhecido](docs/BRIEF-SNAPSHOT-INSPECTION-CLI.md)
 - [Composição candidata: snapshot, artefato e recibo histórico](docs/STORED-BRIEF-RELEASE-PROVENANCE.md)
 - [Consulta privada do recibo de proveniência](docs/BRIEF-ARTIFACT-INSPECTION.md)
