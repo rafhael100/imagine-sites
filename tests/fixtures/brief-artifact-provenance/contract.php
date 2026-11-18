@@ -849,6 +849,19 @@ if (!isset($admin, $connection, $connect, $password, $caFile, $ok)) {
         $bapCheck($verificationDenied && $bapInspect($bapRoles['receipt_a'], $bapPlans['main']) === $bapMainHistory &&
             bapRows($bapAdmin) === $before, 'technical verification respects current editorial and binding state while the historical provenance receipt remains readable');
 
+        if (getenv('SITES_BRIEF_ARTIFACT_INSPECTION_CI') === '1') {
+            $bapStage = 'private exact historical inspection CLI';
+            $bapInspection = require __DIR__.'/../brief-artifact-inspection/contract.php';
+            $bapInspection($bapAdmin, $bapConnection, $bapPassword, $bapCaFile, $bapTenants, [
+                'main' => ['planJson' => $bapPlans['main'], 'history' => $bapMainHistory],
+                'lost' => ['planJson' => $bapPlans['lost'], 'history' => $lostHistory],
+                'epoch' => ['planJson' => $bapPlans['epoch'], 'history' => $bapHistoryExpected($epochReceipt)],
+                'revoked' => ['planJson' => $bapPlans['revoked'], 'history' => $bapHistoryExpected($revokedReceipt)],
+                'sql_only' => ['planJson' => $alternatePlan, 'history' => $alternateHistory],
+                'company_b' => ['planJson' => $bapPlans['company_b'], 'history' => $bapHistoryExpected($bReceipt)],
+            ], $bapOk);
+        }
+
         // Only the old objects are compared across destructive candidate
         // rollback. Normalize solely the three new definer grantees; do not
         // discard existing runtime ACLs or unrelated function bodies.
