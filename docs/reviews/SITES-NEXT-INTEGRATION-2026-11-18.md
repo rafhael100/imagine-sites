@@ -10,7 +10,7 @@ A ausência de um contrato oficial também não proíbe desenhar propostas rever
 
 ## Evidência do Portal inspecionada
 
-Foram consultados títulos, escopos e referências das PRs #924–#938. As HEADs #924, #935 e #936 foram reconferidas nesta revisão. PR mais recente não significa contrato mais recente da integração: existem linhas paralelas.
+Foram consultados títulos, escopos e referências das PRs #924–#940. As HEADs #924, #935 e #936 foram reconferidas nesta revisão. PR mais recente não significa contrato mais recente da integração: existem linhas paralelas.
 
 | Referência fixada | Evidência e limite |
 | --- | --- |
@@ -35,6 +35,14 @@ Na consulta de continuidade em 18/11/2026, a listagem por criação continuava e
 A PR #927 avançou de `30715cf49355a8aad39c2ff8c989dcd1cb2566d9` para `86c9f74e890d5d2ae254c63b65dee36af3a58e7f`. A [comparação desses commits](https://github.com/rafhael100/imagine-portal/compare/30715cf49355a8aad39c2ff8c989dcd1cb2566d9...86c9f74e890d5d2ae254c63b65dee36af3a58e7f) contém três commits e 22 paths de inventário, recuperação, materiais/build de Performance e seus testes/workflow. Esse delta não modifica domínio, rota, intake, briefing ou consumidor Sites. O pin anterior da tabela permanece como registro da inspeção histórica; esta conferência registra o avanço posterior.
 
 Não apareceu contrato de briefing oficial versionado nem consumidor Sites no intervalo consultado. Isso continua sendo uma conclusão limitada às fontes acima. O desenvolvimento isolado prosseguiu na reconciliação do diário, custódia de recibos e recuperação da comparação, usando contratos e fluxos já existentes.
+
+### Atualização do Portal durante a consulta de associação
+
+Em 18/11/2026, a consulta por criação avançou para as PRs #939 e #940. As HEADs #937, #938 e #927 permaneceram nos últimos pins registrados. A nova [#939, `4464e322`](https://github.com/rafhael100/imagine-portal/pull/939), acrescenta um laboratório de confirmação sintética e indicação do próximo passo. O [NextStep](https://github.com/rafhael100/imagine-portal/blob/4464e3220e077118f05928ee20a48f33ea6440ec/apps/portal/labs/onepage-confirmation-private/NextStep.php) retorna somente `next_step=null` ou `next_step=briefing`, com sessão nativa e escopo de teste, sem registrar rota. O [SQL de confirmação](https://github.com/rafhael100/imagine-portal/blob/4464e3220e077118f05928ee20a48f33ea6440ec/apps/portal/labs/onepage-confirmation-private/confirmation.sql) persiste fontes, eventos e decisões sintéticas; suas revisões e digests descrevem a confirmação, sem corpo de conteúdo para geração.
+
+O [SiteBriefDraft nessa HEAD](https://github.com/rafhael100/imagine-portal/blob/4464e3220e077118f05928ee20a48f33ea6440ec/apps/portal/app/Domain/SiteIntake/SiteBriefDraft.php) foi relido e mantém SAMPLE/DEMO e as três autoridades falsas. O avanço é um precursor concreto da indicação de habilitação do briefing, mas o marcador não substitui uma revisão do seu conteúdo nem um consumidor Sites.
+
+A [#940, `1b394f98`](https://github.com/rafhael100/imagine-portal/pull/940), acrescenta recuperação simulada de identidade de cobrança após resposta perdida. O [Recovery](https://github.com/rafhael100/imagine-portal/blob/1b394f9826f623dec02beffcd2528b6a17d0c51e/apps/portal/labs/onepage-recovery-composition-private/Recovery.php) confere conta/ambiente e correspondência da cobrança; não implementa transporte HTTP e não interpreta o status como pagamento ou liberação. Esses dois deltas foram lidos sem alterar o Portal. Não fornecem o corpo oficial versionado ou o consumidor de geração necessário ao Sites nas fontes consultadas. As declarações de preparação dos respectivos READMEs não foram tratadas como resultado de CI.
 
 ## O que as peças Sites já fazem
 
