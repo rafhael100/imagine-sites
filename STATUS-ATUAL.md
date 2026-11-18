@@ -1,12 +1,16 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 18/11/2026 — candidata unificada de interface e recebimento nativo
+
+Branch `integration/sites-workspace-native-intake-2026-11-18`, baseada na #515 / `a260f9be5dbe11208e287386890169ff9c0fd1cb`. Incorpora os 26 arquivos de aplicação/testes/fixtures da linha de interface #511/#513/#514, byte a byte como em `c5df3ee02f040028cd2655b963c7a7dced07ab7c`, mais os três relatórios correspondentes. README e este status foram reconciliados preservando o recebimento nativo e a migration 12. Os workflows históricos de UI não são duplicados; a candidata possui um workflow próprio do conjunto. **Suíte local completa: 206 testes/2174 assertions/27 skips PASS**, executada uma vez com `--do-not-cache-result`. A prova conectada foi preparada para 429 verificações workspace, 918 registry e 439 HTTP; o F383 existente deve confirmar as 63 verificações nativas e rollback das 12 migrations. Os resultados anteriores abaixo pertencem a cada HEAD de origem; a CI do conjunto ainda aguarda execução. [Composição e limites](docs/reviews/SITES-INTEGRATED-CANDIDATE-2026-11-18.md).
+
 ## 18/11/2026 — continuidade: cobertura de permissões após o recebimento nativo
 
 Branch `fix/sites-registry-intake-permissions-2026-11-18`, sobre a PR #512 / `9b80387fe1c580436b444a6aad2b63f3baafa37d`. A migration 12 substitui somente o guard do registry para incluir todas as tabelas comuns/particionadas de `sites_core`, preservando as onze bases obrigatórias e os predicados anteriores. Fecha a omissão da tabela nova `portal_project_intakes`, sem alterar grants ou dados. Up/down conferem pins e todos os atributos de `pg_proc` exceto o corpo; a reversão restaura também a limitação antiga. Produto, migration e fixture receberam revisão independente sem bloqueador. **PR #515 validada no HEAD funcional `1732ad5b0d7b60067154c2a3354cd16b99a6658b`: 14/14 check-runs SUCCESS**. O [run 44307367368](https://github.com/rafhael100/imagine-sites/actions/runs/44307367368) confirmou **13 verificações novas/918 registry**, em PHP 8.3/8.4 e PostgreSQL 18/TLS, com reprodução do corpo antigo, quatro ACLs indevidas, recuperação positiva e snapshots completos. O [run nativo 44307366977](https://github.com/rafhael100/imagine-sites/actions/runs/44307366977) confirmou 63 verificações do recebimento, recorder 18 testes/84 assertions e rollback das 12 migrations. A [matriz Laravel 44307367201](https://github.com/rafhael100/imagine-sites/actions/runs/44307367201) passou com suíte padrão 186/1902/27 e opt-in sintético 186/1914/21. Clusters próprios inativos e materiais dos auxiliares limpos. [Contrato e limites](docs/reviews/SITES-REGISTRY-INTAKE-PERMISSIONS-2026-11-18.md).
 
-### Entregas de interface na linha paralela
+### Entregas incorporadas e suas evidências de origem
 
-Estas PRs partem da #510 por outra linha; os resultados abaixo identificam seus próprios SHAs e não significam que seu código foi incorporado à candidata de compatibilidade do registry.
+Estas PRs partiram da #510 por outra linha. A candidata unificada descrita acima incorpora o código de aplicação e testes dessa linha à base nativa #515. Os resultados abaixo identificam os próprios SHAs de origem e não substituem a validação nova do conjunto.
 
 | PR / HEAD | Resultado confirmado |
 | --- | --- |

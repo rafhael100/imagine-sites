@@ -2,6 +2,7 @@
 <h2 id="current-guidance-title">Orientações da versão atual</h2>
 <p class="muted">Estes pareceres correspondem à versão {{ $currentRevision }}, mesmo quando o histórico ou a comparação mostram versões anteriores.</p>
 <code>SHA-256: {{ $currentSha256 }}</code>
+<p><a data-testid="version-reviews-link" data-review-target="{{ $currentRevision }}" href="{{ $navigation->versionReviewsUrl($project,$currentRevision) }}">Consultar pareceres da versão {{ $currentRevision }}</a></p>
 @forelse($currentReviews as $r)
 <article class="editorial-review" data-review-revision="{{ $r['revision'] }}" data-review-digest="{{ $r['sha256'] }}">
 <p><strong>{{ $r['decision']==='approved_internal' ? 'Aprovada internamente' : 'Ajustes solicitados' }}</strong> · {{ $formatDate($r['created_at']) }} · Brasília</p>
@@ -12,5 +13,5 @@
 @endif
 </article>
 @empty<p>A versão atual ainda não recebeu parecer editorial.</p>@endforelse
-@if($currentReviewsTruncated)<p class="muted">Mostrando os 100 pareceres mais recentes da versão atual.</p>@endif
+@if($currentReviewsTruncated)<p class="muted">Mostrando os 100 pareceres mais recentes da versão atual. Use o link de consulta acima para ver os demais pareceres.</p>@endif
 </section>

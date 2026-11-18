@@ -203,7 +203,7 @@ module.exports=async({ctx,base,dir,one,historyUrl,docker,ok})=>{
    const [reviewError]=await Promise.all([
      reviewer.waitForResponse(response=>response.request().isNavigationRequest()&&response.request().method()==='POST'&&response.url()===reviewUrl),
      reviewer.waitForNavigation({waitUntil:'load'}),
-     review().getByRole('button',{name:'Registrar revisão editorial',exact:true}).click(),
+     review().getByRole('button',{name:'Registrar revisão editorial da versão 61',exact:true}).click(),
    ]);
    check(reviewError.status()===422&&await reviewer.locator('#error-note-61').isVisible()&&
      await review().locator('[name="note"]').inputValue()===longNote&&

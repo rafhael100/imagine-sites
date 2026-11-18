@@ -81,7 +81,7 @@ final class PrivatePreviewRevisionCeilingViewTest extends TestCase
         self::assertSame($data['navigation']->queueUrl(), $xpath->evaluate('string(//header/a/@href)'));
         self::assertSame($data['navigation']->reviewUrl($data['project'], $maximum), $xpath->evaluate('string('.$review.'/@action)'));
         self::assertSame($data['currentSha256'], $xpath->evaluate('string('.$review.'//input[@name="sha256"]/@value)'));
-        self::assertSame(1, $xpath->query($review.'//button[normalize-space(.)="Registrar revisão editorial"]')->length);
+        self::assertSame(1, $xpath->query($review.'//button[normalize-space(.)="Registrar revisão editorial da versão 2147483647"]')->length);
         self::assertSame(0, $xpath->query($review.'//*[@name="expected_revision" or @name="compare_from" or @name="compare_to"]')->length);
         self::assertStringContainsString('O briefing salvo da versão atual 2147483647 continua disponível para consulta.', $html);
         self::assertStringNotContainsString('A comparação mantém o formulário de edição na versão atual', $html);

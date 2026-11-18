@@ -8,6 +8,7 @@ on:
   pull_request:
     paths:
       - 'apps/sites/database/migrations/**'
+      - 'apps/sites/bootstrap/app.php'
       - 'tests/f383-operational-schema-migration.php'
       - 'tests/f384-tenant-safe-operational-reader.php'
       - 'apps/sites/app/ReadModels/TenantSiteStatusReader.php'
