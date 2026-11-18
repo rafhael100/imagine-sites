@@ -50,9 +50,9 @@ jobs:
           set -euo pipefail
           php tests/f24-run.php
           php tests/f27-offline-preview-audit.php | tee "$RUNNER_TEMP/sites-inert-css-audit.log"
-          grep -q '^152 F1-27 offline preview audit checks passed;' "$RUNNER_TEMP/sites-inert-css-audit.log"
+          grep -q '^260 F1-27 offline preview audit checks passed;' "$RUNNER_TEMP/sites-inert-css-audit.log"
           php tests/release-registration-offline.php | tee "$RUNNER_TEMP/sites-inert-css-registration.log"
-          grep -q '^RELEASE REGISTRATION OFFLINE PASS: 279 input, exact-byte commitment and default-denial assertions;' "$RUNNER_TEMP/sites-inert-css-registration.log"
+          grep -q '^RELEASE REGISTRATION OFFLINE PASS: 293 input, exact-byte commitment and default-denial assertions;' "$RUNNER_TEMP/sites-inert-css-registration.log"
       - name: Install locked Laravel dependencies without scripts
         working-directory: apps/sites
         run: composer install --no-interaction --no-progress --prefer-dist --no-scripts

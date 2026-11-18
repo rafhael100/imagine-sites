@@ -132,7 +132,19 @@ reutilizando seis operações existentes dos dois tenants. A
 [fixture nova](../tests/fixtures/publication-request-reader/contract.php) prevê
 **33 checks novos /1241 totais**, com os quatro estados, ACK tardio, revogação
 histórica, seleção exata, permissões/contexto e down/up/down da migration 16.
-Nenhum teste PG local foi executado; **a prova PostgreSQL própria ainda está pendente**.
+Nenhum teste PG local foi executado. A [#536](https://github.com/rafhael100/imagine-sites/pull/536),
+HEAD `849636107cc8562f68ad6c42a34bb71c5b7f66e1`, concluiu **14/14 checks SUCCESS**.
+O [registry 44394481654](https://github.com/rafhael100/imagine-sites/actions/runs/44394481654),
+jobs **135120584998 / 135120584665**, confirmou **49 offline, 33 novas/1241
+totais**, rollback16 e cleanup em PHP 8.3/8.4. O [F383 44394481894](https://github.com/rafhael100/imagine-sites/actions/runs/44394481894),
+jobs **135120585725 / 135120586140**, percorreu as dezesseis migrations e
+confirmou ambos os schemas ausentes após rollback. O [Laravel 44394481500](https://github.com/rafhael100/imagine-sites/actions/runs/44394481500)
+confirmou **296/4705/27** e **296/4717/21**.
+
+A [CLI da #538](PUBLICATION-REQUEST-RECOVERY-CLI.md) consome esse leitor e grava
+um novo recibo privado. Seus **63 checks offline** passaram nas duas versões;
+a evidência SQL do leitor não substitui a prova própria da composição CLI,
+que permanece pendente.
 
 Os dez gates continuam BLOCKED e AGI-11-RB01 desabilitado. Histórico técnico,
 ACK e recuperação de referência não autorizam envio, publicação, aceite do

@@ -254,11 +254,12 @@ identidade reader atual e exclusiva pode recuperar em memória o snapshot e seu
 Ausência ou divergência é uma recusa limitada e não cria operação. O estado é
 histórico; a API não decide envio, retry ou publicação.
 
-Esse primeiro incremento não grava um novo recibo nem acrescenta comando a esta
-CLI. Seu resultado privado pode apoiar a preparação autorizada da inspeção
-existente. O inspector conserva sua própria API, identidade e alvo; não recebe
-automaticamente o retorno nem herda permissões. A prova PostgreSQL da candidata
-permanece indicada no manual do leitor.
+O leitor foi validado na #536 com **33 novas/1241 registry totais**, rollback16
+e cleanup nas duas versões PHP. A [CLI separada da #538](../../docs/PUBLICATION-REQUEST-RECOVERY-CLI.md)
+consome esse leitor em `recover-request.php plan|recover` e grava o UUID em
+novo recibo privado. Confirmou **63 checks offline**; sua composição PostgreSQL
+ainda está pendente. O inspector conserva sua própria API, identidade e alvo;
+não recebe automaticamente o retorno nem herda permissões.
 
 ### CI e limites da evidência offline
 
