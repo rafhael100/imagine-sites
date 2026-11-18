@@ -10,12 +10,14 @@
 .queue-filters{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin:18px 0}.queue-filters>div{flex:1 1 220px;min-width:0}.queue-filters>.queue-search{flex-basis:100%}.queue-filters label{margin-top:0}.queue-filters button{margin-top:0}.queue-search-help{margin:4px 0 0}.queue-empty{overflow-wrap:anywhere}.pager{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:20px 0}.pager a{padding:8px 0}.item a,.item p{overflow-wrap:anywhere}.item .project-title{font-size:19px;font-weight:750}.history-note{padding:12px 16px;background:#f3f2ee;border-radius:8px}
 .comparison{margin-top:30px}.comparison h2{margin-top:0}.comparison-form{display:flex;flex-wrap:wrap;gap:16px;align-items:end;margin:20px 0}.comparison-form>div{flex:1 1 180px;min-width:0}.comparison-form label{margin-top:0}.comparison-form button{margin-top:0}.comparison-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;margin-top:20px}.comparison-side{min-width:0;border:1px solid #ded8ce;border-radius:12px;padding:20px}.comparison-side h3{margin-top:0}.comparison-side dl{margin-bottom:0}.comparison-side code{white-space:normal}.comparison-value{min-width:0;overflow-wrap:anywhere}.comparison-value[data-field-changed=true]{border-left:3px solid #c4770b;padding:8px 12px;background:#fff8ee}.comparison-value ol{margin:0;padding-left:22px;white-space:normal}.comparison-value li{white-space:pre-wrap;overflow-wrap:anywhere}.comparison-change{display:inline-block;padding:1px 8px;margin-left:6px;border-radius:12px;background:#fff0db;color:#794100;font-size:12px;font-weight:700}.comparison-summary{padding:12px 16px;border-radius:8px;background:#f3f2ee;overflow-wrap:anywhere}@media(max-width:700px){.comparison-grid{grid-template-columns:1fr}.comparison-form>div{flex-basis:100%}.comparison-side{padding:16px}}
 .editorial-guidance,.preserved-review{margin-top:24px}.editorial-guidance h2,.preserved-review h2{margin-top:0}.editorial-review{border-top:1px solid #e4ddd2;padding:14px 0;min-width:0}.editorial-review p{margin:8px 0}.review-note{white-space:pre-wrap;overflow-wrap:anywhere;min-width:0}.review textarea{white-space:pre-wrap;overflow-wrap:anywhere}.preserved-review p,.errors li,.review .muted,.editorial-guidance p{overflow-wrap:anywhere}
+.unsaved-brief,.saved-current-brief{overflow-wrap:anywhere}.saved-current-brief{margin:18px 0;padding:16px;border:1px solid #ded8ce;border-radius:12px;background:#faf9f6}.saved-current-brief summary{font-weight:700;cursor:pointer}.saved-current-brief summary:focus-visible{outline:3px solid #9b4c00;outline-offset:3px}.saved-current-brief dl{margin-bottom:0}.saved-current-brief ol{margin:0;padding-left:22px;white-space:normal}.saved-current-brief li{white-space:pre-wrap;overflow-wrap:anywhere}
 </style>
 </head>
 <body>
 @php
     $formatDate = static fn (string $value): string => \Carbon\CarbonImmutable::parse($value)->setTimezone('America/Sao_Paulo')->format('d/m/Y H:i');
     $queueSearchInput = $queueSearchInput ?? null;
+    $hasUnsavedBrief = $hasUnsavedBrief ?? false;
 @endphp
 <header><strong class="brand">imagine<span>.</span></strong><a href="{{ $navigation->queueUrl() }}">← Voltar à fila</a></header>
 <main>
@@ -44,11 +46,15 @@
 @endif
 <div class="layout">
 <section>
-<h2>{{ $project ? ($canEdit ? 'Revisar briefing' : 'Briefing da versão atual') : ($canEdit ? 'Novo projeto demonstrativo' : 'Seu acesso ao workspace') }}</h2>
+<h2>{{ $hasUnsavedBrief ? 'Briefing ainda não salvo' : ($project ? ($canEdit ? 'Revisar briefing' : 'Briefing da versão atual') : ($canEdit ? 'Novo projeto demonstrativo' : 'Seu acesso ao workspace')) }}</h2>
+@if($hasUnsavedBrief)
+<p class="history-note unsaved-brief" id="unsaved-brief-notice" data-testid="unsaved-brief-notice">Este briefing ainda não foi salvo. @if($canEdit)Confira os campos antes de enviar novamente.@else O texto da tentativa foi mantido para consulta.@endif</p>
+@if($project)@include('preview.saved-current-brief')@endif
+@endif
 @if($canEdit)
 <p class="muted">Cada geração preserva a versão anterior. Os campos aceitam somente texto.</p>
-@if($project)<p class="history-note">Este briefing corresponde à versão atual {{ $currentRevision }}.</p>@endif
-<form method="post" action="{{ $project ? $navigation->projectUrl($project,$navigation->beforeRevision,$navigation->afterRevision) : $navigation->createUrl() }}">
+@if($project && !$hasUnsavedBrief)<p class="history-note">Este briefing corresponde à versão atual {{ $currentRevision }}.</p>@endif
+<form method="post" data-testid="briefing-form" @if($hasUnsavedBrief)aria-describedby="unsaved-brief-notice"@endif action="{{ $project ? $navigation->projectUrl($project,$navigation->beforeRevision,$navigation->afterRevision) : $navigation->createUrl() }}">
 @csrf
 @if($project)<input type="hidden" name="expected_revision" value="{{ $currentRevision }}"><input type="hidden" name="product" value="{{ $form['product'] }}">@endif
 <label for="product">Formato</label>
@@ -71,9 +77,9 @@
 <p class="muted">Os limites são conferidos ao enviar. Emojis simples contam como um caractere; acentos combinados e emojis compostos podem contar como mais de um.</p>
 <button type="submit">{{ $project ? 'Gerar nova versão privada →' : 'Criar demonstração →' }}</button>
 </form>
-@elseif($project)
+@elseif($project || $hasUnsavedBrief)
 <dl>
-<dt>Formato</dt><dd>{{ $form['product']==='onepage' ? 'Site Onepage' : 'Landing Page' }}</dd>
+<dt>Formato</dt><dd>{{ ['onepage'=>'Site Onepage', 'landing_page'=>'Landing Page'][$form['product']] ?? 'Formato não selecionado' }}</dd>
 @foreach(['brand'=>'Marca fictícia','headline'=>'Chamada principal','description'=>'Descrição','call_to_action'=>'Chamada do botão','benefits'=>'Benefícios'] as $field=>$label)
 <dt>{{ $label }}</dt><dd>{{ $form[$field] }}</dd>
 @endforeach
@@ -129,7 +135,7 @@
 @else
 <p class="muted">Versão atual: {{ $currentRevision }}. Datas no horário de Brasília.</p>
 @if($navigation->beforeRevision !== null || $navigation->afterRevision !== null)
-<p class="history-note">O histórico pode mostrar versões anteriores. O briefing de edição continua na versão atual.</p>
+<p class="history-note">O histórico pode mostrar versões anteriores. @if($hasUnsavedBrief)O briefing ainda não salvo foi mantido nesta página para consulta.@else O briefing de edição continua na versão atual.@endif</p>
 @endif
 @forelse($versions as $v)
 <div class="item" data-version="{{ $v['revision'] }}">

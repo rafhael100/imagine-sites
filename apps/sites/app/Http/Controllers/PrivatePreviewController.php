@@ -184,6 +184,10 @@ final class PrivatePreviewController
         $principal->requireCapability('read');
         $canEdit = $principal->allows('edit');
         $canReview = $principal->allows('review');
+        // A recovered POST is an unsaved form, even when its expected revision
+        // has been refreshed from the current head. Keep that source explicit
+        // for both editors and a reader whose edit access changed meanwhile.
+        $hasUnsavedBrief = in_array($status, [422, 409], true) && $submitted !== [];
         $brief = $data['brief'];
         $form = [
             'product' => $brief['productCode'] ?? 'onepage', 'brand' => $brief['brand'] ?? '',
@@ -207,7 +211,7 @@ final class PrivatePreviewController
                 }
             }
         }
-        return $this->secure(response()->view('preview.workspace', $data + compact('form', 'fieldErrors', 'canEdit', 'canReview', 'reviewSubmission'), $status));
+        return $this->secure(response()->view('preview.workspace', $data + compact('form', 'fieldErrors', 'canEdit', 'canReview', 'reviewSubmission', 'hasUnsavedBrief'), $status));
     }
 
     private function secure($response)

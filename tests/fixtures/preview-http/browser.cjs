@@ -179,6 +179,7 @@ const {chromium}=require('playwright');const fs=require('fs'),cp=require('child_
     !reviewAction.searchParams.has('compare_to')&&await comparisonReviewForm.locator('[name=compare_from],[name=compare_to]').count()===0,
     'review action stays on the actual unreviewed version and excludes comparison selectors');
  const comparisonRecovery=await require('./comparison-recovery.cjs')({ctx,a,e,o,base,dir,historyUrl,docker,ok});
+ const unsavedBrief=await require('./unsaved-brief.cjs')({ctx,base,dir,one,historyUrl,docker,ok});
  const comparisonEdit={
    _token:await comparisonEditForm.locator('input[name=_token]').getAttribute('value'),
    product:'onepage',brand:await comparisonPage.getByLabel('Marca fictícia').inputValue(),
@@ -229,6 +230,7 @@ const {chromium}=require('playwright');const fs=require('fs'),cp=require('child_
     'revocation blocks a comparison that previously succeeded without exposing historical copy');
  await comparisonRecovery.verifyRevocation();
  await queueSearchRecovery.verifyRevocation();
+ await unsavedBrief.verifyRevocation();
  const privateLogs=docker(['logs','--no-color','app','proxy']);
  ok(!privateLogs.includes(queryLogProbe),'the query-only synthetic search term is absent from app and proxy logs');
  const audit=docker(['exec','-T','db','psql','-U','postgres','-d','sites_preview_http_ci','-Atc','SELECT count(*) FROM sites_preview.audit']);ok(Number(audit.trim())>=6,'persistent DB audit');
