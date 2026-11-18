@@ -1,10 +1,16 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 18/11/2026 — continuidade: consulta privada do diário de publicação
+
+Branch `feature/sites-publication-inspection-2026-11-18`, sobre a PR #495. A CLI `inspect` consulta uma operação conhecida pela API SQL existente, com principal restrito, alvo/TLS pinados, sessão somente leitura e resposta limitada a14 campos técnicos. Não lista operações, altera estado, reconcilia prazo, cria acesso ou chama publisher. Histórico com binding revogado permanece distinguido da autorização corrente.
+
+Validação local: **150 checks do serviço e21 da CLI**, regressões offline e revisão independente aprovados. Fixture de CLI real com76 verificações esperadas e limpeza por recibo preparada; **CI desta entrega pendente**. [Relatório de inspeção](docs/reviews/SITES-PUBLICATION-INSPECTION-2026-11-18.md). O [próximo contrato de integração](docs/reviews/SITES-NEXT-INTEGRATION-2026-11-18.md) registra as fontes Portal inspecionadas e as definições que faltam para briefing oficial e geração.
+
 ## 18/11/2026 — continuidade: limites Unicode e briefing inválido
 
 Branch `feature/sites-brief-unicode-validation-2026-11-18`, sobre a PR #494. Os cinco campos deixam de bloquear emojis válidos pela contagem UTF-16 do navegador e exibem limites e erros acessíveis. Domínio e parser recusam NUL antes do banco; o middleware não o remove silenciosamente nas extremidades. Respostas422 preservam os demais campos e texto válido acima do limite, limpando somente o campo malformado com orientação para redigitar.
 
-Suíte local integrada: **134 testes/1186 assertions/27 skips explícitos**, com regressões de busca, notas e sessão. Fixture SQL com14 checks novos e jornada de navegador sem JavaScript preparadas. **CI desta entrega pendente**. Nenhuma migration ou autoridade nova; detalhes no [relatório de briefing](docs/reviews/SITES-BRIEF-UNICODE-VALIDATION-2026-11-18.md).
+Suíte local integrada: **134 testes/1186 assertions/27 skips explícitos**, com regressões de busca, notas e sessão. **PR #495 validada em00597a48cd4513a32dff9bbc3f9c639e09e2a9e3:16/16 check-runs SUCCESS na conferência da entrega**. [Run44217865114](https://github.com/rafhael100/imagine-sites/actions/runs/44217865114):175 navegador,14 briefing/370 workspace SQL,402 registry, upgrade9+76, PHPUnit134/1186/27 em PHP8.3/8.4. Artifact14389791091 conferido por SHA-256 `239022cba81dd16e56a34d3c5737360882f0c47a32bbeefd08624d0998d2aebe`; capturas desktop/mobile revisadas. Nenhuma migration ou autoridade nova; detalhes no [relatório de briefing](docs/reviews/SITES-BRIEF-UNICODE-VALIDATION-2026-11-18.md).
 
 ## 18/11/2026 — continuidade: atualização explícita do preview gerenciado V1
 
