@@ -161,8 +161,15 @@ jobs:
           cd apps/sites
           php vendor/bin/phpunit --do-not-cache-result --fail-on-warning tests/Feature/PortalProjectIntakeRecorderTest.php
       - name: Candidate briefing snapshots through native receipt, exact read and existing renderer
+        env:
+          SITES_BRIEF_PG_CONTAINER: ${{ job.services.postgres.id }}
         run: |
           set -euo pipefail
+          test -n "$SITES_BRIEF_PG_CONTAINER"
+          # The loopback host port forwards to this job's exact service address.
+          # The fixture requires one explicit IPv4 and compares it with the server.
+          DB_SERVER_ADDRESS="$(docker inspect --format '{{range .NetworkSettings.Networks}}{{println .IPAddress}}{{end}}' "$SITES_BRIEF_PG_CONTAINER")"
+          export DB_SERVER_ADDRESS
           if SITES_BRIEF_SNAPSHOT_TESTS=0 php tests/portal-brief-snapshot-pg-contract.php; then
             echo 'Unsafe: briefing snapshot test ran without disposable database opt-in'
             exit 1

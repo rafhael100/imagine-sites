@@ -7,9 +7,11 @@ declare(strict_types=1);
  * This file only runs in the explicitly disposable F383 PostgreSQL18 laboratory.
  * Workers execute the real application services; no positive SQL result is mocked.
  */
+$bsServerAddress = (string)getenv('DB_SERVER_ADDRESS');
 if (PHP_SAPI !== 'cli' || getenv('GITHUB_ACTIONS') !== 'true' ||
     getenv('APP_ENV') !== 'testing' || getenv('SITES_BRIEF_SNAPSHOT_TESTS') !== '1' ||
     getenv('DB_HOST') !== '127.0.0.1' || getenv('DB_DATABASE') !== 'sites_f383_lab' ||
+    filter_var($bsServerAddress, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== $bsServerAddress ||
     !preg_match('/\A[1-9][0-9]{0,4}\z/D', (string)getenv('DB_PORT')) ||
     (int)getenv('DB_PORT') > 65535 || getenv('DB_USERNAME') !== 'postgres' ||
     !is_string(getenv('DB_PASSWORD')) || getenv('DB_PASSWORD') === '') {
@@ -497,7 +499,7 @@ SELECT pg_catalog.current_database() AS database_name,session_user::text AS logi
  (SELECT rolsuper FROM pg_catalog.pg_roles WHERE rolname=session_user) AS is_admin
 SQL)->fetch(PDO::FETCH_ASSOC);
     bsCheck($identity['database_name'] === 'sites_f383_lab' && $identity['login'] === 'postgres' &&
-        $identity['address'] === '127.0.0.1' && $identity['port'] === (int)getenv('DB_PORT') &&
+        $identity['address'] === $bsServerAddress && $identity['port'] === (int)getenv('DB_PORT') &&
         is_int($identity['version']) && $identity['version'] >= 180000 && $identity['version'] < 190000 &&
         $identity['encoding'] === 'UTF8' && $identity['role'] === 'none' && $identity['is_admin'] === true &&
         !$admin->inTransaction(), 'verified disposable PostgreSQL18 identity before the first write');
@@ -1013,7 +1015,7 @@ SQL, [$tenantA, $tenantB])->fetchColumn();
     $migrationPdo = Illuminate\Support\Facades\DB::connection()->getPdo();
     bsCheck($migrationPdo->query('SELECT current_database()')->fetchColumn() === 'sites_f383_lab' &&
         $migrationPdo->query('SELECT session_user')->fetchColumn() === 'postgres' &&
-        $migrationPdo->query('SELECT inet_server_addr()::text')->fetchColumn() === '127.0.0.1' &&
+        $migrationPdo->query('SELECT inet_server_addr()::text')->fetchColumn() === $bsServerAddress &&
         (int)$migrationPdo->query('SELECT inet_server_port()')->fetchColumn() === (int)getenv('DB_PORT'),
         'the real Laravel migration connection matches the already verified laboratory');
     $migration = require __DIR__.'/../apps/sites/database/migrations/2026_11_18_000013_add_portal_brief_snapshots.php';
