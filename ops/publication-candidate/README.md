@@ -161,3 +161,92 @@ Uma resposta perdida exige apuração antes de outra decisão. A CLI de inspeç�
 O laboratório exige conjuntamente `GITHUB_ACTIONS=true`, `APP_ENV=testing` e `SITES_PUBLICATION_RECONCILIATION_CI=1`. O alvo é fixado em `localhost`, porta `55449`, banco `postgres`, endereço observado `127.0.0.1` e login `pj_a_reconciler`. O OID real, a CA, a custódia, o hash e a autorização explícita continuam obrigatórios. O pin identifica o ator sintético; o SQL decide sua autoridade corrente.
 
 Os testes offline da CLI exercitam help e recusas de argumentos/ambiente com autoload e arquivos privados inacessíveis. Eles não fabricam sucesso SQL. As condições de prazo, estado, concorrência, repetição, ACK tardio e principal precisam ser exercitadas no PostgreSQL/TLS descartável do CI. Este comando não instala nem executa reconciliação no staging, não altera o contrato SQL e não habilita publicação operacional.
+
+## Solicitação explícita com recibo privado
+
+O comando separado `request.php` registra uma solicitação técnica pela API existente `sites_publication.request_operation`, sem iniciar tentativa, lease, ACK ou envio ao provedor. Ele completa a entrada do diário e guarda a referência retornada em um recibo privado, para permitir uma consulta posterior com um leitor autorizado. Não inicializa Laravel, cria rota ou worker, modifica migrations/grants, concede aceite comercial nem publica um site.
+
+### Manifesto e caminhos fixos
+
+| Caminho fixo | Uso |
+| --- | --- |
+| `/run/secrets/publication_request` | Manifesto `SITES_PUBLICATION_REQUEST_V1`, de 1 a 16384 bytes |
+| `/run/secrets/sites_publication_request_writer` | Senha do escritor existente com capability exclusiva de solicitação, de 16 a 4096 bytes |
+| `/run/secrets/sites_publication_request_ca` | CA PEM do PostgreSQL, até 65536 bytes, correspondente a `target.caSha256` |
+| `/var/lib/imagine-sites/publication-requests` | Diretório de recibos já existente, canônico, modo `0700`, pertencente ao UID efetivo da CLI |
+
+O manifesto contém exatamente oito campos:
+
+| Campo | Regra |
+| --- | --- |
+| `schema` | `SITES_PUBLICATION_REQUEST_V1` |
+| `target` | Os sete campos `host`, `port`, `database`, `databaseOid`, `login`, `serverAddress` e `caSha256` |
+| `siteRef` | UUID do projeto existente |
+| `releaseRef` | Referência opaca de release |
+| `expectedBindingRevision` | Inteiro de 1 a 9223372036854775807 em PHP de 64 bits |
+| `portalAcceptanceRef` | Referência opaca informada para o registro técnico |
+| `idempotencyKey` | Chave opaca de idempotência da solicitação |
+| `receiptRef` | Nome de 1–64 caracteres ASCII alfanuméricos, `_` ou `-`, começando com letra ou número |
+
+As três referências opacas usam a regra existente: 1–128 caracteres ASCII, primeiro alfanumérico, demais alfanuméricos ou `.`, `_`, `:`, `-`. O arquivo de saída será exatamente `<receiptRef>.json` no diretório fixo. O manifesto não aceita caminho alternativo, tenant, HTML, token, duração de lease ou parâmetros de provedor. Chaves duplicadas, extras, tipos incorretos e números sujeitos a coerção são recusados. `request.example.json` contém placeholders inválidos e não pode ser executado sem preenchimento revisado.
+
+`portalAcceptanceRef` é apenas uma referência persistida no diário. A CLI não consulta Portal nem verifica assinatura, identidade, pagamento ou consentimento do cliente. Um binding técnico e uma aprovação editorial interna também não substituem essa evidência externa. O nome do login e os seletores do manifesto não concedem autoridade; a função SQL decide principal, duty, tenant, epoch, expiração e estado.
+
+Os três inputs usam o leitor privado existente: caminhos canônicos sem links simbólicos observados, arquivos regulares legíveis com um único link, modo `0400` ou `0600` e proprietário root ou o UID efetivo. O wrapper registra os bytes, SHA-256 e identidade e faz nova leitura de todos eles depois do planejamento. Mudança observada de bytes, inode, modo, dono, links, tamanho ou metadados de modificação impede a chamada mutável; tempo de acesso não participa da comparação. A CLI não reescreve nem repara inputs.
+
+O helper específico de recibo verifica os ancestrais do diretório de saída: canônicos, sem componentes que sejam links simbólicos, propriedade root ou UID efetivo e sem escrita por grupo/outros. Um ancestral root com sticky bit é permitido; o parent imediato do recibo exige sempre UID efetivo e modo `0700`. O destino precisa estar ausente. Arquivo existente, diretório, link simbólico, link pendente ou reserva de outra execução causam recusa, mesmo que os bytes desejados fossem iguais. A CLI não cria diretórios nem altera permissões.
+
+### Ambiente, plano e chamada única
+
+Staging exige `APP_ENV=staging`, sem GitHub Actions nem opt-in de solicitação de CI, e banco `sites_staging`. O alvo deve vir do inventário revisado e corresponder ao endpoint direto observado. A conexão PDO é nova, não persistente, com `sslmode=verify-full`, CA fixa, `gssencmode=disable`, timeout de conexão de 5 segundos, UTF-8, `pg_catalog`, read committed, statement timeout de 10 segundos e lock timeout de 3 segundos. Começa somente leitura.
+
+O serviço verifica PostgreSQL 18, TLS, OID, endereço, porta, login e capability efetiva restrita a `request_operation(uuid,text,bigint,text,text)`, sem grant option ou execução das demais APIs de core/diário. Não exige nem usa `read_operation`, `record_attempt`, `record_acknowledgement` ou `reconcile_expired`. A conferência de capability por catálogo não consulta o duty privado; a função SQL revalida a autoridade quando chamada.
+
+```sh
+php ops/publication-candidate/request.php --help
+php ops/publication-candidate/request.php plan
+```
+
+`--help` funciona sem autoload, ambiente, arquivos privados ou banco. `plan` não aceita opções. Ele confere os inputs, o runtime e a disponibilidade observada do caminho do recibo, sem reservar arquivo ou chamar uma API privada de estado. Não consulta o binding corrente, o head do diário ou a idempotência existente e não comprova que a solicitação será permitida. Seu hash inclui o manifesto canônico inteiro, inclusive o destino técnico, os cinco seletores da solicitação e `receiptRef`, sem depender de relógio ou estado privado.
+
+O plano retorna uma linha JSON com exatamente seis campos: `schema=SITES_PUBLICATION_REQUEST_PLAN_V1`, `status=planned`, `planSha256`, `expectedBindingRevision`, `canPublish=false` e `publicationVerified=false`. Para aplicar um plano revisado:
+
+```sh
+php ops/publication-candidate/request.php apply \
+  --plan-sha256=REPLACE_WITH_REVIEWED_64_CHARACTER_LOWERCASE_PLAN_SHA256 \
+  --authorize-request=SITES_PUBLICATION_REQUEST_ONLY_APPROVED
+```
+
+As duas opções são obrigatórias, aparecem uma vez e podem estar em qualquer ordem. A CLI recusa outras flags, overrides de caminho e autorizações dos demais candidatos. Recalcula o plano numa sessão nova somente leitura e compara o hash antes de reservar o recibo.
+
+Após a confirmação, o helper cria exclusivamente um arquivo vazio `0600`, confere e mantém seu descritor aberto. O wrapper relê os três inputs, verifica que a reserva e seus ancestrais permanecem iguais, habilita escrita apenas nessa sessão e chama `apply` uma única vez. O serviço revalida runtime/hash e usa a API de solicitação já existente. Só após o retorno, a CLI grava o JSON mínimo no mesmo descritor, executa flush/fsync, relê os bytes, confere tamanho/identidade/custódia, fecha o arquivo e emite o resultado público.
+
+### Saída pública e recibo para inspeção
+
+O resultado público tem exatamente 16 campos. Mantém os seis campos do plano com `schema=SITES_PUBLICATION_REQUEST_RESULT_V1` e `status=recorded`, e acrescenta `technicalStatus`, `revision`, `attemptNumber`, `editorialRevision`, `bindingRevision`, `artifactDigest`, `receiptDigest`, `leaseExpiresAt`, `createdAt` e `updatedAt`. Os dois booleanos de autoridade continuam falsos. Não há referência de operação, projeto, release, aceite, idempotência, caminho, credencial ou token em stdout.
+
+O recibo privado contém exatamente três campos e um newline final:
+
+| Campo | Conteúdo |
+| --- | --- |
+| `schema` | `SITES_PUBLICATION_REQUEST_RECEIPT_V1` |
+| `planSha256` | Compromisso do plano usado para esta execução |
+| `operationRef` | UUID retornado pelo diário, mantido apenas no arquivo privado |
+
+Esse recibo é um ponteiro privado vinculado ao plano, não um recibo do provedor, prova de aceite ou verificação de publicação. Não copia estado/revisão mutáveis. Um operador com acesso autorizado pode usar seu `operationRef` para preparar o manifesto privado de `inspect.php`, com alvo e credencial do leitor separado. O inspector relê o estado corrente por sua própria API e autorização; ele não recebe automaticamente o recibo nem herda autoridade do arquivo. A referência e o conteúdo do recibo devem permanecer fora dos logs e das saídas públicas.
+
+### Idempotência, estado histórico e falha após commit
+
+Uma solicitação nova requer o binding corrente e os atores vinculados válidos segundo o SQL. A idempotência é por tenant. Uma repetição com os mesmos cinco seletores pode retornar a operação e o estado mais recente já existentes; alterar esses seletores e reutilizar a chave causa conflito. O ator atual continua sujeito à autorização corrente, mas uma repetição válida não exige que seja o mesmo ator/epoch histórico da solicitação original nem revalida um binding histórico como autorização para enviar.
+
+Por isso, `status=recorded` não afirma que uma nova linha foi criada. `technicalStatus` pode ser `requested`, `dispatched`, `acknowledged` ou `inconclusive` por repetição de uma solicitação que já avançou. A CLI não acrescenta `created` ou `replayed`, não cria outra tentativa, não renova lease e não usa um ACK relatado como prova de publicação observada. Um novo `receiptRef` muda o compromisso do plano e o arquivo de saída; não muda, por si só, a identidade SQL da solicitação.
+
+Banco e arquivo não compartilham uma transação atômica. Falhas retornam exit 1, stdout vazio e somente `PUBLICATION_REQUEST_DENIED` em stderr, sem diagnóstico PDO, paths, seletores ou cadeia de exceção. A recusa pode deixar uma reserva vazia antes da chamada SQL, ou um arquivo parcial/completo depois de um commit. Falha ou perda da resposta não comprova rollback nem ausência da operação.
+
+O helper mantém o descritor e verifica as identidades observadas, mas as operações por pathname do PHP não constituem uma travessia atômica de todos os ancestrais. Ele nunca remove, renomeia, sobrescreve ou corrige um destino, mesmo quando uma etapa falha. Não há retry automático. Inspecione o arquivo e o estado por acessos separados autorizados antes de decidir uma recuperação. Se uma repetição explícita for autorizada, use os mesmos seletores/idempotência e um novo `receiptRef`, obtenha um novo plano e confirme-o; isso permite aproveitar a idempotência existente sem sobrescrever o recibo anterior. A CLI não toma essa decisão pelo operador.
+
+### CI e limites da evidência offline
+
+O caminho isolado exige `GITHUB_ACTIONS=true`, `APP_ENV=testing` e `SITES_PUBLICATION_REQUEST_CI=1`. Fixa `localhost`, porta `55449`, banco `postgres`, endereço observado `127.0.0.1` e login `pj_request_a_writer`. O OID, CA, capability exclusiva de solicitação, inputs privados, reserva, hash e autorização continuam obrigatórios. A allowlist de inspeção em CI aceita também `pj_request_a_reader`, para consultar a operação com um leitor sintético novo sem reativar o leitor anteriormente revogado. Esse acréscimo não modifica staging ou os guards SQL da inspeção.
+
+Os testes offline cobrem help/recusas com autoload bloqueado e IO puro de recibos sintéticos em diretório `/tmp` próprio. Exercitam reserva real, escrita dos três campos, preservação, substituições de inode/parent e ausência de cleanup, sem simular sucesso SQL. Solicitação, replay, isolamento, revogação, consulta posterior e falha do recibo depois de um commit precisam da fixture PostgreSQL/TLS descartável do CI. Esta entrega não instala o comando, concede grants operacionais nem inicia publicação.

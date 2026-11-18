@@ -16,6 +16,8 @@ A associação e a revogação privadas têm comandos separados e credenciais pr
 
 A reconciliação privada permite planejar e solicitar a classificação técnica de uma operação conhecida do diário. O plano vincula seletores e runtime; o SQL decide a revisão e o vencimento. Um resultado `inconclusive` pode incluir ACK tardio e não comprova publicação externa. A execução exige confirmação explícita e preserva tentativa e lease, sem reenvio ou reset automático.
 
+A solicitação privada do diário recebe a release e a revisão esperada da associação, confirma um plano somente leitura e usa a API de idempotência existente. A referência da operação fica em um novo recibo privado para preparar sua consulta pelo inspetor. A resposta pública contém apenas a projeção técnica; uma repetição pode devolver o estado mais recente da mesma operação. O recibo e o banco são recursos separados, portanto falha na gravação do arquivo pode ocorrer depois do commit.
+
 Esses componentes não constituem homologação operacional. Contrato, pagamento, identidade entre serviços, revogação, aceite expresso do cliente, backup externo e publicação exigem suas próprias fontes e evidências. Os dez gates em `config/operational-readiness.json` permanecem `BLOCKED`; os padrões de autorização continuam negadores.
 
 ## Componentes
@@ -30,7 +32,7 @@ Esses componentes não constituem homologação operacional. Contrato, pagamento
 | `ops/preview-candidate` | Provisionamento explícito e revisável do workspace privado |
 | `ops/release-candidate` | Renderização local privada, registro, associação/revogação e `prepare`/`verify` do pacote técnico |
 | `ops/editorial-candidate` | Plano e execução explícita de uma transição editorial pela API existente |
-| `ops/publication-candidate` | Inspeção somente leitura e reconciliação explícita de operações conhecidas do diário |
+| `ops/publication-candidate` | Solicitação com recibo privado, inspeção somente leitura e reconciliação explícita do diário |
 | `tests/fixtures` | Materiais inteiramente sintéticos para os ensaios descartáveis de CI |
 
 ## Verificação local
@@ -54,7 +56,10 @@ php tests/editorial-transition-offline.php
 php tests/editorial-transition-cli-offline.php
 python3 tests/fixture-private-material.py
 python3 tests/fixture-receipt-custody.py
+python3 tests/fixture-publication-request-custody.py
 php tests/publication-journal-offline.php
+php tests/publication-request-offline.php
+php tests/publication-request-cli-offline.php
 php tests/publication-inspection-offline.php
 php tests/publication-inspection-cli-offline.php
 php tests/publication-reconciliation-offline.php
