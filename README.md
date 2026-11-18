@@ -10,7 +10,7 @@ O workspace permite gerar versões imutáveis, consultar fila e histórico, busc
 
 A correção candidata do renderer permite quebrar palavras e URLs literais longas na marca, descrição, CTA e benefícios. O texto completo é preservado nas novas gerações; versões históricas continuam usando seus bytes armazenados. Os exemplos de HTML e as expectativas dos novos planos acompanham o CSS atualizado, sem adaptação automática de planos antigos. A [#524](https://github.com/rafhael100/imagine-sites/pull/524) confirmou **15/15 checks SUCCESS**, incluindo **8 novos/447 HTTP totais**, os dois produtos em 320, 390 e 1440 pixels e **429 workspace/1094 registry** em PHP 8.3/8.4. As capturas de 320 e 1440 pixels também foram conferidas visualmente. Consulte o [recorte e seus limites](docs/reviews/SITES-RENDERER-LONG-TEXT-2026-11-18.md).
 
-A entrada de benefícios agora ignora linhas formadas apenas por espaços Unicode, incluindo NBSP e EM SPACE, depois da validação original. Oito itens reais podem ser colados com essas linhas entre eles; espaços Unicode junto de texto permanecem intactos. Os limites de oito itens, 180 caracteres por item e 1500 no campo completo continuam iguais. [Recorte e prova da correção](docs/reviews/SITES-BENEFIT-BLANK-LINES-2026-11-18.md).
+A entrada de benefícios agora ignora linhas formadas apenas por espaços Unicode, incluindo NBSP e EM SPACE, depois da validação original. Oito itens reais podem ser colados com essas linhas entre eles; espaços Unicode junto de texto permanecem intactos. Os limites de oito itens, 180 caracteres por item e 1500 no campo completo continuam iguais. A [#525](https://github.com/rafhael100/imagine-sites/pull/525) confirmou **14/14 checks SUCCESS**, com **4 novos/451 HTTP totais** e Laravel **284/4280/27** e **284/4292/21** em PHP 8.3/8.4. [Recorte e prova da correção](docs/reviews/SITES-BENEFIT-BLANK-LINES-2026-11-18.md).
 
 Os campos e o botão da revisão editorial identificam a versão explicitamente. Isso permite escolher o parecer pelo nome do controle, inclusive quando várias versões estão disponíveis na mesma página. Erros e orientações preservadas mantêm essa identificação.
 
@@ -31,6 +31,8 @@ A renderização local também pode conferir um plano, um snapshot candidato do 
 O armazenamento nativo candidato recebe o manifesto e o corpo rico Onepage como bytes imutáveis, com identidade SQL própria e vínculo ao intake de projeto. A migration 13 mantém uma sequência de `briefRevision` distinta do contador agregado `sourceVersion`, com CAS e replay exato. O recibo técnico tem treze campos e conserva `authorityVerified`, `clientAccepted`, `canPublish` e `canAcceptRealOrders` falsos; ele não autentica a aprovação declarada pelo Portal.
 
 Uma conexão de leitura separada recupera a seleção exata do snapshot e revalida o perfil completo antes de alimentar o renderer com a entrada editorial escolhida. Esse consumidor interno continua sem escrever arquivos ou registrar o artefato por conta própria. O armazenamento foi validado na #519; consulte o [manual dos snapshots candidatos](docs/PORTAL-BRIEF-SNAPSHOTS.md).
+
+A entrada privada `receive-brief-snapshot.php`, incorporada da [#523](https://github.com/rafhael100/imagine-sites/pull/523) em uma candidata integrada, planeja e recebe os dois JSONs originais por cinco mounts fixos. A escrita exige compromisso e confirmação explícita; usa o recorder existente, preserva CAS/replay e não repete automaticamente uma chamada. A prova em preparação acompanha o snapshot recebido até o registro composto e sua inspeção histórica, inclusive quando a resposta de recebimento foi descartada. Consulte o [manual do receptor](docs/BRIEF-SNAPSHOT-RECEIVER-CLI.md) e o [recorte integrado](docs/reviews/SITES-BRIEF-SNAPSHOT-CLI-CHAIN-2026-11-18.md).
 
 A composição candidata foi validada na [#520](https://github.com/rafhael100/imagine-sites/pull/520), HEAD `8b717d3c0c03146bc48ee812e906bc70a1c479a9`, com **15/15 checks SUCCESS**. `StoredBriefReleaseRegistration` lê e renderiza internamente, confirma um compromisso que inclui alvo, plano, editorial e HTML originais e solicita uma única operação SQL. A migration 14 associa o snapshot e registra o artefato atomicamente pela operação existente do registry, sem adotar retroativamente artefatos antigos sem relação. O SQL confere estrutura, hashes e vínculo persistente; a geração e a auditoria do HTML continuam no PHP. A API antiga conserva seu contrato. Em PHP 8.3/8.4, a prova confirmou **119 checks novos/1042 registry totais**, **245 checks de briefing/65 de intake**, Laravel **279/4250/27** e **279/4262/21**, além de rollback e cleanup dos laboratórios próprios.
 
@@ -95,6 +97,7 @@ php tests/release-binding-inspection-offline.php
 php tests/release-binding-inspection-cli-offline.php
 php tests/brief-artifact-inspection-cli-offline.php
 php tests/brief-artifact-registration-cli-offline.php
+php tests/brief-snapshot-receiver-cli-offline.php
 php tests/editorial-transition-offline.php
 php tests/editorial-transition-cli-offline.php
 php tests/editorial-inspection-offline.php

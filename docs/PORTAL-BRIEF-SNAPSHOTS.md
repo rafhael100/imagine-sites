@@ -12,6 +12,13 @@ foi validada na #520, HEAD `8b717d3c0c03146bc48ee812e906bc70a1c479a9`, com
 deste manual; suas provas próprias de associação permanecem separadas das
 evidências históricas da #519.
 
+A [entrada privada posterior](BRIEF-SNAPSHOT-RECEIVER-CLI.md), originada na
+#523, oferece plano somente leitura e recebimento explícito dos dois JSONs por
+cinco mounts fixos. A [composição em revisão](reviews/SITES-BRIEF-SNAPSHOT-CLI-CHAIN-2026-11-18.md)
+usa o leitor exato, o registro composto e o inspetor já existentes. Não altera
+os serviços, SQL ou migrations descritos aqui. A prova histórica abaixo continua
+atribuída à #519; a CLI e sua integração possuem execução própria.
+
 ## Resultado
 
 O Sites passa a ter um receptor persistente de bytes candidatos do briefing

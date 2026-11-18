@@ -6,6 +6,19 @@
 
 Essa conclusão delimita a integração; não afirma esgotamento de todo desenvolvimento. O trabalho autorizado em branch isolada pode continuar em componentes com uso concreto e defeitos demonstrados. A inspeção privada do diário é um exemplo: consome a API persistente existente sem criar autoridade ou depender de um briefing inventado.
 
+### Entrada privada de snapshots em composição
+
+A implementação da [#523](https://github.com/rafhael100/imagine-sites/pull/523),
+HEAD `751b084fdd7a3bbbd276c649de2caf8c2f555b77`, está sendo integrada sobre a
+#525 por nova branch, sem alteração da origem. O wrapper reutiliza o recorder
+nativo da #519 e exige cinco entradas privadas, alvo observado, plano e
+confirmação explícita. Os nove negativos offline de target/CA foram corrigidos;
+**74 checks locais PASS**. O ensaio real previsto recebe o snapshot, apura uma
+resposta descartada com o leitor exato e consome essa revisão pelo registro e
+inspetor existentes. **29 novos/1123 registry previstos; CI próprio pendente.**
+[Manual e fronteiras da composição](SITES-BRIEF-SNAPSHOT-CLI-CHAIN-2026-11-18.md).
+Essa entrada local não implementa exportação oficial, produtor ou transporte Portal.
+
 ### Composição persistente candidata validada na #520
 
 A branch `feature/sites-brief-artifact-provenance-2026-11-18` acrescentou a

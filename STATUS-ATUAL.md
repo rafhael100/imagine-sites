@@ -1,5 +1,30 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 18/11/2026 — composição da entrada privada de snapshots com a proveniência
+
+Branch `integration/sites-brief-snapshot-cli-chain-2026-11-18`, sobre a #525 /
+`e5c30cd7157b97aabedaec009e1fca366b0d0335`. Incorpora os seis arquivos da #523,
+fixados em `751b084fdd7a3bbbd276c649de2caf8c2f555b77`, sem alterar a branch de
+origem. A entrada `receive-brief-snapshot.php` mantém cinco mounts, plano de dez
+campos e registro de onze, compromisso explícito, uma chamada ao recorder e
+quatro flags falsas. A enumeração fechada do observer aceita somente a API
+existente de recebimento; não há novo SQL ou migration.
+
+Corrigidos nove negativos offline que capturavam a falha da própria assertion;
+o harness local preserva somente a variável do loader PHP. **74 checks offline
+PASS**, suíte geral **284/4280/27** e regressões **95/271/32 PASS**.
+Os logins `bsr_a_receiver`/`bsr_b_receiver` ficam restritos ao ramo CI;
+o registro composto admite seu writer e reader próprios, conservando os anteriores.
+Nenhuma role antiga é reativada.
+
+A fixture nova recebe duas revisões de briefing B nos intakes já existentes,
+apura a segunda após descartar stdout, registra um artefato dessa seleção e
+consulta a associação com o inspetor atual. Inclui controles positivos antes de
+recusas de tenant/CAS, replay sob epoch atual, revogação, custódia e comparação
+integral das linhas. **29 checks novos/1123 registry totais previstos, pendentes
+do CI próprio em PHP 8.3/8.4.** Runner com dezesseis opt-ins, cleanup dos cinco
+mounts novos antes dos demais e base/HEAD restritos. [Contrato e limites](docs/reviews/SITES-BRIEF-SNAPSHOT-CLI-CHAIN-2026-11-18.md).
+
 ## 18/11/2026 — linhas vazias Unicode no formulário de benefícios
 
 Branch `fix/sites-preview-benefit-blank-lines-2026-11-18`, sobre a #524 validada
@@ -14,10 +39,16 @@ no campo completo permanecem intactos.
 sintético **32 checks**, lint PHP e sintaxe JS PASS. A revisão independente não
 identificou bloqueadores. A fixture HTTP reaproveita a segunda revisão do projeto
 existente, confere oito textos exatos e o digest e recusa nove itens sem criar
-uma terceira revisão ou modificar os HTMLs anteriores. **Quatro checks novos/451
-totais previstos, pendentes do CI próprio.** O workflow HTTP tem base e HEAD
-restritos; a matriz Laravel existente cobre PHP 8.3/8.4. Renderer, SQL e migrations
-não mudam. [Recorte e limites](docs/reviews/SITES-BENEFIT-BLANK-LINES-2026-11-18.md).
+uma terceira revisão ou modificar os HTMLs anteriores. A #525 concluiu **14/14
+checks SUCCESS**: [HTTP 44356190255](https://github.com/rafhael100/imagine-sites/actions/runs/44356190255)
+com **4 novos/451 totais**; [Laravel 44356189709](https://github.com/rafhael100/imagine-sites/actions/runs/44356189709)
+com **284/4280/27** e **284/4292/21** em PHP 8.3/8.4;
+[F383 44356189343](https://github.com/rafhael100/imagine-sites/actions/runs/44356189343)
+com **245 briefing/65 intake**, 14 migrations e rollback, e
+[containers 44356189780](https://github.com/rafhael100/imagine-sites/actions/runs/44356189780).
+Cleanup dos recursos próprios confirmado. Artefato **14453992417**, 37 arquivos,
+SHA-256 `1c030947b35ebd3cb113b1743bad5b6c73bf11b6c231e85b9c6eab154ecfe343`
+conferido após download. Renderer, SQL e migrations não mudaram. [Recorte e limites](docs/reviews/SITES-BENEFIT-BLANK-LINES-2026-11-18.md).
 
 ## 18/11/2026 — quebra de texto nas novas páginas geradas
 

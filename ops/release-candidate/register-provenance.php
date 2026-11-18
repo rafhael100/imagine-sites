@@ -150,8 +150,8 @@ try {
         ($staging && $target['database'] !== 'sites_staging') ||
         ($ci && ($target['database'] !== 'postgres' || $target['host'] !== 'localhost' ||
             $target['port'] !== 55449 || $target['serverAddress'] !== '127.0.0.1' ||
-            $target['login'] !== 'bpr_b_writer' ||
-            !in_array($readerTarget['login'], ['bpr_b_source_reader', 'bpr_a_source_reader'], true)))) {
+            !in_array($target['login'], ['bpr_b_writer', 'bsr_b_writer'], true) ||
+            !in_array($readerTarget['login'], ['bpr_b_source_reader', 'bpr_a_source_reader', 'bsr_b_source_reader'], true)))) {
         throw new DomainException();
     }
 

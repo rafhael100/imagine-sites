@@ -869,6 +869,14 @@ if (!isset($admin, $connection, $connect, $password, $caFile, $ok)) {
                 ['a' => $bapPlans['main'], 'b' => $bapPlans['company_b']], $bapEditorial, $bapOk);
         }
 
+        if (getenv('SITES_BRIEF_SNAPSHOT_RECEIVER_CLI_CI') === '1') {
+            $bapStage = 'private briefing receive and stored artifact CLI chain';
+            $bapReceiver = require __DIR__.'/../brief-snapshot-receiver/contract.php';
+            $bapReceiver($bapAdmin, $bapConnection, $bapPassword, $bapCaFile, $bapTenants,
+                ['a' => $bapSnapshots['main'], 'b' => $bapSnapshots['company_b']],
+                $bapPlans['company_b'], $bapEditorial, $bapOk);
+        }
+
         // Only the old objects are compared across destructive candidate
         // rollback. Normalize solely the three new definer grantees; do not
         // discard existing runtime ACLs or unrelated function bodies.

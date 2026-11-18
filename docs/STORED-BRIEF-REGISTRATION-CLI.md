@@ -217,9 +217,12 @@ Nenhum dos resultados verifica pagamento, aceite ou publicação.
 
 O laboratório exige simultaneamente `GITHUB_ACTIONS=true`, `APP_ENV=testing`
 e `SITES_BRIEF_ARTIFACT_REGISTRATION_CI=1`. Fixa `host=localhost`, porta `55449`,
-banco `postgres`, endereço observado `127.0.0.1`, writer `bpr_b_writer` e reader
-`bpr_b_source_reader` ou `bpr_a_source_reader`. Essa allowlist não concede duty
-ou acesso a outra empresa; os entrypoints SQL verificam cada recurso.
+banco `postgres` e endereço observado `127.0.0.1`. Os writers permitidos no
+CI são `bpr_b_writer` e `bsr_b_writer`; os readers são `bpr_b_source_reader`,
+`bpr_a_source_reader` e `bsr_b_source_reader`. Os atores `bsr_*` pertencem à
+[composição posterior do receptor](reviews/SITES-BRIEF-SNAPSHOT-CLI-CHAIN-2026-11-18.md).
+Essa allowlist não concede duty ou acesso a outra empresa; os entrypoints SQL
+verificam cada recurso. Staging mantém o contrato anterior.
 
 Fora do CI, o código admite `APP_ENV=staging`, banco `sites_staging`, sem
 `GITHUB_ACTIONS=true` nem opt-in de registro igual a `1`. Essa condição técnica
