@@ -32,10 +32,26 @@ O erro público é sempre `RELEASE_REGISTRATION_DENIED`, com exit 1 e stdout vaz
 
 Os ensaios offline passaram **271 verificações do serviço e 65 da CLI**, cobrindo entrada, hash, recusa de ambientes/argumentos e falhas anteriores à conexão. Não fabricam um resultado positivo de SQL. Regressões de inspeção (150) e preparação (50), sintaxe e revisão cruzada do backend/wrapper também passaram.
 
-A fixture real acrescenta **54 verificações esperadas**, usando PostgreSQL 18/TLS descartável, a CLI efetiva e principals de funções distintas. Cobre plano sem escrita, registro de um único artefato, repetição, conflito, isolamento, expiração/revogação e posterior consumo por `prepare`/`verify` após transições editoriais e associação feitas separadamente. A contagem integrada prevista do registry é 532.
+A fixture real executou **54 verificações novas**, usando PostgreSQL 18/TLS descartável, a CLI efetiva e principals de funções distintas. Cobre plano sem escrita, registro de um único artefato, repetição, conflito, isolamento, expiração/revogação e posterior consumo por `prepare`/`verify` após transições editoriais e associação feitas separadamente. A contagem integrada executada do registry é 532.
 
 O helper de custódia recusa caminhos preexistentes e usa criação exclusiva. A origem do material sintético e o recibo são lidos por descritores de diretórios/arquivos, sem seguir links, com proprietário, modo, tamanho e identidade conferidos antes/depois. A revisão encontrou e corrigiu a leitura inicial que seguia links nos filhos do diretório temporário. A limpeza valida o recibo completo e os filhos do diretório privado antes de remover somente seus arquivos; não remove arquivos alheios nem faz exclusão recursiva.
 
-O workflow fixa repositório, draft, branch e SHA da base, em PHP 8.3/8.4. Mantém os quatro opt-ins explícitos do registry, diário, inspeção e registro para verificar também a convivência dos arquivos privados e a ordem de limpeza. **CI desta entrega pendente; PostgreSQL local não foi iniciado.** Contagens e SHAs de execução serão registrados após o ensaio.
+O workflow fixa repositório, draft, branch e SHA da base, em PHP 8.3/8.4. Mantém os quatro opt-ins explícitos do registry, diário, inspeção e registro para verificar também a convivência dos arquivos privados e a ordem de limpeza.
+
+### Evidência concluída da PR #498
+
+HEAD validada: `dedbae34474e68f4ce9f1d28d457d730ec18998a`. O [run 44225215421](https://github.com/rafhael100/imagine-sites/actions/runs/44225215421) terminou **SUCCESS**, assim como os jobs [PHP 8.3 / 134536616656](https://github.com/rafhael100/imagine-sites/actions/runs/44225215421/job/134536616656) e [PHP 8.4 / 134536617045](https://github.com/rafhael100/imagine-sites/actions/runs/44225215421/job/134536617045). Os logs de ambos confirmam:
+
+| Verificação | PHP 8.3 | PHP 8.4 |
+| --- | --- | --- |
+| Registro de artefato, SQL e CLI efetivos | 54 | 54 |
+| Registry integrado | 532 | 532 |
+| Inspeção privada do diário | 76 | 76 |
+| Workspace, ownership, ACL e RLS | 386 | 386 |
+| Serviço de registro offline | 271 | 271 |
+| CLI de registro offline | 65 | 65 |
+| PHPUnit | 134 testes / 1186 assertions / 27 skips | 134 testes / 1186 assertions / 27 skips |
+
+A conferência atual da mesma HEAD retornou **17/17 check-runs SUCCESS**, incluindo as execuções gerais e de safety guard. Os 27 skips da suíte geral são explícitos; os contratos PostgreSQL dedicados executaram os cenários acima. A validação ocorreu em recursos descartáveis do CI; PostgreSQL local não foi iniciado. Esta atualização documental fecha a pendência da execução 498 e não transforma a evidência sintética em aceite operacional.
 
 Não há migration, novo schema, grant, login operacional, binding, transição editorial, envio a provider ou alteração no staging. As condições para briefing oficial continuam documentadas em [Próxima integração central](SITES-NEXT-INTEGRATION-2026-11-18.md); elas não impedem esta interface de uma API existente. O [manual da CLI](../../ops/release-candidate/README.md#explicit-artifact-registration-candidate) descreve a custódia e os comandos.

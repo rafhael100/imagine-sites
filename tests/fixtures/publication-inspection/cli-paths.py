@@ -1,11 +1,21 @@
 #!/usr/bin/env python3
 """Reserve only the inspection CLI's three private paths in a disposable CI lab."""
+import importlib.util
 import json
 import os
 import pathlib
 import stat
 import subprocess
 import sys
+
+# Fixed repository module; no material is read during import.
+sys.dont_write_bytecode = True
+_material_spec = importlib.util.spec_from_file_location(
+    'sites_fixture_private_material',
+    pathlib.Path(__file__).resolve().parent.parent / 'release-registry' / 'private_material.py',
+)
+_material = importlib.util.module_from_spec(_material_spec)
+_material_spec.loader.exec_module(_material)
 
 FILES = (
     '/run/secrets/publication_inspection',
@@ -102,11 +112,7 @@ def main():
         raise RuntimeError('fresh fixture preparation required')
     if any(os.path.lexists(path) for path in FILES):
         raise RuntimeError('fixed path already exists; refusing reuse')
-    password = (lab / 'password').read_bytes()
-    ca = (lab / 'tls' / 'ca.pem').read_bytes()
-    if (not 32 <= len(password) <= 256 or any(c in password for c in (b'\n', b'\r', b'\0'))
-            or not 100 <= len(ca) <= 65536):
-        raise RuntimeError('synthetic custody material invalid')
+    password, ca = _material.load_material(lab, uid)
     created = []
     fd = os.open(receipt, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
     os.fchown(fd, uid, gid)

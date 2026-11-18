@@ -1,11 +1,21 @@
 #!/usr/bin/env python3
 """Reserve registration CLI paths only in the verified disposable CI runner."""
+import importlib.util
 import json
 import os
 import pathlib
 import stat
 import subprocess
 import sys
+
+# Fixed repository module; no material is read during import.
+sys.dont_write_bytecode = True
+_material_spec = importlib.util.spec_from_file_location(
+    'sites_fixture_private_material',
+    pathlib.Path(__file__).resolve().parent.parent / 'release-registry' / 'private_material.py',
+)
+_material = importlib.util.module_from_spec(_material_spec)
+_material_spec.loader.exec_module(_material)
 
 DIRECTORY = '/run/sites-release-registration'
 FILES = (
@@ -23,9 +33,9 @@ def identity(path):
             'type': stat.S_IFMT(value.st_mode), 'uid': value.st_uid}
 
 
-def stamp(value):
-    return (value.st_dev, value.st_ino, value.st_mode, value.st_uid, value.st_gid,
-            value.st_nlink, value.st_size, value.st_mtime_ns, value.st_ctime_ns)
+stamp = _material.stamp
+read_private = _material.read_private
+synthetic_material = _material.synthetic_material
 
 
 def exists_at(directory_fd, name):
@@ -35,42 +45,6 @@ def exists_at(directory_fd, name):
     except FileNotFoundError:
         return False
 
-
-def read_private(directory_fd, name, uid, minimum, maximum):
-    before = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
-    if (not stat.S_ISREG(before.st_mode) or before.st_nlink != 1 or before.st_uid != uid
-            or stat.S_IMODE(before.st_mode) != 0o600 or not minimum <= before.st_size <= maximum):
-        raise RuntimeError('private source custody mismatch')
-    fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=directory_fd)
-    with os.fdopen(fd, 'rb') as stream:
-        if stamp(os.fstat(stream.fileno())) != stamp(before):
-            raise RuntimeError('private source replaced before read')
-        payload = stream.read(maximum + 1)
-        after = os.fstat(stream.fileno())
-        current = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
-        if len(payload) != before.st_size or stamp(before) != stamp(after) or stamp(after) != stamp(current):
-            raise RuntimeError('private source changed during read')
-        return payload, before
-
-
-def synthetic_material(lab_fd, uid):
-    tls = os.stat('tls', dir_fd=lab_fd, follow_symlinks=False)
-    if not stat.S_ISDIR(tls.st_mode) or tls.st_uid != uid or stat.S_IMODE(tls.st_mode) != 0o700:
-        raise RuntimeError('private TLS directory required')
-    tls_fd = os.open('tls', os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=lab_fd)
-    try:
-        if stamp(os.fstat(tls_fd)) != stamp(tls):
-            raise RuntimeError('TLS directory replaced before read')
-        password, _ = read_private(lab_fd, 'password', uid, 64, 64)
-        ca, _ = read_private(tls_fd, 'ca.pem', uid, 100, 65536)
-        if stamp(os.fstat(tls_fd)) != stamp(tls) or stamp(os.stat('tls', dir_fd=lab_fd, follow_symlinks=False)) != stamp(tls):
-            raise RuntimeError('TLS directory changed during read')
-    finally:
-        os.close(tls_fd)
-    if (any(byte not in b'0123456789abcdef' for byte in password)
-            or b'-----BEGIN CERTIFICATE-----' not in ca or b'PRIVATE KEY' in ca):
-        raise RuntimeError('synthetic custody material invalid')
-    return password, ca
 
 
 def main():
