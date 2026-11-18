@@ -79,18 +79,22 @@ function intakeDenied(callable $work, string $message='Sites project intake unav
     }
     throw new RuntimeException('Expected native intake rejection.');
 }
-function intakeSqlDenied(callable $work, string $state='42501'): void
+function intakeSqlDenied(callable $work, string $state='42501', ?string $message=null): void
 {
     try { $work(); } catch (PDOException $error) {
-        intakeCheck($error->getCode()===$state, 'SQL boundary refuses the expected operation');
+        intakeCheck($error->getCode()===$state && ($message===null ||
+            str_contains((string)($error->errorInfo[2] ?? ''), $message)),
+            'SQL boundary refuses the expected operation and specified guard');
         return;
     }
     throw new RuntimeException('Expected SQL rejection.');
 }
-function intakeSnapshot(PDO $db): array
+function intakeSnapshot(PDO $db, bool $includeBrief=false): array
 {
     $result=[];
-    foreach (['contract_refs','site_projects','site_outbox','portal_project_intakes'] as $table) {
+    $tables=['contract_refs','site_projects','site_outbox','portal_project_intakes'];
+    if ($includeBrief) $tables[]='portal_brief_snapshots';
+    foreach ($tables as $table) {
         $result[$table]=$db->query('SELECT coalesce(jsonb_agg(to_jsonb(t) ORDER BY to_jsonb(t)::text),\'[]\'::jsonb)::text FROM sites_core.'.$table.' t')->fetchColumn();
     }
     return $result;
@@ -202,7 +206,29 @@ intakeSqlDenied(fn()=>$admin->exec('UPDATE sites_core.db_login_bindings SET can_
 $admin->exec('RESET ROLE');
 intakeSqlDenied(fn()=>$admin->exec('UPDATE sites_core.portal_project_intakes SET contract_revision=2'));
 intakeSqlDenied(fn()=>$admin->exec('DELETE FROM sites_core.portal_project_intakes'));
-intakeSqlDenied(fn()=>$admin->exec('TRUNCATE sites_core.portal_project_intakes'));
+if ($admin->query("SELECT to_regclass('sites_core.portal_brief_snapshots') IS NOT NULL")->fetchColumn()===true) {
+    $beforeTruncate=intakeSnapshot($admin,true);
+    // The later FK prevents a single-table TRUNCATE before any trigger runs.
+    // Naming both known tables reaches the intake trigger without CASCADE;
+    // its own message distinguishes it from the briefing table's trigger.
+    foreach ([
+        ['TRUNCATE sites_core.portal_project_intakes','0A000',null],
+        ['TRUNCATE sites_core.portal_project_intakes, sites_core.portal_brief_snapshots',
+            '42501','Project intake receipt is immutable'],
+    ] as [$truncateSql,$truncateState,$truncateMessage]) {
+        $admin->beginTransaction();
+        try {
+            intakeSqlDenied(fn()=>$admin->exec($truncateSql),$truncateState,$truncateMessage);
+        } finally {
+            if ($admin->inTransaction()) $admin->rollBack();
+        }
+    }
+    intakeCheck(intakeSnapshot($admin,true)===$beforeTruncate,
+        'FK and immutable intake trigger refusals preserve both ledgers and all native intake rows');
+} else {
+    intakeSqlDenied(fn()=>$admin->exec('TRUNCATE sites_core.portal_project_intakes'),
+        '42501','Project intake receipt is immutable');
+}
 $dbA->beginTransaction();
 intakeDenied(fn()=>intakeRecord($dbA,intakeCommand($orgA,'outer-'.$suffix)),
     'Sites project intake requires an independent transaction.');

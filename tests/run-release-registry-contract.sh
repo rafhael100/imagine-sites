@@ -3,6 +3,9 @@ set -euo pipefail
 # Own disposable CI cluster only. Never attach to an existing service or target.
 test "${GITHUB_ACTIONS:-}" = true
 test "${SITES_RELEASE_REGISTRY_CI:-}" = 1
+if [[ "${SITES_BRIEF_SNAPSHOTS_CI:-}" == 1 ]]; then
+  test "${SITES_REGISTRY_INTAKE_PERMISSIONS_CI:-}" = 1
+fi
 if [[ "${SITES_REGISTRY_INTAKE_PERMISSIONS_CI:-}" == 1 ]]; then
   for flag in SITES_PUBLICATION_JOURNAL_CI SITES_PUBLICATION_INSPECTION_CI SITES_RELEASE_REGISTRATION_CI \
     SITES_EDITORIAL_TRANSITION_CI SITES_RELEASE_BINDING_CI SITES_PUBLICATION_RECONCILIATION_CI \
@@ -257,4 +260,7 @@ if [[ "${SITES_RELEASE_BINDING_INSPECTION_CI:-}" == 1 ]]; then
 fi
 if [[ "${SITES_REGISTRY_INTAKE_PERMISSIONS_CI:-}" == 1 ]]; then
   grep -q '^REGISTRY INTAKE PERMISSIONS CI PASS: [1-9][0-9]* assertions; 905 existing assertions retained[.]' "$lab/contract.log"
+fi
+if [[ "${SITES_BRIEF_SNAPSHOTS_CI:-}" == 1 ]]; then
+  grep -q '^NATIVE BRIEF SCHEMA REGISTRY CI PASS: 1 new assertion;' "$lab/contract.log"
 fi

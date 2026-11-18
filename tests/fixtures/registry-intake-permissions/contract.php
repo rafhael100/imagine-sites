@@ -61,7 +61,8 @@ if (PHP_SAPI !== 'cli' || getenv('GITHUB_ACTIONS') !== 'true' || getenv('APP_ENV
         $ripInstalledGuard = $ripGuard();
         $ripCheck($ripInstalledGuard['body_sha256'] === $ripExpandedHash &&
             (int) $ripAdmin->query("SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-                WHERE n.nspname='sites_core' AND c.relkind IN ('r','p')")->fetchColumn() === 12 &&
+                WHERE n.nspname='sites_core' AND c.relkind IN ('r','p')")->fetchColumn() ===
+                (getenv('SITES_BRIEF_SNAPSHOTS_CI') === '1' ? 14 : 12) &&
             $ripAdmin->query("SELECT relrowsecurity AND relforcerowsecurity FROM pg_class
                 WHERE oid='sites_core.portal_project_intakes'::regclass")->fetchColumn() === true,
             'the full predecessor pipeline ran with intake installed and the pinned expanded guard');

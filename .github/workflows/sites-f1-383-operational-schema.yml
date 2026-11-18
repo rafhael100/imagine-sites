@@ -21,6 +21,11 @@ on:
       - 'apps/sites/app/Integration/PortalProjectIntakeRecorder.php'
       - 'apps/sites/tests/Feature/PortalProjectIntakeRecorderTest.php'
       - 'tests/portal-project-intake-pg-contract.php'
+      - 'contracts/portal-sites/002-brief-snapshots.sql'
+      - 'src/Production/Brief*.php'
+      - 'apps/sites/app/Integration/*Brief*.php'
+      - 'apps/sites/tests/**/*Brief*.php'
+      - 'tests/portal-brief-snapshot-pg-contract.php'
       - 'docs/SITES-F1-385-OPERATIONAL-EDITORIAL.md'
       - '.github/workflows/sites-f1-383-operational-schema.yml'
       - 'docs/SITES-F1-383-VERSIONED-PG18-CORE-SCHEMA.md'
@@ -56,6 +61,7 @@ jobs:
       SITES_F384_READER_LAB: '1'
       SITES_F385_EDITORIAL_LAB: '1'
       SITES_PROJECT_INTAKE_TESTS: '1'
+      SITES_BRIEF_SNAPSHOT_TESTS: '1'
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: '5432'
@@ -65,6 +71,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: shivammathur/setup-php@v2
         with:
@@ -89,6 +96,15 @@ jobs:
           php -l apps/sites/app/Integration/PortalProjectIntakeRecorder.php
           php -l apps/sites/tests/Feature/PortalProjectIntakeRecorderTest.php
           php -l tests/portal-project-intake-pg-contract.php
+          php -l apps/sites/database/migrations/2026_11_18_000013_add_portal_brief_snapshots.php
+          php -l src/Production/BriefCandidateJson.php
+          php -l src/Production/BriefSnapshotInput.php
+          php -l src/Production/BriefRenderProvenance.php
+          php -l apps/sites/app/Integration/BriefSnapshotTransaction.php
+          php -l apps/sites/app/Integration/PortalBriefSnapshotRecorder.php
+          php -l apps/sites/app/Integration/StoredBriefSnapshotReader.php
+          php -l apps/sites/app/Integration/StoredBriefRendering.php
+          php -l tests/portal-brief-snapshot-pg-contract.php
       - name: Install locked Laravel dependencies
         working-directory: apps/sites
         run: |
@@ -144,21 +160,45 @@ jobs:
           php tests/portal-project-intake-pg-contract.php
           cd apps/sites
           php vendor/bin/phpunit --do-not-cache-result --fail-on-warning tests/Feature/PortalProjectIntakeRecorderTest.php
+      - name: Candidate briefing snapshots through native receipt, exact read and existing renderer
+        env:
+          SITES_BRIEF_PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          test -n "$SITES_BRIEF_PG_CONTAINER"
+          # The loopback host port forwards to this job's exact service address.
+          # The fixture requires one explicit IPv4 and compares it with the server.
+          DB_SERVER_ADDRESS="$(docker inspect --format '{{range .NetworkSettings.Networks}}{{println .IPAddress}}{{end}}' "$SITES_BRIEF_PG_CONTAINER")"
+          export DB_SERVER_ADDRESS
+          if SITES_BRIEF_SNAPSHOT_TESTS=0 php tests/portal-brief-snapshot-pg-contract.php; then
+            echo 'Unsafe: briefing snapshot test ran without disposable database opt-in'
+            exit 1
+          fi
+          php tests/portal-brief-snapshot-pg-contract.php | tee "$RUNNER_TEMP/sites-native-brief-snapshots.log"
+          grep -Eq '^PASS native Portal brief snapshots: [1-9][0-9]* checks;' "$RUNNER_TEMP/sites-native-brief-snapshots.log"
+          grep -q '^NATIVE BRIEF SNAPSHOTS CI PASS' "$RUNNER_TEMP/sites-native-brief-snapshots.log"
       - name: Prove Laravel migration rollback after isolated product fixtures
         working-directory: apps/sites
         run: |
           set -euo pipefail
-          # The same batch includes the pending intake ledger and all synthetic fixture rows.
+          # The same batch includes both native ledgers and all synthetic fixture rows.
+          php -r '
+            $db=new PDO("pgsql:host=127.0.0.1;dbname=sites_f383_lab",
+              "postgres","f383-fictional-admin-only");
+            $count=(int)$db->query("SELECT count(*) FROM migrations WHERE batch=1")->fetchColumn();
+            if($count!==13)exit(1);
+            echo "F1-383 PASS: exactly 13 migrations in the disposable batch.\n";
+          '
           php artisan migrate:rollback --batch=1 --force --no-ansi
           php -r '
             $db=new PDO("pgsql:host=127.0.0.1;dbname=sites_f383_lab",
               "postgres","f383-fictional-admin-only");
             $schemas=(int)$db->query(
-              "SELECT count(*) FROM pg_namespace WHERE nspname="
-              .chr(39)."sites_core".chr(39)
+              "SELECT count(*) FROM pg_namespace WHERE nspname IN ("
+              .chr(39)."sites_core".chr(39).",".chr(39)."sites_publication".chr(39).")"
             )->fetchColumn();
             if($schemas!==0)exit(1);
-            echo "F1-383 PASS: migration rollback dropped the schema in CI.";
+            echo "F1-383 PASS: migration rollback dropped both owned schemas in CI.";
           '
       - name: Release safety note
         if: always()

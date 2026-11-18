@@ -6,6 +6,34 @@
 
 Essa conclusão delimita a integração; não afirma esgotamento de todo desenvolvimento. O trabalho autorizado em branch isolada pode continuar em componentes com uso concreto e defeitos demonstrados. A inspeção privada do diário é um exemplo: consome a API persistente existente sem criar autoridade ou depender de um briefing inventado.
 
+### Armazenamento técnico candidato e consumo persistido implementados
+
+A branch `feature/sites-native-brief-snapshots-2026-11-18`, baseada na #518 /
+`907e2883393b776eebcba59fafb672aa34c99bf6`, implementa o
+[recebimento de snapshots candidatos](../PORTAL-BRIEF-SNAPSHOTS.md) na migration 13.
+O contexto vem do intake e do principal SQL corrente; o manifesto e o corpo rico
+são preservados como bytes imutáveis, com CAS de `briefRevision` e replay exato.
+`sourceVersion` continua sendo o contador agregado independente da origem.
+
+O reader separado resolve quatro seletores exatos, revalida todo o perfil PHP
+e alimenta `StoredBriefRendering` com os bytes armazenados e a entrada editorial
+escolhida. O resultado é HTML/proveniência em memória, sem gravação de arquivos
+ou registro de artefato. O [recibo de armazenamento](../../contracts/portal-sites/candidates/brief-production-v1/brief-snapshot-receipt.schema.json)
+tem treze campos e quatro flags falsas. Não autentica `sourceState=approved`,
+pagamento ou aceite do cliente. Endpoint e transporte não foram ativados.
+
+As provas locais compreendem onze testes do input já aprovados e intactos,
+**34 testes/904 assertions** de serviços após a correção de ERRMODE e
+**109 checks** de regressão do consumidor local. São 45 testes novos, sem
+atribuir o resultado anterior da suíte geral ao último ajuste. A fixture
+PostgreSQL e a compatibilidade de **923 checks registry previstos** aguardam CI;
+nenhum número de PR ou resultado de execução é presumido.
+
+A próxima relação durável ainda aberta é `snapshot → artefato do registry`:
+renderizar a revisão armazenada não cria esse vínculo no banco. Adoção pelo
+produtor Portal, exportação consistente, identidade de transporte e uso
+operacional continuam exigindo suas evidências próprias.
+
 ### Primeiro consumidor do briefing candidato implementado
 
 Sobre a proposta #517 / `c53eac9eb8060a62eb060e68f3bc5b2956dbbdff`, a branch
@@ -17,15 +45,16 @@ o HTML desse modo ao registro de artefatos já existente, com a mesma autorizaç
 SQL. O sidecar permanece local e não é ingerido pelo registro.
 
 As provas offline passaram: 109 checks do serviço, 80 da CLI e os 137/87
-anteriores. O ensaio PostgreSQL de quatro checks adicionais/922 totais ainda
-precisa de resultado próprio no workflow desta branch. Nenhum resultado da
-#516 ou #517 é atribuído ao código novo.
+anteriores. A [PR #518](https://github.com/rafhael100/imagine-sites/pull/518),
+HEAD `907e2883393b776eebcba59fafb672aa34c99bf6`, concluiu **12/12 checks SUCCESS**.
+O [run 44323010319](https://github.com/rafhael100/imagine-sites/actions/runs/44323010319)
+confirmou quatro checks adicionais/922 registry totais e limpeza dos clusters
+em PHP 8.3/8.4. Nenhum resultado da #516 ou #517 é atribuído ao código novo.
 
-O próximo vínculo persistente precisa conservar a identidade e os bytes do
-snapshot com autorização corrente, revisão imutável e recuperação após resposta
-perdida. Esse receptor pode ser desenvolvido como candidato isolado sobre o
-contrato e o consumidor agora concretos. Adoção pelo produtor Portal, transporte
-entre serviços e uso de dados reais conservam suas evidências e alçadas próprias.
+A #518 isoladamente não incluía persistência de briefing; seu comando continua
+sem DB. O receptor candidato descrito acima acrescenta essa fronteira por
+serviços internos separados, mantendo a autorização própria do registry e sem
+transformar o sidecar local em uma associação persistida.
 
 ### Continuidade após a candidata unificada: fonte concreta no legado
 
@@ -102,17 +131,19 @@ A [Sites #516](https://github.com/rafhael100/imagine-sites/pull/516), HEAD funci
 | [EditorialRevisionWriter](../../apps/sites/app/Editorial/EditorialRevisionWriter.php) | Avança o contador a cada transição, incluindo submissão, aprovação interna e reabertura, recebendo digest. Portanto, revisão editorial não identifica uma versão do insumo nem pode substituí-la. |
 | [LaravelAdmittedPreviewLab](../../apps/sites/app/Labs/LaravelAdmittedPreviewLab.php) | Usa texto fictício fixo, sob guardas de CI. Não lê briefing do cliente e não é worker de geração operacional. |
 | [BriefRenderProvenance](../../src/Production/BriefRenderProvenance.php) e [render.php](../../ops/release-candidate/render.php) | Conferem um snapshot candidato e sua entrada editorial por bytes exatos, preservando o renderer existente e um sidecar privado. Não consultam head, autenticação do Portal ou autorização comercial, nem persistem briefing em `sites_core`. |
+| [BriefSnapshotInput](../../src/Production/BriefSnapshotInput.php), [recorder e reader nativos](../PORTAL-BRIEF-SNAPSHOTS.md) | A migration 13 e os serviços implementam armazenamento técnico, CAS/replay e leitura exata sob principal SQL corrente. O perfil rico completo é validado em PHP; o recibo não comprova aprovação da origem. |
+| [StoredBriefRendering](../../apps/sites/app/Integration/StoredBriefRendering.php) | Usa o snapshot persistido selecionado pelo plano, sem fallback para o head. Retorna HTML/proveniência em memória e não grava o artefato ou sua relação no registry. |
 | [Pacote técnico](../../ops/release-candidate/README.md), [diário](../../contracts/publication-journal/README.md) e [inspector](../../src/Publication/PrivatePublicationInspection.php) | Trabalham sobre artefato/vínculo e estado técnico já existentes. Não fornecem o insumo ausente, não verificam pagamento/aceite e não autorizam envio. |
 
-Os nomes lógicos `SubmitBriefRevision` e `RequestGenerateRelease` já constam em [SITES-CT-01](../SITES-CT-01-PORTAL-SITES-v0.1.md), explicitamente candidato e não homologado. O [contrato de briefing](../SITES-BRIEF-PRODUCTION-CONTRACT-CANDIDATE-v0.1.md) acrescenta payloads e regras técnicas revisáveis; o consumidor local fornece seu primeiro uso. A persistência seguinte precisa preservar essa identidade e comprovar sua autorização de recebimento sem transformar a declaração `approved` em aprovação oficial.
+Os nomes lógicos `SubmitBriefRevision` e `RequestGenerateRelease` já constam em [SITES-CT-01](../SITES-CT-01-PORTAL-SITES-v0.1.md), explicitamente candidato e não homologado. O [contrato de briefing](../SITES-BRIEF-PRODUCTION-CONTRACT-CANDIDATE-v0.1.md) acrescenta payloads e regras técnicas revisáveis, hoje usados pelo consumidor local e pelo armazenamento candidato. A identidade SQL verificada nesse recebimento não transforma a declaração `approved` em aprovação oficial nem ativa o transporte dos comandos lógicos.
 
 ## Insumos necessários para adoção operacional da integração central
 
 1. **Adoção versionada pelo Portal, com responsável e SHA revisável:** fonte oficial, regras de revisão/substituição/conflito, conteúdo permitido e vínculo com pedido/projeto/produto. Os exemplos e campos candidatos já existem; falta comprovar que o produtor autorizado os emite consistentemente. Endpoint e transporte permanecem separados dessa definição.
-2. **Leitura e entrega autorizadas:** identidade e escopo por empresa/recurso, revogação corrente, acesso aos materiais privados, custódia/retenção e comportamento de deduplicação/confirmação em falhas. Referência recebida no JSON não concede acesso. Tabelas e capacidades negadas por padrão podem ser propostas em draft; grants e uso operacional exigem fonte e autorização próprias.
-3. **Consumidor de produção autorizado:** o modo local já vincula bytes e gera HTML inerte. Ainda é necessário comprovar qual operação pode iniciar produção real, aprovação humana da entrada editorial e relação durável com a revisão recebida. Para IA/ferramenta externa, definir previamente ferramenta, orçamento e dados permitidos; o fixture não substitui execução autorizada.
+2. **Leitura e entrega autorizadas:** identidade entre serviços e escopo por empresa/recurso, revogação corrente, acesso aos materiais privados e custódia/retenção operacionais. Referência recebida no JSON não concede acesso. O candidato já tem tabelas, capacidade SQL, replay e reader negados por padrão; ativação de grants, transporte e uso real exigem fonte e autorização próprias.
+3. **Consumidor de produção autorizado:** o modo local e o consumidor do snapshot persistido já vinculam bytes e geram HTML inerte. Ainda é necessário comprovar qual operação pode iniciar produção real, a aprovação humana da entrada editorial e a relação durável entre snapshot e artefato do registry. Para IA/ferramenta externa, definir previamente ferramenta, orçamento e dados permitidos; o fixture não substitui execução autorizada.
 
-O desenvolvimento em draft pode avançar a persistência imutável no banco próprio do Sites e seu consumidor, mantendo revisões de briefing e editorial distintas. O ensaio do receptor precisa provar isolamento, repetição exata, conflito concorrente de revisão, revogação e recuperação após interrupção. A composição pareada posterior deve usar fontes fixadas dos dois repositórios; um sucesso só do Sites não comprova o produtor Portal ou o transporte.
+O desenvolvimento em draft agora pode fechar a relação persistente com o registry, mantendo revisões de briefing e editorial distintas. A fixture do receptor já descreve as provas de isolamento, repetição exata, conflito concorrente, revogação e recuperação, ainda pendentes de execução em CI. A composição pareada posterior deve usar fontes fixadas dos dois repositórios; um sucesso só do Sites não comprova o produtor Portal ou o transporte.
 
 ## Dependências operacionais e alçadas preservadas
 
@@ -120,4 +151,4 @@ O [staging privado](../SITES-P0-PRIVATE-STAGING-2026-11-16.md) e a [verificaçã
 
 A autorização vigente permite desenvolver e revisar candidatos isolados. [AGENTS.md](../../AGENTS.md) continua exigindo alçada específica para merge/deploy, VPS, DNS/Cloudflare, APIs reais, gastos, credenciais e dados de clientes; operações limitadas documentadas anteriormente não autorizam uma nova instalação. O Portal conserva contrato, briefing, aceite expresso da versão exata e `ENTREGUE`; Sites conserva artefato e publicação técnica. Aceite, backup externo/restore, observação independente da publicação e homologação mantêm suas evidências próprias. Os [dez gates](../../config/operational-readiness.json), [P0/RF-PEND e bloqueio de rollback automático](../SITES-SEC-01-GATES.md) permanecem inalterados.
 
-**Critério de continuidade:** contrato candidato e consumidor local já permitem avançar código e CI isolados. Fonte oficial, credenciais e autorização do ambiente permitem preparar depois a operação concreta para revisão. As pendências operacionais não exigem pedir novamente autorização a cada entrega de código nem impedem uma próxima implementação reversível e verificável.
+**Critério de continuidade:** contrato candidato, armazenamento nativo e consumidores já permitem avançar código e CI isolados. Fonte oficial, credenciais e autorização do ambiente permitem preparar depois a operação concreta para revisão. As pendências operacionais não exigem pedir novamente autorização a cada entrega de código nem impedem uma próxima implementação reversível e verificável.

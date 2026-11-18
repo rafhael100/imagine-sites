@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:imagine-sites:candidate:brief-snapshot-receipt:v0.1",
+  "title": "sites.brief-snapshot.receipt.candidate.v0.1",
+  "description": "Private technical receipt of candidate snapshot storage. Recorded does not assert creation by the current call, source approval, payment, client acceptance or production authority. Values are stable on exact replay under current authorization.",
+  "$comment": "Schema validation does not verify a database commit, current principal, hash bindings, durable replay or the rich-source semantic profile. recordedAt requires six decimal digits in UTC and a valid calendar timestamp; the PHP recorder performs an exact calendar round-trip.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "status",
+    "siteRef",
+    "snapshotRef",
+    "briefRevision",
+    "sourceVersion",
+    "manifestSha256",
+    "payloadSha256",
+    "recordedAt",
+    "authorityVerified",
+    "clientAccepted",
+    "canPublish",
+    "canAcceptRealOrders"
+  ],
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$"
+    },
+    "sha256": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "Lowercase SHA-256 of the exact referenced bytes, including any whitespace or final LF. Not a semantic JSON digest."
+    }
+  },
+  "properties": {
+    "schemaVersion": {
+      "const": "sites.brief-snapshot.receipt.candidate.v0.1"
+    },
+    "status": {
+      "const": "recorded"
+    },
+    "siteRef": {
+      "$ref": "#/$defs/uuid"
+    },
+    "snapshotRef": {
+      "$ref": "#/$defs/uuid"
+    },
+    "briefRevision": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "sourceVersion": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "manifestSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "payloadSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "recordedAt": {
+      "type": "string",
+      "format": "date-time",
+      "minLength": 27,
+      "maxLength": 27,
+      "pattern": "^(?!0000)[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{6}Z$"
+    },
+    "authorityVerified": {
+      "const": false
+    },
+    "clientAccepted": {
+      "const": false
+    },
+    "canPublish": {
+      "const": false
+    },
+    "canAcceptRealOrders": {
+      "const": false
+    }
+  }
+}

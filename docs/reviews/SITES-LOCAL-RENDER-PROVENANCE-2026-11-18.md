@@ -1,7 +1,8 @@
 # Proveniência local do briefing ao HTML
 
 **Data:** 18/11/2026. **Estado:** implementação candidata em branch isolada,
-sem merge ou ativação operacional. Branch
+sem merge ou ativação operacional. [PR #518](https://github.com/rafhael100/imagine-sites/pull/518),
+HEAD `907e2883393b776eebcba59fafb672aa34c99bf6`, com **12/12 checks SUCCESS**. Branch
 `feature/sites-local-render-provenance-2026-11-18`, sobre a proposta
 [#517](https://github.com/rafhael100/imagine-sites/pull/517), HEAD
 `c53eac9eb8060a62eb060e68f3bc5b2956dbbdff`.
@@ -132,7 +133,7 @@ quatro inputs antes do writer. Cobre seis ocupações indevidas para cada destin
 além dos limites e aliases de caminhos. Essas trocas controladas não são uma
 prova de exclusão de todas as corridas concorrentes.
 
-### Integração PostgreSQL preparada para CI
+### Integração PostgreSQL executada em CI
 
 A [fixture de registro](../../tests/fixtures/release-registration/contract.php)
 mantém os quatro checks de renderização anteriores e acrescenta quatro. Cria
@@ -148,9 +149,14 @@ fica restrito à draft da mesma origem, branch/base e SHA base exatos. Executa
 PHP 8.3/8.4, os quatro scripts offline e o runner descartável PostgreSQL 18/TLS
 com os onze opt-ins existentes. Exige os marcadores dos quatro checks antigos,
 quatro novos, **922 verificações registry totais** e cluster próprio inativo.
-Essa contagem é uma expectativa até a execução remota ser observada. Não houve
-PostgreSQL local. Não foi repetido ensaio de navegador: os bytes e a interface
-visual do renderer não mudaram.
+O [run 44323010319](https://github.com/rafhael100/imagine-sites/actions/runs/44323010319)
+confirmou esses resultados nos jobs `134866725644` (PHP 8.3) e `134866724964`
+(PHP 8.4): **62 checks de registro, 922 registry totais**, os dois marcadores
+de quatro checks e clusters próprios inativos. Os quatro scripts offline
+também passaram em ambas as versões. O [run Laravel 44323009592](https://github.com/rafhael100/imagine-sites/actions/runs/44323009592)
+confirmou padrão **206/2174/27** e opt-in sintético **206/2186/21**, nos jobs
+`134866722658` e `134866721965`. Não houve PostgreSQL local. Não foi repetido
+ensaio de navegador: os bytes e a interface visual do renderer não mudaram.
 
 ## Limites e continuidade
 

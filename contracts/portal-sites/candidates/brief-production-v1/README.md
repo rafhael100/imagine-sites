@@ -1,25 +1,33 @@
-# Briefing Onepage e consumo local — proposta v0.1
+# Briefing Onepage, snapshots e consumo — candidato v0.1
 
-Estes arquivos são uma **proposta revisável**, com consumo local limitado já
-implementado no `render.php` existente. Esse modo verifica arquivos privados e
-grava HTML com proveniência local; não acrescenta endpoint, worker ou autoridade
+Estes arquivos são uma **proposta revisável**, com consumo local no `render.php`
+existente e armazenamento técnico candidato na migration 13. O primeiro verifica
+arquivos privados e grava HTML com proveniência local, sem DB. O segundo conserva
+os JSONs originais sob identidade SQL e oferece leitura exata para um consumidor
+interno do renderer. Nenhum deles ativa endpoint, transporte, worker ou autoridade
 operacional. A especificação e as decisões ainda abertas estão em
 [SITES-BRIEF-PRODUCTION-CONTRACT-CANDIDATE-v0.1](../../../../docs/SITES-BRIEF-PRODUCTION-CONTRACT-CANDIDATE-v0.1.md).
 
 | Schema | O que descreve |
 | --- | --- |
 | `onepage-brief-payload.schema.json` | O shape privado de 11 textos e 3 booleanos derivado do inventário legado Onepage. |
-| `brief-snapshot.schema.json` | Uma revisão imutável proposta, com referências de projeto, revisão agregada da origem, CAS próprio e descritores privados de bytes/materiais. |
+| `brief-snapshot.schema.json` | O manifesto candidato recebido pela persistência nativa: contexto de projeto, contador agregado da origem, revisão Sites própria e descritores privados de bytes/materiais. |
 | `brief-render-plan.schema.json` | A ligação proposta entre um snapshot exato, texto editorial selecionado separadamente e bytes esperados do renderer existente. |
+| [brief-snapshot-receipt.schema.json](brief-snapshot-receipt.schema.json) | Recibo técnico de treze campos da gravação candidata, com timestamp histórico e quatro flags falsas; não certifica a aprovação da origem. |
 
 Os schemas verificam estrutura e limites representáveis por JSON Schema
 2020-12. Não verificam identidade, permissão, aprovação, hashes dos arquivos,
 CAS, replay ou acesso a materiais. As anotações
 `x-legacy-max-utf16-code-units-before-trim` **não são assertions de JSON Schema**:
-O consumidor local `BriefRenderProvenance` aplica esses limites sem confundi-los
-com `maxLength` em code points. Ele também recusa chaves duplicadas e formas
-numéricas não canônicas e confere os vínculos de arquivos que o schema sozinho
-não verifica. Isso não autentica a origem nem estabelece CAS ou replay durável.
+O objeto compartilhado `BriefSnapshotInput` aplica esses limites sem confundi-los
+com `maxLength` em code points. Ele e o parser de plano usado por
+`BriefRenderProvenance` recusam chaves duplicadas e formas numéricas não canônicas
+e conferem os vínculos de bytes que o schema sozinho não verifica. Essas
+validações puras não autenticam a origem nem estabelecem CAS ou replay durável;
+tais mecanismos de persistência pertencem à API SQL candidata descrita abaixo.
+O `format: date-time` do recibo precisa de um format checker para validar o
+calendário em JSON Schema. A expressão regular fixa a representação UTC6; o
+recorder PHP também exige round-trip exato de calendário e timestamp.
 
 O teto técnico proposto para o arquivo do briefing rico é **150000 bytes**, para
 reutilizar o leitor privado existente. Ele é distinto dos 128000 bytes do body
@@ -38,6 +46,11 @@ editorial. Plano e manifesto têm, cada um, o teto de **32768 bytes**.
 | `examples/render-input.synthetic.json` | Os seis campos já aceitos por `LocalSiteRendering`, escolhidos manualmente. Não é o corpo rico renomeado nem uma transformação automática dele. |
 | `examples/rendered.synthetic.html` | Bytes reais do renderer determinístico existente aplicados somente ao input fictício acima. Continua uma demonstração inerte. |
 | `examples/brief-render-plan.synthetic.json` | Liga o SHA do arquivo de snapshot, o SHA/tamanho do input editorial e o SHA/tamanho do HTML esperado. Não é recibo de execução ou registro. |
+| [examples/brief-snapshot-receipt.synthetic.json](examples/brief-snapshot-receipt.synthetic.json) | Sexto exemplo: treze campos coerentes com o snapshot fictício, incluindo um timestamp inventado. Não representa execução SQL, commit ou aprovação. |
+
+A proposta documental #517 continha três schemas e cinco exemplos. Esses
+artefatos históricos foram preservados; o recibo acrescenta o quarto schema
+e o sexto exemplo.
 
 O exemplo não contém materiais: declara logo e manual indisponíveis. Não prova
 upload, validação de conteúdo, autorização de download ou conferência humana.
@@ -51,12 +64,50 @@ renderer. Alterar espaçamento ou LF do snapshot exige atualizar
 `snapshot.manifestSha256` do plano. As referências opacas de payload não são
 caminhos nem URLs e não autorizam leitura.
 
-O exemplo foi materializado com
+O HTML do exemplo foi materializado com
 [`LocalSiteRendering::render`](../../../../src/Production/LocalSiteRendering.php),
 sem alterar seu parser, template, avisos ou digest. Isso demonstra uma ligação
 técnica entre arquivos fictícios. O modo abaixo acrescenta a gravação de
 proveniência local, sem estabelecer consumo de briefing oficial, idempotência
 durável, aprovação editorial ou publicação.
+
+## Armazenamento técnico candidato implementado
+
+A [migration 13](../../../../apps/sites/database/migrations/2026_11_18_000013_add_portal_brief_snapshots.php)
+e a [API SQL](../../002-brief-snapshots.sql) recebem os JSONs originais do
+manifesto e do corpo. O tenant é derivado do principal de `session_user`; o
+contexto deve coincidir com o intake imutável de projeto. A capacidade de
+receber projeto não autoriza receber briefing. Novas identidades de runtime,
+transporte e produção precisam de autorização própria; a migration cria somente
+roles internas sem LOGIN e estruturas negadas por padrão.
+
+Uma nova linha exige o CAS corrente de `briefRevision` e avanço de
+`sourceVersion`; o segundo é o contador agregado da origem e pode saltar.
+Replay exato conserva o recibo, os bytes e a identidade/epoch histórica,
+incluindo após novo head, sob autorização corrente do chamador. Isso não
+verifica a declaração `sourceState=approved` nem substitui o exportador Portal.
+
+`PortalBriefSnapshotRecorder` devolve exatamente treze campos:
+`schemaVersion`, `status`, `siteRef`, `snapshotRef`, `briefRevision`,
+`sourceVersion`, `manifestSha256`, `payloadSha256`, `recordedAt`,
+`authorityVerified`, `clientAccepted`, `canPublish` e `canAcceptRealOrders`.
+As quatro últimas flags são falsas e `status=recorded` não afirma criação pela
+chamada atual. O timestamp UTC6 é o da linha original, inclusive no replay.
+
+O SQL valida estrutura, tipos, números lexicais, hashes e contexto. O PHP
+compartilhado verifica também completude, UTF-16 e semântica de URL/e-mail/domínio;
+o reader revalida esse perfil, inclusive para bytes gravados diretamente pela
+API SQL. `StoredBriefRendering` usa `siteRef`, `snapshotRef`, `briefRevision`
+e `manifestSha256` do plano validado para recuperar a seleção exata e produzir
+HTML/proveniência em memória com o renderer existente.
+
+Recorder e reader têm transações próprias de uma tentativa e conexões com
+`ERRMODE_EXCEPTION`; o reader exige default e transação somente leitura. Uma
+falha de commit ou perda de resposta não prova ausência de escrita. Não há
+retry automático, transação conjunta com arquivos ou registro de artefato
+por esse consumidor. A relação durável entre snapshot e artefato do registry
+permanece aberta. Consulte [o manual de armazenamento e leitura](../../../../docs/PORTAL-BRIEF-SNAPSHOTS.md)
+para permissões, recusas e reversão. Nenhum endpoint foi ativado.
 
 ## Consumo local implementado
 
@@ -162,3 +213,9 @@ Evidência local: **109 checks do serviço**, **137 do renderer existente**,
 arquivos usam diretórios temporários privados e o comando real; não atribuem
 autoridade oficial do Portal, execução PostgreSQL ou implantação a esse
 resultado.
+
+Para o armazenamento candidato, os onze testes do input passaram antes do
+último ajuste transacional e ficaram intactos; o arquivo de serviços passou
+depois com **34 testes/904 assertions**, sem avisos. A extração do parser
+preservou os 109 checks de proveniência. As execuções PostgreSQL e registry
+**923 checks previstos** ainda aguardam CI; não são resultados deste inventário.
