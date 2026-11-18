@@ -109,6 +109,22 @@ This command offers no artifact lookup or built-in diagnosis after a lost result
 
 The isolated alternative requires `GITHUB_ACTIONS=true`, `APP_ENV=testing` and `SITES_RELEASE_REGISTRATION_CI=1` together. It fixes `host=localhost`, port `55449`, database `postgres`, server address `127.0.0.1`, and login `rr_a_artifact_writer` or `rr_registration_a_artifact_writer`. The second login is the existing active synthetic author used by the combined fixture after it revokes the first author. This CI allowlist does not renew the revoked actor or establish either actor's SQL authority. Both names retain the same custody, target, TLS, current principal/epoch, plan and write-confirmation checks; staging behavior is unchanged. Offline CLI tests exercise help and early argument/environment refusals with the autoloader and private paths inaccessible; only the disposable PostgreSQL/TLS integration fixture can demonstrate actual registration. This candidate adds no deployment or operational authorization.
 
+## Entrada privada de snapshot candidato
+
+`receive-brief-snapshot.php` oferece `plan` e `record` para os JSONs originais de
+manifesto e corpo Onepage, usando o recorder nativo existente. O [manual do receptor](../../docs/BRIEF-SNAPSHOT-RECEIVER-CLI.md)
+descreve cinco mounts privados, target observado, compromisso, confirmação
+`SITES_BRIEF_SNAPSHOT_CANDIDATE_ONLY_APPROVED` e projeções de dez/onze campos.
+O plano mantém a sessão somente leitura; o registro solicita uma operação SQL.
+Resposta ausente ou recusa posterior exige apuração pelo leitor exato, sem retry.
+
+A [composição isolada](../../docs/reviews/SITES-BRIEF-SNAPSHOT-CLI-CHAIN-2026-11-18.md)
+recebe o snapshot e utiliza as CLIs existentes de registro e inspeção descritas
+abaixo. O receptor não importa de URLs, cria transporte, autentica aprovação
+Portal ou concede publicação. Ele foi incorporado da #523 com os testes
+negativos corrigidos e atores CI próprios; sua prova real permanece identificada
+separadamente da implementação de origem.
+
 ## Registro composto a partir de briefing armazenado
 
 A nova `register-provenance.php` consome `StoredBriefReleaseRegistration` para ler um snapshot exato, validar seu perfil, gerar o HTML internamente e registrar artefato e associação na mesma chamada SQL. O [manual de registro armazenado](../../docs/STORED-BRIEF-REGISTRATION-CLI.md) descreve o manifesto, as projeções e as fronteiras de autorização. A API antiga acima permanece independente; a nova CLI não recebe HTML ou sidecar, não adota artefato preexistente sem associação e não cria grants ou migrações.

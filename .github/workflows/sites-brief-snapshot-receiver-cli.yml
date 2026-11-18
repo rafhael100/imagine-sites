@@ -1,0 +1,55 @@
+name: Sites candidate briefing snapshot receiver CLI
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    branches: ['feature/sites-brief-provenance-registration-2026-11-18']
+    paths:
+      - '.github/workflows/sites-brief-snapshot-receiver-cli.yml'
+      - 'ops/release-candidate/receive-brief-snapshot.php'
+      - 'tests/brief-snapshot-receiver-cli-offline.php'
+      - 'src/Publication/ReleaseArtifactConnection.php'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sites-brief-snapshot-cli-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  offline-contract:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'feature/sites-brief-snapshot-receiver-cli-2026-11-18' &&
+      github.event.pull_request.base.ref == 'feature/sites-brief-provenance-registration-2026-11-18' &&
+      github.event.pull_request.base.sha == '0b735a1794ee3bb965e5a05d5d738083ddac9544'
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    steps:
+      - name: Checkout exact unmerged candidate
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Install isolated PHP runtime
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          extensions: pdo_pgsql, mbstring
+          tools: none
+      - name: Verify candidate PHP and bounded arguments without database access
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l src/Publication/ReleaseArtifactConnection.php
+          php -l ops/release-candidate/receive-brief-snapshot.php
+          php -l tests/brief-snapshot-receiver-cli-offline.php
+          php tests/brief-snapshot-receiver-cli-offline.php | tee "$RUNNER_TEMP/sites-snapshot-receiver.log"
+          grep -Eq '^SNAPSHOT RECEIVER OFFLINE PASS: [1-9][0-9]* checks; no SQL success simulated[.]$' "$RUNNER_TEMP/sites-snapshot-receiver.log"
