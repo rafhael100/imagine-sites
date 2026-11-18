@@ -62,6 +62,7 @@ $literalCopy = [
     'URL and handler-like words' => 'https://example.invalid onboarding=aberto onclick="x" javascript:x',
     'quoted markup as text' => '<a href="http://example.invalid" onclick="x">Texto & "aspas"</a>',
     'Unicode and line breaks' => "Ação 😀\r\nonfocus='nada' https://example.invalid/?a=1&b=2",
+    'CSS-like escaped words' => 'u\\72l("x") @\\69mport C:\\x image-set("x" 1x) -webkit-image-set("x" 1x)',
 ];
 foreach (['onepage', 'landing_page'] as $product) {
     foreach (['brand', 'headline', 'description', 'callToAction', 'benefits'] as $field) {
@@ -94,6 +95,27 @@ $mutations = [
         '<section style="background:url(https://invalid.example/a)" class="hero"',$base),
     'CSS import' => str_replace('</style>','@import url(https://invalid.example/a.css);</style>',$base),
     'CSS remote URL' => str_replace('</style>','body { background: url(https://invalid.example/b); }</style>',$base),
+    // These relative targets cannot be caught by a literal http(s) check.
+    // CSS consumes the escapes before classifying the function or at-rule.
+    'CSS hexadecimal URL function' => str_replace('</style>',
+        'body { background-image: u\\72l("/inert-audit-probe"); }</style>', $base),
+    'CSS six-digit URL escape without whitespace' => str_replace('</style>',
+        'body { background-image: u\\000072l("/inert-audit-probe"); }</style>', $base),
+    'CSS padded URL escape' => str_replace('</style>',
+        'body { background-image: \\000075 rl("/inert-audit-probe"); }</style>', $base),
+    'CSS uppercase URL with escape whitespace' => str_replace('</style>',
+        'body { background-image: U\\52 L("/inert-audit-probe"); }</style>', $base),
+    'CSS simple URL escape' => str_replace('</style>',
+        'body { background-image: \\url("/inert-audit-probe"); }</style>', $base),
+    'CSS hexadecimal import keyword' => str_replace('<style>',
+        '<style>@\\69mport "/inert-audit-probe.css";', $base),
+    'CSS simple import escape' => str_replace('<style>',
+        '<style>@\\import "/inert-audit-probe.css";', $base),
+    // String arguments are image URLs even without the url() spelling.
+    'CSS image-set relative string' => str_replace('</style>',
+        'body { background-image: image-set("/inert-audit-probe" 1x); }</style>', $base),
+    'CSS uppercase prefixed image-set relative string' => str_replace('</style>',
+        'body { background-image: -WEBKIT-IMAGE-SET("/inert-audit-probe" 1x); }</style>', $base),
     'unapproved image' => str_replace('</main>','<img src="https://invalid.example/1"></main>',$base),
     'unknown SVG' => str_replace('</main>','<svg onload="alert(1)"></svg></main>',$base),
     'extra heading' => str_replace('</main>','<h1>Other title</h1></main>',$base),

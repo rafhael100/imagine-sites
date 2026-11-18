@@ -3,6 +3,7 @@
 **Escopo:** reforçar a validação de arquivos sintéticos F1-24 para bloquear estruturas ativas e destinos externos na marcação/CSS mesmo quando um artefato HTML foi modificado e seus hashes SHA-256 foram recalculados.
 
 ## Implementação
+
 - `InertPreviewAudit` valida exclusivamente o HTML de teste emitido pelo renderer atual, usando uma **política lexical restritiva**: tipo de produto, estrutura mínima, uma só H1, cinco metadados esperados, CSP e robots exatamente fixados, âncoras internas conhecidas, nenhuma tag desconhecida, atributo ativo, destino externo ou CSS remoto.
 - O construtor e o verificador do `SyntheticReleaseBundle` passam pela auditoria **antes** de criar ou validar o pacote.
 - A suíte `tests/f27-offline-preview-audit.php` prova aprovação de uma Onepage e uma Landing Page fictícias, aceitação de texto HTML escapado e rejeição adversarial de scripts, formulários, meta refresh, stylesheet, CSS `@import/url()`, imagem remota, atributos de evento, links externos, CSP/robots adulterados, markup malformado, alteração de H1 e remoção do aviso de prévia.
@@ -17,7 +18,16 @@ A auditoria agora verifica tags e CSS separadamente do texto escapado. Somente o
 
 O HTML original não é reserializado, normalizado ou alterado. Renderer, bytes persistidos, SHA-256 e cálculo dos pacotes permanecem iguais. F24 passa a aceitar `javascript:` quando é texto escapado e mantém a recusa quando é o destino de um link real. F27 cobre os cinco campos, ambos os produtos, aspas, Unicode e quebras de linha, além de atributos reais, metadados extras, links ativos e CSS inseridos ao lado de texto literal. O contrato separado de entrada `StructuredCopyCandidate` continua inalterado.
 
+## Correção de referências CSS — 18/11/2026
+
+A reprodução em memória confirmou que a auditoria recusava `url("/inert-audit-probe")`, mas aceitava `u\72l("/inert-audit-probe")`, `image-set("/inert-audit-probe" 1x)` e `-webkit-image-set("/inert-audit-probe" 1x)` no bloco de estilos. Não houve execução em navegador nem requisição de rede observada. Conforme CSS Syntax Level 3, escapes são resolvidos ao [formar identificadores](https://www.w3.org/TR/css-syntax-3/#consume-ident-sequence), antes do [reconhecimento de `url()`](https://www.w3.org/TR/css-syntax-3/#consume-ident-like-token). A [versão de 30/09/2025 de CSS Images Level 4](https://www.w3.org/TR/2025/WD-css-images-4-20250930/), §2.4 e Apêndice A, define as strings de `image-set()` como URLs e a variante WebKit como alias.
+
+O dialeto fixo passa a recusar barras invertidas **somente dentro de `style`**, além de `image-set()` e seu alias com comparação sem distinção de maiúsculas. Os estilos atuais e históricos suportados não precisam desses recursos. Texto literal nos cinco campos e na meta description continua permitido, incluindo barras e nomes dessas funções. Renderer, vetores, bytes históricos, digests e cálculo dos pacotes não mudam; a auditoria não reescreve o HTML.
+
+As provas locais finais passaram com **152 checks F27** e **279 asserções de registro**, incluindo digest/compromisso recalculados e recusa antes de qualquer chamada à PDO. A suíte geral passou com **296 testes / 4705 asserções / 27 skips**, e o domínio sintético com **32 checks**. O CI específico desta correção permanece pendente. O [relatório da correção](reviews/SITES-INERT-CSS-ESCAPES-2026-11-18.md) registra o recorte, as fontes e os limites da reprodução.
+
 ## Limites de segurança
+
 Este mecanismo **não é um sanitizer HTML genérico nem prova AppSec**. Foi deliberadamente desenhado apenas para o template fixo, offline, sem formulários/terceiros e `publishable=false`. Outros layouts legítimos poderão ser rejeitados e precisam de um fluxo de revisão próprio. Um parser HTML/browser, análise de acessibilidade e segurança de produção, CSP real nos headers, testes de mobile e revisão de licenças continuam pendentes antes de expor qualquer página a clientes.
 
 Não implementa geração real de IA, publisher Cloudflare, navegador, DNS, retenção LGPD, CRM, sinalização `ENTREGUE` do Portal nem autorização de produção. O `config/operational-readiness.json` segue BLOCKED, com `main` e VPS intocadas, AGI-11-RB01 desabilitado.

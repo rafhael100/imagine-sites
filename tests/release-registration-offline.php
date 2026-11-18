@@ -249,6 +249,25 @@ foreach ($unsafeHtml as $label => $bytes) {
     $deny(static fn () => $registration->record($candidate, $bytes, $candidate['target']['caSha256'], $planSha256),
         'record also rejects '.$label);
 }
+// A matching manifest and freshly recomputed commitment must not turn an
+// active CSS resource into an acceptable artifact or reach a SQL connection.
+foreach ([
+    'escaped CSS URL' => str_replace('</style>',
+        'body{background-image:u\\72l("/inert-audit-probe")}</style>', $html),
+    'escaped CSS import' => str_replace('<style>',
+        '<style>@\\import "/inert-audit-probe.css";', $html),
+    'CSS image-set relative string' => str_replace('</style>',
+        'body{background-image:image-set("/inert-audit-probe" 1x)}</style>', $html),
+    'CSS uppercase prefixed image-set relative string' => str_replace('</style>',
+        'body{background-image:-WEBKIT-IMAGE-SET("/inert-audit-probe" 1x)}</style>', $html),
+] as $label => $bytes) {
+    $candidate = array_replace($manifest, ['artifactDigest' => hash('sha256', $bytes), 'sizeBytes' => strlen($bytes)]);
+    $candidateCommitment = $expectedPlan($candidate, $bytes);
+    $deny(static fn () => $registration->plan($candidate, $bytes, $candidate['target']['caSha256']),
+        'self-consistent input denies '.$label);
+    $deny(static fn () => $registration->record($candidate, $bytes, $candidate['target']['caSha256'], $candidateCommitment),
+        'matching commitment denies '.$label);
+}
 $ok($db->calls === 0, 'malformed or active artifacts are refused before the database');
 
 // Even a valid commitment cannot establish a current private principal,

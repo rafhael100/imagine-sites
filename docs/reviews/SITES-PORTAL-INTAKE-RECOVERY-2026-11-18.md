@@ -127,6 +127,28 @@ O verifier local confirmou os 31 blobs Portal,
 os quatro contratos Sites e os dois checkouts exatos, além de recusar a ausência
 do opt-in. Essa execução verifica fontes e não simula sucesso de banco.
 
+### Evidência final da #533
+
+A [#533](https://github.com/rafhael100/imagine-sites/pull/533) concluiu **12/12
+checks SUCCESS** no HEAD `1163c001b4974abbdd93ed51e6dbf54e520c4fb4`.
+O [run 44389473142](https://github.com/rafhael100/imagine-sites/actions/runs/44389473142),
+jobs [PHP 8.3](https://github.com/rafhael100/imagine-sites/actions/runs/44389473142/job/135102871574)
+e [PHP 8.4](https://github.com/rafhael100/imagine-sites/actions/runs/44389473142/job/135102870964),
+confirmou **13 verificações do bridge, 20 do hook Portal e 1 teste nativo com
+216 assertions**, incluindo a continuação do teste herdado.
+
+As fontes foram conferidas antes e depois da jornada. Sites confirmou seu estado
+final após o teste Portal, reverteu as quinze migrations e conferiu os três
+schemas ausentes. O cluster próprio terminou inativo, os helpers foram limpos
+na ordem recuperação → receiver e o serviço/rede Portal foram removidos.
+As três tentativas documentadas a seguir são históricas, anteriores a essa prova.
+
+O [run Laravel 44389473217](https://github.com/rafhael100/imagine-sites/actions/runs/44389473217),
+jobs **135102870935 / 135102871433**, confirmou **296 testes/4705 assertions/27
+skips** e **296/4717/21** com opt-in sintético, nas duas versões. Este workflow
+pareado não executa a composição registry: seu total1208 continua atribuído
+à #532. Não houve PostgreSQL local.
+
 ### Primeira execução e ajuste de conexão da fixture
 
 A [#533](https://github.com/rafhael100/imagine-sites/pull/533), HEAD inicial

@@ -107,8 +107,14 @@ final class InertPreviewAudit
             }
         }
 
+        // CSS resolves escapes inside identifiers before interpreting url()
+        // and at-rules. The fixed renderer dialect needs no CSS escapes, so
+        // refuse them in styles rather than interpreting a broader language.
+        // image-set() and its alias also accept URL strings without url().
+        // Literal copy in text and description metadata is unaffected.
         if (preg_match_all('~<style>(.*?)</style>~s', $html, $css) !== 1 ||
-            preg_match('/(?:@import\b|url\s*\(|expression\s*\(|-moz-binding)/i', $css[1][0])) {
+            str_contains($css[1][0], '\\') ||
+            preg_match('/(?:@import\b|(?:url|(?:-webkit-)?image-set|expression)\s*\(|-moz-binding)/i', $css[1][0])) {
             return ['active_css_or_style_structure'];
         }
 
