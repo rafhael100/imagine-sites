@@ -124,3 +124,11 @@ já contém um replay; a consulta nova deve demonstrar ausência de chamadas ao 
 e de novos registros durante sua própria execução. Isolamento, seletores,
 revogação entre chamadas e down/up da migration terão evidência própria.
 Os resultados PostgreSQL desta candidata permanecem pendentes de CI.
+
+O primeiro [run F383 44377646550](https://github.com/rafhael100/imagine-sites/actions/runs/44377646550),
+HEAD `b131a7c9888da7b62b0e97c2ff9970a59811001b` da
+[#531](https://github.com/rafhael100/imagine-sites/pull/531), instalou a migration
+15 nas duas versões, mas parou no inventário de políticas anterior ao módulo novo.
+A correção acrescenta somente as três políticas esperadas ao inventário exato,
+passando de 45 para 48, sem tolerar políticas desconhecidas ou mudar o produto.
+Essa execução não comprova ainda os 53 checks do leitor nem o rollback final.

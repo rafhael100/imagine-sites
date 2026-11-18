@@ -28,6 +28,15 @@ REVOKE/GRANT, conservando todos os privilégios e demais campos. Não se atribui
 registry da #530 a esse schema novo.
 [Manual e limites](docs/PROJECT-INTAKE-RECEIPT-READER.md).
 
+A primeira execução da [#531](https://github.com/rafhael100/imagine-sites/pull/531),
+HEAD `b131a7c9888da7b62b0e97c2ff9970a59811001b`, instalou a migration 15 em
+PHP 8.3/8.4, mas o [F383 44377646550](https://github.com/rafhael100/imagine-sites/actions/runs/44377646550)
+parou antes da prova nova porque o inventário antigo exigia 45 políticas.
+O teste agora inclui exatamente as três políticas de SELECT do novo definer,
+totalizando 48; conserva tabela, comando, role e predicados exatos e continua
+recusando políticas extras ou PUBLIC. Nenhum código de produto foi alterado
+nesse ajuste. O resultado real das 53 verificações permanece pendente.
+
 ## 18/11/2026 — entrada privada de projetos validada na #530
 
 A [#530](https://github.com/rafhael100/imagine-sites/pull/530), branch
