@@ -147,6 +147,25 @@ preserva a PDO, o tracking, as transações e as contagens 13/20; não altera pr
 ou migrations. Lint e diffcheck passaram. A execução CI seguinte deve confirmar
 a jornada completa.
 
+### Segunda execução e representação do ambiente
+
+No HEAD `03cc9fc7e011d404dcda05e6b0946d492f6e7437`, o
+[run 44387631593](https://github.com/rafhael100/imagine-sites/actions/runs/44387631593),
+jobs **135096400547 / 135096399924**, confirmou `schema-up15` e rollback15 nas
+duas versões, mas `recover` foi recusado no gate inicial do subprocesso. O XML
+Portal força `APP_DEBUG=false` sem `verbatim`; PHPUnit 12.5.43 converte esse valor
+em booleano e `PhpHandler` o interpola como string vazia em `putenv`. A fixture
+repassava esse valor, enquanto Sites exige literalmente `false`.
+
+A montagem do ambiente agora confere o valor herdado e `config('app.debug') ===
+false`, depois serializa explicitamente `APP_DEBUG=false`. Preserva o XML Portal,
+os opt-ins e o gate estrito do bridge. A conversão foi confirmada localmente com
+Loader e PhpHandler reais sobre o XML fixado, sem bootstrap da aplicação ou SQL;
+lint e diffcheck passaram. A execução seguinte deve concluir a jornada. Os dois
+jobs anteriores reverteram as quinze migrations próprias e removeram os três schemas, interromperam o
+cluster Sites, removeram os helpers na ordem correta e encerraram o serviço
+Portal com sua rede. Não houve consumo de recibo confirmado nessa tentativa.
+
 ## Limites da conclusão
 
 A prova cobre o pedido Onepage nativo de revisão 1 e este consumidor fixado.

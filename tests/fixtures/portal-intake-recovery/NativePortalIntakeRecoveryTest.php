@@ -456,7 +456,13 @@ final class NativePortalIntakeRecoveryTest extends NativeOnepageOrdersPgTest
         array_push($command, $sites.'/tests/fixtures/portal-intake-recovery/sites-bridge.php', 'recover');
         $environment = getenv();
         self::requireCondition(is_array($environment), 'Explicit subprocess environment required');
+        self::requireCondition(in_array($environment['APP_DEBUG'] ?? null, ['', 'false'], true)
+            && config('app.debug') === false, 'Disabled Portal debug configuration required');
         $environment['APP_BASE_PATH'] = $sites.'/apps/sites';
+        // PHPUnit materializes XML value="false" as a boolean and putenv()
+        // serializes it as an empty string. Preserve the disabled setting in
+        // the strict string representation required by the Sites subprocess.
+        $environment['APP_DEBUG'] = 'false';
         $process = proc_open($command, [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
             $pipes, $sites, $environment);
         self::requireCondition(is_resource($process), 'Sites bridge subprocess unavailable');

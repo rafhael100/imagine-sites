@@ -34,6 +34,17 @@ default por NULL ao chamar `up()`. O ajuste fornece esse metadado e confere ambo
 os getters de nome e o default, mantendo a mesma PDO atestada. Somente a fixture
 foi corrigida, com lint e diffcheck PASS; a nova jornada CI ainda é necessária.
 
+No segundo HEAD `03cc9fc7e011d404dcda05e6b0946d492f6e7437`, o
+[run 44387631593](https://github.com/rafhael100/imagine-sites/actions/runs/44387631593)
+confirmou instalação e rollback das quinze migrations nas duas versões. O
+subprocesso chamado pelo Portal recusou corretamente `APP_DEBUG` vazio: PHPUnit
+converte o `false` do XML fixado em booleano e depois em string vazia no ambiente.
+A fixture agora exige configuração Portal efetivamente sem debug e serializa
+`false` explicitamente para o subprocesso. XML e guard do bridge permanecem
+intactos. A conversão foi reproduzida com Loader/PhpHandler reais, sem app ou SQL;
+lint e diffcheck PASS. Cleanup Sites, helpers e serviço/rede Portal confirmados.
+
+
 
 ## 18/11/2026 — recuperação privada do recibo validada na #532
 
