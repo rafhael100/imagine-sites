@@ -290,7 +290,7 @@ BEGIN
   simple_function=obj.proname IN ('journal_immutable','journal_principal_epoch','journal_snapshot');
   IF obj.proowner<>expected_owner::regrole OR obj.prosecdef=simple_function
   OR NOT coalesce(obj.proconfig @> ARRAY['search_path=pg_catalog'],false)
-  OR cardinality(obj.proconfig)<>CASE WHEN simple_function THEN 1 ELSE 2 END
+  OR cardinality(obj.proconfig)<>(CASE WHEN simple_function THEN 1 ELSE 2 END)
   OR (NOT simple_function AND NOT coalesce(obj.proconfig @> ARRAY['row_security=on'],false))
   OR pg_has_role(session_user,obj.proowner,'MEMBER')
   OR has_function_privilege(session_user,obj.oid,'EXECUTE WITH GRANT OPTION')
