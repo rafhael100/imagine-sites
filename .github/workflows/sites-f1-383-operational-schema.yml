@@ -15,6 +15,11 @@ on:
       - 'tests/f385-operational-editorial-revisions.php'
       - 'apps/sites/app/Editorial/EditorialRevisionWriter.php'
       - 'apps/sites/tests/Feature/EditorialRevisionWriterTest.php'
+      - 'contracts/portal-sites/001-project-intake.sql'
+      - 'contracts/portal-sites/v1/project-intake-receipt.schema.json'
+      - 'apps/sites/app/Integration/PortalProjectIntakeRecorder.php'
+      - 'apps/sites/tests/Feature/PortalProjectIntakeRecorderTest.php'
+      - 'tests/portal-project-intake-pg-contract.php'
       - 'docs/SITES-F1-385-OPERATIONAL-EDITORIAL.md'
       - '.github/workflows/sites-f1-383-operational-schema.yml'
       - 'docs/SITES-F1-383-VERSIONED-PG18-CORE-SCHEMA.md'
@@ -49,6 +54,7 @@ jobs:
       SITES_F383_PG_MIGRATION_LAB: '1'
       SITES_F384_READER_LAB: '1'
       SITES_F385_EDITORIAL_LAB: '1'
+      SITES_PROJECT_INTAKE_TESTS: '1'
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: '5432'
@@ -78,6 +84,10 @@ jobs:
           php -l tests/f385-operational-editorial-revisions.php
           php -l apps/sites/app/Editorial/EditorialRevisionWriter.php
           php -l apps/sites/tests/Feature/EditorialRevisionWriterTest.php
+          php -l apps/sites/database/migrations/2026_11_18_000011_add_portal_project_intake.php
+          php -l apps/sites/app/Integration/PortalProjectIntakeRecorder.php
+          php -l apps/sites/tests/Feature/PortalProjectIntakeRecorderTest.php
+          php -l tests/portal-project-intake-pg-contract.php
       - name: Install locked Laravel dependencies
         working-directory: apps/sites
         run: |
@@ -123,11 +133,21 @@ jobs:
       - name: F1-385 run Laravel editorial writer integration against PG18
         working-directory: apps/sites
         run: php vendor/bin/phpunit --no-configuration --bootstrap vendor/autoload.php --do-not-cache-result --fail-on-skipped --fail-on-warning tests/Feature/EditorialRevisionWriterTest.php
-      - name: Prove Laravel migration rollback on isolated empty database
+      - name: Native pending intake through the application service and native schema
+        run: |
+          set -euo pipefail
+          if SITES_PROJECT_INTAKE_TESTS=0 php tests/portal-project-intake-pg-contract.php; then
+            echo 'Unsafe: native intake test ran without disposable database opt-in'
+            exit 1
+          fi
+          php tests/portal-project-intake-pg-contract.php
+          cd apps/sites
+          php vendor/bin/phpunit --do-not-cache-result --fail-on-warning tests/Feature/PortalProjectIntakeRecorderTest.php
+      - name: Prove Laravel migration rollback after isolated product fixtures
         working-directory: apps/sites
         run: |
           set -euo pipefail
-          # The same migration batch now includes the additive read-only F1-384.
+          # The same batch includes the pending intake ledger and all synthetic fixture rows.
           php artisan migrate:rollback --batch=1 --force --no-ansi
           php -r '
             $db=new PDO("pgsql:host=127.0.0.1;dbname=sites_f383_lab",
