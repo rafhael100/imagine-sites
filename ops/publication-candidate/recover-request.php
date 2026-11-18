@@ -100,7 +100,7 @@ try {
     $target = $input['target'];
     if (($staging && $target['database'] !== 'sites_staging') ||
         ($ci && ($target['database'] !== 'postgres' || $target['host'] !== 'localhost' ||
-            $target['port'] !== 55449 || $target['login'] !== 'pj_recovery_a_reader' ||
+            $target['port'] !== 55449 || $target['login'] !== 'pjrr_a_reader' ||
             $target['serverAddress'] !== '127.0.0.1'))) throw new DomainException();
 
     PrivatePublicationRequestReceipt::checkAvailable(PUBLICATION_RECOVERY_OUTPUT, $input['receiptRef']);
