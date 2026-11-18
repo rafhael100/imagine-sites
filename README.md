@@ -12,6 +12,8 @@ O registro privado de artefatos possui plano somente leitura e gravação explí
 
 A CLI editorial permite planejar e solicitar uma transição por execução, com revisão esperada, bytes exatos e confirmação explícita do plano. O SQL verifica a função do operador e o estado corrente. O comando não consulta o artefato no registry nem estabelece uma associação; conflitos e respostas perdidas exigem apuração antes de outra decisão, sem retry ou incremento automático da revisão.
 
+A associação e a revogação privadas têm comandos separados e credenciais próprias, com plano somente leitura e controle da revisão esperada. A associação usa o artefato imutável e a aprovação editorial corrente; a revogação preserva o histórico e invalida o vínculo, permitindo que a preparação e a verificação recusem pacotes que deixaram de ser correntes.
+
 Esses componentes não constituem homologação operacional. Contrato, pagamento, identidade entre serviços, revogação, aceite expresso do cliente, backup externo e publicação exigem suas próprias fontes e evidências. Os dez gates em `config/operational-readiness.json` permanecem `BLOCKED`; os padrões de autorização continuam negadores.
 
 ## Componentes
@@ -24,7 +26,7 @@ Esses componentes não constituem homologação operacional. Contrato, pagamento
 | `src/Integration` | Contratos e adaptadores candidatos de integração com o Portal |
 | `contracts` | Regras SQL versionadas e fronteiras dos componentes |
 | `ops/preview-candidate` | Provisionamento explícito e revisável do workspace privado |
-| `ops/release-candidate` | Registro explícito de artefatos e comandos `prepare`/`verify` do pacote técnico |
+| `ops/release-candidate` | Registro, associação e revogação explícitos, além de `prepare`/`verify` do pacote técnico |
 | `ops/editorial-candidate` | Plano e execução explícita de uma transição editorial pela API existente |
 | `ops/publication-candidate` | Consulta privada de uma operação conhecida do diário, somente leitura |
 | `tests/fixtures` | Materiais inteiramente sintéticos para os ensaios descartáveis de CI |
@@ -42,6 +44,8 @@ php tests/private-preview-upgrade-cli-offline.php
 php tests/release-preparation-offline.php
 php tests/release-registration-offline.php
 php tests/release-registration-cli-offline.php
+php tests/release-binding-offline.php
+php tests/release-binding-cli-offline.php
 php tests/editorial-transition-offline.php
 php tests/editorial-transition-cli-offline.php
 python3 tests/fixture-private-material.py
@@ -65,6 +69,7 @@ O Portal controla contratos, aceite expresso e evento oficial `ENTREGUE`; Sites 
 - [Upgrade explícito do preview gerenciado](docs/reviews/SITES-PREVIEW-MANAGED-UPGRADE-2026-11-18.md)
 - [Preparação e verificação de pacotes](ops/release-candidate/README.md)
 - [Registro privado de artefatos](docs/reviews/SITES-ARTIFACT-REGISTRATION-2026-11-18.md)
+- [Associação e revogação de releases](docs/reviews/SITES-RELEASE-BINDING-2026-11-18.md)
 - [Transição editorial explícita](docs/reviews/SITES-EDITORIAL-TRANSITION-2026-11-18.md)
 - [Manual da CLI editorial](ops/editorial-candidate/README.md)
 - [Diário técnico de publicação](contracts/publication-journal/README.md)

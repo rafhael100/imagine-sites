@@ -1,0 +1,17 @@
+{
+  "schema": "SITES_RELEASE_BINDING_V1",
+  "target": {
+    "host": "REPLACE_WITH_CERTIFICATE_HOSTNAME",
+    "port": 5432,
+    "database": "sites_staging",
+    "databaseOid": 0,
+    "login": "replace_with_existing_binding_writer",
+    "serverAddress": "REPLACE_WITH_OBSERVED_ADDRESS",
+    "caSha256": "REPLACE_WITH_REVIEWED_CA_SHA256"
+  },
+  "action": "bind",
+  "siteRef": "REPLACE_WITH_EXISTING_SITE_UUID",
+  "expectedBindingRevision": 0,
+  "releaseRef": "REPLACE_WITH_REVIEWED_RELEASE_REFERENCE",
+  "editorialRevision": 1
+}

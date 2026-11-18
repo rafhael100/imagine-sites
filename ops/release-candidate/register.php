@@ -106,7 +106,8 @@ try {
     $target = $input['target'];
     if (($staging && $target['database'] !== 'sites_staging') ||
         ($ci && ($target['database'] !== 'postgres' || $target['host'] !== 'localhost' ||
-            $target['port'] !== 55449 || $target['login'] !== 'rr_a_artifact_writer' ||
+            $target['port'] !== 55449 ||
+            !in_array($target['login'], ['rr_a_artifact_writer', 'rr_registration_a_artifact_writer'], true) ||
             $target['serverAddress'] !== '127.0.0.1'))) {
         throw new DomainException();
     }

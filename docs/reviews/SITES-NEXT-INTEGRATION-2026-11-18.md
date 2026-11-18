@@ -10,7 +10,7 @@ A ausência de um contrato oficial também não proíbe desenhar propostas rever
 
 ## Evidência do Portal inspecionada
 
-Foram consultados títulos, escopos e referências das PRs #924–#936. As HEADs #924, #935 e #936 foram reconferidas nesta revisão. PR mais recente não significa contrato mais recente da integração: existem linhas paralelas.
+Foram consultados títulos, escopos e referências das PRs #924–#938. As HEADs #924, #935 e #936 foram reconferidas nesta revisão. PR mais recente não significa contrato mais recente da integração: existem linhas paralelas.
 
 | Referência fixada | Evidência e limite |
 | --- | --- |
@@ -21,6 +21,12 @@ Foram consultados títulos, escopos e referências das PRs #924–#936. As HEADs
 | [#932, `82deeb00`](https://github.com/rafhael100/imagine-portal/commit/82deeb0062f80f1cf979a2c0105d394c2b1adc23) e [#935, `49685869`](https://github.com/rafhael100/imagine-portal/commit/4968586998f79f892a7c41da417cf762345df2b6) | Preservação de contexto visual no cadastro/login e correção de expectativas de teste de sessão; não constituem nova origem de briefing. |
 
 A leitura de código reforça esse limite. [SiteBriefDraft na HEAD #936](https://github.com/rafhael100/imagine-portal/blob/815ffc5eeeddc928d631e9ba3a5cf2aca35ff233/apps/portal/app/Domain/SiteIntake/SiteBriefDraft.php) continua explicitamente SAMPLE, restrito a organizações e referências DEMO. O [F48 na HEAD #935](https://github.com/rafhael100/imagine-portal/blob/4968586998f79f892a7c41da417cf762345df2b6/apps/portal/labs/sites-intake-f48/README.md) define somente metadados de prévia, exclui corpo do briefing/assets e mantém transporte, aceite e publicação desautorizados. Esses arquivos conservam os mesmos blobs inspecionados na #924. **Não foi encontrado contrato oficial de corpo de briefing nessas referências**; isso não presume inexistência em fontes não fornecidas.
+
+### Reconferência durante a entrega de associação de releases
+
+A [PR #937, `ecc225c3`](https://github.com/rafhael100/imagine-portal/commit/ecc225c3f8c17caadfb2361f471c96cdc76e74e3) acrescenta cinco arquivos de laboratório para vincular retomada/repetição Onepage ao comprador autenticado. A [PR #938, `74cd2d12`](https://github.com/rafhael100/imagine-portal/commit/74cd2d12378b2cc7ff40fbda61327edcbcf40cd4) acrescenta catorze arquivos de laboratório/workflow para entrada sintética de recibo e sessões SCRAM separadas. Seus escopos excluem integração Sites; #938 também exclui briefing e liberação financeira operacional. Foram conferidos os arquivos alterados de ambas.
+
+O [SiteBriefDraft na HEAD #938](https://github.com/rafhael100/imagine-portal/blob/74cd2d12378b2cc7ff40fbda61327edcbcf40cd4/apps/portal/app/Domain/SiteIntake/SiteBriefDraft.php) foi comparado integralmente com o da HEAD #936: os bytes são idênticos, conservando SAMPLE/DEMO e os três retornos de autoridade falsos. Essas duas entregas posteriores não fornecem o corpo oficial de briefing necessário à integração central. A revisão editorial e a associação privada de releases continuam usando seus contratos Sites existentes.
 
 ## O que as peças Sites já fazem
 
