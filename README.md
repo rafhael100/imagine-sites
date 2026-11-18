@@ -28,7 +28,7 @@ Esses componentes não constituem homologação operacional. Contrato, pagamento
 | `src/Integration` | Contratos e adaptadores candidatos de integração com o Portal |
 | `contracts` | Regras SQL versionadas e fronteiras dos componentes |
 | `ops/preview-candidate` | Provisionamento explícito e revisável do workspace privado |
-| `ops/release-candidate` | Registro, associação e revogação explícitos, além de `prepare`/`verify` do pacote técnico |
+| `ops/release-candidate` | Renderização local privada, registro, associação/revogação e `prepare`/`verify` do pacote técnico |
 | `ops/editorial-candidate` | Plano e execução explícita de uma transição editorial pela API existente |
 | `ops/publication-candidate` | Inspeção somente leitura e reconciliação explícita de operações conhecidas do diário |
 | `tests/fixtures` | Materiais inteiramente sintéticos para os ensaios descartáveis de CI |
@@ -44,6 +44,8 @@ php tests/private-preview-provisioning-offline.php
 php tests/private-preview-upgrade-offline.php
 php tests/private-preview-upgrade-cli-offline.php
 php tests/release-preparation-offline.php
+php tests/local-site-rendering-offline.php
+php tests/local-site-rendering-cli-offline.php
 php tests/release-registration-offline.php
 php tests/release-registration-cli-offline.php
 php tests/release-binding-offline.php
@@ -82,6 +84,7 @@ O Portal controla contratos, aceite expresso e evento oficial `ENTREGUE`; Sites 
 - [Reconciliação explícita do diário](docs/reviews/SITES-PUBLICATION-RECONCILIATION-2026-11-18.md)
 - [Custódia dos recibos dos auxiliares de CI](docs/reviews/SITES-FIXTURE-RECEIPT-CUSTODY-2026-11-18.md)
 - [Recuperação do formulário de comparação](docs/reviews/SITES-COMPARISON-RECOVERY-2026-11-18.md)
+- [Renderização de briefing local privado](docs/reviews/SITES-LOCAL-ARTIFACT-RENDERING-2026-11-18.md)
 - [Próxima integração Portal → briefing → geração](docs/reviews/SITES-NEXT-INTEGRATION-2026-11-18.md)
 - [Orientação editorial por versão](docs/reviews/SITES-EDITORIAL-FEEDBACK-2026-11-18.md)
 - [Briefing Unicode e validação por campo](docs/reviews/SITES-BRIEF-UNICODE-VALIDATION-2026-11-18.md)
