@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\DB;
 
 /** Private candidate storage only: no source approval or operational identity. */
 return new class extends Migration {
-    private const CONTRACT_SHA256 = 'b8549ddba9ed3552d7c3322956bb5c77b06a4ce0e979524843a0d99c2846d37b';
+    private const CONTRACT_SHA256 = 'd8fc66af9f605d375510de956300a3f40b6018eef986242e366146e3d5c3a303';
     private const REGISTRY_GUARD_SHA256 = 'a6707a10197400c20651603949abe6ffe4dd48e52fd40b595c3832b42e1a9753';
     private const ROLES = ['sites_core_brief_owner','sites_core_brief_receiver','sites_core_brief_reader'];
     private const FUNCTIONS = [
@@ -18,7 +18,7 @@ return new class extends Migration {
         'brief_snapshot_storage_input(text,text)'=>['sites_core_brief_owner',true,'i',false,'jsonb',
             '79bcf4873b22e65d139eb533c328be0bc5bb18c6c1959dedb7e72d85e99f823c'],
         'brief_snapshot_runtime_safe(text)'=>['sites_core_brief_owner',true,'v',false,'boolean',
-            '9676801dc2376fe2273248e45c5427b0ed257bd011eae04f29b7c70f8fb58531'],
+            '128bc03a03673714c7bd76878614454b4a391f9df01c2c2d9936d26dfa3aa94a'],
         'brief_snapshot_actor(text,boolean)'=>['sites_core_brief_owner',true,'v',false,'sites_core.portal_brief_principals',
             '7089760781a7fef99ac85e7fba5f96a0be92619cfe6e309864b0ab8cc40abd35'],
         'record_portal_brief_snapshot(text,text)'=>['sites_core_brief_receiver',true,'v',true,

@@ -244,8 +244,8 @@ BEGIN
  OR pg_catalog.current_setting('server_version_num')::integer NOT BETWEEN 180000 AND 189999
  OR pg_catalog.current_setting('server_encoding')<>'UTF8'
  OR pg_catalog.current_setting('client_encoding')<>'UTF8'
- OR pg_catalog.current_setting('default_transaction_read_only')<>CASE p_duty WHEN 'reader' THEN 'on' ELSE 'off' END
- OR pg_catalog.current_setting('transaction_read_only')<>CASE p_duty WHEN 'reader' THEN 'on' ELSE 'off' END THEN RETURN false; END IF;
+ OR pg_catalog.current_setting('default_transaction_read_only')<>(CASE p_duty WHEN 'reader' THEN 'on' ELSE 'off' END)
+ OR pg_catalog.current_setting('transaction_read_only')<>(CASE p_duty WHEN 'reader' THEN 'on' ELSE 'off' END) THEN RETURN false; END IF;
  SELECT * INTO v_login FROM pg_catalog.pg_roles WHERE rolname=session_user;
  IF NOT FOUND OR NOT v_login.rolcanlogin OR v_login.rolsuper OR v_login.rolbypassrls
  OR v_login.rolcreatedb OR v_login.rolcreaterole OR v_login.rolreplication OR v_login.rolinherit
@@ -380,7 +380,7 @@ BEGIN
    ELSE ARRAY['search_path=pg_catalog','row_security=on'] END;
   IF pg_catalog.pg_get_userbyid(v_object.proowner)<>v_expected_owner
   OR v_object.prosecdef=v_allowed OR v_object.proconfig IS DISTINCT FROM v_expected_config
-  OR v_object.provolatile<>CASE WHEN v_object.proname='brief_snapshot_storage_input' THEN 'i' ELSE 'v' END
+  OR v_object.provolatile<>(CASE WHEN v_object.proname='brief_snapshot_storage_input' THEN 'i' ELSE 'v' END)
   OR EXISTS(SELECT 1 FROM pg_catalog.aclexplode(coalesce(v_object.proacl,pg_catalog.acldefault('f',v_object.proowner))) a
    WHERE a.grantee=0) THEN RETURN false; END IF;
  END LOOP;
