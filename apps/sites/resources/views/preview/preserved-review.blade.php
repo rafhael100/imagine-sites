@@ -1,5 +1,5 @@
 <section class="preserved-review" data-testid="preserved-review" data-review-revision="{{ $reviewSubmission['revision'] }}" data-review-digest="{{ $reviewSubmission['sha256'] }}" aria-labelledby="preserved-review-title">
-<h2 id="preserved-review-title">Parecer não registrado</h2>
+<h2 id="preserved-review-title">Parecer não registrado da versão {{ $reviewSubmission['revision'] }}</h2>
 <p>Este envio continua ligado à versão indicada abaixo. A orientação não será reaplicada a outra versão.</p>
 <dl>
 <dt>Versão do envio</dt><dd>{{ $reviewSubmission['revision'] }}</dd>

@@ -179,7 +179,7 @@ final class PrivatePreviewWorkspaceViewTest extends TestCase
 
         self::assertStringContainsString('name="expected_revision" value="60"', $html);
         self::assertStringContainsString('value="Briefing atual da versão 60"', $html);
-        self::assertStringContainsString('<strong>Versão 20</strong>', $html);
+        self::assertStringContainsString('<h3 id="version-title-20">Versão 20</h3>', $html);
         self::assertStringNotContainsString('<span class="status">Atual</span>', $html);
         self::assertStringContainsString('after_revision=20', $html);
         self::assertStringContainsString('before_revision=1', $html);
@@ -394,7 +394,7 @@ final class PrivatePreviewWorkspaceViewTest extends TestCase
         self::assertSame(str_repeat('b', 64), $xpath->evaluate('string('.$form.'/@data-review-digest)'));
         self::assertSame(str_repeat('b', 64), $xpath->evaluate('string('.$form.'//input[@name="sha256"]/@value)'));
         self::assertSame('changes_requested', $xpath->evaluate('string('.$form.'//select[@name="decision"]/option[@selected]/@value)'));
-        self::assertSame('Orientação editorial', $xpath->evaluate('string('.$form.'//label[@for="note-2"])'));
+        self::assertSame('Orientação editorial da versão 2', $xpath->evaluate('string('.$form.'//label[@for="note-2"])'));
         self::assertSame('note-help-2', $xpath->evaluate('string('.$form.'//textarea[@name="note"]/@aria-describedby)'));
         self::assertSame(0, $xpath->query($form.'//textarea[@name="note"]/@maxlength|'.$form.'//textarea[@name="note"]/@required')->length);
         self::assertStringContainsString('Obrigatória ao solicitar ajustes; opcional ao aprovar internamente.', $html);
@@ -418,6 +418,22 @@ final class PrivatePreviewWorkspaceViewTest extends TestCase
         $xpath = $this->xpath($html);
         $preserved = '//form[@data-testid="preserved-review"]';
 
+        foreach ([2, 3] as $revision) {
+            $form = '//form[@class="review" and @data-review-revision="'.$revision.'"]';
+            $titleId = 'version-title-'.$revision;
+            self::assertSame(1, $xpath->query('//h3[@id="'.$titleId.'"]')->length);
+            self::assertSame('Versão '.$revision, $xpath->evaluate('string(//h3[@id="'.$titleId.'"])'));
+            self::assertSame($titleId, $xpath->evaluate('string('.$form.'/@aria-labelledby)'));
+            self::assertSame('Parecer editorial da versão '.$revision,
+                $xpath->evaluate('string('.$form.'//label[@for="decision-'.$revision.'"])'));
+            self::assertSame('Orientação editorial da versão '.$revision,
+                $xpath->evaluate('string('.$form.'//label[@for="note-'.$revision.'"])'));
+            self::assertSame('Registrar revisão editorial da versão '.$revision,
+                $xpath->evaluate('string('.$form.'//button[@type="submit"])'));
+        }
+        self::assertSame(1, $xpath->query('//h3[@id="version-title-3"]/following-sibling::span[@class="status" and normalize-space(.)="Atual"]')->length);
+        self::assertSame('Confira o parecer da versão 2', $xpath->evaluate('string(//*[@id="errors-title"])'));
+        self::assertSame('errors-title', $xpath->evaluate('string(//*[@role="alert"]/@aria-labelledby)'));
         self::assertSame(1, $xpath->query($preserved)->length);
         self::assertSame('2', $xpath->evaluate('string('.$preserved.'/@data-review-revision)'));
         self::assertSame(str_repeat('b', 64), $xpath->evaluate('string('.$preserved.'/@data-review-digest)'));
@@ -429,6 +445,7 @@ final class PrivatePreviewWorkspaceViewTest extends TestCase
         self::assertSame('note-help-2 error-note-2', $xpath->evaluate('string('.$preserved.'//textarea/@aria-describedby)'));
         self::assertSame('', trim($xpath->evaluate('string(//form[@data-review-revision="3"]//textarea)')));
         self::assertSame('changes_requested', $xpath->evaluate('string(//form[@data-review-revision="3"]//select/option[@selected]/@value)'));
+        self::assertSame(0, $xpath->query('//form[@data-review-revision="3"]//*[@aria-invalid="true"]')->length);
         self::assertSame(0, $xpath->query('//script|//*[@data-review-probe]')->length);
         self::assertStringContainsString('&lt;/textarea&gt;&lt;script data-review-probe=literal&gt;', $html);
     }
@@ -461,7 +478,8 @@ final class PrivatePreviewWorkspaceViewTest extends TestCase
         self::assertSame(0, $xpath->query($preserved.'//form|'.$preserved.'//button|//form[@data-review-revision="2"]')->length);
         self::assertSame('', trim($xpath->evaluate('string(//form[@data-review-revision="3"]//textarea)')));
         self::assertSame('Parecer anterior original', $xpath->evaluate('string(//*[@data-testid="editorial-review-history"]//*[@data-review-note])'));
-        self::assertStringContainsString('Confira o parecer desta versão', $html);
+        self::assertSame('Confira o parecer da versão 2', $xpath->evaluate('string(//*[@id="errors-title"])'));
+        self::assertSame('Parecer não registrado da versão 2', $xpath->evaluate('string('.$preserved.'/h2[@id="preserved-review-title"])'));
         self::assertStringContainsString('Solicitar ajustes', $xpath->evaluate('string('.$preserved.')'));
         self::assertSame(0, $xpath->query('//em')->length);
     }
@@ -483,6 +501,7 @@ final class PrivatePreviewWorkspaceViewTest extends TestCase
         $preserved = '//*[@data-testid="preserved-review"]';
 
         self::assertSame('60', $xpath->evaluate('string('.$preserved.'/@data-review-revision)'));
+        self::assertSame('Parecer não registrado da versão 60', $xpath->evaluate('string('.$preserved.'/h2[@id="preserved-review-title"])'));
         self::assertSame("Texto original da versão 60\n", $xpath->evaluate('string('.$preserved.'//*[@data-review-note])'));
         self::assertSame(0, $xpath->query($preserved.'//button|//form[@data-review-revision="60"]')->length);
         self::assertSame('', trim($xpath->evaluate('string(//form[@data-review-revision="20"]//textarea)')));

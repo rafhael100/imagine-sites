@@ -184,7 +184,7 @@ module.exports=async({ctx,base,dir,docker,ok})=>{
    const reviewUrl=new URL(await review.getAttribute('action'),base).toString();
    const [reviewed,reviewLoaded]=await Promise.all([
      editorPage.waitForResponse(r=>r.request().isNavigationRequest()&&r.request().method()==='POST'&&r.url()===reviewUrl),
-     editorPage.waitForNavigation({waitUntil:'load'}),review.getByRole('button',{name:'Registrar revisão editorial',exact:true}).click(),
+     editorPage.waitForNavigation({waitUntil:'load'}),review.getByRole('button',{name:'Registrar revisão editorial da versão 2147483647',exact:true}).click(),
    ]);
    const reviewRow=editorPage.getByTestId('editorial-review-history').locator('article[data-review-revision="2147483647"][data-review-digest="'+lastHtml.digest+'"]');
    check(reviewed.status()===302&&reviewLoaded.status()===200&&await reviewRow.isVisible()&&
