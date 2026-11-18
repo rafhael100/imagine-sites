@@ -98,10 +98,11 @@ $removeOwnTree = static function (string $path) use (&$removeOwnTree): void {
 
 try {
     $brief = [
-        'productCode' => 'onepage', 'brand' => 'Marca fictícia 😀',
-        'headline' => 'Conheça https://example.invalid/ com onboarding=texto',
-        'description' => "Cafe\u{0301}\r\n<a href=\"https://example.invalid/\">Referência literal</a> & onclick=\"texto\".",
-        'callToAction' => 'Veja a demonstração', 'benefits' => ['Texto <script>inerte</script>', 'Benefício de exemplo'],
+        'productCode' => 'onepage', 'brand' => "\u{00A0}Marca\u{2003}fictícia 😀\u{00A0}",
+        'headline' => "\u{2003}Conheça https://example.invalid/ com onboarding=texto\u{00A0}",
+        'description' => "\u{FEFF}Cafe\u{0301}\r\n<a href=\"https://example.invalid/\">Referência literal</a> & onclick=\"texto\".\u{200B}",
+        'callToAction' => "\u{2003}Veja\u{00A0}a demonstração\u{2003}",
+        'benefits' => ["\u{00A0}Texto <script>inerte</script>\u{2003}", "\u{200B}Benefício de exemplo\u{FEFF}"],
     ];
     $encode = static fn (array $value): string => json_encode($value,
         JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)."\n";
@@ -157,6 +158,18 @@ try {
         $before = $snapshot($input);
         $deny($args($input, $output), $label);
         $ok(!file_exists($output) && $snapshot($input) === $before, $label.' creates no output and preserves input');
+    }
+    foreach (['brand', 'headline', 'description', 'callToAction', 'benefits'] as $field) {
+        $output = $freshOutput();
+        $input = dirname($output).'/brief.json';
+        $value = array_replace($brief, [$field => $field === 'benefits'
+            ? ["\u{00A0}\u{2003}"] : "\u{00A0}\u{2003}"]);
+        $newFile($input, $encode($value));
+        $before = $snapshot($input);
+        $deny($args($input, $output), 'Unicode whitespace-only '.$field);
+        $ok(scandir(dirname($output)) === ['.', '..', 'brief.json'] &&
+            $snapshot($input) === $before && $snapshot($sentinel) === $sentinelBefore,
+            'blank '.$field.' creates no output and preserves exact input and sentinel');
     }
     foreach ([0644, 0440, 0640, 0700, 04600] as $mode) {
         $output = $freshOutput();

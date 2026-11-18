@@ -1,5 +1,27 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 18/11/2026 — entrada local recusa textos inteiramente em branco Unicode
+
+A branch `fix/sites-local-render-unicode-blank-2026-11-18` deriva da #534 /
+`5a93720b68b81e2336fd7038b4f791a2bebc9c72`, validada com **12/12 checks SUCCESS**.
+`LocalSiteRendering` passa a exigir ao menos um caractere fora de Unicode
+`White_Space` nos quatro textos e em cada benefício, depois das validações
+existentes e antes de renderizar. A reprodução anterior aceitava somente
+NBSP/EM SPACE nesses cinco destinos, apesar da regra documentada de texto não vazio.
+
+A mudança recusa a entrada completa, sem aparar texto ou remover itens. Bytes
+com conteúdo, espaços nas bordas/interior e caracteres fora dessa propriedade
+continuam preservados. `SiteBrief`, leitores históricos, renderer e vetores
+permanecem intactos. O novo critério também alcança novas renderizações chamadas
+pela composição de briefing, sem regravar artefatos históricos.
+
+Validação local: **159 checks de serviço** (22 novos), **97 de CLI** (dez novos),
+**296 testes Laravel/4705 assertions/27 skips** e **32 checks sintéticos**.
+Os cinco negativos CLI preservam inputs e arquivo independente sem criar HTML;
+os positivos comparam os bytes dos dois produtos com o renderer original.
+O workflow dedicado exige os marcadores159/97 em PHP 8.3/8.4. CI próprio ainda
+pendente. [Defeito, regra e testes](docs/reviews/SITES-LOCAL-RENDER-UNICODE-BLANK-2026-11-18.md).
+
 ## 18/11/2026 — recusa de CSS escapado e image-set no HTML inerte
 
 A branch `fix/sites-inert-css-escapes-2026-11-18` deriva da #533 validada /
@@ -18,7 +40,16 @@ Validação local: **152 checks F27**, **279 assertions de registro offline**,
 **296 testes Laravel/4705 assertions/27 skips** e **32 checks sintéticos**
 obrigatórios. Revisão independente do produto e do workflow sem bloqueadores.
 O workflow F1-24 passa a exigir os dois marcadores focados em PHP 8.3/8.4.
-CI próprio ainda pendente; não há mudança de renderer, schema ou autoridade.
+A [#534](https://github.com/rafhael100/imagine-sites/pull/534), HEAD
+`5a93720b68b81e2336fd7038b4f791a2bebc9c72`, confirmou **12/12 checks SUCCESS**.
+O [F1-24 44391000613](https://github.com/rafhael100/imagine-sites/actions/runs/44391000613),
+jobs **135108293907 / 135108293436**, passou em PHP 8.3/8.4 com **20 checks de
+pacote, 152 de auditoria e 279 de registro**, recusa sem opt-in, dois pacotes
+privados com `publishable=false` e remoção de seus diretórios. O
+[Laravel 44391000603](https://github.com/rafhael100/imagine-sites/actions/runs/44391000603)
+confirmou **296/4705/27** e **296/4717/21** nas duas versões. Guard de **731
+arquivos**, seis blocos Bash e **173 links locais** passaram. Não houve nova
+prova PostgreSQL/registry ou navegador; renderer, schema e autoridade não mudaram.
 [Recorte, fontes e regressões](docs/reviews/SITES-INERT-CSS-ESCAPES-2026-11-18.md).
 
 ## 18/11/2026 — consumidor Portal nativo validado na #533

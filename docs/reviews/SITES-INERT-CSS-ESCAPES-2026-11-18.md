@@ -78,5 +78,24 @@ PDO**. Não há sucesso SQL simulado nessas provas.
 
 As duas suítes focadas passaram após a última ampliação. A suíte geral e o
 laboratório de domínio também foram executados localmente pelo responsável
-pela entrega. **O CI desta candidata ainda está pendente.** Não foi executado
+pela entrega. **Nessa etapa, o CI ainda estava pendente; a evidência final está abaixo.** Não foi executado
 PostgreSQL ou navegador local para esta correção.
+
+## Evidência final da #534
+
+A [#534](https://github.com/rafhael100/imagine-sites/pull/534) concluiu **12/12
+checks SUCCESS** no HEAD `5a93720b68b81e2336fd7038b4f791a2bebc9c72`.
+O [run F1-24 44391000613](https://github.com/rafhael100/imagine-sites/actions/runs/44391000613),
+jobs [PHP 8.3](https://github.com/rafhael100/imagine-sites/actions/runs/44391000613/job/135108293907)
+e [PHP 8.4](https://github.com/rafhael100/imagine-sites/actions/runs/44391000613/job/135108293436),
+confirmou **20 checks de pacote, 152 de auditoria e 279 de registro**. O comando
+recusou uso sem opt-in; com a flag sintética criou os dois pacotes privados,
+conferiu `publishable=false` e removeu os dois diretórios declarados.
+
+O [run Laravel 44391000603](https://github.com/rafhael100/imagine-sites/actions/runs/44391000603),
+jobs **135108295124 / 135108294952**, confirmou **296 testes/4705 assertions/27
+skips** e **296/4717/21** com opt-in nas duas versões. A revisão local final
+conferiu **731 arquivos** pelo guard, YAML sem chaves repetidas, **seis blocos
+Bash**, **173 links locais** e diffcheck. Esta entrega não repetiu a prova
+PostgreSQL/registry ou a jornada Portal da base; essas evidências permanecem
+atribuídas às suas PRs próprias.

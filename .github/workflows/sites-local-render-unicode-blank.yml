@@ -1,0 +1,61 @@
+name: Sites local rendering Unicode blank input (isolated draft)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['fix/sites-inert-css-escapes-2026-11-18']
+    paths:
+      - '.github/workflows/sites-local-render-unicode-blank.yml'
+      - 'src/Production/LocalSiteRendering.php'
+      - 'src/Production/SiteBrief.php'
+      - 'src/Production/StaticSiteRenderer.php'
+      - 'ops/release-candidate/render.php'
+      - 'tests/local-site-rendering-offline.php'
+      - 'tests/local-site-rendering-cli-offline.php'
+      - 'apps/sites/composer.*'
+permissions:
+  contents: read
+concurrency:
+  group: sites-local-render-unicode-blank-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  local-render-unicode-blank:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'fix/sites-local-render-unicode-blank-2026-11-18' &&
+      github.event.pull_request.base.ref == 'fix/sites-inert-css-escapes-2026-11-18' &&
+      github.event.pull_request.base.sha == '5a93720b68b81e2336fd7038b4f791a2bebc9c72'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, dom, xml, pdo_pgsql
+          tools: composer:v2
+          coverage: none
+      - name: Install locked dependencies without scripts or plugins
+        working-directory: apps/sites
+        run: |
+          set -euo pipefail
+          composer validate --strict --no-check-publish
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+      - name: Verify syntax and exact local rendering contracts
+        run: |
+          set -euo pipefail
+          php -l src/Production/LocalSiteRendering.php
+          php -l tests/local-site-rendering-offline.php
+          php -l tests/local-site-rendering-cli-offline.php
+          php tests/local-site-rendering-offline.php | tee "$RUNNER_TEMP/sites-local-render-unicode-service.log"
+          grep -q '^LOCAL SITE RENDERING OFFLINE PASS: 159 checks;' "$RUNNER_TEMP/sites-local-render-unicode-service.log"
+          php tests/local-site-rendering-cli-offline.php | tee "$RUNNER_TEMP/sites-local-render-unicode-cli.log"
+          grep -Fxq '97 local site rendering CLI offline checks passed' "$RUNNER_TEMP/sites-local-render-unicode-cli.log"

@@ -45,6 +45,13 @@ final class LocalSiteRendering
                 $input['productCode'], $input['brand'], $input['headline'],
                 $input['description'], $input['callToAction'], $input['benefits'],
             );
+            // New local rendering inputs need content beyond Unicode White_Space.
+            // Do not trim valid text or change SiteBrief: historical preview
+            // readers also reconstruct that object from their persisted bytes.
+            foreach ([$brief->brand, $brief->headline, $brief->description,
+                $brief->callToAction, ...$brief->benefits] as $text) {
+                if (preg_match('/\A\p{White_Space}*\z/u', $text) !== 0) throw new RuntimeException();
+            }
             $artifact = (new StaticSiteRenderer())->render($brief);
             if (!InertPreviewAudit::isSafe($artifact->html)) throw new RuntimeException();
             return $artifact;

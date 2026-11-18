@@ -446,6 +446,10 @@ This is a local rendering input, not a versioned Portal briefing contract, offic
 
 NUL, duplicate keys (including escaped equivalents), additional fields, wrong types and unsupported products are refused. The command does not trim or normalize valid text. URLs and text that resembles markup or an event handler remain literal escaped content; they do not create active links, handlers or scripts. The audit checks the rendered HTML before any output file is created.
 
+For this local input, a nonblank value must contain at least one character outside the Unicode `White_Space` property. This applies to all four text fields and every benefit: a value made only of NBSP, EM SPACE or other characters in that property is refused before rendering and output creation. A blank benefit is not removed from the list; it causes the whole input to be refused. Existing type, size, UTF-8 and NUL checks still run first.
+
+Leading, internal and trailing spaces around content remain unchanged. ZWSP (`U+200B`) and FEFF (`U+FEFF`) are outside `White_Space` and remain valid, including when used alone. This local-entry check does not change `SiteBrief`, the renderer or historical preview readers. The [Unicode blank-input review](../../docs/reviews/SITES-LOCAL-RENDER-UNICODE-BLANK-2026-11-18.md) records the reproduction and the observed **159 service / 97 CLI checks**; CI for that correction is still pending.
+
 ```sh
 php /opt/imagine/ops/release-candidate/render.php --help
 
