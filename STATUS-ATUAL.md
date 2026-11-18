@@ -1,5 +1,24 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 18/11/2026 — linhas vazias Unicode no formulário de benefícios
+
+Branch `fix/sites-preview-benefit-blank-lines-2026-11-18`, sobre a #524 validada
+no HEAD `89d8a99b83d13fd1b5472b55d7f2891809d2cf81`. O formulário passa a ignorar
+linhas inteiramente formadas por espaços Unicode, depois da validação original
+e do trim existente. O caso reproduzido recusava oito benefícios por contar
+uma linha NBSP ou EM SPACE como nono item. Linhas com texto mantêm os espaços
+Unicode originais; U+200B/FEFF e os limites de oito itens, 180 por item e 1500
+no campo completo permanecem intactos.
+
+**Prova local:** suíte geral **284 testes/4280 assertions/27 skips**, laboratório
+sintético **32 checks**, lint PHP e sintaxe JS PASS. A revisão independente não
+identificou bloqueadores. A fixture HTTP reaproveita a segunda revisão do projeto
+existente, confere oito textos exatos e o digest e recusa nove itens sem criar
+uma terceira revisão ou modificar os HTMLs anteriores. **Quatro checks novos/451
+totais previstos, pendentes do CI próprio.** O workflow HTTP tem base e HEAD
+restritos; a matriz Laravel existente cobre PHP 8.3/8.4. Renderer, SQL e migrations
+não mudam. [Recorte e limites](docs/reviews/SITES-BENEFIT-BLANK-LINES-2026-11-18.md).
+
 ## 18/11/2026 — quebra de texto nas novas páginas geradas
 
 Branch `fix/sites-renderer-long-text-2026-11-18`, sobre a #522 validada no HEAD
@@ -20,8 +39,18 @@ corrente, sem fallback para o HTML anterior.
 proveniência **109**, registro anterior **271**, PHPUnit **279/4250/27**,
 lint e comparação de bytes fora do CSS. O Chromium local não abriu por recusa de
 socket do runtime, portanto não há medida ou captura local. A fixture HTTP usa
-as páginas reais dos dois produtos a 320/390/1440 px; sua prova própria, o registry
-e o workspace completos permanecem pendentes do CI desta branch.
+as páginas reais dos dois produtos a 320/390/1440 px. A [#524](https://github.com/rafhael100/imagine-sites/pull/524)
+concluiu **15/15 checks SUCCESS** no HEAD `89d8a99b83d13fd1b5472b55d7f2891809d2cf81`.
+O [run 44352671761](https://github.com/rafhael100/imagine-sites/actions/runs/44352671761)
+confirmou **8 novos/447 HTTP totais**, **429 workspace** e **1094 registry** nas
+duas versões PHP, com cleanup de arquivos, clusters, containers e redes próprios.
+O [F383 44352671538](https://github.com/rafhael100/imagine-sites/actions/runs/44352671538)
+confirmou **245 briefing/65 intake**, batch de 14 migrations e rollback dos dois
+schemas; [Laravel 44352671587](https://github.com/rafhael100/imagine-sites/actions/runs/44352671587),
+**279/4250/27** e **279/4262/21**. O artefato **14447704981** contém 37 arquivos,
+com ZIP SHA-256 `d9e410e55714651afc29d5f96e0fcf1dd977b8196f3d01fe9963054453a0fcea`
+conferido após download. Revisão visual das quatro capturas em 320/1440 px PASS;
+a medição geométrica também cobre 390 px.
 [Contrato e limites](docs/reviews/SITES-RENDERER-LONG-TEXT-2026-11-18.md).
 
 ## 18/11/2026 — entrada privada de registro do briefing armazenado
