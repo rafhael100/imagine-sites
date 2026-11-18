@@ -169,18 +169,24 @@ final class PrivatePreviewUnsavedBriefViewTest extends TestCase
         foreach ([true, false] as $canEdit) {
             $data = $this->page();
             $data['canEdit'] = $canEdit;
+            $data['navigation'] = PreviewNavigation::fromQuery(['before_revision' => '5'], true);
             // Existing view callers may omit the new response-only flag.
             unset($data['hasUnsavedBrief']);
             $html = view('preview.workspace', $data)->render();
             $xpath = $this->xpath($html);
 
             self::assertSame(0, $xpath->query('//*[@data-testid="unsaved-brief-notice" or @data-testid="saved-current-brief"]')->length);
-            self::assertStringContainsString('A comparação mantém o formulário de edição na versão atual 7.', $html);
             self::assertSame(0, $xpath->query('//form[@data-testid="briefing-form"]/@aria-describedby')->length);
             if ($canEdit) {
+                self::assertStringContainsString('A comparação mantém o formulário de edição na versão atual 7.', $html);
+                self::assertStringContainsString('O briefing de edição continua na versão atual.', $html);
                 self::assertStringContainsString('Este briefing corresponde à versão atual 7.', $html);
                 self::assertSame($data['brief']['headline'], $xpath->evaluate('string(//input[@name="headline"]/@value)'));
             } else {
+                self::assertStringContainsString('O briefing salvo da versão atual 7 continua disponível para consulta.', $html);
+                self::assertStringContainsString('O briefing salvo da versão atual continua disponível para consulta.', $html);
+                self::assertStringNotContainsString('formulário de edição', $html);
+                self::assertStringNotContainsString('briefing de edição', $html);
                 self::assertStringContainsString('Briefing da versão atual', $html);
                 self::assertSame(0, $xpath->query('//form[@method="post"]')->length);
             }

@@ -411,4 +411,5 @@ require __DIR__.'/fixtures/preview-search/contract.php';
 require __DIR__.'/fixtures/preview-brief/contract.php';
 require __DIR__.'/fixtures/preview-inert-text/contract.php';
 require __DIR__.'/fixtures/preview-revision-ceiling/contract.php';
+require __DIR__.'/fixtures/preview-review-pagination/contract.php';
 echo "OK: $count synthetic ownership/ACL/RLS/profile assertions; real existing migration, NOLOGIN/NOBYPASSRLS owner, two companies. No operational acceptance or backup evidence.\n";

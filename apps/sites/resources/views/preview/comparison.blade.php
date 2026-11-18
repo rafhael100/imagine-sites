@@ -1,6 +1,6 @@
 <section class="comparison" aria-labelledby="comparison-title">
 <h2 id="comparison-title">Comparar versões</h2>
-<p class="muted">Confira o que mudou no briefing entre duas versões deste projeto, inclusive fora da página do histórico. @if($hasUnsavedBrief)O briefing ainda não salvo foi mantido abaixo. Você pode consultar os dados salvos da versão {{ $currentRevision }} junto dele.@elseif($revisionLimitReached)O briefing salvo da versão atual {{ $currentRevision }} continua disponível para consulta.@else A comparação mantém o formulário de edição na versão atual {{ $currentRevision }}.@endif</p>
+<p class="muted">Confira o que mudou no briefing entre duas versões deste projeto, inclusive fora da página do histórico. @if($hasUnsavedBrief)O briefing ainda não salvo foi mantido abaixo. Você pode consultar os dados salvos da versão {{ $currentRevision }} junto dele.@elseif($revisionLimitReached || !$canAppendVersion)O briefing salvo da versão atual {{ $currentRevision }} continua disponível para consulta.@else A comparação mantém o formulário de edição na versão atual {{ $currentRevision }}.@endif</p>
 @php
     $comparisonInput = $comparisonInput ?? null;
 @endphp
@@ -28,7 +28,7 @@
 @endif
 @endif
 @if($comparisonInput !== null)
-<p><a href="{{ $navigation->projectUrl($project,$navigation->beforeRevision,$navigation->afterRevision) }}">Limpar comparação</a></p>
+<p><a href="{{ $navigation->closeComparisonUrl($project) }}">Limpar comparação</a></p>
 @endif
 @if($currentRevision <= 1)
 <p class="history-note">Este projeto tem uma versão. A comparação estará disponível quando uma nova versão for criada.</p>
@@ -70,7 +70,7 @@
 </article>
 @endforeach
 </div>
-<p><a href="{{ $navigation->projectUrl($project,$navigation->beforeRevision,$navigation->afterRevision) }}">Fechar comparação</a></p>
+<p><a href="{{ $navigation->closeComparisonUrl($project) }}">Fechar comparação</a></p>
 </div>
 @endif
 </section>

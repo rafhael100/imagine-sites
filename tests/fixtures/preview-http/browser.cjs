@@ -45,7 +45,7 @@ const {chromium}=require('playwright');const fs=require('fs'),cp=require('child_
  await fill('onepage','Uma empresa preparada para crescer');await p.getByRole('button',{name:'Criar demonstração'}).click();await p.waitForURL('**/_preview/projects/*');const one=p.url();
  ok(await p.getByText('Versão 1',{exact:true}).isVisible(),'project created by real Laravel HTTP');
  ok(await p.getByLabel('Formato',{exact:true}).isDisabled(),'existing product is immutable in form');
- ok(await p.getByRole('button',{name:'Registrar revisão editorial'}).count()===0,'author is not offered own-version review');
+ ok(await p.getByRole('button',{name:/^Registrar revisão editorial da versão [1-9][0-9]*$/}).count()===0,'author is not offered own-version review');
  const form=async()=>({
   _token:await p.locator('input[name=_token]').first().getAttribute('value'),product:'onepage',
   brand:await p.getByLabel('Marca fictícia').inputValue(),headline:await p.getByLabel('Chamada principal').inputValue(),
@@ -77,22 +77,25 @@ const {chromium}=require('playwright');const fs=require('fs'),cp=require('child_
  const conflictBody=await conflict.text();
  ok(conflict.status()===409&&conflictBody.includes('Briefing de outra aba preservado')&&conflictBody.includes('Outra versão foi criada'),'concurrent edit returns409 with briefing retained');
  ok((await a.request.get(one+'/versions/3/html')).status()===403,'validation and conflicts created no extra revision');
- ok(crypto.createHash('sha256').update(await (await a.request.get(one+'/versions/1/html')).body()).digest('hex')===digest,'old immutable version');
+ const firstVersionPreview=new URL(await p.getByRole('link',{name:'Visualizar prévia privada da versão 1 ↗',exact:true}).getAttribute('href'),base).toString();
+ ok(firstVersionPreview===one+'/versions/1/html'&&
+    crypto.createHash('sha256').update(await (await a.request.get(firstVersionPreview)).body()).digest('hex')===digest,
+    'the explicitly named version1 preview still resolves the old immutable bytes among both history cards');
  const own=await a.request.post(one+'/versions/2/review',{form:{_token:await p.locator('input[name=_token]').first().getAttribute('value'),sha256:(await p.locator('[data-version="2"] code').first().textContent()).replace('SHA-256: ',''),decision:'approved_internal'},headers:{'Remote-User':'editor'}});ok(own.status()===403,'own editorial review denied and identity header ignored');
  const ep=await e.newPage();await ep.goto(base+'/_preview');
  const projectId=new URL(one).pathname.split('/').pop();
  ok(await ep.locator('[data-project="'+projectId+'"]').getByText('Aguardando revisão',{exact:true}).isVisible(),'queue shows current revision awaiting editorial review');
  ok(await ep.getByRole('button',{name:'Criar demonstração'}).count()===0,'reviewer sees queue without author-only form');
- await ep.goto(one);ok(await ep.getByRole('button',{name:'Gerar nova versão privada'}).count()===0,'reviewer sees briefing read-only');await ep.getByLabel('Parecer editorial desta versão').first().selectOption('approved_internal');await ep.getByRole('button',{name:'Registrar revisão editorial'}).first().click();await ep.waitForURL(one);ok(await ep.getByText(/Versão 2: Aprovada internamente/).isVisible(),'different named editorial reviewer');
+ await ep.goto(one);ok(await ep.getByRole('button',{name:'Gerar nova versão privada'}).count()===0,'reviewer sees briefing read-only');await ep.getByLabel('Parecer editorial da versão 2',{exact:true}).selectOption('approved_internal');await ep.getByRole('button',{name:'Registrar revisão editorial da versão 2',exact:true}).click();await ep.waitForURL(one);ok(await ep.getByText(/Versão 2: Aprovada internamente/).isVisible(),'different named editorial reviewer');
  await ep.goto(base+'/_preview');ok(await ep.locator('[data-project="'+projectId+'"]').getByText('Aprovada internamente',{exact:true}).isVisible(),'queue shows exact reviewed current revision');
  await ep.goto(historyUrl);
  ok(await ep.locator('[data-version]').count()===20&&await ep.locator('[data-version="60"]').isVisible(),'history has bounded newest window');
- ok(await ep.getByRole('button',{name:'Registrar revisão editorial'}).count()===0,'already-reviewed newest versions offer no duplicate decision');
+ ok(await ep.getByRole('button',{name:/^Registrar revisão editorial da versão [1-9][0-9]*$/}).count()===0,'already-reviewed newest versions offer no duplicate decision');
  await ep.getByRole('link',{name:'Versões anteriores'}).click();
  ok(await ep.locator('[data-version="40"]').isVisible()&&await ep.locator('[data-version="21"]').isVisible(),'history moves to middle window');
  await ep.getByRole('link',{name:'Versões anteriores'}).click();
  ok(await ep.locator('[data-version="20"]').isVisible()&&await ep.locator('[data-version="1"]').isVisible(),'history reaches oldest versions beyond first window');
- ok(await ep.getByRole('button',{name:'Registrar revisão editorial'}).count()===0,'all prior decisions remain known beyond100 total review records');
+ ok(await ep.getByRole('button',{name:/^Registrar revisão editorial da versão [1-9][0-9]*$/}).count()===0,'all prior decisions remain known beyond100 total review records');
  await ep.getByRole('link',{name:'Versões mais recentes'}).click();
  ok(await ep.locator('[data-version="40"]').isVisible()&&await ep.locator('[data-version="21"]').isVisible(),'history returns to adjacent newer window');
  ok((await a.request.get(historyUrl+'?before_revision=0')).status()===422,'invalid revision boundary rejected');
@@ -102,20 +105,23 @@ const {chromium}=require('playwright');const fs=require('fs'),cp=require('child_
  await p.getByRole('button',{name:'Gerar nova versão privada'}).click();await p.waitForURL(historyUrl);
  ok(await p.locator('[data-version="61"]').isVisible()&&await p.locator('input[name=expected_revision]').inputValue()==='61','edit from history appends61 from real current60');
  await ep.goto(historyUrl);
- ok(await ep.getByRole('button',{name:'Registrar revisão editorial'}).count()===1,'new current version requires its own review while old versions retain prior decisions');
+ ok(await ep.getByRole('button',{name:/^Registrar revisão editorial da versão [1-9][0-9]*$/}).count()===1,'new current version requires its own review while old versions retain prior decisions');
  // The comparison is a real GET journey with page JavaScript disabled. Its
  // selectors identify historical values independently of the current edit form.
  const comparisonContext=await ctx('author',{javaScriptEnabled:false});
  const comparisonPage=await comparisonContext.newPage();
  ok((await comparisonPage.goto(one)).status()===200,'comparison starts from the actual private project');
- await comparisonPage.locator('input[name=compare_from]').fill('1');
- await comparisonPage.locator('input[name=compare_to]').fill('2');
- await comparisonPage.getByRole('button',{name:'Comparar versões',exact:true}).click();
+ const [initialComparison]=await Promise.all([
+   comparisonPage.waitForNavigation({waitUntil:'load'}),
+   comparisonPage.getByRole('link',{name:'Comparar versão 2 com a versão 1',exact:true}).click(),
+ ]);
  await comparisonPage.waitForURL(url=>url.searchParams.get('compare_from')==='1'&&url.searchParams.get('compare_to')==='2');
  const comparisonPanel=comparisonPage.getByTestId('editorial-comparison');
  const comparedValue=(side,field)=>comparisonPanel.locator('[data-compare-side="'+side+'"] [data-field="'+field+'"]');
- ok(await comparisonPanel.isVisible()&&await comparisonPanel.locator('[data-compare-side="from"][data-compare-revision="1"]').isVisible()&&
-    await comparisonPanel.locator('[data-compare-side="to"][data-compare-revision="2"]').isVisible(),'ordinary GET form compares exact versions without JavaScript');
+ ok(initialComparison!==null&&initialComparison.status()===200&&await comparisonPanel.isVisible()&&
+    await comparisonPanel.locator('[data-compare-side="from"][data-compare-revision="1"]').isVisible()&&
+    await comparisonPanel.locator('[data-compare-side="to"][data-compare-revision="2"]').isVisible(),
+    'the explicitly named history link compares versions1 and2 without JavaScript');
  for(const [field,before,after] of [
    ['headline',original.headline,revisedBrief.headline],
    ['description',original.description,revisedBrief.description],
@@ -199,7 +205,7 @@ const {chromium}=require('playwright');const fs=require('fs'),cp=require('child_
     await comparisonPage.getByLabel('Chamada principal').inputValue()===comparisonEdit.headline,
     'editing after historical comparison appends62 from actual head61');
  await comparisonContext.close();
- await require('./editorial-feedback.cjs')({a,e,o,p,ep,base,dir,historyUrl,ok});
+ await require('./editorial-feedback.cjs')({ctx,a,e,o,p,ep,base,dir,historyUrl,ok});
  await require('./queue-search.cjs')({ctx,a,o,base,dir,historyUrl,ok});
  const queueSearchRecovery=await require('./queue-search-recovery.cjs')({ctx,a,base,dir,historyUrl,docker,ok});
  const queryLogProbe='SITES_SEARCH_QUERY_LOG_PROBE_20261118';
@@ -219,6 +225,7 @@ const {chromium}=require('playwright');const fs=require('fs'),cp=require('child_
  await require('./brief-validation.cjs')({ctx,o,base,dir,ok});
  await require('./inert-text.cjs')({ctx,base,dir,ok});
  const revisionCeiling=await require('../preview-revision-ceiling/browser.cjs')({ctx,base,dir,docker,ok});
+ const reviewPagination=await require('../preview-review-pagination/browser.cjs')({ctx,base,dir,docker,ok});
  docker(['restart','app']);
  let restored=false;for(let n=0;n<20;n++){try{const r=await a.request.get(one);if(r.status()===200){restored=true;break;}}catch{}await new Promise(r=>setTimeout(r,300));}ok(restored,'app restart retains DB and immutable versions');
  await p.setViewportSize({width:1440,height:1000});await p.goto(one+'/versions/1/html');await p.screenshot({path:dir+'/onepage-desktop.png',fullPage:true});
@@ -233,6 +240,7 @@ const {chromium}=require('playwright');const fs=require('fs'),cp=require('child_
  await queueSearchRecovery.verifyRevocation();
  await unsavedBrief.verifyRevocation();
  await revisionCeiling.verifyRevocation();
+ await reviewPagination.verifyRevocation();
  const privateLogs=docker(['logs','--no-color','app','proxy']);
  ok(!privateLogs.includes(queryLogProbe),'the query-only synthetic search term is absent from app and proxy logs');
  const audit=docker(['exec','-T','db','psql','-U','postgres','-d','sites_preview_http_ci','-Atc','SELECT count(*) FROM sites_preview.audit']);ok(Number(audit.trim())>=6,'persistent DB audit');

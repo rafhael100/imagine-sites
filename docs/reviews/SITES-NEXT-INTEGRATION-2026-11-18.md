@@ -56,12 +56,18 @@ Os 24 arquivos do [manifesto pareado](https://github.com/rafhael100/imagine-port
 
 O comando de criação e o recibo não incluem o conteúdo ou a revisão do briefing. A nova evidência reduz a pendência de recebimento de projeto, mas não define esse insumo de geração. A [#942](https://github.com/rafhael100/imagine-portal/pull/942), HEAD `1cb443fd2a54baf0d6eca2327ab4e3bf6a65899b`, acrescenta somente um laboratório de admissão de testemunha D0 sintética ancorada; o delta examinado também não fornece briefing ou consumidor Sites. A conclusão continua limitada às HEADs e fontes consultadas, sem presumir ausência em branches não publicadas.
 
+### Reconferência na candidata unificada Sites #516
+
+A [Portal #943](https://github.com/rafhael100/imagine-portal/pull/943), HEAD `ad5f67cfd5324a69a63a5bd8cf236227ad88c957`, foi conferida contra a base #942. Os [seis arquivos do delta](https://github.com/rafhael100/imagine-portal/compare/1cb443fd2a54baf0d6eca2327ab4e3bf6a65899b...ad5f67cfd5324a69a63a5bd8cf236227ad88c957) pertencem ao workflow diagnóstico e aos laboratórios D0: ajustam checkpoints, pins e a preparação de leituras sintéticas antes da transação de reservas. Não alteram código de aplicação, contrato de briefing ou transporte Portal→Sites. O escopo foi lido sem executar ou investigar esse laboratório.
+
+A [Sites #516](https://github.com/rafhael100/imagine-sites/pull/516), HEAD funcional `a92b365a789b3d09638feb95becc5e2dc1d384ca`, reúne o recebimento #512 e a correção #515 com a interface #511/#513/#514. Os 24 arquivos Sites consumidos pela prova pareada Portal #941 mantêm os hashes de origem; a prova do Portal continua pinada à #512. A revisão das pendências não encontrou outro contrato de briefing oficial ou consumidor definido nessas novas referências. A próxima implementação central permanece delimitada pelos três insumos abaixo, sem necessidade de repetir a associação nativa já entregue.
+
 ## O que as peças Sites já fazem
 
 | Peça atual | Consequência para a integração |
 | --- | --- |
 | [SiteProjectCommand](../../src/Integration/SiteProjectCommand.php) | Comando candidato de projeto com referências comerciais; não transporta corpo/revisão de briefing nem comprova autoridade. |
-| [SiteBrief](../../src/Production/SiteBrief.php), [PrivatePreviewWorkspace](../../src/Production/PrivatePreviewWorkspace.php) e [SQL do workspace](../../contracts/private-preview/001-workspace.sql) | Persistem e renderizam os cinco campos de demonstração. `demonstration_only` é uma restrição explícita; salvar esses campos em outro schema não os torna um briefing oficial. |
+| [SiteBrief](../../src/Production/SiteBrief.php), [PrivatePreviewWorkspace](../../src/Production/PrivatePreviewWorkspace.php) e [SQL do workspace](../../contracts/private-preview/001-workspace.sql) | Persistem e renderizam os seis campos de demonstração, contando `productCode` e os cinco campos de conteúdo. `demonstration_only` é uma restrição explícita; salvar esses campos em outro schema não os torna um briefing oficial. |
 | [EditorialRevisionWriter](../../apps/sites/app/Editorial/EditorialRevisionWriter.php) | Avança o contador a cada transição, incluindo submissão, aprovação interna e reabertura, recebendo digest. Portanto, revisão editorial não identifica uma versão do insumo nem pode substituí-la. |
 | [LaravelAdmittedPreviewLab](../../apps/sites/app/Labs/LaravelAdmittedPreviewLab.php) | Usa texto fictício fixo, sob guardas de CI. Não lê briefing do cliente e não é worker de geração operacional. |
 | [Pacote técnico](../../ops/release-candidate/README.md), [diário](../../contracts/publication-journal/README.md) e [inspector](../../src/Publication/PrivatePublicationInspection.php) | Trabalham sobre artefato/vínculo e estado técnico já existentes. Não fornecem o insumo ausente, não verificam pagamento/aceite e não autorizam envio. |
