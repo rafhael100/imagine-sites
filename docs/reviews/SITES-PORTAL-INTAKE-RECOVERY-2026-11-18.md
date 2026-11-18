@@ -127,6 +127,28 @@ O verifier local confirmou os 31 blobs Portal,
 os quatro contratos Sites e os dois checkouts exatos, além de recusar a ausência
 do opt-in. Essa execução verifica fontes e não simula sucesso de banco.
 
+### Primeira execução e ajuste de conexão da fixture
+
+A [#533](https://github.com/rafhael100/imagine-sites/pull/533), HEAD inicial
+`e3c7a824bb4de2f94f52b0a70314ed6072354b23`, executou o
+[run 44386505656](https://github.com/rafhael100/imagine-sites/actions/runs/44386505656),
+jobs **135092412719 / 135092412273**. Nas duas versões PHP, fontes, dependências,
+preflight TLS e custódia dos helpers passaram, mas o setup parou antes da primeira
+migration. O trap confirmou rollback de zero migrations, schemas ausentes,
+cluster Sites inativo e cleanup 19→18; serviço Portal e rede foram removidos.
+Isso não comprovou a jornada de consumo.
+
+A causa foi localizada no metadado da conexão criada pela própria fixture:
+`Migrator::runMethod()` usa `getNameWithReadWriteType()` como default temporário
+antes de chamar `up()`. Sem `config['name']`, o valor era NULL e a migration não
+resolvia a extensão vinculada à PDO atestada. O bridge agora fornece
+`name=portal_intake_recovery_lab` e confere os dois getters e o default. O ajuste
+preserva a PDO, o tracking, as transações e as contagens 13/20; não altera produto
+ou migrations. Lint e diffcheck passaram. A execução CI seguinte deve confirmar
+a jornada completa.
+
+## Limites da conclusão
+
 A prova cobre o pedido Onepage nativo de revisão 1 e este consumidor fixado.
 Não amplia o ledger Portal para Landing Pages ou para todo o intervalo int32.
 Não fornece autenticação de transporte, atomicidade entre os dois bancos,

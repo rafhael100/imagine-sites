@@ -360,7 +360,7 @@ function prbBoot(PDO $db, array $context): array
         if (!(error_reporting() & $severity)) return false;
         throw new RuntimeException('Fixture runtime error');
     });
-    $config = ['driver'=>'pgsql','host'=>'127.0.0.1','port'=>55449,'database'=>'postgres',
+    $config = ['name'=>PRB_CONNECTION,'driver'=>'pgsql','host'=>'127.0.0.1','port'=>55449,'database'=>'postgres',
         'username'=>$context['login'],'password'=>$context['password'],'charset'=>'utf8','prefix'=>'',
         'search_path'=>'public','sslmode'=>'verify-full','sslrootcert'=>$context['lab'].'/tls/ca.pem'];
     $app['config']->set('database.default', PRB_CONNECTION);
@@ -369,7 +369,9 @@ function prbBoot(PDO $db, array $context): array
     $app['db']->extend(PRB_CONNECTION, static fn () => $connection);
     $app['db']->setDefaultConnection(PRB_CONNECTION);
     prbRequire(DB::connection() === $connection && $connection->getPdo() === $db &&
-        $connection->getConfig('url') === null, 'Laravel uses the already attested PDO only');
+        $connection->getName() === PRB_CONNECTION && $connection->getNameWithReadWriteType() === PRB_CONNECTION &&
+        $app['db']->getDefaultConnection() === PRB_CONNECTION && $connection->getConfig('url') === null,
+        'Laravel uses the already attested PDO only');
     $connection->disableQueryLog();
     $connection->setReconnector(static function (): never { throw new RuntimeException('Fixture reconnect denied'); });
     // Native migration tracking is public; product SECURITY DEFINER APIs keep

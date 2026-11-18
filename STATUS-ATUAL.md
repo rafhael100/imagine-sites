@@ -24,6 +24,17 @@ sem chaves repetidas, cinco blocos Bash, runner, **161 links locais** e diffchec
 PASS. Bridge e subclass também recusaram o uso sem opt-in antes de autoload/SQL.
 [Escopo e fontes](docs/reviews/SITES-PORTAL-INTAKE-RECOVERY-2026-11-18.md).
 
+A primeira execução da [#533](https://github.com/rafhael100/imagine-sites/pull/533),
+HEAD `e3c7a824bb4de2f94f52b0a70314ed6072354b23`, no
+[run 44386505656](https://github.com/rafhael100/imagine-sites/actions/runs/44386505656),
+parou antes da primeira migration em PHP 8.3/8.4. O preflight, helpers e cleanup
+passaram; zero migrations permaneceram instaladas. A conexão manual da fixture
+não informava seu nome ao Laravel, e o migrator substituía temporariamente o
+default por NULL ao chamar `up()`. O ajuste fornece esse metadado e confere ambos
+os getters de nome e o default, mantendo a mesma PDO atestada. Somente a fixture
+foi corrigida, com lint e diffcheck PASS; a nova jornada CI ainda é necessária.
+
+
 ## 18/11/2026 — recuperação privada do recibo validada na #532
 
 A [#532](https://github.com/rafhael100/imagine-sites/pull/532), branch
