@@ -1,0 +1,131 @@
+name: Sites durable publication journal (isolated draft)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['feature/sites-release-readiness-2026-11-17']
+    paths:
+      - '.github/workflows/sites-publication-journal.yml'
+      - 'apps/sites/**'
+      - 'src/**'
+      - 'contracts/**'
+      - 'ops/**'
+      - 'tests/private-preview-role-contract.php'
+      - 'tests/run-private-preview-role-contract.sh'
+      - 'tests/release-registry-pg-contract.php'
+      - 'tests/run-release-registry-contract.sh'
+      - 'tests/private-preview-provisioning-offline.php'
+      - 'tests/fixtures/release-registry/**'
+      - 'tests/release-preparation-offline.php'
+      - 'tests/publication-journal-offline.php'
+      - 'tests/fixtures/preview-http/**'
+permissions:
+  contents: read
+concurrency:
+  group: sites-publication-journal-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  publication-journal:
+    if: >-
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.head.ref == 'feature/sites-publication-journal-2026-11-18' &&
+      github.event.pull_request.base.sha == 'ad649b3f10bdee93837e9443efc9bf4b1edeb85c'
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo_pgsql, mbstring, sodium, dom, xml
+          tools: composer:v2
+          coverage: none
+      - name: Extract authenticated official PG18 tooling without system installation
+        run: |
+          set -euo pipefail
+          . /etc/os-release
+          test "$ID" = ubuntu
+          test "$VERSION_CODENAME" = noble
+          test "$(dpkg --print-architecture)" = amd64
+          tooling=$(mktemp -d "$RUNNER_TEMP/sites-publication-journal-pg18-XXXXXXXX")
+          mkdir -p "$tooling/lists/partial" "$tooling/cache/archives/partial" "$tooling/debs" "$tooling/root"
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc -o "$tooling/pgdg.asc"
+          fingerprint=$(gpg --batch --show-keys --with-colons "$tooling/pgdg.asc" | awk -F: '$1 == "fpr" {print $10; exit}')
+          test "$fingerprint" = B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8
+          test -r /usr/share/keyrings/ubuntu-archive-keyring.gpg
+          # All APT indexes/cache/config are local. Normal signature/hash checks remain enabled.
+          # No system APT hooks, package installation, maintainer scripts or global files.
+          cat > "$tooling/apt.conf" <<EOF
+          Dir::Etc::parts "-";
+          Dir::Etc::main "-";
+          Dir::Etc::sourcelist "$tooling/sources.list";
+          Dir::Etc::sourceparts "-";
+          Dir::State::lists "$tooling/lists";
+          Dir::Cache "$tooling/cache";
+          Dir::Log "$tooling";
+          EOF
+          cat > "$tooling/sources.list" <<EOF
+          deb [signed-by=$tooling/pgdg.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://archive.ubuntu.com/ubuntu noble main universe
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://archive.ubuntu.com/ubuntu noble-updates main universe
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://security.ubuntu.com/ubuntu noble-security main universe
+          EOF
+          export APT_CONFIG="$tooling/apt.conf"
+          apt-get --error-on=any update -qq
+          cd "$tooling/debs"
+          # Other runtime libraries are supplied by the standard Noble runner and checked below.
+          apt-get download postgresql-18 postgresql-client-18 libpq5 liburing2
+          for package in ./*.deb; do
+            dpkg-deb --show "$package"
+            sha256sum "$package"
+            dpkg-deb --extract "$package" "$tooling/root"
+          done
+          pg_bin="$tooling/root/usr/lib/postgresql/18/bin"
+          runtime_lib="$tooling/root/usr/lib/x86_64-linux-gnu"
+          export LD_LIBRARY_PATH="$runtime_lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          for binary in postgres initdb pg_ctl pg_controldata psql; do
+            ldd "$pg_bin/$binary" > "$tooling/$binary.ldd"
+            cat "$tooling/$binary.ldd"
+            if grep -q 'not found' "$tooling/$binary.ldd"; then
+              echo 'Required local runtime library unavailable; stopping before cluster creation' >&2
+              exit 1
+            fi
+          done
+          "$pg_bin/initdb" --version | grep -E '^initdb \(PostgreSQL\) 18[.]'
+          "$pg_bin/postgres" --version | grep -E '^postgres \(PostgreSQL\) 18[.]'
+          echo "PG_BIN=$pg_bin" >> "$GITHUB_ENV"
+          echo "SITES_PG_RUNTIME_LIB=$runtime_lib" >> "$GITHUB_ENV"
+      - name: Locked application dependencies without scripts or plugins
+        run: composer install --working-dir=apps/sites --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+      - name: Validate syntax and existing domain contracts
+        run: |
+          php -l tests/private-preview-role-contract.php
+          bash -n tests/run-private-preview-role-contract.sh
+          php tests/run.php
+          php -l tests/release-registry-pg-contract.php
+          bash -n tests/run-release-registry-contract.sh
+          php tests/private-preview-provisioning-offline.php
+          php tests/release-preparation-offline.php
+          php tests/publication-journal-offline.php
+          php apps/sites/vendor/bin/phpunit -c apps/sites/phpunit.xml --do-not-cache-result
+      - name: Fresh local PG18 with effective Laravel and SQL identity guards
+        run: |
+          export LD_LIBRARY_PATH="$SITES_PG_RUNTIME_LIB${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          export PHP_BIN="$(command -v php)"
+          bash tests/run-private-preview-role-contract.sh
+      - name: Persistent journal with real registry, attempts, fencing and uncertain recovery
+        env:
+          SITES_RELEASE_REGISTRY_CI: '1'
+          SITES_PUBLICATION_JOURNAL_CI: '1'
+        run: |
+          export LD_LIBRARY_PATH="$SITES_PG_RUNTIME_LIB${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          export PHP_BIN="$(command -v php)"
+          bash tests/run-release-registry-contract.sh
