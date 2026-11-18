@@ -6,10 +6,12 @@
 
 Essa conclusão delimita a integração; não afirma esgotamento de todo desenvolvimento. O trabalho autorizado em branch isolada pode continuar em componentes com uso concreto e defeitos demonstrados. A inspeção privada do diário é um exemplo: consome a API persistente existente sem criar autoridade ou depender de um briefing inventado.
 
-### Inspeção privada do snapshot recebido, candidata em validação
+### Inspeção privada do snapshot recebido validada na #528
 
-A branch `feature/sites-brief-snapshot-inspection-2026-11-18` parte da #527
-validada no HEAD `6ff2cabc0c32bcaa92de5b94f84c4cc3e7cdd167`. O novo comando
+A [#528](https://github.com/rafhael100/imagine-sites/pull/528), HEAD
+`035e50e979e7cdf45f29a7e2c66d0aa1b5d63944`, concluiu **12/12 checks SUCCESS** na
+branch `feature/sites-brief-snapshot-inspection-2026-11-18`, derivada da #527.
+O comando
 [`inspect-brief-snapshot.php inspect`](../BRIEF-SNAPSHOT-INSPECTION-CLI.md)
 oferece a apuração da seleção original por um reader atualmente autorizado,
 sem repetir o receiver depois de uma resposta perdida. Reutiliza `readExact`
@@ -22,13 +24,17 @@ timestamp, conteúdo ou referências. A consulta independe da atividade atual do
 receiver histórico; a autorização do reader continua obrigatória. A inspeção
 do snapshot é distinta da consulta de proveniência de um artefato já registrado.
 
-**Evidência local:** 56 checks offline, suíte geral **284/4310/27** e 32 checks
-sintéticos PASS, com lint/AST/diffcheck. **PostgreSQL/TLS próprio ainda PENDENTE:**
-a fixture prevê **26 checks novos/1149 registry totais**, reutilizando os quatro
-snapshots A/B1/B2/B3 da cadeia anterior, sem novos snapshots ou artefatos.
+**Evidência própria:** o [run registry 44365173017](https://github.com/rafhael100/imagine-sites/actions/runs/44365173017)
+confirmou **26 checks novos/1149 registry totais e 56 checks offline** em PHP
+8.3/8.4, reutilizando os quatro snapshots A/B1/B2/B3 da cadeia anterior, sem novos
+snapshots ou artefatos. A limpeza dos três inputs antecedeu a dos consumidores
+anteriores e os clusters terminaram inativos. O
+[manual da inspeção](../BRIEF-SNAPSHOT-INSPECTION-CLI.md#evidência-final-da-528)
+registra também os jobs Laravel e as verificações locais; essa PR não executou
+novos jobs HTTP, F383 ou containers.
 O [workflow dedicado](../../.github/workflows/sites-brief-snapshot-inspection.yml)
-mantém as provas anteriores e seus controles de laboratório. O sucesso da base
-#527 não é evidência de execução deste novo comando.
+mantém as provas anteriores e seus controles de laboratório. O resultado está
+atribuído à #528, separado da evidência da base #527.
 
 ### Entrada privada de snapshots validada na #526
 
@@ -263,7 +269,7 @@ de recibo é específico de Onepage.
 | [BriefRenderProvenance](../../src/Production/BriefRenderProvenance.php) e [render.php](../../ops/release-candidate/render.php) | Conferem um snapshot candidato e sua entrada editorial por bytes exatos, preservando o renderer existente e um sidecar privado. Não consultam head, autenticação do Portal ou autorização comercial, nem persistem briefing em `sites_core`. |
 | [BriefSnapshotInput](../../src/Production/BriefSnapshotInput.php), [recorder e reader nativos](../PORTAL-BRIEF-SNAPSHOTS.md) | A migration 13 e os serviços implementam armazenamento técnico, CAS/replay e leitura exata sob principal SQL corrente. O perfil rico completo é validado em PHP; o recibo não comprova aprovação da origem. |
 | [Entrada privada de snapshot](../BRIEF-SNAPSHOT-RECEIVER-CLI.md) | A composição validada na #526 oferece plan/record por arquivos privados, com compromisso, CAS/replay e apuração pelo reader. Não é um produtor ou transporte oficial Portal. |
-| [Inspeção privada de snapshot](../BRIEF-SNAPSHOT-INSPECTION-CLI.md) | Nova candidata somente leitura para apurar a seleção conhecida após stdout perdido, sem replay do receiver. Dez campos técnicos, sem corpo ou timestamp; prova PostgreSQL/TLS própria pendente. |
+| [Inspeção privada de snapshot](../BRIEF-SNAPSHOT-INSPECTION-CLI.md) | CLI somente leitura validada na #528 para apurar a seleção conhecida após stdout perdido, sem replay do receiver. Dez campos técnicos, sem corpo ou timestamp; 26 checks próprios/1149 registry totais em PostgreSQL/TLS. |
 | [StoredBriefRendering](../../apps/sites/app/Integration/StoredBriefRendering.php) | Usa o snapshot persistido selecionado pelo plano, sem fallback para o head. Retorna HTML/proveniência em memória e não grava o artefato ou sua relação no registry. |
 | [StoredBriefReleaseRegistration e consulta histórica](../STORED-BRIEF-RELEASE-PROVENANCE.md) | Composição validada na #520: usa renderização interna, confirma compromisso próprio e solicita registro/associação atômicos; uma identidade de leitura separada consulta o recibo exato. Não ingere sidecar nem autentica aprovação Portal. |
 | [Pacote técnico](../../ops/release-candidate/README.md), [diário](../../contracts/publication-journal/README.md) e [inspector](../../src/Publication/PrivatePublicationInspection.php) | Trabalham sobre artefato/vínculo e estado técnico já existentes. Não fornecem o insumo ausente, não verificam pagamento/aceite e não autorizam envio. |
@@ -276,7 +282,7 @@ Os nomes lógicos `SubmitBriefRevision` e `RequestGenerateRelease` já constam e
 2. **Leitura e entrega autorizadas:** identidade entre serviços e escopo por empresa/recurso, revogação corrente, acesso aos materiais privados e custódia/retenção operacionais. Referência recebida no JSON não concede acesso. O candidato já tem tabelas, capacidade SQL, replay e reader negados por padrão; ativação de grants, transporte e uso real exigem fonte e autorização próprias.
 3. **Consumidor de produção autorizado:** o modo local e o consumidor do snapshot persistido já vinculam bytes e geram HTML inerte; a composição durável com o registry possui prova SQL própria na #520. Continua necessário comprovar qual operação pode iniciar produção real e a aprovação humana da entrada editorial. Para IA/ferramenta externa, definir previamente ferramenta, orçamento e dados permitidos; a fixture não substitui execução autorizada.
 
-O desenvolvimento em draft fechou a relação técnica persistente com o registry, mantendo revisões de briefing e editorial distintas. A #519 conserva as provas do receptor e a #520 acrescenta as de registro/associação e recuperação histórica. A CLI de consulta do artefato possui prova própria na #521; a entrada privada de registro composto possui prova própria na #522; a composição do receiver com seus consumidores foi validada na #526. A nova inspeção do snapshot estende a apuração privada, com CI PostgreSQL/TLS próprio ainda pendente. A composição pareada com o Portal deve usar fontes fixadas dos dois repositórios; um sucesso só do Sites não comprova o produtor Portal ou o transporte.
+O desenvolvimento em draft fechou a relação técnica persistente com o registry, mantendo revisões de briefing e editorial distintas. A #519 conserva as provas do receptor e a #520 acrescenta as de registro/associação e recuperação histórica. A CLI de consulta do artefato possui prova própria na #521; a entrada privada de registro composto possui prova própria na #522; a composição do receiver com seus consumidores foi validada na #526. A inspeção do snapshot estende a apuração privada com prova PostgreSQL/TLS própria concluída na #528. A composição pareada com o Portal deve usar fontes fixadas dos dois repositórios; um sucesso só do Sites não comprova o produtor Portal ou o transporte.
 
 ## Dependências operacionais e alçadas preservadas
 

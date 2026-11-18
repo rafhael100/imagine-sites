@@ -100,9 +100,11 @@ revogação do receiver original; não identifica qual tentativa a criou, não
 reconstrói o timestamp nem repete a escrita. Uma recusa também não comprova
 ausência do snapshot.
 
-Essa CLI não muda a prova histórica da #526 abaixo. Sua validação local tem
-**56 checks offline e suíte geral 284/4310/27 PASS**; **26 checks novos/1149
-registry totais permanecem PENDENTES do CI próprio**. Depois de registrar um
+Essa CLI não muda a prova histórica da #526 abaixo. A consulta foi validada na
+[#528](https://github.com/rafhael100/imagine-sites/pull/528), com **12/12 checks
+SUCCESS**, **56 checks offline** e **26 checks novos/1149 registry totais** em
+PHP 8.3/8.4. Os [runs, jobs e limites dessa evidência](BRIEF-SNAPSHOT-INSPECTION-CLI.md#evidência-final-da-528)
+pertencem à inspeção somente leitura. Depois de registrar um
 artefato, a [inspeção de proveniência](BRIEF-ARTIFACT-INSPECTION.md) usa os
 seletores daquele registro, em uma consulta distinta.
 

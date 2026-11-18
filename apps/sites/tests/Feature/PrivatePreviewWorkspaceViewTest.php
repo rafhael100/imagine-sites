@@ -76,6 +76,7 @@ final class PrivatePreviewWorkspaceViewTest extends TestCase
 
         foreach (['brand' => 120, 'headline' => 180, 'description' => 600, 'call_to_action' => 80, 'benefits' => 1500] as $field => $limit) {
             $input = '//*[@id="'.$field.'"]';
+            self::assertSame(in_array($field, ['description', 'benefits'], true) ? 'textarea' : 'input', $xpath->query($input)->item(0)->nodeName);
             self::assertSame(1, $xpath->query($input.'/@required')->length);
             self::assertSame(0, $xpath->query($input.'/@maxlength')->length);
             self::assertSame('help-'.$field, $xpath->evaluate('string('.$input.'/@aria-describedby)'));
@@ -85,6 +86,88 @@ final class PrivatePreviewWorkspaceViewTest extends TestCase
         }
         self::assertStringContainsString('Até 180 caracteres por benefício e 1500 no campo.', $html);
         self::assertStringContainsString('Os limites são conferidos ao enviar.', $html);
+    }
+
+    public function test_short_fields_with_line_breaks_render_complete_escaped_textareas(): void
+    {
+        $data = $this->page();
+        $values = [
+            'brand' => "\nMarca <em data-multiline-probe=literal>fictícia</em>",
+            'headline' => "Linha um\r\n</textarea><script data-multiline-probe=literal>texto</script>",
+            'call_to_action' => "Saiba\rmais & entenda",
+        ];
+        $data['form'] = array_replace($data['form'], $values);
+        $html = view('preview.workspace', $data)->render();
+        $xpath = $this->xpath($html);
+        $form = '//form[@data-testid="briefing-form"]';
+
+        foreach (['brand' => 'Marca fictícia', 'headline' => 'Chamada principal', 'call_to_action' => 'Chamada do botão'] as $field => $label) {
+            $control = $form.'//textarea[@id="'.$field.'" and @name="'.$field.'"]';
+            self::assertSame(1, $xpath->query($control)->length);
+            self::assertSame(0, $xpath->query($form.'//input[@name="'.$field.'"]')->length);
+            // libxml versions differ in newline normalization. Check emitted
+            // escaped bytes separately, then compare the complete logical text.
+            // The actual browser also discards the protective first LF.
+            self::assertStringContainsString('>'.e("\n".$values[$field]).'</textarea>', $html);
+            self::assertSame(str_replace(["\r\n", "\r"], "\n", "\n".$values[$field]),
+                str_replace(["\r\n", "\r"], "\n", $xpath->evaluate('string('.$control.')')));
+            self::assertSame($label, $xpath->evaluate('string('.$form.'//label[@for="'.$field.'"])'));
+            self::assertSame('help-'.$field, $xpath->evaluate('string('.$control.'/@aria-describedby)'));
+            self::assertSame(1, $xpath->query($control.'/@required')->length);
+            self::assertSame(0, $xpath->query($control.'/@maxlength|'.$control.'/@aria-invalid')->length);
+        }
+
+        self::assertSame($data['navigation']->createUrl(), $xpath->evaluate('string('.$form.'/@action)'));
+        self::assertSame('Criar demonstração →', $xpath->evaluate('string('.$form.'//button[@type="submit"])'));
+        self::assertSame(0, $xpath->query('//script|//*[@data-multiline-probe]')->length);
+        self::assertStringContainsString('&lt;/textarea&gt;&lt;script data-multiline-probe=literal&gt;texto&lt;/script&gt;', $html);
+    }
+
+    public function test_failed_multiline_brief_keeps_errors_context_and_the_saved_head_separate(): void
+    {
+        $data = $this->page();
+        $data['project'] = '11111111-1111-4111-8111-111111111111';
+        $data['currentRevision'] = 7;
+        $data['currentSha256'] = str_repeat('a', 64);
+        $data['hasUnsavedBrief'] = true;
+        $data['navigation'] = PreviewNavigation::fromQuery([
+            'status' => 'changes_requested', 'q' => 'Marca 😀', 'before_revision' => '4',
+        ], true);
+        $data['brief'] = [
+            'productCode' => 'onepage', 'brand' => 'Marca salva', 'headline' => 'Chamada salva',
+            'description' => 'Descrição salva', 'callToAction' => 'Conheça', 'benefits' => ['Benefício salvo'],
+        ];
+        $data['form'] = array_replace($data['form'], [
+            'brand' => "Marca\rda tentativa", 'headline' => "\n".str_repeat('😀', 181),
+            'description' => 'Descrição da tentativa', 'call_to_action' => "Saiba\r\nmais",
+            'benefits' => "Primeiro\nSegundo",
+        ]);
+        $data['fieldErrors'] = ['headline' => ['Use até 180 caracteres no campo chamada principal.']];
+        $html = view('preview.workspace', $data)->render();
+        $xpath = $this->xpath($html);
+        $form = '//form[@data-testid="briefing-form"]';
+        $saved = '//*[@data-testid="saved-current-brief"]';
+
+        foreach (['brand', 'headline', 'call_to_action'] as $field) {
+            self::assertStringContainsString('>'.e("\n".$data['form'][$field]).'</textarea>', $html);
+            self::assertSame(str_replace(["\r\n", "\r"], "\n", "\n".$data['form'][$field]),
+                str_replace(["\r\n", "\r"], "\n", $xpath->evaluate('string('.$form.'//textarea[@name="'.$field.'"])')));
+        }
+        self::assertSame('true', $xpath->evaluate('string('.$form.'//textarea[@id="headline"]/@aria-invalid)'));
+        self::assertSame('help-headline error-headline', $xpath->evaluate('string('.$form.'//textarea[@id="headline"]/@aria-describedby)'));
+        self::assertSame($data['fieldErrors']['headline'][0], $xpath->evaluate('string(//*[@id="error-headline"])'));
+        self::assertSame(0, $xpath->query($form.'//textarea/@maxlength')->length);
+        self::assertSame('unsaved-brief-notice', $xpath->evaluate('string('.$form.'/@aria-describedby)'));
+        self::assertSame('7', $xpath->evaluate('string('.$form.'//input[@name="expected_revision"]/@value)'));
+        self::assertSame('onepage', $xpath->evaluate('string('.$form.'//input[@name="product"]/@value)'));
+        self::assertSame($data['navigation']->projectUrl($data['project'], 4), $xpath->evaluate('string('.$form.'/@action)'));
+        self::assertSame('Gerar nova versão privada →', $xpath->evaluate('string('.$form.'//button[@type="submit"])'));
+        self::assertSame(0, $xpath->query($form.'//*[@name="q" or @name="before_revision" or @name="compare_from" or @name="compare_to"]')->length);
+        self::assertSame('7', $xpath->evaluate('string('.$saved.'/@data-brief-revision)'));
+        self::assertSame($data['currentSha256'], $xpath->evaluate('string('.$saved.'/@data-brief-digest)'));
+        self::assertSame($data['brief']['brand'], $xpath->evaluate('string('.$saved.'//dd[@data-field="brand"])'));
+        self::assertSame($data['brief']['headline'], $xpath->evaluate('string('.$saved.'//dd[@data-field="headline"])'));
+        self::assertSame($data['brief']['callToAction'], $xpath->evaluate('string('.$saved.'//dd[@data-field="callToAction"])'));
     }
 
     public function test_failed_briefing_keeps_valid_text_current_revision_and_navigation_context(): void

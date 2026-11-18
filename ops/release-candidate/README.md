@@ -154,10 +154,12 @@ contador agregado `sourceVersion` e quatro flags falsas. Não emite timestamp, c
 arquivo de saída. Recusas retornam exit 1, stdout vazio e somente
 `BRIEF_SNAPSHOT_INSPECTION_DENIED` seguido de LF.
 
-**Validação local:** 56 checks offline e suíte geral 284/4310/27 PASS.
-**Prova PostgreSQL/TLS própria: 26 checks novos/1149 totais ainda PENDENTES.**
+**Validada na [#528](https://github.com/rafhael100/imagine-sites/pull/528): 12/12
+checks SUCCESS.** O [run PostgreSQL/TLS](https://github.com/rafhael100/imagine-sites/actions/runs/44365173017)
+confirmou **26 checks novos/1149 totais e 56 checks offline** em PHP 8.3/8.4,
+com limpeza dos três inputs antes dos anteriores e clusters inativos.
 O [manual da inspeção de snapshot](../../docs/BRIEF-SNAPSHOT-INSPECTION-CLI.md)
-detalha os seletores, a interpretação de resultado/recusa e os guards. A
+detalha runs/jobs, limites da evidência, seletores, interpretação de resultado/recusa e guards. A
 [inspeção de proveniência](../../docs/BRIEF-ARTIFACT-INSPECTION.md) continua sendo
 a consulta separada do artefato já registrado; nenhuma dessas leituras autoriza
 publicação ou concede autorização futura ao registro.

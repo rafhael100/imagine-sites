@@ -22,9 +22,10 @@ atribuída à #519; a CLI e sua integração possuem execução própria.
 A [nova inspeção privada de snapshot](BRIEF-SNAPSHOT-INSPECTION-CLI.md) reutiliza
 `readExact` por um comando somente leitura, para consultar a seleção original
 conhecida após perda da resposta do receiver. Expõe dez campos técnicos, sem
-timestamp ou conteúdo privado. Essa candidata parte da #527 validada; tem
-**56 checks offline e suíte geral local 284/4310/27 PASS**, enquanto seus
-**26 checks novos/1149 registry totais ainda estão PENDENTES do CI próprio**.
+timestamp ou conteúdo privado. A consulta foi validada na
+[#528](https://github.com/rafhael100/imagine-sites/pull/528), com **12/12 checks
+SUCCESS**, **56 checks offline** e **26 checks novos/1149 registry totais** em
+PHP 8.3/8.4. O manual do comando conserva os runs e jobs dessa prova própria.
 Ela não altera as tabelas, APIs ou regras de armazenamento deste manual.
 
 ## Resultado
@@ -98,8 +99,9 @@ uma tentativa nem dispara replay, renderer ou registro de artefato.
 O [manual do comando](BRIEF-SNAPSHOT-INSPECTION-CLI.md) detalha configuração,
 TLS, custódia e limites. Seu ensaio próprio reutiliza A/B1/B2/B3 existentes,
 incluindo a revisão cujo stdout de recebimento foi descartado, sem acrescentar
-snapshots ou artefatos. A execução PostgreSQL/TLS de 26 checks novos permanece
-pendente e não altera as evidências históricas apresentadas abaixo.
+snapshots ou artefatos. A execução PostgreSQL/TLS da #528 confirmou as 26 checks
+novas e a limpeza dos três inputs antes dos anteriores, com os clusters inativos.
+Essa prova não altera as evidências históricas apresentadas abaixo.
 
 ## Identidade, tabelas e permissões
 
@@ -310,6 +312,7 @@ foi validada na [#521](https://github.com/rafhael100/imagine-sites/pull/521), co
 **51 checks offline** e **25 novos/1067 registry totais** em PHP 8.3/8.4 no
 [run 44346085528](https://github.com/rafhael100/imagine-sites/actions/runs/44346085528),
 incluindo cleanup. Essa evidência pertence à associação de artefato; não deve
-ser atribuída ao novo inspector de snapshot, cujo CI próprio ainda está pendente.
+ser atribuída ao inspector de snapshot, cuja prova PostgreSQL/TLS própria foi
+concluída na [#528](BRIEF-SNAPSHOT-INSPECTION-CLI.md#evidência-final-da-528).
 Produtor Portal, transporte, materiais reais e uso operacional continuam
 exigindo integração e evidência próprias.

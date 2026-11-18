@@ -1,9 +1,32 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
-## 18/11/2026 — inspeção privada do snapshot recebido, candidata em validação
+## 18/11/2026 — campos com quebras de linha preservados no formulário
 
-Branch `feature/sites-brief-snapshot-inspection-2026-11-18`, sobre a #527 validada
-no HEAD `6ff2cabc0c32bcaa92de5b94f84c4cc3e7cdd167`. A nova CLI
+Branch `fix/sites-preview-multiline-fields-2026-11-18`, sobre a #528 validada no
+HEAD `035e50e979e7cdf45f29a7e2c66d0aa1b5d63944`. O backend aceita CR/LF internos
+na marca, chamada principal e botão, mas `input` de texto remove essas quebras.
+A view usa `textarea` somente nesses três campos quando o valor contém CR ou
+LF, preservando os controles habituais para valores de uma linha. Não há mudança
+de CSS, parser, domínio ou limites. Texto e separação de linhas são conservados;
+o HTML normaliza finais de linha para LF e o envio nativo usa CRLF.
+
+**Prova local atual:** **24 testes/306 asserções focados**. A primeira execução
+CI encontrou dois asserts dependentes da normalização do libxml local; a prova
+agora confere bytes HTML e texto DOM separadamente, sem mudar o produto. A suíte
+geral local **286/4358/27**, os **32 checks sintéticos**, lint, sintaxe JS e revisão
+independente haviam passado antes desse ajuste dos testes. A jornada
+reutiliza o projeto e o positivo da versão 2: um POST inválido em descrição
+reapresenta os três campos multilinha; corrigir apenas descrição deve reenviar
+os valores, conservando também a prova dos oito benefícios Unicode. **4 checks
+novos/460 HTTP totais previstos, pendentes do CI próprio.**
+[Recorte, fontes e limites](docs/reviews/SITES-PREVIEW-MULTILINE-FIELDS-2026-11-18.md).
+
+## 18/11/2026 — inspeção privada do snapshot recebido validada na #528
+
+A [#528](https://github.com/rafhael100/imagine-sites/pull/528), branch
+`feature/sites-brief-snapshot-inspection-2026-11-18`, concluiu **12/12 checks
+SUCCESS** no HEAD `035e50e979e7cdf45f29a7e2c66d0aa1b5d63944`, sobre a #527 /
+`6ff2cabc0c32bcaa92de5b94f84c4cc3e7cdd167`. A CLI
 `inspect-brief-snapshot.php inspect` reutiliza `StoredBriefSnapshotReader::readExact`
 e sua API SQL existente. A seleção é `siteRef`, `snapshotRef`, `briefRevision`
 e SHA dos bytes originais do manifesto, com reader corrente separado e três
@@ -21,9 +44,13 @@ assertions/27 skips**, **32 checks sintéticos**, lint PHP, AST do helper e diff
 A fixture acrescenta leitores próprios e consulta A/B1/B2/B3 já existentes,
 incluindo histórico após revogação do receiver; cobre isolamento, seletores,
 TLS/custódia, capabilities exclusivas e revogação corrente. Conserva as 29 checks
-do receiver, sem novos snapshots ou artefatos. **As 26 checks novas/1149 registry
-totais são previstas; PostgreSQL/TLS e cleanup próprios ainda estão PENDENTES
-do CI.** [Contrato e limites](docs/BRIEF-SNAPSHOT-INSPECTION-CLI.md) ·
+do receiver, sem novos snapshots ou artefatos. O [registry 44365173017](https://github.com/rafhael100/imagine-sites/actions/runs/44365173017),
+jobs **135016846372 / 135016845405**, confirmou **26 novos/1149 totais** em PHP
+8.3/8.4, cleanup dos três inputs antes dos anteriores e clusters inativos.
+O [Laravel 44365172022](https://github.com/rafhael100/imagine-sites/actions/runs/44365172022),
+jobs **135016841702 / 135016841019**, confirmou **284/4310/27** e **284/4322/21**.
+Não houve nova execução HTTP, F383 ou de containers nesta entrega.
+[Contrato e limites](docs/BRIEF-SNAPSHOT-INSPECTION-CLI.md) ·
 [Workflow dedicado](.github/workflows/sites-brief-snapshot-inspection.yml).
 
 ## 18/11/2026 — mensagens de limite de tamanho em português
