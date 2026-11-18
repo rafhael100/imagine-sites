@@ -56,6 +56,28 @@ $escaped = $renderer->render(new SiteBrief('onepage','<script>alert(1)</script>'
 f27Assert(InertPreviewAudit::isSafe($escaped->html),
     'escaped customer-like copy does not become executable markup');
 
+// Each field reaches a different text context; description also reaches the
+// quoted meta value. Audit only the contexts that can have active effects.
+$literalCopy = [
+    'URL and handler-like words' => 'https://example.invalid onboarding=aberto onclick="x" javascript:x',
+    'quoted markup as text' => '<a href="http://example.invalid" onclick="x">Texto & "aspas"</a>',
+    'Unicode and line breaks' => "Ação 😀\r\nonfocus='nada' https://example.invalid/?a=1&b=2",
+];
+foreach (['onepage', 'landing_page'] as $product) {
+    foreach (['brand', 'headline', 'description', 'callToAction', 'benefits'] as $field) {
+        foreach ($literalCopy as $label => $copy) {
+            $values = get_object_vars($brief);
+            $values['productCode'] = $product;
+            $values[$field] = $field === 'benefits' ? [$copy] : $copy;
+            $candidate = $renderer->render(new SiteBrief(...$values));
+            f27Assert(InertPreviewAudit::isSafe($candidate->html),
+                'literal '.$label.' remains inert in '.$product.' '.$field);
+        }
+    }
+}
+$textual = $renderer->render(new SiteBrief('onepage', $brief->brand, $brief->headline,
+    'https://example.invalid onboarding=aberto onclick="texto"', $brief->callToAction, $brief->benefits));
+
 $base = $original->html;
 $mutations = [
     'external navigation' => str_replace('href="#contato"','href="https://invalid.example/track"',$base),
@@ -81,6 +103,23 @@ $mutations = [
         'Prévia demonstrativa: formulários e envio de dados permanecem desabilitados.',
         'Fora do modo de teste', $base),
     'unexpected product body' => str_replace('data-site-product="onepage"','data-site-product="custom"',$base),
+    // Neutralizing text must not hide a real attribute or a second metadata tag.
+    'real event beside literal metadata copy' => str_replace('onclick=&quot;texto&quot;">',
+        'onclick=&quot;texto&quot;" onfocus="alert(1)">', $textual->html),
+    'extra metadata beside literal copy' => str_replace('</head>',
+        '<meta http-equiv="refresh" content="0;url=https://invalid.example"></head>', $textual->html),
+    'live handler beside escaped text' => str_replace('<div class="container header-inner">',
+        '<div class="container header-inner" onclick="alert(1)">', $textual->html),
+    'javascript link beside escaped text' => str_replace('href="#contato"',
+        'href="javascript:alert(1)"', $textual->html),
+    'entity-obfuscated javascript link' => str_replace('href="#contato"',
+        'href="java&#x73;cript:alert(1)"', $textual->html),
+    'protocol-relative navigation' => str_replace('href="#contato"',
+        'href="//invalid.example/track"', $textual->html),
+    'remote CSS beside escaped text' => str_replace('</style>',
+        'body { background: url(https://invalid.example/a); }</style>', $textual->html),
+    'remote CSS string remains restricted' => str_replace('</style>',
+        'body { --source: "https://invalid.example/a"; }</style>', $textual->html),
 ];
 foreach ($mutations as $label=>$modified) {
     f27Assert($modified !== $base, 'mutation constructed: '.$label);

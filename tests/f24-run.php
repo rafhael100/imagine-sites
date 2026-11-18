@@ -99,10 +99,16 @@ $escapedArtifact=$renderer->render($escapedBrief);
 checkF24(!str_contains($escapedArtifact->html,'<svg onload=') &&
     !str_contains($escapedArtifact->html,'<script>alert(1)</script>'),
     'untrusted text is HTML-escaped in renderer');
-checkF24(deniedF24(fn()=>new SyntheticReleaseBundle(
-    new ReleaseManifest('tenant-fake-01','site-fake-01','release-esc',$escapedArtifact->digest),
-    $escapedArtifact
-)), 'bundle with raw javascript: substring denied under strict preview policy');
+$escapedManifest=new ReleaseManifest('tenant-fake-01','site-fake-01','release-esc',$escapedArtifact->digest);
+$escapedBundle=new SyntheticReleaseBundle($escapedManifest,$escapedArtifact);
+checkF24($escapedBundle->files['index.html']===$escapedArtifact->html &&
+    hash('sha256',$escapedBundle->files['index.html'])===$escapedArtifact->digest &&
+    SyntheticReleaseBundle::verifyFiles($escapedBundle->files,$escapedManifest),
+    'escaped markup and literal javascript text remain inert with exact original bytes and digest');
+$activeJs=new ReleaseArtifact(str_replace('href="#contato"','href="javascript:alert(1)"',$escapedArtifact->html));
+$activeJsManifest=new ReleaseManifest('tenant-fake-01','site-fake-01','release-active-js',$activeJs->digest);
+checkF24(deniedF24(fn()=>new SyntheticReleaseBundle($activeJsManifest,$activeJs)),
+    'an actual javascript navigation target remains forbidden even with matching digest and escaped copy');
 
 $landing=$renderer->render(new SiteBrief('landing_page','Testes','Anúncio exemplo',
     'Página fictícia de conversão sem forms','Contato',['Exemplo']));

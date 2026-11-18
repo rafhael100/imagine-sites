@@ -11,6 +11,8 @@ namespace Imagine\Sites\Production;
  */
 final class InertPreviewAudit
 {
+    private const DESCRIPTION_META = '/\A<meta name="description" content="[^"<>]*">\z/D';
+
     /** @return list<string> */
     public static function issues(string $html): array
     {
@@ -37,6 +39,7 @@ final class InertPreviewAudit
         ];
         $meta = [];
         $links = [];
+        $activeTags = [];
         $h1Count = 0;
         $styleCount = 0;
         $bodyCount = 0;
@@ -47,7 +50,13 @@ final class InertPreviewAudit
             }
             $name = strtolower($match[2]);
             if (!isset($allowed[$name])) return ['active_or_unknown_element'];
-            if (preg_match('/\s(?:on[a-z]+|src|srcset|style|action|formaction|target|ping|download)\s*=/i', $tag)) {
+            // Only this exact metadata form carries escaped user copy in an
+            // attribute. Its value is text, not another attribute or a URL
+            // target. Keep the original tag for the metadata checks below.
+            $auditTag = preg_match(self::DESCRIPTION_META, $tag) === 1
+                ? '<meta name="description" content="">' : $tag;
+            $activeTags[] = $auditTag;
+            if (preg_match('/\s(?:on[a-z]+|src|srcset|style|action|formaction|target|ping|download)\s*=/i', $auditTag)) {
                 return ['active_or_external_attribute'];
             }
             if ($match[1] !== '') continue;
@@ -78,7 +87,7 @@ final class InertPreviewAudit
         if (count($meta) !== 5 ||
             $meta[0] !== '<meta charset="utf-8">' ||
             $meta[1] !== '<meta name="viewport" content="width=device-width, initial-scale=1">' ||
-            !preg_match('/\A<meta name="description" content="[^"<>]*">\z/D', $meta[2]) ||
+            !preg_match(self::DESCRIPTION_META, $meta[2]) ||
             $meta[3] !== '<meta name="robots" content="noindex, nofollow">' ||
             $meta[4] !== $expectedCsp) {
             return ['unsafe_or_modified_metadata'];
@@ -103,12 +112,15 @@ final class InertPreviewAudit
             return ['active_css_or_style_structure'];
         }
 
-        // The previews are deliberately offline: no network targets,
-        // JavaScript URL schemes or inline handlers, even in demo text.
-        if (stripos($html, 'http://') !== false ||
-            stripos($html, 'https://') !== false ||
-            stripos($html, 'javascript:') !== false ||
-            preg_match('/\bon[a-z]+\s*=/i', $html)) {
+        // Inspect markup and CSS, not escaped text between the accepted tags.
+        // Literal URLs or handler-like words in copy create no network target
+        // or executable attribute. This audit copy never replaces stored HTML
+        // and is never used to compute an artifact or package digest.
+        $activeContent = implode("\n", $activeTags)."\n".$css[1][0];
+        if (stripos($activeContent, 'http://') !== false ||
+            stripos($activeContent, 'https://') !== false ||
+            stripos($activeContent, 'javascript:') !== false ||
+            preg_match('/\bon[a-z]+\s*=/i', $activeContent)) {
             return ['remote_or_active_content'];
         }
 
