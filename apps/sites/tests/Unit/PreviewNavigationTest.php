@@ -173,4 +173,69 @@ final class PreviewNavigationTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         PreviewNavigation::fromPostQuery(['compare_from' => '1', 'expected_revision' => '1'], true);
     }
+
+    public function test_search_survives_queue_project_history_comparison_and_post_navigation(): void
+    {
+        $cursor = PreviewQueueQuery::cursorFor('2026-11-17T12:00:00.123456Z', self::PROJECT);
+        $search = 'Ação  100%_\\😀';
+        $query = [
+            'status' => 'changes_requested', 'format' => 'onepage', 'q' => $search, 'cursor' => $cursor,
+            'before_revision' => '41', 'compare_from' => '1', 'compare_to' => '60',
+        ];
+        $navigation = PreviewNavigation::fromQuery($query, true);
+        $postNavigation = PreviewNavigation::fromPostQuery($query, true);
+
+        foreach ([
+            $navigation->queueUrl(), $navigation->queueUrlFor($cursor), $navigation->createUrl(),
+            $navigation->projectUrl(self::PROJECT, 41), $navigation->historyUrl(self::PROJECT, 21),
+            $navigation->comparisonUrl(self::PROJECT, 1, 60), $navigation->reviewUrl(self::PROJECT, 20),
+            $postNavigation->projectUrl(self::PROJECT, 41), $postNavigation->reviewUrl(self::PROJECT, 20),
+        ] as $url) {
+            parse_str(parse_url($url, PHP_URL_QUERY) ?? '', $parameters);
+            self::assertSame($search, $parameters['q']);
+            self::assertSame('changes_requested', $parameters['status']);
+            self::assertSame('onepage', $parameters['format']);
+            self::assertSame($cursor, $parameters['cursor']);
+            self::assertStringStartsWith('/_preview', $url);
+        }
+        self::assertSame($search, $navigation->comparisonFormParameters()['q']);
+        self::assertStringNotContainsString('compare_', $postNavigation->reviewUrl(self::PROJECT, 20));
+        self::assertStringContainsString('/versions/20/review?', $postNavigation->reviewUrl(self::PROJECT, 20));
+    }
+
+    public function test_clearing_search_removes_cursor_but_preserves_other_filters(): void
+    {
+        $cursor = PreviewQueueQuery::cursorFor('2026-11-17T12:00:00.123456Z', self::PROJECT);
+        $navigation = PreviewNavigation::fromQuery([
+            'status' => 'approved_internal', 'format' => 'landing_page', 'q' => 'Marca', 'cursor' => $cursor,
+        ]);
+
+        self::assertSame('/_preview?status=approved_internal&format=landing_page', $navigation->queueUrlWithoutSearch());
+        self::assertSame('/_preview?status=approved_internal&format=landing_page&q=Marca', $navigation->queueUrlFor(null));
+        self::assertSame('/_preview', PreviewNavigation::fromQuery(['q' => 'Marca'])->queueUrlWithoutSearch());
+    }
+
+    public function test_empty_search_handles_laravel_null_without_relaxing_other_parameters(): void
+    {
+        foreach ([[], ['q' => null], ['q' => ''], ['q' => " \u{00A0}\u{2003} "]] as $query) {
+            $navigation = PreviewNavigation::fromQuery($query);
+            self::assertSame('', $navigation->queue->search);
+            self::assertSame('/_preview', $navigation->queueUrl());
+        }
+        $hundredEmoji = str_repeat('😀', 100);
+        self::assertSame($hundredEmoji, PreviewNavigation::fromQuery(['q' => $hundredEmoji])->queue->search);
+
+        foreach ([
+            ['q' => ['Marca']], ['q' => true], ['q' => 1], ['q' => "x\0"], ['q' => "\tMarca"],
+            ['q' => "Marca\u{2028}"], ['q' => "x\xFF"], ['q' => str_repeat('😀', 101)],
+            ['status' => null], ['format' => null], ['cursor' => null], ['status' => str_repeat('a', 193)],
+        ] as $query) {
+            try {
+                PreviewNavigation::fromQuery($query);
+                self::fail('Malformed navigation accepted');
+            } catch (InvalidArgumentException) {
+                self::assertTrue(true);
+            }
+        }
+    }
 }

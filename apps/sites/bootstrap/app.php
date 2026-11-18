@@ -14,7 +14,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // Private editorial notes retain their exact whitespace in storage and
         // failed form responses; their domain validator handles blank text.
-        $middleware->trimStrings(except: ['note']);
+        // Search is bounded and normalized by PreviewQueueQuery, so malformed
+        // bytes must not disappear before that validation.
+        $middleware->trimStrings(except: ['note', 'q']);
 
         // F1-377: only the disposable GitHub CI-to-CI HTTP fixture may
         // bypass BROWSER CSRF. It authenticates a fictional HMAC command

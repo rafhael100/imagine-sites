@@ -407,4 +407,5 @@ foreach($comparisonBadRows as $index=>[$badBrief,$badHtml]) {
 echo 'COMPARISON OK: '.($count-$comparisonChecksBefore).
     " real SQL assertions for exact historical versions, text, Unicode, isolation, runtime, integrity and readonly behavior.\n";
 require __DIR__.'/fixtures/preview-feedback/contract.php';
+require __DIR__.'/fixtures/preview-search/contract.php';
 echo "OK: $count synthetic ownership/ACL/RLS/profile assertions; real existing migration, NOLOGIN/NOBYPASSRLS owner, two companies. No operational acceptance or backup evidence.\n";

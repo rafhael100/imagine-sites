@@ -20,18 +20,23 @@ final readonly class PreviewNavigation
 
     public static function fromQuery(array $query, bool $projectPage = false, bool $allowComparison = true): self
     {
-        $allowed = ['status', 'format', 'cursor'];
+        $allowed = ['status', 'format', 'cursor', 'q'];
         if ($projectPage) $allowed = [...$allowed, 'before_revision', 'after_revision'];
         if ($projectPage && $allowComparison) $allowed = [...$allowed, 'compare_from', 'compare_to'];
         if (array_diff(array_keys($query), $allowed)) {
             throw new InvalidArgumentException('Invalid private preview navigation');
         }
-        foreach ($query as $value) {
-            if (!is_string($value) || strlen($value) > 192 || !mb_check_encoding($value, 'UTF-8')) {
+        foreach ($query as $key => $value) {
+            // Laravel converts an empty search input to null. Only this field
+            // permits that representation; its domain object validates the
+            // untrimmed Unicode text and bounds it before normalization.
+            if ($key === 'q' && $value === null) continue;
+            if (!is_string($value) || ($key !== 'q' && strlen($value) > 192) || !mb_check_encoding($value, 'UTF-8')) {
                 throw new InvalidArgumentException('Invalid private preview navigation');
             }
         }
-        $queue = new PreviewQueueQuery($query['status'] ?? 'all', $query['format'] ?? 'all', $query['cursor'] ?? null);
+        $queue = new PreviewQueueQuery($query['status'] ?? 'all', $query['format'] ?? 'all', $query['cursor'] ?? null,
+            $query['q'] ?? '');
         $before = self::revision($query['before_revision'] ?? null);
         $after = self::revision($query['after_revision'] ?? null);
         if ($before !== null && $after !== null) {
@@ -59,7 +64,14 @@ final readonly class PreviewNavigation
 
     public function queueUrlFor(?string $cursor): string
     {
-        $queue = new PreviewQueueQuery($this->queue->status, $this->queue->product, $cursor);
+        $queue = new PreviewQueueQuery($this->queue->status, $this->queue->product, $cursor, $this->queue->search);
+        return '/_preview'.$this->queryString($queue->parameters());
+    }
+
+    /** A changed search starts at the first page while retaining other filters. */
+    public function queueUrlWithoutSearch(): string
+    {
+        $queue = new PreviewQueueQuery($this->queue->status, $this->queue->product);
         return '/_preview'.$this->queryString($queue->parameters());
     }
 

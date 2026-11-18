@@ -37,7 +37,7 @@ Uma instalação anteriormente gerenciada como V1 é recusada com `managed_upgra
 
 Validação local executada: sintaxe PHP/JavaScript/Bash, YAML e whitespace; PHPUnit **102 testes, 509 asserções, 27 skips explícitos** dos casos que exigem banco/opt-in; 26 casos offline de provisionamento, 99 do diário e 50 do pacote.
 
-Fixtures reais preparadas para CI:
+Fixtures reais executadas no CI:
 
 - Upgrade de reviews legadas pelo entrypoint antigo, preservando bytes, OID, owner, ACL e audit; recusa de nova orientação vazia; down/up sem notas.
 - Notas Unicode, limite de 2000 codepoints, duplicata, empresa cruzada, revogação, digest divergente, head fora da página e rollback recusado com texto.
@@ -45,7 +45,9 @@ Fixtures reais preparadas para CI:
 - Capturas desktop/mobile do painel e verificação de overflow com nota longa.
 - Regressões existentes do workspace, comparação, registry, pacote, diário e migrations Laravel.
 
-**CI SQL/HTTP desta entrega pendente.** Não foi iniciado PostgreSQL local. O workflow novo é restrito à branch/draft/base exatos e executa a matriz SQL em PHP8.3/8.4.
+**PR #492 validada em `ae3a9bd58c89d0c76b7d983c0206a9cad6bf80f8`: 17/17 check-runs aprovados.** [Run 44209215949](https://github.com/rafhael100/imagine-sites/actions/runs/44209215949) executou PHP8.3/8.4: 323 verificações do workspace, incluindo15 de upgrade e21 de orientação; 402 do registry/ciclo/pacote/diário, incluindo107 do diário e61 da CLI. A jornada HTTP completou101 verificações. [Run 44209215528](https://github.com/rafhael100/imagine-sites/actions/runs/44209215528) confirmou migrations/rollback,99 verificações de schema,21 de leitura e39 de escrita editorial, com integração Laravel dedicada sem skips.
+
+[Artefato HTTP14385586419](https://github.com/rafhael100/imagine-sites/actions/runs/44209215949/artifacts/14385586419), retenção7 dias, SHA-256 conferido após download: `3327e822d7738ddcb6210b5d2fea6120095fb832e8c0ab0f665762aac9fe758d`. Capturas de orientação editorial desktop/mobile inspecionadas: versão/digest legíveis, texto literal escapado e quebras sem overflow. Nenhum PostgreSQL local foi iniciado.
 
 ## Limites
 

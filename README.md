@@ -6,7 +6,7 @@ Motor independente de criação, versionamento e preparação técnica de **Onep
 
 Esta branch contém a aplicação Laravel em `apps/sites`, migrations PostgreSQL18, renderer de HTML inerte, workspace privado de demonstração, ciclo editorial e registro de releases. A sequência de desenvolvimento está em PRs draft; o estado atual e as evidências de cada revisão estão no [STATUS-ATUAL.md](STATUS-ATUAL.md) e no [relatório da PR #490](docs/reviews/SITES-RELEASE-READINESS-2026-11-17.md).
 
-O workspace permite gerar versões imutáveis, consultar fila e histórico, comparar briefings de duas versões e registrar revisão editorial com outra identidade autorizada. Solicitações de ajuste incluem a orientação para o autor, preservada por versão/digest e visível ao consultar o histórico. Os dados de demonstração permanecem separados dos projetos comerciais. O registro técnico associa o artefato à versão editorial e às referências persistidas de pedido/contrato. O CLI privado prepara um pacote de três arquivos e verifica posteriormente seus bytes e a associação corrente. O diário técnico persiste tentativas, ACKs relatados e resultados inconclusivos, sem autorizar envio ou declarar publicação.
+O workspace permite gerar versões imutáveis, consultar fila e histórico, buscar projetos por marca ou chamada principal da versão atual, comparar briefings de duas versões e registrar revisão editorial com outra identidade autorizada. Solicitações de ajuste incluem a orientação para o autor, preservada por versão/digest e visível ao consultar o histórico. Os dados de demonstração permanecem separados dos projetos comerciais. O registro técnico associa o artefato à versão editorial e às referências persistidas de pedido/contrato. O CLI privado prepara um pacote de três arquivos e verifica posteriormente seus bytes e a associação corrente. O diário técnico persiste tentativas, ACKs relatados e resultados inconclusivos, sem autorizar envio ou declarar publicação.
 
 Esses componentes não constituem homologação operacional. Contrato, pagamento, identidade entre serviços, revogação, aceite expresso do cliente, backup externo e publicação exigem suas próprias fontes e evidências. Os dez gates em `config/operational-readiness.json` permanecem `BLOCKED`; os padrões de autorização continuam negadores.
 
@@ -50,6 +50,7 @@ O Portal controla contratos, aceite expresso e evento oficial `ENTREGUE`; Sites 
 - [Preparação e verificação de pacotes](ops/release-candidate/README.md)
 - [Diário técnico de publicação](contracts/publication-journal/README.md)
 - [Orientação editorial por versão](docs/reviews/SITES-EDITORIAL-FEEDBACK-2026-11-18.md)
+- [Busca na fila editorial](docs/reviews/SITES-QUEUE-SEARCH-2026-11-18.md)
 - [Regras do repositório](AGENTS.md)
 
 Não há merge ou deploy automático. Infraestrutura existente, DNS, Cloudflare, dados reais, credenciais e despesas dependem da autorização correspondente. O código em `src/Domain` continua incluindo regras de laboratório; seus booleanos não substituem identidade ou evidência externa.
