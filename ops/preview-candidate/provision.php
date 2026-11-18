@@ -15,20 +15,28 @@ if (PHP_SAPI !== 'cli') provision_cli_denied('cli_required');
 if (($argv[1] ?? '') === '--help' && count($argv) === 2) {
     echo "Candidate only: php provision.php plan|check --manifest=/run/secrets/preview_provisioning\n";
     echo "After reviewed authorization: php provision.php apply --manifest=/run/secrets/preview_provisioning --plan-sha=<reviewed-sha256> --authorize-apply=SITES_PREVIEW_ONLY_APPROVED\n";
+    echo "Existing managed V1 candidate: php provision.php upgrade-plan|upgrade-check --manifest=/run/secrets/preview_upgrade\n";
+    echo "After reviewed upgrade authorization: php provision.php upgrade-apply --manifest=/run/secrets/preview_upgrade --plan-sha=<reviewed-sha256> --authorize-upgrade=SITES_PREVIEW_UPGRADE_ONLY_APPROVED\n";
     exit(0);
 }
 $operation = $argv[1] ?? '';
-if (!in_array($operation, ['plan', 'apply', 'check'], true)) provision_cli_denied('operation');
+if (!in_array($operation, ['plan', 'apply', 'check', 'upgrade-plan', 'upgrade-apply', 'upgrade-check'], true)) provision_cli_denied('operation');
+$upgrade = str_starts_with($operation, 'upgrade-');
 $options = [];
 foreach (array_slice($argv, 2) as $argument) {
-    if (!preg_match('/\A--(manifest|plan-sha|authorize-apply)=(.+)\z/D', $argument, $match) || isset($options[$match[1]])) provision_cli_denied('arguments');
+    if (!preg_match('/\A--(manifest|plan-sha|authorize-apply|authorize-upgrade)=(.+)\z/D', $argument, $match) || isset($options[$match[1]])) provision_cli_denied('arguments');
     $options[$match[1]] = $match[2];
 }
-if (($options['manifest'] ?? '') !== '/run/secrets/preview_provisioning') provision_cli_denied('manifest_custody');
+if (($options['manifest'] ?? '') !== ($upgrade ? '/run/secrets/preview_upgrade' : '/run/secrets/preview_provisioning')) provision_cli_denied('manifest_custody');
 if ($operation === 'apply') {
+    if (isset($options['authorize-upgrade'])) provision_cli_denied('unexpected_write_options');
     if (($options['authorize-apply'] ?? '') !== 'SITES_PREVIEW_ONLY_APPROVED' ||
         !preg_match('/\A[a-f0-9]{64}\z/D', $options['plan-sha'] ?? '')) provision_cli_denied('reviewed_apply_required');
-} elseif (isset($options['authorize-apply']) || isset($options['plan-sha'])) provision_cli_denied('unexpected_write_options');
+} elseif ($operation === 'upgrade-apply') {
+    if (isset($options['authorize-apply'])) provision_cli_denied('unexpected_write_options');
+    if (($options['authorize-upgrade'] ?? '') !== 'SITES_PREVIEW_UPGRADE_ONLY_APPROVED' ||
+        !preg_match('/\A[a-f0-9]{64}\z/D', $options['plan-sha'] ?? '')) provision_cli_denied('reviewed_upgrade_required');
+} elseif (isset($options['authorize-apply']) || isset($options['authorize-upgrade']) || isset($options['plan-sha'])) provision_cli_denied('unexpected_write_options');
 $path = $options['manifest'];
 if (is_link($path) || !is_file($path) || !is_readable($path) ||
     !in_array(fileperms($path) & 0777, [0400, 0600], true) ||
@@ -47,6 +55,9 @@ try {
         'plan' => $service->plan($manifest),
         'check' => $service->check($manifest),
         'apply' => $service->apply($manifest, $options['plan-sha'], true),
+        'upgrade-plan' => $service->planUpgrade($manifest),
+        'upgrade-check' => $service->checkUpgrade($manifest),
+        'upgrade-apply' => $service->applyUpgrade($manifest, $options['plan-sha'], true),
     };
     echo json_encode($result, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES)."\n";
 } catch (Throwable $e) {

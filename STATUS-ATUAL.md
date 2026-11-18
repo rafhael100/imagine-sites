@@ -1,5 +1,11 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 18/11/2026 — continuidade: atualização explícita do preview gerenciado V1
+
+Branch `feature/sites-preview-managed-upgrade-2026-11-18`, na sequência da PR #493. O candidato ganha `upgrade-plan`, `upgrade-apply` e `upgrade-check`, com manifesto próprio, origem V1 exata e autorização de CLI distinta. Somente a migration000008 é aplicada sob o owner existente. A linha004 conserva ID/batch;008 entra em batch posterior, com origem registrada e verificada no marcador V2. DDL, ledger, marcador e postcheck são atômicos; não há renovação de bindings, reparo de permissões ou downgrade automático.
+
+Instalação nova continua com seu fluxo e batch conjunto. A fixture parte do provisionador V1 original pinado, em processo separado, com PostgreSQL/TLS descartável e histórico fictício populado. **CI desta entrega pendente**; nenhum V1 no VPS foi confirmado ou atualizado. Detalhes: [relatório de upgrade gerenciado](docs/reviews/SITES-PREVIEW-MANAGED-UPGRADE-2026-11-18.md).
+
 ## 18/11/2026 — continuidade: busca por marca ou chamada principal na fila
 
 Branch `feature/sites-queue-search-2026-11-18`, sobre a PR #492 / `ae3a9bd58c89d0c76b7d983c0206a9cad6bf80f8`. A busca consulta somente o briefing da versão atual, junto com os filtros de parecer/formato e a paginação. O contexto acompanha a abertura de projetos, histórico, comparação e retorno à fila. Alterar ou limpar a busca retorna à primeira página; limpar apenas a busca conserva os demais filtros.

@@ -1,0 +1,286 @@
+name: Sites managed V1 preview upgrade (isolated draft)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['feature/sites-queue-search-2026-11-18']
+    paths:
+      - '.github/workflows/sites-preview-managed-upgrade.yml'
+      - 'apps/sites/**'
+      - 'src/**'
+      - 'contracts/**'
+      - 'ops/**'
+      - 'tests/private-preview-role-contract.php'
+      - 'tests/run-private-preview-role-contract.sh'
+      - 'tests/release-registry-pg-contract.php'
+      - 'tests/run-release-registry-contract.sh'
+      - 'tests/private-preview-provisioning-offline.php'
+      - 'tests/fixtures/release-registry/**'
+      - 'tests/release-preparation-offline.php'
+      - 'tests/fixtures/preview-http/**'
+      - 'tests/fixtures/preview-feedback/**'
+      - 'tests/fixtures/preview-search/**'
+      - 'tests/fixtures/preview-upgrade/**'
+      - 'tests/private-preview-upgrade-offline.php'
+      - 'tests/private-preview-upgrade-cli-offline.php'
+      - 'tests/publication-journal-offline.php'
+      - 'tests/private-preview-workspace.php'
+      - 'tests/preview-recovery.php'
+permissions:
+  contents: read
+concurrency:
+  group: sites-preview-managed-upgrade-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  role-contract:
+    if: >-
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.head.ref == 'feature/sites-preview-managed-upgrade-2026-11-18' &&
+      github.event.pull_request.base.sha == '528efd1cb7cb5f4618f222fc663fbf0fbea27bea'
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo_pgsql, mbstring, sodium, dom, xml
+          tools: composer:v2
+          coverage: none
+      - name: Extract authenticated official PG18 tooling without system installation
+        run: |
+          set -euo pipefail
+          . /etc/os-release
+          test "$ID" = ubuntu
+          test "$VERSION_CODENAME" = noble
+          test "$(dpkg --print-architecture)" = amd64
+          tooling=$(mktemp -d "$RUNNER_TEMP/sites486-role-pg18-XXXXXXXX")
+          mkdir -p "$tooling/lists/partial" "$tooling/cache/archives/partial" "$tooling/debs" "$tooling/root"
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc -o "$tooling/pgdg.asc"
+          fingerprint=$(gpg --batch --show-keys --with-colons "$tooling/pgdg.asc" | awk -F: '$1 == "fpr" {print $10; exit}')
+          test "$fingerprint" = B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8
+          test -r /usr/share/keyrings/ubuntu-archive-keyring.gpg
+          # All APT indexes/cache/config are local. Normal signature/hash checks remain enabled.
+          # No system APT hooks, package installation, maintainer scripts or global files.
+          cat > "$tooling/apt.conf" <<EOF
+          Dir::Etc::parts "-";
+          Dir::Etc::main "-";
+          Dir::Etc::sourcelist "$tooling/sources.list";
+          Dir::Etc::sourceparts "-";
+          Dir::State::lists "$tooling/lists";
+          Dir::Cache "$tooling/cache";
+          Dir::Log "$tooling";
+          EOF
+          cat > "$tooling/sources.list" <<EOF
+          deb [signed-by=$tooling/pgdg.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://archive.ubuntu.com/ubuntu noble main universe
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://archive.ubuntu.com/ubuntu noble-updates main universe
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://security.ubuntu.com/ubuntu noble-security main universe
+          EOF
+          export APT_CONFIG="$tooling/apt.conf"
+          apt-get --error-on=any update -qq
+          cd "$tooling/debs"
+          # Other runtime libraries are supplied by the standard Noble runner and checked below.
+          apt-get download postgresql-18 postgresql-client-18 libpq5 liburing2
+          for package in ./*.deb; do
+            dpkg-deb --show "$package"
+            sha256sum "$package"
+            dpkg-deb --extract "$package" "$tooling/root"
+          done
+          pg_bin="$tooling/root/usr/lib/postgresql/18/bin"
+          runtime_lib="$tooling/root/usr/lib/x86_64-linux-gnu"
+          export LD_LIBRARY_PATH="$runtime_lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          for binary in postgres initdb pg_ctl pg_controldata psql; do
+            ldd "$pg_bin/$binary" > "$tooling/$binary.ldd"
+            cat "$tooling/$binary.ldd"
+            if grep -q 'not found' "$tooling/$binary.ldd"; then
+              echo 'Required local runtime library unavailable; stopping before cluster creation' >&2
+              exit 1
+            fi
+          done
+          "$pg_bin/initdb" --version | grep -E '^initdb \(PostgreSQL\) 18[.]'
+          "$pg_bin/postgres" --version | grep -E '^postgres \(PostgreSQL\) 18[.]'
+          echo "PG_BIN=$pg_bin" >> "$GITHUB_ENV"
+          echo "SITES_PG_RUNTIME_LIB=$runtime_lib" >> "$GITHUB_ENV"
+      - name: Locked application dependencies without scripts or plugins
+        run: composer install --working-dir=apps/sites --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+      - name: Validate syntax and existing domain contracts
+        run: |
+          php -l tests/private-preview-role-contract.php
+          bash -n tests/run-private-preview-role-contract.sh
+          php tests/run.php
+          php -l tests/release-registry-pg-contract.php
+          bash -n tests/run-release-registry-contract.sh
+          php tests/private-preview-provisioning-offline.php
+          php tests/private-preview-upgrade-offline.php
+          php tests/private-preview-upgrade-cli-offline.php
+          php tests/release-preparation-offline.php
+          php tests/publication-journal-offline.php
+          php apps/sites/vendor/bin/phpunit -c apps/sites/phpunit.xml --do-not-cache-result
+      - name: Fresh local PG18 with effective Laravel and SQL identity guards
+        run: |
+          export LD_LIBRARY_PATH="$SITES_PG_RUNTIME_LIB${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          export PHP_BIN="$(command -v php)"
+          bash tests/run-private-preview-role-contract.sh
+      - name: Persistent registry with real editorial transitions and independent proof checks
+        env:
+          SITES_RELEASE_REGISTRY_CI: '1'
+          SITES_PUBLICATION_JOURNAL_CI: '1'
+        run: |
+          export LD_LIBRARY_PATH="$SITES_PG_RUNTIME_LIB${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          export PHP_BIN="$(command -v php)"
+          bash tests/run-release-registry-contract.sh
+  preview:
+    if: >-
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.head.ref == 'feature/sites-preview-managed-upgrade-2026-11-18' &&
+      github.event.pull_request.base.sha == '528efd1cb7cb5f4618f222fc663fbf0fbea27bea'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SITES_PREVIEW_HTTP_CI: '1'
+      PREVIEW_CI_MATERIAL: /tmp/sites-preview-http-material
+      PREVIEW_HTTP_EVIDENCE: /tmp/sites-preview-http-evidence
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Prepare one-run synthetic materials, no operational identity
+        run: sudo --preserve-env=GITHUB_ACTIONS,SITES_PREVIEW_HTTP_CI,PREVIEW_CI_MATERIAL python3 tests/fixtures/preview-http/prepare.py
+      - name: Build application candidate and start disposable private PostgreSQL
+        run: |
+          set -euo pipefail
+          docker compose -f tests/fixtures/preview-http/compose.yaml build app
+          docker compose -f tests/fixtures/preview-http/compose.yaml up -d --wait db
+          cluster=$(docker compose -f tests/fixtures/preview-http/compose.yaml exec -T db psql -U postgres -d sites_preview_http_ci -Atc 'SELECT system_identifier FROM pg_control_system()')
+          echo "PREVIEW_EXPECTED_CLUSTER=$cluster" >> "$GITHUB_ENV"
+      - name: Verify SQL identity before additive schema on disposable database only
+        run: |
+          set -euo pipefail
+          args=(-f tests/fixtures/preview-http/compose.yaml run --rm --no-deps --user 0 -v "$PREVIEW_CI_MATERIAL:/run/ci:ro" -v "$GITHUB_WORKSPACE/tests/fixtures/preview-http:/tmp/preview-fixtures:ro" -e GITHUB_ACTIONS=true -e SITES_PREVIEW_HTTP_CI=1)
+          if docker compose "${args[@]}" -e PREVIEW_EXPECTED_CLUSTER=0 app php /tmp/preview-fixtures/bootstrap.php > "$RUNNER_TEMP/denied.log" 2>&1; then
+            echo 'Wrong cluster bootstrap accepted' >&2; exit 1
+          fi
+          grep -q PREVIEW_HTTP_BOOTSTRAP_DENIED "$RUNNER_TEMP/denied.log"
+          test "$(docker compose -f tests/fixtures/preview-http/compose.yaml exec -T db psql -U postgres -d sites_preview_http_ci -Atc "SELECT count(*) FROM pg_namespace WHERE nspname='sites_preview'")" = 0
+          docker compose "${args[@]}" -e PREVIEW_EXPECTED_CLUSTER="$PREVIEW_EXPECTED_CLUSTER" app php /tmp/preview-fixtures/bootstrap.php
+      - name: Real FPM Nginx HTTPS nominal access with TLS verified
+        run: |
+          set -euo pipefail
+          docker compose -f tests/fixtures/preview-http/compose.yaml up -d app proxy
+          for attempt in $(seq 1 30); do
+            code=$(curl --cacert "$PREVIEW_CI_MATERIAL/ca.pem" -s -o /dev/null -w '%{http_code}' https://127.0.0.1:18496/_preview || true)
+            if test "$code" = 401; then break; fi
+            sleep 1
+          done
+          test "$code" = 401
+          if curl --cacert "$PREVIEW_CI_MATERIAL/db.pem" -s -o /dev/null https://127.0.0.1:18496/_preview; then
+            echo 'Wrong trust anchor accepted' >&2; exit 1
+          fi
+      - name: Real authenticated browser journey and failure recovery
+        run: |
+          set -euo pipefail
+          sudo chmod 644 "$PREVIEW_CI_MATERIAL/browser.json"
+          mkdir -p "$RUNNER_TEMP/preview-browser"
+          cd "$RUNNER_TEMP/preview-browser"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund playwright@1.58.2 >/dev/null
+          npx playwright install --with-deps chromium >/dev/null
+          NODE_PATH="$RUNNER_TEMP/preview-browser/node_modules" node "$GITHUB_WORKSPACE/tests/fixtures/preview-http/browser.cjs"
+      - name: Sanitized failure status
+        if: failure()
+        run: |
+          docker compose -f tests/fixtures/preview-http/compose.yaml ps
+          docker compose -f tests/fixtures/preview-http/compose.yaml logs --tail 20 app proxy
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: sites-preview-managed-upgrade-preview-http
+          path: /tmp/sites-preview-http-evidence
+          retention-days: 7
+      - name: Remove CI-only disposable resources
+        if: always()
+        run: |
+          docker compose -f tests/fixtures/preview-http/compose.yaml down -v --remove-orphans
+          sudo rm -rf "$PREVIEW_CI_MATERIAL"
+  upgrade:
+    if: >-
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.head.ref == 'feature/sites-preview-managed-upgrade-2026-11-18' &&
+      github.event.pull_request.base.sha == '528efd1cb7cb5f4618f222fc663fbf0fbea27bea'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SITES_PREVIEW_HTTP_CI: '1'
+      SITES_PREVIEW_UPGRADE_CI: '1'
+      PREVIEW_CI_MATERIAL: /tmp/sites-preview-upgrade-material
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Prepare disposable TLS materials and private fixture custody
+        run: |
+          set -euo pipefail
+          sudo --preserve-env=GITHUB_ACTIONS,SITES_PREVIEW_HTTP_CI,PREVIEW_CI_MATERIAL python3 tests/fixtures/preview-http/prepare.py
+          sudo install -d -m 0700 "$RUNNER_TEMP/preview-upgrade-state"
+          sudo install -m 0600 /dev/null "$RUNNER_TEMP/preview-upgrade-manifest"
+      - name: Build current candidate and authenticate the disposable cluster
+        run: |
+          set -euo pipefail
+          docker compose -f tests/fixtures/preview-http/compose.yaml build app
+          docker compose -f tests/fixtures/preview-http/compose.yaml up -d --wait db
+          cluster=$(docker compose -f tests/fixtures/preview-http/compose.yaml exec -T db psql -U postgres -d sites_preview_http_ci -Atc 'SELECT system_identifier FROM pg_control_system()')
+          echo "PREVIEW_EXPECTED_CLUSTER=$cluster" >> "$GITHUB_ENV"
+      - name: Read the exact historical V1 candidate into an isolated directory
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ad649b3f10bdee93837e9443efc9bf4b1edeb85c
+          path: legacy-v1
+          persist-credentials: false
+      - name: Seed a populated managed V1 using the original provisioner
+        run: |
+          set -euo pipefail
+          args=(-f tests/fixtures/preview-http/compose.yaml run --rm --no-deps --user 0
+            -v "$PREVIEW_CI_MATERIAL:/run/ci:ro"
+            -v "$PREVIEW_CI_MATERIAL/db-password:/run/secrets/migration_owner:ro"
+            -v "$GITHUB_WORKSPACE/tests/fixtures/preview-upgrade:/tmp/preview-upgrade:ro"
+            -v "$GITHUB_WORKSPACE/legacy-v1:/tmp/legacy-v1:ro"
+            -v "$RUNNER_TEMP/preview-upgrade-state:/run/upgrade-fixture"
+            -v "$RUNNER_TEMP/preview-upgrade-manifest:/run/secrets/preview_upgrade"
+            -e GITHUB_ACTIONS=true -e SITES_PREVIEW_HTTP_CI=1 -e SITES_PREVIEW_UPGRADE_CI=1)
+          if docker compose "${args[@]}" -e PREVIEW_EXPECTED_CLUSTER=0 app php /tmp/preview-upgrade/seed-v1.php > "$RUNNER_TEMP/upgrade-denied.log" 2>&1; then
+            echo 'Wrong cluster accepted for legacy seed' >&2; exit 1
+          fi
+          grep -q 'reason=UPGRADE_FIXTURE_DENIED:disposable_identity' "$RUNNER_TEMP/upgrade-denied.log"
+          test "$(docker compose -f tests/fixtures/preview-http/compose.yaml exec -T db psql -U postgres -d sites_preview_http_ci -Atc "SELECT count(*) FROM pg_namespace WHERE nspname='sites_preview'")" = 0
+          docker compose "${args[@]}" -e PREVIEW_EXPECTED_CLUSTER="$PREVIEW_EXPECTED_CLUSTER" app php /tmp/preview-upgrade/seed-v1.php
+      - name: Exercise explicit upgrade, atomic failures, concurrent plans and real CLI
+        run: |
+          set -euo pipefail
+          docker compose -f tests/fixtures/preview-http/compose.yaml run --rm --no-deps --user 0 \
+            -v "$PREVIEW_CI_MATERIAL:/run/ci:ro" \
+            -v "$PREVIEW_CI_MATERIAL/db-password:/run/secrets/migration_owner:ro" \
+            -v "$GITHUB_WORKSPACE/tests/fixtures/preview-upgrade:/tmp/preview-upgrade:ro" \
+            -v "$GITHUB_WORKSPACE/legacy-v1:/tmp/legacy-v1:ro" \
+            -v "$RUNNER_TEMP/preview-upgrade-state:/run/upgrade-fixture" \
+            -v "$RUNNER_TEMP/preview-upgrade-manifest:/run/secrets/preview_upgrade" \
+            -e GITHUB_ACTIONS=true -e SITES_PREVIEW_HTTP_CI=1 -e SITES_PREVIEW_UPGRADE_CI=1 \
+            -e PREVIEW_EXPECTED_CLUSTER="$PREVIEW_EXPECTED_CLUSTER" \
+            app php /tmp/preview-upgrade/contract.php
+      - name: Remove only this job's disposable resources
+        if: always()
+        run: |
+          docker compose -f tests/fixtures/preview-http/compose.yaml down -v --remove-orphans
+          sudo rm -rf "$PREVIEW_CI_MATERIAL" "$RUNNER_TEMP/preview-upgrade-state" "$RUNNER_TEMP/preview-upgrade-manifest"
