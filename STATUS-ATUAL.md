@@ -1,8 +1,34 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
-## 18/11/2026 — recuperação privada do recibo sem repetir o receiver
+## 18/11/2026 — consumidor Portal nativo para o recibo recuperado
 
-Branch `feature/sites-project-intake-recovery-cli-2026-11-18`, sobre a #531 /
+Branch `integration/sites-portal-intake-recovery-2026-11-18`, sobre a #532 /
+`6da154611d082f7f7fe4aab87f17c9857403ed02`. O ensaio dedicado usa o Portal
+inalterado em `d1aaab523848baf80325a023f3ebbf4998a3607f` (#954) e as CLIs atuais
+do Sites, em processos e bancos PostgreSQL 18 separados. Acrescenta apenas
+fixture, runner, workflow e documentação. O verifier conferiu localmente os 31
+blobs Portal, os quatro contratos Sites e os dois HEADs exatos, e recusou a
+execução sem opt-in. Essa verificação foi somente de fontes; não executou SQL.
+
+O pedido Onepage e o comando são produzidos pelo teste e encoder nativos do
+Portal. O Sites registra uma vez com stdout descartado, desativa o receiver e
+recupera o native15 pelo leitor independente. O Portal lê somente esse arquivo
+privado e usa seu validador, writer restrito e leitura autorizada do comprador.
+Há negativos para a projeção pública de dez campos, operação/chave divergentes,
+promoção de autoridade e substituição de siteRef; replay conserva um único recibo.
+O teste herdado prossegue com as verificações nativas de pagamento, ownership e
+revogação de contrato. A prova CI própria ainda aguarda execução: **13 checks
+Sites e 20 do hook Portal** previstos, além do teste nativo herdado. Os **32
+checks sintéticos** obrigatórios passaram. Guard em **730 arquivos**, YAML
+sem chaves repetidas, cinco blocos Bash, runner, **161 links locais** e diffcheck
+PASS. Bridge e subclass também recusaram o uso sem opt-in antes de autoload/SQL.
+[Escopo e fontes](docs/reviews/SITES-PORTAL-INTAKE-RECOVERY-2026-11-18.md).
+
+## 18/11/2026 — recuperação privada do recibo validada na #532
+
+A [#532](https://github.com/rafhael100/imagine-sites/pull/532), branch
+`feature/sites-project-intake-recovery-cli-2026-11-18`, concluiu **12/12 checks
+SUCCESS** no HEAD `6da154611d082f7f7fe4aab87f17c9857403ed02`, sobre a #531 /
 `958ce49899375a99c3dee9b7f40016701a465502`. A candidata
 `recover-project-intake-receipt.php` oferece plano e recuperação do recibo exato
 usando uma identidade de leitura atual. Mantém a sessão somente leitura durante
@@ -16,14 +42,21 @@ bytes. Falha pode deixar arquivo vazio, parcial ou completo; a CLI preserva esse
 destinos e não repete automaticamente a consulta. O snapshot STABLE da autorização
 não garante permanência do acesso até o fim da escrita do arquivo.
 
-**Validação local já observada:** **83 checks offline**, sem simular sucesso SQL;
-suíte geral **296/4705/27**, **32 checks sintéticos**, lint do wrapper/enum/teste e
-JSON do exemplo; revisões independentes do wrapper e helper/runner sem bloqueador. Guard sobre **723 arquivos**, cinco blocos Bash e
-runner, **174 links locais** e diffcheck PASS. A prova PostgreSQL/TLS própria prevê **30 novas/1208 totais**: reutiliza três
-intakes e os dez projetos da cadeia anterior, aplica temporariamente a migration
-15 e a remove antes de continuar a composição com o mapa decodificado dos três
-recibos recuperados. Os 29 checks do receiver e 119 da composição ficam intactos. A evidência da #531 abaixo é do
-leitor e não substitui essa jornada CLI. [Manual](docs/PROJECT-INTAKE-RECOVERY-CLI.md).
+| Prova própria da #532 | Resultado confirmado |
+| --- | --- |
+| [Registry 44382215425](https://github.com/rafhael100/imagine-sites/actions/runs/44382215425), jobs **135077280635 / 135077280347** | PHP 8.3/8.4: **30 novas/1208 totais**, **83 offline da recuperação**, 77 do receiver e 123 da custódia. |
+| [Laravel 44382215237](https://github.com/rafhael100/imagine-sites/actions/runs/44382215237), jobs **135077279527 / 135077278881** | Nas duas versões: **296/4705/27** e **296/4717/21** com opt-in sintético. |
+
+Os três mapas decodificados dos arquivos recuperados alimentaram snapshots,
+renderização e registros da composição, mantendo os dez projetos, os 29 checks
+do receiver e os 119 próprios da composição. A recuperação não acrescentou linhas.
+A migration 15 temporária foi removida antes de continuar o pipeline; o rollback
+ordenado das catorze anteriores e o cleanup 19→18→predecessores foram confirmados,
+com clusters próprios inativos. Sem nova execução HTTP, F383 ou workflow de
+containers na #532. Validação local: **83 offline**, **296/4705/27**, **32 checks
+sintéticos**, guard em **723 arquivos**, cinco blocos Bash, runner, **174 links**,
+diffcheck e revisões independentes PASS.
+[Manual](docs/PROJECT-INTAKE-RECOVERY-CLI.md).
 
 ## 18/11/2026 — consulta exata do recibo validada na #531
 
