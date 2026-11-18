@@ -63,13 +63,13 @@ asserções**. A prova de navegador continua independente desses testes libxml.
 Antes desse ajuste de portabilidade, a suíte geral local havia passado uma vez
 com **286 testes / 4358 asserções / 27 skips**, também sem cache de resultados;
 o laboratório sintético passou com **32 checks**. A sintaxe JS e a revisão
-independente dos três arquivos passaram. **A nova execução de CI e o HTTP
-próprio desta candidata ainda estão pendentes.**
+independente dos três arquivos passaram. A nova execução de CI e o HTTP
+próprio foram concluídos na HEAD final indicada abaixo.
 
-## Prova HTTP preparada
+## Prova HTTP confirmada
 
 A [fixture existente](../../tests/fixtures/preview-http/brief-validation.cjs)
-acrescenta **quatro verificações, com 460 HTTP totais previstos**, conservando as
+acrescenta **quatro verificações, com 460 HTTP totais confirmados**, conservando as
 456 anteriores. O POST bruto contém marca com LF, chamada principal com CRLF e
 chamada do botão com CR; somente a descrição de 601 caracteres é inválida. A
 resposta 422 real é aberta em contexto sem JavaScript para conferir labels,
@@ -82,6 +82,33 @@ que cria a versão 2, incluindo os oito benefícios Unicode. A fixture confere o
 POST nativo com CRLF, a reapresentação salva com LF, um GET posterior e os checks
 anteriores de ausência de append nos envios inválidos e bytes históricos
 intactos. O seletor do formulário passa a aceitar ambos os tipos de controle.
-Estão previstas duas capturas do formulário, em 1440 e 390 pixels, com
-verificações de largura; ainda não há resultado de navegador nem inspeção dessas
-capturas nesta candidata.
+As duas capturas do formulário, em viewports 1440 e 390 pixels, foram produzidas
+e conferidas visualmente. Mostram texto separado em linhas, markup literal,
+mensagem de erro legível e controles contidos; as verificações de largura da
+página e do formulário também passaram. A descrição longa permanece em seu
+controle rolável, com valor completo confirmado pela fixture.
+
+## Evidência final da #529
+
+A [#529](https://github.com/rafhael100/imagine-sites/pull/529), HEAD
+`d8a5630bf8957e238b71edf92b6e2a406950e49b`, concluiu **11/11 checks SUCCESS**.
+A HEAD inicial `2c92d1f30488da6cb7144e49a5651e86bdce4c7e` é mantida no histórico;
+somente testes e documentação mudaram no ajuste de portabilidade, sem alterar
+a view de produto.
+
+| Prova | Resultado confirmado |
+| --- | --- |
+| [HTTP 44368226611](https://github.com/rafhael100/imagine-sites/actions/runs/44368226611), job **135027630937** | **4 novas/460 totais**, incluindo os marcadores de benefícios Unicode e mensagens portuguesas; cleanup de app/proxy/banco e duas redes. |
+| [Laravel 44368226606](https://github.com/rafhael100/imagine-sites/actions/runs/44368226606), jobs **135027633135 / 135027634111** | PHP 8.3/8.4: **286 testes/4364 asserções/27 skips**, e **286/4376/21** com opt-ins sintéticos. |
+
+O artefato **14457901656**, `sites-preview-multiline-fields-preview-http`, foi
+baixado e conferido: **10.263.767 bytes**, 39 arquivos, SHA-256
+`716206ce6bf8b1b7a25a49bf4c5d123fee24f77aa044a95914cdda4e4c39aab7`.
+O `result.json` registra 460 checks, origem
+`synthetic_separate_laravel_nginx_pg18_tls`, `operational=false` e
+`installed_on_vps=false`. As capturas revisadas são
+`brief-multiline-desktop.png` e `brief-multiline-mobile.png`.
+
+Esta entrega não executou novamente o registry completo, F383 ou o workflow de
+containers. Seu HTTP próprio utilizou e removeu recursos descartáveis. Os dez
+gates permanecem BLOCKED, sem merge ou implantação operacional.
