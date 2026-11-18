@@ -13,6 +13,7 @@ final class ReleaseArtifactConnection
     public const ARTIFACT = 'artifact';
     public const BRIEF_ARTIFACT = 'brief_artifact';
     public const BRIEF_RECEIPT = 'brief_receipt';
+    public const BRIEF_SNAPSHOT = 'brief_snapshot';
 
     /** Coordinates identify a reviewed endpoint, never a private tenant or duty. */
     public static function target(mixed $target): array
@@ -55,9 +56,12 @@ final class ReleaseArtifactConnection
             self::ARTIFACT => 'sites_core.record_release_artifact(uuid,text,text)',
             self::BRIEF_ARTIFACT => 'sites_core.record_brief_release_artifact(text,text,text)',
             self::BRIEF_RECEIPT => 'sites_core.read_brief_release_artifact_receipt(uuid,text,text)',
+            self::BRIEF_SNAPSHOT => 'sites_core.read_portal_brief_snapshot(uuid,uuid,integer,text)',
             default => throw new RuntimeException(),
         };
-        if ($api === self::BRIEF_RECEIPT && !$readOnly) throw new RuntimeException();
+        if (in_array($api, [self::BRIEF_RECEIPT, self::BRIEF_SNAPSHOT], true) && !$readOnly) {
+            throw new RuntimeException();
+        }
         if ($db->getAttribute(PDO::ATTR_DRIVER_NAME) !== 'pgsql' || $db->inTransaction() ||
             $db->getAttribute(PDO::ATTR_ERRMODE) !== PDO::ERRMODE_EXCEPTION) {
             throw new RuntimeException();

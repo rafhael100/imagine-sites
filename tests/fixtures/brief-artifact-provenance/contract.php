@@ -862,6 +862,13 @@ if (!isset($admin, $connection, $connect, $password, $caFile, $ok)) {
             ], $bapOk);
         }
 
+        if (getenv('SITES_BRIEF_ARTIFACT_REGISTRATION_CI') === '1') {
+            $bapStage = 'private stored briefing artifact registration CLI';
+            $bapRegistration = require __DIR__.'/../brief-artifact-registration/contract.php';
+            $bapRegistration($bapAdmin, $bapConnection, $bapPassword, $bapCaFile, $bapTenants,
+                ['a' => $bapPlans['main'], 'b' => $bapPlans['company_b']], $bapEditorial, $bapOk);
+        }
+
         // Only the old objects are compared across destructive candidate
         // rollback. Normalize solely the three new definer grantees; do not
         // discard existing runtime ACLs or unrelated function bodies.

@@ -109,6 +109,37 @@ This command offers no artifact lookup or built-in diagnosis after a lost result
 
 The isolated alternative requires `GITHUB_ACTIONS=true`, `APP_ENV=testing` and `SITES_RELEASE_REGISTRATION_CI=1` together. It fixes `host=localhost`, port `55449`, database `postgres`, server address `127.0.0.1`, and login `rr_a_artifact_writer` or `rr_registration_a_artifact_writer`. The second login is the existing active synthetic author used by the combined fixture after it revokes the first author. This CI allowlist does not renew the revoked actor or establish either actor's SQL authority. Both names retain the same custody, target, TLS, current principal/epoch, plan and write-confirmation checks; staging behavior is unchanged. Offline CLI tests exercise help and early argument/environment refusals with the autoloader and private paths inaccessible; only the disposable PostgreSQL/TLS integration fixture can demonstrate actual registration. This candidate adds no deployment or operational authorization.
 
+## Registro composto a partir de briefing armazenado
+
+A nova `register-provenance.php` consome `StoredBriefReleaseRegistration` para ler um snapshot exato, validar seu perfil, gerar o HTML internamente e registrar artefato e associação na mesma chamada SQL. O [manual de registro armazenado](../../docs/STORED-BRIEF-REGISTRATION-CLI.md) descreve o manifesto, as projeções e as fronteiras de autorização. A API antiga acima permanece independente; a nova CLI não recebe HTML ou sidecar, não adota artefato preexistente sem associação e não cria grants ou migrações.
+
+```sh
+php /opt/imagine/ops/release-candidate/register-provenance.php --help
+php /opt/imagine/ops/release-candidate/register-provenance.php plan
+php /opt/imagine/ops/release-candidate/register-provenance.php record \
+  --commitment-sha256=REPLACE_WITH_REVIEWED_64_CHARACTER_LOWERCASE_COMMITMENT \
+  --authorize-record=SITES_STORED_BRIEF_ARTIFACT_ONLY_APPROVED
+```
+
+`plan` aceita somente o comando. `record` exige as duas opções exatas, uma vez cada, em qualquer ordem. `commitmentSha256` confirma o target canônico do writer e os bytes originais do plano/editorial/HTML; `planSha256` é somente o hash bruto do plano, usado pela consulta histórica. O compromisso não inclui login ou epoch do reader, que são verificados conforme suas fronteiras próprias, nem reserva autorização futura.
+
+O manifesto `SITES_BRIEF_ARTIFACT_REGISTRATION_V1` tem exatamente `schema`, `target` e `snapshotReaderLogin`, conforme `provenance-registration.example.json`. O target contém os sete campos existentes (`host`, `port`, `database`, `databaseOid`, `login`, `serverAddress`, `caSha256`). O reader usa login distinto no mesmo endpoint, banco, OID e CA.
+
+| Mount privado fixo | Conteúdo |
+| --- | --- |
+| `/run/secrets/brief_artifact_registration` | Manifesto, 1–16384 bytes. |
+| `/run/secrets/brief_artifact_registration_plan` | Plano candidato, 1–32768 bytes. |
+| `/run/secrets/brief_artifact_registration_editorial` | Entrada editorial de seis campos, 1–32768 bytes. |
+| `/run/secrets/sites_brief_artifact_registration_reader` | Senha do reader de snapshots, 16–4096 bytes antes da validação. |
+| `/run/secrets/sites_brief_artifact_registration_writer` | Senha do writer composto, 16–4096 bytes antes da validação. |
+| `/run/secrets/sites_brief_artifact_registration_ca` | CA revisada, 1–65536 bytes, sem chave privada. |
+
+As duas PDOs novas começam somente leitura, com TLS `verify-full` e capacidade exclusiva. O plano real lê o snapshot autorizado. A CLI confere o compromisso e relê os seis arquivos antes de habilitar escrita somente no writer; o serviço faz uma única chamada de registro, sem retry. A leitura do snapshot termina antes da escrita, sem atomicidade de autorização entre conexões. Identidade/TLS/runtime e custódia dos seis arquivos são conferidos novamente antes de stdout.
+
+O plano emite dez campos com `schema=SITES_BRIEF_ARTIFACT_REGISTRATION_PLAN_RESULT_V1`; o registro emite doze com `schema=SITES_BRIEF_ARTIFACT_REGISTRATION_RESULT_V1`, acrescentando `recordedAt` e `created`. Ambas as projeções conservam `authorityVerified`, `clientAccepted`, `canPublish` e `canAcceptRealOrders` como `false`. Não emitem referências privadas, conteúdo ou o recibo interno de vinte campos. Recusas tratadas retornam exit 1, stdout vazio e apenas `BRIEF_ARTIFACT_REGISTRATION_DENIED`.
+
+Uma falha pode seguir commit. A apuração usa a [consulta histórica separada](../../docs/BRIEF-ARTIFACT-INSPECTION.md) com `siteRef`, `releaseRef` e `planSha256` originais, sem repetir o writer. O código admite staging sob guards próprios, mas esta entrega não autoriza execução operacional, credenciais, deploy ou dados reais. A prova local registra **95 checks offline**, mais regressões **109/271**; o CI PostgreSQL/TLS da nova CLI continua pendente.
+
 ## Explicit release binding and revocation candidate
 
 The separate `binding.php` command connects an existing immutable artifact and the current internal editorial approval through `bind_release_artifact`, or revokes a registry association through `revoke_release_binding`. It uses the existing SQL entry points and separately provisioned actors. It creates no migration, role, grant, project, artifact or editorial approval. It does not call a provider, prepare a package or establish payment, customer acceptance or publication authority.
@@ -267,6 +298,8 @@ Offline CLI tests cover help and bounded argument/environment refusals while aut
 
 The separate `inspect-provenance.php` command retrieves one exact historical association between a stored briefing snapshot and a release artifact. It calls the existing `StoredBriefReleaseReceiptReader` with a currently authorized reader, so investigating a lost registration response does not require repeating the original writer. The command uses Composer without booting Laravel and adds no SQL API, migration, write, listing or output file. See the [private provenance inspection manual](../../docs/BRIEF-ARTIFACT-INSPECTION.md) for the full interpretation and isolated validation contract.
 
+A [CLI de registro composto](../../docs/STORED-BRIEF-REGISTRATION-CLI.md) utiliza essa consulta para apuração de resposta perdida. Ela possui seis mounts e dois logins próprios; a inspeção continua com os três mounts e o reader histórico abaixo. O `planSha256` bruto seleciona o recibo; o `commitmentSha256` de confirmação da escrita não o substitui.
+
 ```sh
 php /opt/imagine/ops/release-candidate/inspect-provenance.php --help
 php /opt/imagine/ops/release-candidate/inspect-provenance.php inspect
@@ -302,7 +335,7 @@ The result confirms a persisted technical association. It does not certify execu
 
 The disposable path requires `GITHUB_ACTIONS=true`, `APP_ENV=testing` and `SITES_BRIEF_ARTIFACT_INSPECTION_CI=1` together. It pins host `localhost`, port `55449`, database `postgres`, observed server address `127.0.0.1` and only `bai_a_reader` or `bai_b_reader`. The database OID, CA fingerprint, custody and current SQL authority remain checked. Staging instead requires `APP_ENV=staging`, no GitHub Actions or inspection opt-in, and database `sites_staging`; these code restrictions do not provision or authorize operational access.
 
-The local offline CLI suite passed **51 checks** for help and bounded argument/environment refusals with autoload and private inputs inaccessible. It makes no successful SQL claim. The new CLI's real PostgreSQL/TLS validation remains pending; historical association recovery, tenant isolation, revocation and unchanged rows/catalogs belong to that disposable fixture.
+A suíte offline passou **51 checks** de help e recusas limitadas de argumentos/ambiente, com autoload e inputs privados inacessíveis. A candidata de consulta [#521](https://github.com/rafhael100/imagine-sites/pull/521), HEAD `73d610513c777c5f3a1709fcb19263d6073139c6`, concluiu **12/12 checks SUCCESS**. Sua [execução PostgreSQL/TLS](https://github.com/rafhael100/imagine-sites/actions/runs/44346085528) passou em PHP 8.3 e 8.4 com **25 assertions novas de inspeção**, **119 da composição** e **1067 totais**; os três inputs privados próprios foram removidos e os clusters próprios ficaram inativos. O [manual de inspeção](../../docs/BRIEF-ARTIFACT-INSPECTION.md#validação-isolada) registra os jobs exatos e os resultados Laravel. Essas provas pertencem à consulta; não demonstram execução da nova CLI de registro nem autorizam operação real.
 
 ## Local HTML rendering from a private brief
 

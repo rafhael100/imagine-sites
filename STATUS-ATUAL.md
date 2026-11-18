@@ -1,23 +1,54 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 18/11/2026 — entrada privada de registro do briefing armazenado
+
+Branch `feature/sites-brief-provenance-registration-2026-11-18`, construída sobre a
+[#521](https://github.com/rafhael100/imagine-sites/pull/521) validada no HEAD
+`73d610513c777c5f3a1709fcb19263d6073139c6`. A nova CLI candidata
+`register-provenance.php` reutiliza `StoredBriefReleaseRegistration`, sem novo
+serviço, SQL ou migration. Manifesto, plano, editorial, duas credenciais e CA
+ocupam seis mounts privados fixos. O reader do snapshot e o writer usam logins
+exclusivos distintos no mesmo endpoint, banco, OID, endereço e CA observados.
+Ambas as conexões ficam somente leitura durante o plano real; a escrita exige
+`commitmentSha256` exato e a confirmação `SITES_STORED_BRIEF_ARTIFACT_ONLY_APPROVED`.
+
+A CLI revalida os seis arquivos antes de habilitar uma única chamada de registro
+e antes de emitir stdout. Seus envelopes próprios têm dez/doze campos técnicos,
+sem seletores privados e com quatro flags falsas. O compromisso não inclui o
+login ou a época do reader; leitura e escrita são transações separadas. Falha ou
+perda de resposta pode seguir commit e exige apuração com o inspetor histórico,
+sem retry automático. A quarta capacidade fechada de `ReleaseArtifactConnection`
+aceita somente a API exata de leitura do snapshot, em sessão somente leitura.
+
+**Prova local: 95 checks offline, 109 de proveniência e 271 do registro anterior
+PASS**, com revisão independente do wrapper e da fronteira de conexão. A suíte
+geral local também passou com **279 testes/4250 assertions/27 skips**, usando
+`--do-not-cache-result`; o workflow preserva quinze opt-ins e a base exata. A fixture
+nova reaproveita snapshots e o inspetor existentes; os resultados reais e o cleanup
+ainda dependem do CI desta branch. O scan de **677 fontes** e os links da
+documentação passaram, mantendo os dez gates BLOCKED. [Manual do registro privado](docs/STORED-BRIEF-REGISTRATION-CLI.md).
+
 ## 18/11/2026 — consulta privada exata da proveniência
 
-Branch `feature/sites-brief-provenance-inspection-2026-11-18`, construída sobre a
-composição validada da [#520](https://github.com/rafhael100/imagine-sites/pull/520),
-HEAD `8b717d3c0c03146bc48ee812e906bc70a1c479a9`. A prova da nova CLI continua
-pendente. `inspect-provenance.php inspect` consulta a
-associação por site/release/hash dos bytes originais do plano, com reader
-corrente separado. Usa o serviço e SQL existentes; não cria tabela, migration,
-parser alternativo ou capacidade de escrita. Três mounts privados são
-revalidados antes e depois da consulta; stdout expõe somente dez campos de
-hash/tamanho/data/status e quatro flags falsas, sem referências privadas.
+A [PR #521](https://github.com/rafhael100/imagine-sites/pull/521), branch
+`feature/sites-brief-provenance-inspection-2026-11-18`, concluiu **12/12 checks
+SUCCESS** no HEAD `73d610513c777c5f3a1709fcb19263d6073139c6`, sobre a composição
+validada da #520. `inspect-provenance.php inspect` consulta a associação por
+site/release/hash dos bytes originais do plano, com reader corrente separado.
+Reutiliza serviço e SQL existentes. Três mounts privados são revalidados antes e
+depois da consulta; stdout expõe dez campos técnicos e quatro flags falsas dentro
+desses dez, sem referências privadas ou corpo do briefing.
 
-**Prova local: 51 checks offline PASS**, limitados a ajuda e recusas antes de
-conexão. Lint e revisões independentes da CLI e fixture passaram. Os 25 checks
-novos previstos para PostgreSQL/TLS reaproveitam seis associações existentes,
-incluindo resposta descartada, autor revogado/epoch anterior e origem SQL direta;
-essa contagem estática não é resultado de execução. A integração real e seu
-cleanup ainda dependem do CI da própria branch. [Manual e limites da consulta](docs/BRIEF-ARTIFACT-INSPECTION.md).
+| Prova final da #521 | Resultado confirmado |
+| --- | --- |
+| [Registry — run 44346085528](https://github.com/rafhael100/imagine-sites/actions/runs/44346085528) | PHP 8.3/8.4: **51 checks offline**, **25 checks novos da CLI**, **119 de composição** e **1067 registry totais**; três arquivos privados removidos e clusters próprios inativos. |
+| [Laravel — run 44346084649](https://github.com/rafhael100/imagine-sites/actions/runs/44346084649) | PHP 8.3/8.4: padrão **279 testes/4250 assertions/27 skips** e opt-in sintético **279/4262/21**. |
+
+A prova reutilizou seis associações existentes, incluindo resposta descartada,
+autor revogado/epoch anterior e origem SQL direta. O recibo histórico não prova
+execução do renderer, elegibilidade corrente ou autorização para publicar. A #521
+não executou um novo workflow F383 ou de containers; essas provas continuam
+identificadas pela #520 abaixo. [Manual e limites da consulta](docs/BRIEF-ARTIFACT-INSPECTION.md).
 
 ## 18/11/2026 — composição candidata do snapshot ao artefato registrado
 
@@ -32,7 +63,7 @@ Branch `feature/sites-brief-artifact-provenance-2026-11-18`, com referência ant
 | [Laravel — run 44344390833](https://github.com/rafhael100/imagine-sites/actions/runs/44344390833) | PHP 8.3/8.4: padrão **279 testes/4250 assertions/27 skips** e opt-in sintético **279/4262/21**. |
 | [Containers — run 44344390839](https://github.com/rafhael100/imagine-sites/actions/runs/44344390839) | Ensaio e cleanup confirmados. |
 
-Na preparação local, o grupo focado passou com **39 testes/1172 assertions**, composto por **28 novos e onze Unit existentes**, com `--do-not-cache-result`; não é a suíte geral. As regressões **109** de proveniência e **271** do registro antigo, lint e diffcheck também passaram. As correções durante o CI ficaram na fixture: serialização integral do catálogo para comparar valores `bytea`, em vez de identidades de streams PDO, e liberação de ciclos Laravel/PDO já inalcançáveis antes de abrir outra sessão. Não são correções de produto nem novas execuções locais. A #520 não acrescentou CLI, HTTP, provider, schema de exemplo ou grant operacional. A CLI de consulta posterior mantém sua prova própria pendente, como registrado acima. [Contrato, jobs e limites da composição](docs/STORED-BRIEF-RELEASE-PROVENANCE.md).
+Na preparação local, o grupo focado passou com **39 testes/1172 assertions**, composto por **28 novos e onze Unit existentes**, com `--do-not-cache-result`; não é a suíte geral. As regressões **109** de proveniência e **271** do registro antigo, lint e diffcheck também passaram. As correções durante o CI ficaram na fixture: serialização integral do catálogo para comparar valores `bytea`, em vez de identidades de streams PDO, e liberação de ciclos Laravel/PDO já inalcançáveis antes de abrir outra sessão. Não são correções de produto nem novas execuções locais. A #520 não acrescentou CLI, HTTP, provider, schema de exemplo ou grant operacional. A CLI de consulta posterior possui prova própria na #521, como registrado acima. [Contrato, jobs e limites da composição](docs/STORED-BRIEF-RELEASE-PROVENANCE.md).
 
 ## 18/11/2026 — armazenamento nativo candidato de snapshots do briefing
 
