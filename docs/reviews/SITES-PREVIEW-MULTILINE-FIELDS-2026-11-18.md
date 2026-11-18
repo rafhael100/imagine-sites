@@ -42,19 +42,29 @@ significa conservar os mesmos bytes de finais de linha em todos os transportes.
 ## Evidência local confirmada
 
 O grupo [PrivatePreviewWorkspaceViewTest](../../apps/sites/tests/Feature/PrivatePreviewWorkspaceViewTest.php)
-passou uma vez com **24 testes e 300 asserções**, usando
+passou inicialmente com **24 testes e 300 asserções**, usando
 `--do-not-cache-result`. Dois casos novos cobrem os controles condicionais,
 LF inicial, CR/LF/CRLF, escaping, mensagens acessíveis, contexto e CAS, além da
 separação entre tentativa inválida e briefing salvo. O caso existente também
 confere que os valores de uma linha continuam em `input`. Lint dos dois arquivos
 e verificação do diff passaram.
 
-O teste de view usa libxml, que conserva os finais de linha emitidos e o LF
-sentinela. Ele não substitui a prova da normalização pelo navegador. A suíte
-geral passou uma vez com **286 testes / 4358 asserções / 27 skips**, também sem
-cache de resultados; o laboratório sintético passou com **32 checks**. A sintaxe
-JS e a revisão independente dos três arquivos passaram. **O CI HTTP próprio
-desta candidata ainda está pendente.**
+O primeiro [CI Laravel 44366662690](https://github.com/rafhael100/imagine-sites/actions/runs/44366662690)
+detectou uma diferença do libxml: o ambiente local retinha CR/CRLF no texto
+interpretado, mas os dois jobs de CI os normalizavam para LF. Duas expectativas
+dos testes dependiam indevidamente desse comportamento local.
+
+A correção da prova confere separadamente os bytes escapados no HTML emitido e
+o texto completo do DOM, normalizando somente seus finais de linha nos dois
+lados. Conserva a verificação do LF sentinela e de todos os caracteres; a view
+de produto não mudou. A classe focada passou depois com **24 testes / 306
+asserções**. A prova de navegador continua independente desses testes libxml.
+
+Antes desse ajuste de portabilidade, a suíte geral local havia passado uma vez
+com **286 testes / 4358 asserções / 27 skips**, também sem cache de resultados;
+o laboratório sintético passou com **32 checks**. A sintaxe JS e a revisão
+independente dos três arquivos passaram. **A nova execução de CI e o HTTP
+próprio desta candidata ainda estão pendentes.**
 
 ## Prova HTTP preparada
 

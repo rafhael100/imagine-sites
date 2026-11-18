@@ -105,10 +105,12 @@ final class PrivatePreviewWorkspaceViewTest extends TestCase
             $control = $form.'//textarea[@id="'.$field.'" and @name="'.$field.'"]';
             self::assertSame(1, $xpath->query($control)->length);
             self::assertSame(0, $xpath->query($form.'//input[@name="'.$field.'"]')->length);
-            // libxml retains the original endings and added LF. Browser parsing
-            // normalizes CR/CRLF and discards only the added first LF; this is not
-            // a byte-identical CRLF guarantee across HTML and form transports.
-            self::assertSame("\n".$values[$field], $xpath->evaluate('string('.$control.')'));
+            // libxml versions differ in newline normalization. Check emitted
+            // escaped bytes separately, then compare the complete logical text.
+            // The actual browser also discards the protective first LF.
+            self::assertStringContainsString('>'.e("\n".$values[$field]).'</textarea>', $html);
+            self::assertSame(str_replace(["\r\n", "\r"], "\n", "\n".$values[$field]),
+                str_replace(["\r\n", "\r"], "\n", $xpath->evaluate('string('.$control.')')));
             self::assertSame($label, $xpath->evaluate('string('.$form.'//label[@for="'.$field.'"])'));
             self::assertSame('help-'.$field, $xpath->evaluate('string('.$control.'/@aria-describedby)'));
             self::assertSame(1, $xpath->query($control.'/@required')->length);
@@ -141,12 +143,15 @@ final class PrivatePreviewWorkspaceViewTest extends TestCase
             'benefits' => "Primeiro\nSegundo",
         ]);
         $data['fieldErrors'] = ['headline' => ['Use até 180 caracteres no campo chamada principal.']];
-        $xpath = $this->xpath(view('preview.workspace', $data)->render());
+        $html = view('preview.workspace', $data)->render();
+        $xpath = $this->xpath($html);
         $form = '//form[@data-testid="briefing-form"]';
         $saved = '//*[@data-testid="saved-current-brief"]';
 
         foreach (['brand', 'headline', 'call_to_action'] as $field) {
-            self::assertSame("\n".$data['form'][$field], $xpath->evaluate('string('.$form.'//textarea[@name="'.$field.'"])'));
+            self::assertStringContainsString('>'.e("\n".$data['form'][$field]).'</textarea>', $html);
+            self::assertSame(str_replace(["\r\n", "\r"], "\n", "\n".$data['form'][$field]),
+                str_replace(["\r\n", "\r"], "\n", $xpath->evaluate('string('.$form.'//textarea[@name="'.$field.'"])')));
         }
         self::assertSame('true', $xpath->evaluate('string('.$form.'//textarea[@id="headline"]/@aria-invalid)'));
         self::assertSame('help-headline error-headline', $xpath->evaluate('string('.$form.'//textarea[@id="headline"]/@aria-describedby)'));

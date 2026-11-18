@@ -10,8 +10,11 @@ LF, preservando os controles habituais para valores de uma linha. Não há mudan
 de CSS, parser, domínio ou limites. Texto e separação de linhas são conservados;
 o HTML normaliza finais de linha para LF e o envio nativo usa CRLF.
 
-**Prova local:** **24 testes/300 asserções focados**, suíte geral **286/4358/27**,
-**32 checks sintéticos**, lint, sintaxe JS e revisão independente PASS. A jornada
+**Prova local atual:** **24 testes/306 asserções focados**. A primeira execução
+CI encontrou dois asserts dependentes da normalização do libxml local; a prova
+agora confere bytes HTML e texto DOM separadamente, sem mudar o produto. A suíte
+geral local **286/4358/27**, os **32 checks sintéticos**, lint, sintaxe JS e revisão
+independente haviam passado antes desse ajuste dos testes. A jornada
 reutiliza o projeto e o positivo da versão 2: um POST inválido em descrição
 reapresenta os três campos multilinha; corrigir apenas descrição deve reenviar
 os valores, conservando também a prova dos oito benefícios Unicode. **4 checks
