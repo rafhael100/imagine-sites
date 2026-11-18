@@ -522,7 +522,7 @@ try {
             $otherReplay['receipt']['operationRef'] === $mainReceipt['operationRef'] && $requestState() === $before,
             'request another currently valid request-only writer can replay the same immutable idempotent operation');
         $writers['a']['revoker']->revoke($requestSite,1);
-        $editorialWriters['a']['editor']->transition($requestSite,3,'reopen',$requestContext['digest']);
+        $editorialWriters['a']['reviewer']->transition($requestSite,3,'reopen',$requestContext['digest']);
         $historicalInput = $requestInput; $historicalInput['receiptRef'] = 'ci-request-historical';
         $historical = $requestApply($historicalInput,'revoked binding and reopened editorial history');
         $ok($historical['operation'] === $ack && $historical['receipt']['operationRef'] === $mainReceipt['operationRef'],

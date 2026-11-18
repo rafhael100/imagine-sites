@@ -42,6 +42,8 @@ A fixture PostgreSQL está implementada e prevê **81 verificações novas/797 r
 
 O workflow candidato fixa draft, repositório, branch e SHA da base, mantém PHP 8.3/8.4 e acrescenta o opt-in `SITES_PUBLICATION_REQUEST_CI`. O laboratório continua descartável e deve confirmar sua própria limpeza. Não há execução local de PostgreSQL nesta revisão.
 
+A primeira execução, [run 44238802471](https://github.com/rafhael100/imagine-sites/actions/runs/44238802471), chegou ao replay histórico nos dois PHP e recusou corretamente uma reabertura solicitada pelo editor. A fixture foi corrigida para usar o revisor, conforme a regra SQL existente. O código do produto e suas permissões permaneceram iguais. Os sete auxiliares foram limpos e os clusters descartáveis ficaram inativos mesmo nessa falha; a nova execução completa permanece pendente.
+
 ## Base validada e limites
 
 A PR #504 tem **17/17 check-runs SUCCESS** no [run 44236130507](https://github.com/rafhael100/imagine-sites/actions/runs/44236130507), com **716 registry, 386 workspace e PHPUnit 141 testes/1310 assertions/27 skips** em PHP 8.3/8.4. Os 137 checks de renderização, 87 da CLI, seis negativos reais de custódia, limpeza completa e clusters inativos foram confirmados. O [relatório da geração local](SITES-LOCAL-ARTIFACT-RENDERING-2026-11-18.md) registra os jobs e a cadeia consumidora.
