@@ -633,6 +633,7 @@ if (!isset($admin, $connection, $connect, $password, $caFile, $ok)) {
             ['ALTER TABLE sites_core.release_artifact_provenance NO FORCE ROW LEVEL SECURITY',
                 'ALTER TABLE sites_core.release_artifact_provenance FORCE ROW LEVEL SECURITY', 'missing FORCE RLS'],
         ] as [$grant, $restore, $label]) {
+            $bapStage = 'exclusive capability or RLS probe: '.$label;
             $before = [bapRows($bapAdmin), bapCatalog($bapAdmin)];
             try {
                 $bapAdmin->exec($grant);
@@ -938,8 +939,12 @@ if (!isset($admin, $connection, $connect, $password, $caFile, $ok)) {
             "Real stored-source rendering, atomic native registration, historical inspection and ordered rollback; no publication authority.\n";
     } catch (Throwable $error) {
         $detail = $error instanceof BriefArtifactFixtureAssertion ? ' assertion='.$error->getMessage() : '';
+        if ($error instanceof PDOException) {
+            $state = (string) ($error->errorInfo[0] ?? $error->getCode());
+            if (preg_match('/\A[A-Z0-9]{5}\z/D', $state) === 1) $detail .= ' sqlState='.$state;
+        }
         fwrite(STDERR, 'BRIEF_ARTIFACT_PROVENANCE_FIXTURE_FAILED stage='.$bapStage.' reason='.get_class($error).
-            ' completedChecks='.$bapChecks.$detail."\n");
+            ' completedChecks='.$bapChecks.' sourceLine='.$error->getLine().$detail."\n");
         throw new RuntimeException('Brief artifact provenance fixture failed');
     } finally {
         if ($bapAdmin->inTransaction()) $bapAdmin->rollBack();
