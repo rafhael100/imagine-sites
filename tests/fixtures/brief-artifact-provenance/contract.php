@@ -71,6 +71,10 @@ function bapConnection(PDO $db): PostgresConnection
 
 function bapDb(string $role, bool $readOnly, string $password, string $caFile): PDO
 {
+    // Short-lived Laravel connections own a grammar that refers back to the
+    // connection. Release only unreachable cycles before opening the next
+    // fixture session; retain every live reader/writer used by a race or check.
+    gc_collect_cycles();
     $db = new PDO('pgsql:host=127.0.0.1;port=55449;dbname=postgres;sslmode=verify-full;sslrootcert='.$caFile,
         $role, $password, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_EMULATE_PREPARES => false,
             PDO::ATTR_STRINGIFY_FETCHES => false, PDO::ATTR_PERSISTENT => false]);
