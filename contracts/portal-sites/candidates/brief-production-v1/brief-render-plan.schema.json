@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:imagine-sites:candidate:brief-render-plan:v0.1",
+  "title": "sites.brief-render-plan.candidate.v0.1",
+  "description": "Proposed private technical plan joining one exact source snapshot, separately selected six-field editorial input and expected artifact bytes. It is not a renderer execution receipt, source authentication, editorial approval or publication permission.",
+  "$comment": "The consumer is fixed to the existing LocalSiteRendering::render parser/renderer. renderInput must contain exactly its six fields and productCode onepage. The candidate consumer must verify tenant/site/snapshot identity, snapshot manifestSha256 over the original file bytes, every payload size/hash, the complete source profile and expected artifact size/hash. It must not re-encode JSON for digest checks, infer copy from the rich source, substitute a newer snapshot, or invoke a provider selected by the plan. These relationships, authorization, duplicate-key rejection and idempotency are not established by JSON Schema validation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "operationId",
+    "idempotencyKey",
+    "tenantRef",
+    "siteRef",
+    "releaseRef",
+    "snapshot",
+    "renderInput",
+    "expectedArtifact"
+  ],
+  "$defs": {
+    "reference": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+      "not": {"pattern": "[\r\n]"},
+      "description": "Opaque selector, never a URL, path, credential or authority."
+    },
+    "uuid": {
+      "type": "string",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$"
+    },
+    "sha256": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "Lowercase SHA-256 of exact original bytes, not normalized or re-encoded JSON."
+    }
+  },
+  "properties": {
+    "schemaVersion": {"const": "sites.brief-render-plan.candidate.v0.1"},
+    "operationId": {"$ref": "#/$defs/reference"},
+    "idempotencyKey": {"$ref": "#/$defs/reference"},
+    "tenantRef": {"$ref": "#/$defs/reference"},
+    "siteRef": {"$ref": "#/$defs/uuid"},
+    "releaseRef": {"$ref": "#/$defs/reference"},
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["snapshotRef", "briefRevision", "manifestSha256"],
+      "properties": {
+        "snapshotRef": {"$ref": "#/$defs/uuid"},
+        "briefRevision": {"type": "integer", "minimum": 1, "maximum": 2147483647},
+        "manifestSha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "renderInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["payloadRef", "mediaType", "sizeBytes", "sha256"],
+      "properties": {
+        "payloadRef": {"$ref": "#/$defs/reference"},
+        "mediaType": {"const": "application/json"},
+        "sizeBytes": {"type": "integer", "minimum": 1, "maximum": 32768},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "expectedArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha256", "sizeBytes"],
+      "properties": {
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "sizeBytes": {"type": "integer", "minimum": 1, "maximum": 150000}
+      }
+    }
+  }
+}

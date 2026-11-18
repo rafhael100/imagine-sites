@@ -1,0 +1,16 @@
+{
+  "company_name": "Oficina Horizonte — exemplo fictício",
+  "company_intro": "Empresa inteiramente fictícia para examinar uma proposta de contrato. O texto de origem é material de trabalho e não a descrição editorial pronta para o site.",
+  "services": "Serviços fictícios: diagnóstico de bicicletas e orientação sobre manutenção. A equipe editorial ainda precisa selecionar a mensagem e conferir o conteúdo.",
+  "current_site": "",
+  "contact_site": "https://contato.example.invalid/",
+  "domain": "horizonte.example.invalid",
+  "email": "contato@horizonte.example.invalid",
+  "phone": "",
+  "address": "",
+  "whatsapp": "",
+  "notes": "Somente exemplo sintético. Nenhum contato, domínio, aprovação, arquivo de cliente ou permissão operacional é real.",
+  "ai_support": false,
+  "logo_unavailable": true,
+  "manual_unavailable": true
+}

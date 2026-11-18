@@ -2,9 +2,19 @@
 
 ## Decisão de continuidade
 
-**18/11/2026.** O próximo avanço central é receber uma revisão oficial de briefing do Portal e fazê-la alimentar uma produção persistente no Sites. Falta um contrato verificável desse insumo e um consumidor definido para ele. Criar agora um armazenamento genérico em `sites_core` não ligaria o fluxo existente e anteciparia decisões que pertencem às duas aplicações.
+**18/11/2026.** O próximo avanço central é receber uma revisão oficial de briefing do Portal e fazê-la alimentar uma produção persistente no Sites. As primeiras inspeções das linhas nativas não encontraram um contrato homologado desse insumo. A investigação ampliada do legado identificou regras concretas que permitem elaborar uma proposta técnica, descrita na atualização abaixo. A fonte operacional, a identidade de transporte e a autoridade comercial continuam distintas dessa proposta.
 
 Essa conclusão delimita a integração; não afirma esgotamento de todo desenvolvimento. O trabalho autorizado em branch isolada pode continuar em componentes com uso concreto e defeitos demonstrados. A inspeção privada do diário é um exemplo: consome a API persistente existente sem criar autoridade ou depender de um briefing inventado.
+
+### Continuidade após a candidata unificada: fonte concreta no legado
+
+Depois da #516, a leitura foi ampliada aos handlers e ao formulário Node do Portal no mesmo commit `0e0ccc06755b6ddd938635e5c4c3625ff6497e2c`. O [inventário reconferido](../SITES-F1-20-PORTAL-LEGACY-PARITY.md#fonte-fixada-em-18112026) fixa oito blobs e demonstra um briefing Onepage real do protótipo: onze textos, três flags, propriedade por pedido, envio, revisão e materiais. Esse fluxo é separado do objeto PHP SAMPLE anteriormente examinado.
+
+Há também um consumidor técnico existente: `LocalSiteRendering::render` consome os seis campos editoriais, produz bytes HTML exatos e permite o registro posterior por `PrivateReleaseRegistration`. O briefing rico não fornece automaticamente os títulos, chamada do botão ou benefícios dessa entrada editorial. A proposta preserva a transformação editorial explícita e vincula os dois insumos por referências e digests.
+
+Portanto, a falta de contrato oficial não impede fechar escolhas de engenharia reversíveis. O [contrato candidato de briefing e produção](../SITES-BRIEF-PRODUCTION-CONTRACT-CANDIDATE-v0.1.md) passa a definir a identidade do snapshot, a diferença entre o contador agregado da origem e a revisão imutável candidata, a concorrência, os bytes consumidos e a proveniência do artefato local. Ele não migra o SQLite, não ativa transporte, não cria uma fonte oficial de autorização e não promove demonstrações para dados comerciais.
+
+Os insumos de homologação listados adiante continuam necessários para receber dados reais e iniciar produção autorizada. Eles não devem ser usados como bloqueio genérico para especificar ou implementar um consumidor local explicitamente candidato sobre contratos e arquivos sintéticos verificáveis.
 
 A ausência de um contrato oficial também não proíbe desenhar propostas reversíveis. Ela limita o que se pode afirmar sobre compatibilidade e consumo de dados reais do Portal. Na continuidade desta revisão, a [comparação de texto literal](SITES-INERT-TEXT-COMPARISON-2026-11-18.md) foi corrigida e o [registro privado de artefatos](SITES-ARTIFACT-REGISTRATION-2026-11-18.md) foi iniciado sobre uma API SQL já definida, com uso concreto na preparação de pacotes. Essas frentes não precisam transformar o briefing sintético em fonte oficial.
 

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:imagine-sites:candidate:onepage-brief-payload:v0.1",
+  "title": "sites.onepage-brief-payload.candidate.v0.1",
+  "description": "Candidate private Onepage source payload derived from the legacy Portal field inventory. This is not the six-field rendering input and does not establish submission, materials approval, payment or authority.",
+  "$comment": "Shape validation is incomplete by design: x-legacy-max-utf16-code-units-before-trim is an annotation, not a JSON Schema assertion. The compatibility adapter must enforce the documented UTF-16 limits on the original strings before trim, reject duplicate JSON keys, validate the exact private payload bytes and apply the separately documented submission/material rules. It must not rewrite the bytes whose SHA-256 is referenced by the snapshot. JSON Schema maxLength is intentionally absent because it counts Unicode code points rather than JavaScript UTF-16 code units.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "company_name",
+    "company_intro",
+    "services",
+    "current_site",
+    "contact_site",
+    "domain",
+    "email",
+    "phone",
+    "address",
+    "whatsapp",
+    "notes",
+    "ai_support",
+    "logo_unavailable",
+    "manual_unavailable"
+  ],
+  "properties": {
+    "company_name": {"type": "string", "x-legacy-max-utf16-code-units-before-trim": 160},
+    "company_intro": {"type": "string", "x-legacy-max-utf16-code-units-before-trim": 10000},
+    "services": {"type": "string", "x-legacy-max-utf16-code-units-before-trim": 10000},
+    "current_site": {"type": "string", "x-legacy-max-utf16-code-units-before-trim": 800},
+    "contact_site": {"type": "string", "x-legacy-max-utf16-code-units-before-trim": 800},
+    "domain": {"type": "string", "x-legacy-max-utf16-code-units-before-trim": 253},
+    "email": {"type": "string", "x-legacy-max-utf16-code-units-before-trim": 254},
+    "phone": {"type": "string", "x-legacy-max-utf16-code-units-before-trim": 60},
+    "address": {"type": "string", "x-legacy-max-utf16-code-units-before-trim": 600},
+    "whatsapp": {"type": "string", "x-legacy-max-utf16-code-units-before-trim": 60},
+    "notes": {"type": "string", "x-legacy-max-utf16-code-units-before-trim": 5000},
+    "ai_support": {"type": "boolean"},
+    "logo_unavailable": {"type": "boolean"},
+    "manual_unavailable": {"type": "boolean"}
+  }
+}
