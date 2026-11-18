@@ -245,6 +245,21 @@ Banco e arquivo não compartilham uma transação atômica. Falhas retornam exit
 
 O helper mantém o descritor e verifica as identidades observadas, mas as operações por pathname do PHP não constituem uma travessia atômica de todos os ancestrais. Ele nunca remove, renomeia, sobrescreve ou corrige um destino, mesmo quando uma etapa falha. Não há retry automático. Inspecione o arquivo e o estado por acessos separados autorizados antes de decidir uma recuperação. Se uma repetição explícita for autorizada, use os mesmos seletores/idempotência e um novo `receiptRef`, obtenha um novo plano e confirme-o; isso permite aproveitar a idempotência existente sem sobrescrever o recibo anterior. A CLI não toma essa decisão pelo operador.
 
+### Consulta exata sem repetir o writer
+
+O [leitor candidato de solicitação](../../docs/PUBLICATION-REQUEST-READER.md)
+acrescenta `PgPublicationJournal::readRequest` pelos mesmos cinco seletores. Uma
+identidade reader atual e exclusiva pode recuperar em memória o snapshot e seu
+`operationRef` mesmo após a revogação do writer original, sem chamar `request`.
+Ausência ou divergência é uma recusa limitada e não cria operação. O estado é
+histórico; a API não decide envio, retry ou publicação.
+
+Esse primeiro incremento não grava um novo recibo nem acrescenta comando a esta
+CLI. Seu resultado privado pode apoiar a preparação autorizada da inspeção
+existente. O inspector conserva sua própria API, identidade e alvo; não recebe
+automaticamente o retorno nem herda permissões. A prova PostgreSQL da candidata
+permanece indicada no manual do leitor.
+
 ### CI e limites da evidência offline
 
 O caminho isolado exige `GITHUB_ACTIONS=true`, `APP_ENV=testing` e `SITES_PUBLICATION_REQUEST_CI=1`. Fixa `localhost`, porta `55449`, banco `postgres`, endereço observado `127.0.0.1` e login `pj_request_a_writer`. O OID, CA, capability exclusiva de solicitação, inputs privados, reserva, hash e autorização continuam obrigatórios. A allowlist de inspeção em CI aceita também `pj_request_a_reader`, para consultar a operação com um leitor sintético novo sem reativar o leitor anteriormente revogado. Esse acréscimo não modifica staging ou os guards SQL da inspeção.

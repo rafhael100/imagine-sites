@@ -106,6 +106,7 @@ jobs:
           php -l apps/sites/database/migrations/2026_11_18_000013_add_portal_brief_snapshots.php
           php -l apps/sites/database/migrations/2026_11_18_000014_add_brief_artifact_provenance.php
           php -l apps/sites/database/migrations/2026_11_18_000015_add_portal_project_intake_reader.php
+          php -l apps/sites/database/migrations/2026_11_18_000016_add_publication_request_reader.php
           php -l apps/sites/app/Integration/StoredProjectIntakeReceiptReader.php
           php -l apps/sites/tests/Feature/StoredProjectIntakeReceiptReaderTest.php
           php -l tests/fixtures/project-intake-receipt/contract.php
@@ -205,13 +206,13 @@ jobs:
         working-directory: apps/sites
         run: |
           set -euo pipefail
-          # The batch includes both native ledgers, provenance and the additive receipt reader.
+          # The batch includes both native ledgers, provenance and both additive exact readers.
           php -r '
             $db=new PDO("pgsql:host=127.0.0.1;dbname=sites_f383_lab",
               "postgres","f383-fictional-admin-only");
             $count=(int)$db->query("SELECT count(*) FROM migrations WHERE batch=1")->fetchColumn();
-            if($count!==15)exit(1);
-            echo "F1-383 PASS: exactly 15 migrations in the disposable batch.\n";
+            if($count!==16)exit(1);
+            echo "F1-383 PASS: exactly 16 migrations in the disposable batch.\n";
           '
           php artisan migrate:rollback --batch=1 --force --no-ansi
           php -r '

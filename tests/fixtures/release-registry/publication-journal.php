@@ -19,6 +19,19 @@ $ok($admin->query("SELECT to_regnamespace('sites_publication')")->fetchColumn() 
     'journal migration starts with an absent disposable schema');
 $publicationMigration = require __DIR__.'/../../../apps/sites/database/migrations/2026_11_18_000007_add_publication_journal.php';
 $connection->transaction(static fn () => $publicationMigration->up());
+if (getenv('SITES_PUBLICATION_REQUEST_READER_CI') === '1') {
+    // Exercise every predecessor journal path with the new catalog guard.
+    // Preserve its exact native identity for the later reversible proof.
+    $publicationRequestReaderOriginalGuard = $admin->query(
+        "SELECT to_jsonb(p)::text FROM pg_proc p WHERE p.oid=".
+        "to_regprocedure('sites_publication.journal_runtime_safe(text)')",
+    )->fetchColumn();
+    if (!is_string($publicationRequestReaderOriginalGuard) || $publicationRequestReaderOriginalGuard === '') {
+        throw new RuntimeException('Native publication guard identity required');
+    }
+    $publicationRequestReaderMigration = require __DIR__.'/../../../apps/sites/database/migrations/2026_11_18_000016_add_publication_request_reader.php';
+    $connection->transaction(static fn () => $publicationRequestReaderMigration->up());
+}
 $ok((int)$admin->query("SELECT count(*) FROM pg_roles WHERE rolname IN
     ('sites_publication_owner','sites_publication_writer','sites_publication_reader')
     AND NOT rolcanlogin AND NOT rolinherit AND NOT rolsuper AND NOT rolbypassrls

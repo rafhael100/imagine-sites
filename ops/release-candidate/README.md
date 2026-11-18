@@ -448,7 +448,7 @@ NUL, duplicate keys (including escaped equivalents), additional fields, wrong ty
 
 For this local input, a nonblank value must contain at least one character outside the Unicode `White_Space` property. This applies to all four text fields and every benefit: a value made only of NBSP, EM SPACE or other characters in that property is refused before rendering and output creation. A blank benefit is not removed from the list; it causes the whole input to be refused. Existing type, size, UTF-8 and NUL checks still run first.
 
-Leading, internal and trailing spaces around content remain unchanged. ZWSP (`U+200B`) and FEFF (`U+FEFF`) are outside `White_Space` and remain valid, including when used alone. This local-entry check does not change `SiteBrief`, the renderer or historical preview readers. The [Unicode blank-input review](../../docs/reviews/SITES-LOCAL-RENDER-UNICODE-BLANK-2026-11-18.md) records the reproduction and the observed **159 service / 97 CLI checks**; CI for that correction is still pending.
+Leading, internal and trailing spaces around content remain unchanged. ZWSP (`U+200B`) and FEFF (`U+FEFF`) are outside `White_Space` and remain valid, including when used alone. This local-entry check does not change `SiteBrief`, the renderer or historical preview readers. The [Unicode blank-input review](../../docs/reviews/SITES-LOCAL-RENDER-UNICODE-BLANK-2026-11-18.md) records the reproduction and the **159 service / 97 CLI checks** confirmed on PHP 8.3/8.4 by PR #535, with all 12 checks successful.
 
 ```sh
 php /opt/imagine/ops/release-candidate/render.php --help

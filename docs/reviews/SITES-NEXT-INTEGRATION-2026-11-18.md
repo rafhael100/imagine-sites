@@ -14,16 +14,21 @@ a aceitação demonstrada de NBSP/EM SPACE sem modificar `SiteBrief` ou a leitur
 de versões históricas. Conteúdo e espaços significativos permanecem byte a byte.
 **159 checks de serviço e 97 da CLI** passaram, incluindo ausência de output e
 inputs preservados nos cinco negativos. [Escopo e fonte Unicode](SITES-LOCAL-RENDER-UNICODE-BLANK-2026-11-18.md).
-O CI dedicado está pendente.
+A [#535](https://github.com/rafhael100/imagine-sites/pull/535), HEAD
+`d5ef3a45d45d0db073c5b43d8b23e68e537bec0a`, confirmou **12/12 checks SUCCESS**,
+com **159/97** nas duas versões PHP e cleanup no
+[run 44392728209](https://github.com/rafhael100/imagine-sites/actions/runs/44392728209).
 
 ### Recuperação exata de uma solicitação do diário
 
 A solicitação privada documenta a possibilidade de commit seguido de falha na
 gravação do recibo. Se o `operationRef` se perder, a consulta existente precisa
 desse UUID; a apuração por chave ainda depende de repetir o writer. O próximo
-recorte é um leitor exato pelos cinco seletores originais, com autorização atual
-própria e nenhum append. O primeiro incremento será SQL aditivo e consumidor PHP
-em memória; a CLI com novo arquivo privado virá depois da prova desse contrato.
+recorte já está implementado como [leitor exato](../PUBLICATION-REQUEST-READER.md)
+pelos cinco seletores originais, com autorização atual própria e nenhum append.
+SQL/migration 16 e consumidor PHP em memória preservam os métodos anteriores.
+Os 49 checks PHP focados passaram; a prova PostgreSQL segue pendente. A CLI com
+novo arquivo privado virá depois da validação desse contrato.
 
 ### Auditoria do CSS do artefato inerte
 
@@ -131,7 +136,7 @@ da integração de transporte Portal.
 ### Inspeção privada do snapshot recebido validada na #528
 
 A [#528](https://github.com/rafhael100/imagine-sites/pull/528), HEAD
-`035e50e979e7cdf45f29a7e2c66d0aa1b5d63944`, concluiu **12/12 checks SUCCESS** na
+`035e50e 979e7cdf45f29a7e2c66d0aa1b5d63944`, concluiu **12/12 checks SUCCESS** na
 branch `feature/sites-brief-snapshot-inspection-2026-11-18`, derivada da #527.
 O comando
 [`inspect-brief-snapshot.php inspect`](../BRIEF-SNAPSHOT-INSPECTION-CLI.md)

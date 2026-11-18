@@ -111,6 +111,44 @@ final readonly class PgPublicationJournal
         return $row;
     }
 
+    /**
+     * Resolve the exact historical request through a current reader, without
+     * knowing its operation UUID or invoking the writer. The SQL function
+     * rechecks that reader; this wrapper checks connection context and output.
+     * No result grants permission to send, repeat a request or publish.
+     */
+    public function readRequest(
+        string $siteId,
+        string $releaseRef,
+        int $expectedBindingRevision,
+        string $portalAcceptanceRef,
+        string $idempotencyKey,
+    ): array {
+        try {
+            if (PHP_INT_SIZE !== 8 || !PgPublicationJournalGuard::uuid($siteId) ||
+                !PgPublicationJournalGuard::reference($releaseRef) || $expectedBindingRevision < 1 ||
+                !PgPublicationJournalGuard::reference($portalAcceptanceRef) ||
+                !PgPublicationJournalGuard::reference($idempotencyKey)) {
+                throw new RuntimeException();
+            }
+            $row = PgPublicationJournalGuard::operation($this->invoke(
+                'SELECT sites_publication.read_request_operation(?::uuid,?::text,?::bigint,?::text,?::text)',
+                [$siteId, $releaseRef, $expectedBindingRevision, $portalAcceptanceRef, $idempotencyKey],
+                true,
+            ));
+            if ($row['siteRef'] !== $siteId || $row['releaseRef'] !== $releaseRef ||
+                $row['bindingRevision'] !== $expectedBindingRevision ||
+                $row['portalAcceptanceRef'] !== $portalAcceptanceRef || $row['idempotencyKey'] !== $idempotencyKey) {
+                throw new RuntimeException();
+            }
+            return $row;
+        } catch (Throwable) {
+            // Missing, mismatched or denied selections have one bounded result.
+            // In particular, no SQLSTATE is an instruction to retry this read.
+            throw new RuntimeException('Publication journal request unavailable.');
+        }
+    }
+
     private function assertCurrentResult(array $row, string $operationRef, int $expectedRevision): void
     {
         // An exact retry may return the same revision; a transition advances once.
@@ -121,14 +159,14 @@ final readonly class PgPublicationJournal
     }
 
     /** Each entry point is one atomic PostgreSQL transaction; no automatic retry or send. */
-    private function invoke(string $sql, array $parameters): mixed
+    private function invoke(string $sql, array $parameters, bool $readOnly = false): mixed
     {
         try {
-            $before = PgPublicationJournalGuard::snapshot($this->db);
+            $before = PgPublicationJournalGuard::snapshot($this->db, $readOnly);
             $query = $this->db->prepare($sql);
             $query->execute($parameters);
             $result = $query->fetchColumn();
-            if (PgPublicationJournalGuard::snapshot($this->db) !== $before) {
+            if (PgPublicationJournalGuard::snapshot($this->db, $readOnly) !== $before) {
                 throw new RuntimeException('Publication journal connection changed');
             }
             return $result;
