@@ -449,20 +449,32 @@ inalterados; AGI-11-RB01 permanece desabilitado.
 O [conjunto atual de quatro schemas e seis exemplos](../contracts/portal-sites/candidates/brief-production-v1/README.md)
 acrescenta o schema de recibo e seu exemplo fictício aos três schemas e cinco
 exemplos originais da #517. O corpo rico não foi reduzido automaticamente aos
-seis campos. O HTML do exemplo foi produzido pelo renderer existente, sem
-alteração dos templates, avisos ou digest:
+seis campos. Os vetores correntes de HTML e plano acompanham a correção CSS
+de quebra de textos longos do renderer. Input editorial, escaping, estrutura
+HTML e avisos permanecem iguais; o CSS novo muda os bytes e o digest das novas
+gerações:
 
 | Arquivo | Bytes | SHA-256 dos bytes exatos |
 | --- | ---: | --- |
 | `onepage-brief.synthetic.json` | 861 | `a3932320c0e4bd731ac7c18c61a46b39af09c8c503ed6489a9de4aa4c348a98b` |
 | `render-input.synthetic.json` | 563 | `6b6a9fdf1af6bd9c0708b82d7d8467622e195626d8d6e47c103e3244e41eca1e` |
 | `brief-snapshot.synthetic.json` | 845 | `5066ae0512fde48e94965ba767ccad1d53b2d347b2bd26ff5f06dc7fab895af0` |
-| `rendered.synthetic.html` | 5167 | `12549ec46a09e83ea76353a43a48723daa99aa30c6bbdd461923f1a800543d15` |
+| `rendered.synthetic.html` | 5223 | `ab999fc8c61d4f22ab250c6d5d86442a0ceca24659d1f4173db3580e4694740e` |
+| `brief-render-plan.synthetic.json` | 840 | `742647a821be501c3c1d58153fd93150ecfd82d134473a96b4761529c700c276` |
 
 Os JSONs conservam LF final; o HTML conserva a ausência de LF final do renderer.
 Schemas verificam estrutura, não custódia, hash real, regra UTF-16, soma de
 materiais, CAS, identidade ou autoridade. O exemplo de `sourceState=approved`
 é uma declaração fictícia e não uma prova obtida no Portal.
+
+O [HTML original da #517](https://github.com/rafhael100/imagine-sites/blob/c53eac9eb8060a62eb060e68f3bc5b2956dbbdff/contracts/portal-sites/candidates/brief-production-v1/examples/rendered.synthetic.html)
+permanece verificável naquele commit: **5167 bytes**, SHA-256
+`12549ec46a09e83ea76353a43a48723daa99aa30c6bbdd461923f1a800543d15`.
+Esse resultado histórico não é substituído pela tabela corrente. Versões,
+artefatos, planos e recibos já persistidos conservam seus bytes e digests. Um
+plano antigo que espere o HTML anterior é recusado pela geração atual quando
+o resultado diverge; uma nova geração exige plano e compromisso revistos, sem
+compatibilidade automática ou mudança das regras de replay.
 
 Na proposta documental #517, os três schemas e seus exemplos foram validados com JSON
 Schema 2020-12, os quatro vínculos de bytes foram recalculados e o HTML foi

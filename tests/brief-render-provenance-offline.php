@@ -88,9 +88,9 @@ $replaceSnapshot = static function (array $input, string $raw) use ($encode): ar
 };
 $sourceCase = static fn (array $changes): array => $chain($encode(array_replace($baseSource, $changes)), $base['editorial']);
 
-$first = $accept($base, 'published candidate example follows the existing renderer and exact seven-field sidecar');
-$ok($first['artifact']->html === $expectedHtml && $first['artifact']->sizeBytes === 5167 &&
-    $first['artifact']->digest === '12549ec46a09e83ea76353a43a48723daa99aa30c6bbdd461923f1a800543d15' &&
+$first = $accept($base, 'current synthetic example follows the existing renderer and exact seven-field sidecar');
+$ok($first['artifact']->html === $expectedHtml && $first['artifact']->sizeBytes === 5223 &&
+    $first['artifact']->digest === 'ab999fc8c61d4f22ab250c6d5d86442a0ceca24659d1f4173db3580e4694740e' &&
     $basePlan['operationId'] !== $baseSnapshot['operationId'] &&
     $basePlan['idempotencyKey'] !== $baseSnapshot['idempotencyKey'] &&
     $baseSnapshot['sourceVersion'] !== $baseSnapshot['briefRevision'],
@@ -213,7 +213,7 @@ foreach (['sha256' => str_repeat('b', 64), 'sizeBytes' => strlen($base['editoria
 foreach ([
     ['snapshot', 'manifestSha256', str_repeat('b', 64)],
     ['expectedArtifact', 'sha256', str_repeat('b', 64)],
-    ['expectedArtifact', 'sizeBytes', 5168],
+    ['expectedArtifact', 'sizeBytes', $basePlan['expectedArtifact']['sizeBytes'] + 1],
 ] as [$object, $key, $value]) {
     $input = $base; $plan = $basePlan; $plan[$object][$key] = $value; $input['plan'] = $encode($plan);
     $deny($input, 'validly shaped but incorrect '.$object.'.'.$key);
@@ -240,16 +240,26 @@ $deny($chain($base['source'], $duplicateEditorial), 'existing renderer rejects e
 $duplicateSnapshot = str_replace('"sizeBytes": 861', '"sizeBytes": 861, "size\u0042ytes": 861', $base['snapshot']);
 $deny($replaceSnapshot($base, $duplicateSnapshot), 'nested duplicate descriptor key with a correct snapshot manifest digest');
 $input = $base;
-$input['plan'] = str_replace('"sizeBytes": 5167', '"sizeBytes": 5167, "size\u0042ytes": 5167', $base['plan']);
+$artifactSizeText = (string) $basePlan['expectedArtifact']['sizeBytes'];
+$artifactSizeField = '"sizeBytes": '.$artifactSizeText;
+$input['plan'] = str_replace($artifactSizeField,
+    $artifactSizeField.', "size\u0042ytes": '.$artifactSizeText, $base['plan'], $replacements);
+if ($replacements !== 1) throw new RuntimeException('Expected artifact duplicate fixture did not replace one field');
 $deny($input, 'nested duplicate expected artifact key');
 
 foreach (['12.0', '12e0', '"12"', '-0', '9223372036854775808'] as $numeric) {
     $raw = str_replace('"sourceVersion": 12', '"sourceVersion": '.$numeric, $base['snapshot']);
     $deny($replaceSnapshot($base, $raw), 'noncanonical or unsafe source-version token '.$numeric);
 }
-foreach (['5167.0', '5.167e3', '"5167"'] as $numeric) {
+// Preserve the actual size while changing only its JSON representation. A
+// changed renderer must not turn a lexical negative into a stale size mismatch.
+foreach ([$artifactSizeText.'.0', $artifactSizeText.'e0', '"'.$artifactSizeText.'"'] as $numeric) {
     $input = $base;
-    $input['plan'] = str_replace('"sizeBytes": 5167', '"sizeBytes": '.$numeric, $base['plan']);
+    $input['plan'] = str_replace($artifactSizeField, '"sizeBytes": '.$numeric, $base['plan'], $replacements);
+    if ($replacements !== 1 ||
+        (float) json_decode($numeric, false, 2, JSON_THROW_ON_ERROR) !== (float) $artifactSizeText) {
+        throw new RuntimeException('Expected artifact lexical fixture did not preserve the numeric value');
+    }
     $deny($input, 'noninteger expected artifact size '.$numeric);
 }
 foreach (['company_name', 'services', 'notes'] as $field) {

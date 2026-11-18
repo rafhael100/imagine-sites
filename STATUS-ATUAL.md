@@ -1,10 +1,35 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 18/11/2026 — quebra de texto nas novas páginas geradas
+
+Branch `fix/sites-renderer-long-text-2026-11-18`, sobre a #522 validada no HEAD
+`0b735a1794ee3bb965e5a05d5d738083ddac9544`. A análise do renderer identificou que
+marca, descrição, CTA e benefícios aceitavam palavras/URLs contínuas nos limites
+do briefing, mas somente os títulos possuíam quebra de palavra. O ajuste adiciona
+três declarações CSS para permitir quebra herdada, redução da marca no flex e
+contenção do botão. Texto, DOM, âncoras e CSP permanecem idênticos fora do style.
+
+O exemplo corrente passou a **5223 bytes**, SHA-256
+`ab999fc8c61d4f22ab250c6d5d86442a0ceca24659d1f4173db3580e4694740e`.
+Seu plano foi atualizado apenas em `expectedArtifact`; as provas históricas da
+#517 conservam os valores antigos. Versões, registros e recibos persistidos não
+são reescritos. Nova geração exige plano/compromisso coerentes com o renderer
+corrente, sem fallback para o HTML anterior.
+
+**Verificação local PASS:** renderer **27**, renderização local **137**,
+proveniência **109**, registro anterior **271**, PHPUnit **279/4250/27**,
+lint e comparação de bytes fora do CSS. O Chromium local não abriu por recusa de
+socket do runtime, portanto não há medida ou captura local. A fixture HTTP usa
+as páginas reais dos dois produtos a 320/390/1440 px; sua prova própria, o registry
+e o workspace completos permanecem pendentes do CI desta branch.
+[Contrato e limites](docs/reviews/SITES-RENDERER-LONG-TEXT-2026-11-18.md).
+
 ## 18/11/2026 — entrada privada de registro do briefing armazenado
 
-Branch `feature/sites-brief-provenance-registration-2026-11-18`, construída sobre a
-[#521](https://github.com/rafhael100/imagine-sites/pull/521) validada no HEAD
-`73d610513c777c5f3a1709fcb19263d6073139c6`. A nova CLI candidata
+A [PR #522](https://github.com/rafhael100/imagine-sites/pull/522), branch
+`feature/sites-brief-provenance-registration-2026-11-18`, concluiu **12/12 checks
+SUCCESS** no HEAD `0b735a1794ee3bb965e5a05d5d738083ddac9544`, sobre a #521
+validada em `73d610513c777c5f3a1709fcb19263d6073139c6`. A CLI candidata
 `register-provenance.php` reutiliza `StoredBriefReleaseRegistration`, sem novo
 serviço, SQL ou migration. Manifesto, plano, editorial, duas credenciais e CA
 ocupam seis mounts privados fixos. O reader do snapshot e o writer usam logins
@@ -24,9 +49,17 @@ aceita somente a API exata de leitura do snapshot, em sessão somente leitura.
 PASS**, com revisão independente do wrapper e da fronteira de conexão. A suíte
 geral local também passou com **279 testes/4250 assertions/27 skips**, usando
 `--do-not-cache-result`; o workflow preserva quinze opt-ins e a base exata. A fixture
-nova reaproveita snapshots e o inspetor existentes; os resultados reais e o cleanup
-ainda dependem do CI desta branch. O scan de **677 fontes** e os links da
-documentação passaram, mantendo os dez gates BLOCKED. [Manual do registro privado](docs/STORED-BRIEF-REGISTRATION-CLI.md).
+reaproveitou snapshots e o inspetor existentes, confirmou dois pares novos de
+artefato/associação e apurou a saída descartada sem retry. O scan de **677 fontes**
+e os links passaram, mantendo os dez gates BLOCKED.
+
+| Prova final da #522 | Resultado confirmado |
+| --- | --- |
+| [Registry — run 44349683339](https://github.com/rafhael100/imagine-sites/actions/runs/44349683339) | PHP 8.3/8.4: **95 offline**, **27 novos de registro**, 25 de inspeção, 119 de composição e **1094 totais**; seis arquivos novos e três do inspetor removidos e clusters próprios inativos. |
+| [Laravel — run 44349683049](https://github.com/rafhael100/imagine-sites/actions/runs/44349683049) | PHP 8.3/8.4: padrão **279/4250/27** e sintético **279/4262/21**. |
+
+Não houve nova execução F383 ou de containers na #522. A correção posterior do
+renderer e seus exemplos atualizados têm a validação própria indicada acima. [Manual do registro privado](docs/STORED-BRIEF-REGISTRATION-CLI.md).
 
 ## 18/11/2026 — consulta privada exata da proveniência
 

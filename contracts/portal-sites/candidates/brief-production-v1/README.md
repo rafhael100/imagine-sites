@@ -50,9 +50,12 @@ editorial. Plano e manifesto têm, cada um, o teto de **32768 bytes**.
 | `examples/brief-render-plan.synthetic.json` | Liga o SHA do arquivo de snapshot, o SHA/tamanho do input editorial e o SHA/tamanho do HTML esperado. Não é recibo de execução ou registro. |
 | [examples/brief-snapshot-receipt.synthetic.json](examples/brief-snapshot-receipt.synthetic.json) | Sexto exemplo: treze campos coerentes com o snapshot fictício, incluindo um timestamp inventado. Não representa execução SQL, commit ou aprovação. |
 
-A proposta documental #517 continha três schemas e cinco exemplos. Esses
-artefatos históricos foram preservados; o recibo acrescenta o quarto schema
-e o sexto exemplo.
+A proposta documental #517 continha três schemas e cinco exemplos; o recibo
+acrescenta o quarto schema e o sexto exemplo. Os
+[vetores originais da #517](https://github.com/rafhael100/imagine-sites/tree/c53eac9eb8060a62eb060e68f3bc5b2956dbbdff/contracts/portal-sites/candidates/brief-production-v1/examples)
+continuam fixados naquele commit. O corpo rico, o input editorial e o snapshot
+mantêm os bytes originais. O HTML e a expectativa de artefato do plano corrente
+foram regenerados para acompanhar a correção CSS de quebra de textos longos.
 
 O exemplo não contém materiais: declara logo e manual indisponíveis. Não prova
 upload, validação de conteúdo, autorização de download ou conferência humana.
@@ -68,10 +71,20 @@ caminhos nem URLs e não autorizam leitura.
 
 O HTML do exemplo foi materializado com
 [`LocalSiteRendering::render`](../../../../src/Production/LocalSiteRendering.php),
-sem alterar seu parser, template, avisos ou digest. Isso demonstra uma ligação
-técnica entre arquivos fictícios. O modo abaixo acrescenta a gravação de
-proveniência local, sem estabelecer consumo de briefing oficial, idempotência
-durável, aprovação editorial ou publicação.
+preservando o input editorial, escaping, estrutura HTML e avisos. O vetor
+corrente tem **5223 bytes** e SHA-256
+`ab999fc8c61d4f22ab250c6d5d86442a0ceca24659d1f4173db3580e4694740e`;
+o plano corrente conserva 840 bytes e tem SHA-256
+`742647a821be501c3c1d58153fd93150ecfd82d134473a96b4761529c700c276`.
+A prova histórica da #517 permanece **5167 bytes** e SHA-256
+`12549ec46a09e83ea76353a43a48723daa99aa30c6bbdd461923f1a800543d15`.
+
+A atualização desses exemplos não reescreve HTML, digests, planos ou recibos
+persistidos. Um plano com a expectativa antiga é recusado pelo renderer atual
+quando os bytes esperados divergem; não existe fallback ou adaptação automática.
+Uma nova geração requer plano e compromisso revistos e segue as regras de novo
+release/replay do registry. Esses arquivos fictícios não provam aprovação
+editorial, autoridade do Portal ou publicação.
 
 ## Armazenamento técnico candidato implementado
 

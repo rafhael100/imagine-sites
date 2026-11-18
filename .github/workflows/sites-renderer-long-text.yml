@@ -1,0 +1,276 @@
+name: Sites renderer long text across private preview and provenance (isolated draft)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['feature/sites-brief-provenance-registration-2026-11-18']
+    paths:
+      - '.github/workflows/sites-renderer-long-text.yml'
+      - 'src/Production/**'
+      - 'src/Publication/**'
+      - 'contracts/release-registry/**'
+      - 'apps/sites/tests/**'
+      - 'apps/sites/app/Integration/**'
+      - 'apps/sites/database/migrations/**'
+      - 'contracts/portal-sites/002-brief-snapshots.sql'
+      - 'ops/release-candidate/**'
+      - 'contracts/portal-sites/candidates/brief-production-v1/**'
+      - 'tests/**'
+permissions:
+  contents: read
+concurrency:
+  group: sites-renderer-long-text-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  workspace-and-provenance:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'fix/sites-renderer-long-text-2026-11-18' &&
+      github.event.pull_request.base.ref == 'feature/sites-brief-provenance-registration-2026-11-18' &&
+      github.event.pull_request.base.sha == '0b735a1794ee3bb965e5a05d5d738083ddac9544'
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo_pgsql, mbstring, sodium, dom, xml
+          tools: composer:v2
+          coverage: none
+      - name: Extract authenticated official PG18 tooling without system installation
+        run: |
+          set -euo pipefail
+          . /etc/os-release
+          test "$ID" = ubuntu
+          test "$VERSION_CODENAME" = noble
+          test "$(dpkg --print-architecture)" = amd64
+          tooling=$(mktemp -d "$RUNNER_TEMP/sites-renderer-wrap-pg18-XXXXXXXX")
+          mkdir -p "$tooling/lists/partial" "$tooling/cache/archives/partial" "$tooling/debs" "$tooling/root"
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc -o "$tooling/pgdg.asc"
+          fingerprint=$(gpg --batch --show-keys --with-colons "$tooling/pgdg.asc" | awk -F: '$1 == "fpr" {print $10; exit}')
+          test "$fingerprint" = B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8
+          test -r /usr/share/keyrings/ubuntu-archive-keyring.gpg
+          # All APT indexes/cache/config are local. Normal signature/hash checks remain enabled.
+          # No system APT hooks, package installation, maintainer scripts or global files.
+          cat > "$tooling/apt.conf" <<EOF
+          Dir::Etc::parts "-";
+          Dir::Etc::main "-";
+          Dir::Etc::sourcelist "$tooling/sources.list";
+          Dir::Etc::sourceparts "-";
+          Dir::State::lists "$tooling/lists";
+          Dir::Cache "$tooling/cache";
+          Dir::Log "$tooling";
+          EOF
+          cat > "$tooling/sources.list" <<EOF
+          deb [signed-by=$tooling/pgdg.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://archive.ubuntu.com/ubuntu noble main universe
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://archive.ubuntu.com/ubuntu noble-updates main universe
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://security.ubuntu.com/ubuntu noble-security main universe
+          EOF
+          export APT_CONFIG="$tooling/apt.conf"
+          apt-get --error-on=any update -qq
+          cd "$tooling/debs"
+          # Other runtime libraries are supplied by the standard Noble runner and checked below.
+          apt-get download postgresql-18 postgresql-client-18 libpq5 liburing2
+          for package in ./*.deb; do
+            dpkg-deb --show "$package"
+            sha256sum "$package"
+            dpkg-deb --extract "$package" "$tooling/root"
+          done
+          pg_bin="$tooling/root/usr/lib/postgresql/18/bin"
+          runtime_lib="$tooling/root/usr/lib/x86_64-linux-gnu"
+          export LD_LIBRARY_PATH="$runtime_lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          for binary in postgres initdb pg_ctl pg_controldata psql; do
+            ldd "$pg_bin/$binary" > "$tooling/$binary.ldd"
+            cat "$tooling/$binary.ldd"
+            if grep -q 'not found' "$tooling/$binary.ldd"; then
+              echo 'Required local runtime library unavailable; stopping before cluster creation' >&2
+              exit 1
+            fi
+          done
+          "$pg_bin/initdb" --version | grep -E '^initdb \(PostgreSQL\) 18[.]'
+          "$pg_bin/postgres" --version | grep -E '^postgres \(PostgreSQL\) 18[.]'
+          echo "PG_BIN=$pg_bin" >> "$GITHUB_ENV"
+          echo "SITES_PG_RUNTIME_LIB=$runtime_lib" >> "$GITHUB_ENV"
+      - name: Locked application dependencies without scripts or plugins
+        run: composer install --working-dir=apps/sites --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+      - name: Validate renderer, private workspace and inherited provenance contracts
+        run: |
+          set -euo pipefail
+          php -l src/Production/StaticSiteRenderer.php
+          php -l tests/private-preview-role-contract.php
+          php -l tests/portal-brief-snapshot-pg-contract.php
+          bash -n tests/run-private-preview-role-contract.sh
+          php -l ops/release-candidate/register-provenance.php
+          php -l tests/brief-artifact-registration-cli-offline.php
+          php -l tests/fixtures/brief-artifact-registration/contract.php
+          python3 -c "from pathlib import Path; p=Path('tests/fixtures/brief-artifact-registration/cli-paths.py'); compile(p.read_text(), str(p), 'exec')"
+          php -l ops/release-candidate/inspect-provenance.php
+          php -l tests/brief-artifact-inspection-cli-offline.php
+          php -l tests/fixtures/brief-artifact-inspection/contract.php
+          python3 -c "from pathlib import Path; p=Path('tests/fixtures/brief-artifact-inspection/cli-paths.py'); compile(p.read_text(), str(p), 'exec')"
+          php -l src/Production/BriefRenderProvenance.php
+          php -l src/Production/BriefRenderPlanInput.php
+          php -l src/Publication/ReleaseArtifactConnection.php
+          php -l src/Publication/PrivateReleaseRegistration.php
+          php -l apps/sites/app/Integration/BriefReleaseReceipt.php
+          php -l apps/sites/app/Integration/StoredBriefReleaseRegistration.php
+          php -l apps/sites/app/Integration/StoredBriefReleaseReceiptReader.php
+          php -l apps/sites/database/migrations/2026_11_18_000014_add_brief_artifact_provenance.php
+          php -l tests/fixtures/brief-artifact-provenance/contract.php
+          php -l src/Production/BriefCandidateJson.php
+          php -l src/Production/BriefSnapshotInput.php
+          php -l apps/sites/app/Integration/BriefSnapshotTransaction.php
+          php -l apps/sites/app/Integration/PortalBriefSnapshotRecorder.php
+          php -l apps/sites/app/Integration/StoredBriefSnapshotReader.php
+          php -l apps/sites/app/Integration/StoredBriefRendering.php
+          php -l apps/sites/database/migrations/2026_11_18_000013_add_portal_brief_snapshots.php
+          php -l tests/release-registry-pg-contract.php
+          php -l src/Production/LocalSiteRenderingFiles.php
+          php -l ops/release-candidate/render.php
+          php -l tests/brief-render-provenance-offline.php
+          php -l tests/local-site-rendering-provenance-cli-offline.php
+          php -l tests/fixtures/release-registration/contract.php
+          bash -n tests/run-release-registry-contract.sh
+      - name: Existing local mode and four-input provenance contracts
+        run: |
+          set -euo pipefail
+          export PHP_BIN="$(command -v php)"
+          php tests/f6-run.php
+          php tests/brief-artifact-registration-cli-offline.php
+          php tests/brief-artifact-inspection-cli-offline.php
+          php tests/local-site-rendering-offline.php
+          php tests/local-site-rendering-cli-offline.php
+          php tests/brief-render-provenance-offline.php
+          php tests/local-site-rendering-provenance-cli-offline.php
+      - name: Private workspace contract in its own disposable PG18 cluster
+        run: |
+          set -euo pipefail
+          export LD_LIBRARY_PATH="$SITES_PG_RUNTIME_LIB${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          export PHP_BIN="$(command -v php)"
+          bash tests/run-private-preview-role-contract.sh | tee "$RUNNER_TEMP/sites-renderer-long-text-workspace.log"
+          grep -q '^REVIEW PAGINATION SQL PASS: 25 new assertions; 404 existing assertions retained[.]' "$RUNNER_TEMP/sites-renderer-long-text-workspace.log"
+          grep -q '^OK: 429 synthetic ownership/ACL/RLS/profile assertions;' "$RUNNER_TEMP/sites-renderer-long-text-workspace.log"
+          grep -q '^Own disposable cluster inactive;' "$RUNNER_TEMP/sites-renderer-long-text-workspace.log"
+      - name: Complete provenance pipeline with the current renderer and private actors
+        env:
+          SITES_RELEASE_REGISTRY_CI: '1'
+          SITES_PUBLICATION_JOURNAL_CI: '1'
+          SITES_PUBLICATION_INSPECTION_CI: '1'
+          SITES_RELEASE_REGISTRATION_CI: '1'
+          SITES_EDITORIAL_TRANSITION_CI: '1'
+          SITES_RELEASE_BINDING_CI: '1'
+          SITES_PUBLICATION_RECONCILIATION_CI: '1'
+          SITES_PUBLICATION_REQUEST_CI: '1'
+          SITES_EDITORIAL_INSPECTION_CI: '1'
+          SITES_RELEASE_BINDING_INSPECTION_CI: '1'
+          SITES_REGISTRY_INTAKE_PERMISSIONS_CI: '1'
+          SITES_BRIEF_SNAPSHOTS_CI: '1'
+          SITES_BRIEF_ARTIFACT_PROVENANCE_CI: '1'
+          SITES_BRIEF_ARTIFACT_INSPECTION_CI: '1'
+          SITES_BRIEF_ARTIFACT_REGISTRATION_CI: '1'
+        run: |
+          set -euo pipefail
+          export LD_LIBRARY_PATH="$SITES_PG_RUNTIME_LIB${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          export PHP_BIN="$(command -v php)"
+          bash tests/run-release-registry-contract.sh | tee "$RUNNER_TEMP/sites-renderer-long-text-registry.log"
+          grep -q '^LOCAL RENDERING REGISTRY CI PASS: 4 new assertions;' "$RUNNER_TEMP/sites-renderer-long-text-registry.log"
+          grep -q '^LOCAL RENDER PROVENANCE REGISTRY CI PASS: 4 new assertions;' "$RUNNER_TEMP/sites-renderer-long-text-registry.log"
+          grep -q '^NATIVE BRIEF SCHEMA REGISTRY CI PASS: 1 new assertion;' "$RUNNER_TEMP/sites-renderer-long-text-registry.log"
+          grep -q '^BRIEF ARTIFACT PREDECESSOR CI PASS: 923 assertions;' "$RUNNER_TEMP/sites-renderer-long-text-registry.log"
+          grep -q '^BRIEF ARTIFACT PROVENANCE CI PASS: 119 new assertions; 923 existing assertions retained[.]' "$RUNNER_TEMP/sites-renderer-long-text-registry.log"
+          grep -q '^BRIEF ARTIFACT INSPECTION CI PASS: 25 assertions;' "$RUNNER_TEMP/sites-renderer-long-text-registry.log"
+          grep -q '^BRIEF ARTIFACT REGISTRATION CI PASS: 27 assertions;' "$RUNNER_TEMP/sites-renderer-long-text-registry.log"
+          grep -q '^OK: 1094 persistent release registry assertions;' "$RUNNER_TEMP/sites-renderer-long-text-registry.log"
+          grep -q '^Own disposable release registry cluster inactive;' "$RUNNER_TEMP/sites-renderer-long-text-registry.log"
+  preview-http:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'fix/sites-renderer-long-text-2026-11-18' &&
+      github.event.pull_request.base.ref == 'feature/sites-brief-provenance-registration-2026-11-18' &&
+      github.event.pull_request.base.sha == '0b735a1794ee3bb965e5a05d5d738083ddac9544'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SITES_PREVIEW_HTTP_CI: '1'
+      PREVIEW_CI_MATERIAL: /tmp/sites-preview-http-material
+      PREVIEW_HTTP_EVIDENCE: /tmp/sites-preview-http-evidence
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Prepare one-run synthetic materials, no operational identity
+        run: sudo --preserve-env=GITHUB_ACTIONS,SITES_PREVIEW_HTTP_CI,PREVIEW_CI_MATERIAL python3 tests/fixtures/preview-http/prepare.py
+      - name: Build application candidate and start disposable private PostgreSQL
+        run: |
+          set -euo pipefail
+          docker compose -f tests/fixtures/preview-http/compose.yaml build app
+          docker compose -f tests/fixtures/preview-http/compose.yaml up -d --wait db
+          cluster=$(docker compose -f tests/fixtures/preview-http/compose.yaml exec -T db psql -U postgres -d sites_preview_http_ci -Atc 'SELECT system_identifier FROM pg_control_system()')
+          echo "PREVIEW_EXPECTED_CLUSTER=$cluster" >> "$GITHUB_ENV"
+      - name: Verify SQL identity before additive schema on disposable database only
+        run: |
+          set -euo pipefail
+          args=(-f tests/fixtures/preview-http/compose.yaml run --rm --no-deps --user 0 -v "$PREVIEW_CI_MATERIAL:/run/ci:ro" -v "$GITHUB_WORKSPACE/tests/fixtures/preview-http:/tmp/preview-fixtures:ro" -e GITHUB_ACTIONS=true -e SITES_PREVIEW_HTTP_CI=1)
+          if docker compose "${args[@]}" -e PREVIEW_EXPECTED_CLUSTER=0 app php /tmp/preview-fixtures/bootstrap.php > "$RUNNER_TEMP/denied.log" 2>&1; then
+            echo 'Wrong cluster bootstrap accepted' >&2; exit 1
+          fi
+          grep -q PREVIEW_HTTP_BOOTSTRAP_DENIED "$RUNNER_TEMP/denied.log"
+          test "$(docker compose -f tests/fixtures/preview-http/compose.yaml exec -T db psql -U postgres -d sites_preview_http_ci -Atc "SELECT count(*) FROM pg_namespace WHERE nspname='sites_preview'")" = 0
+          docker compose "${args[@]}" -e PREVIEW_EXPECTED_CLUSTER="$PREVIEW_EXPECTED_CLUSTER" app php /tmp/preview-fixtures/bootstrap.php
+      - name: Real FPM Nginx HTTPS nominal access with TLS verified
+        run: |
+          set -euo pipefail
+          docker compose -f tests/fixtures/preview-http/compose.yaml up -d app proxy
+          for attempt in $(seq 1 30); do
+            code=$(curl --cacert "$PREVIEW_CI_MATERIAL/ca.pem" -s -o /dev/null -w '%{http_code}' https://127.0.0.1:18496/_preview || true)
+            if test "$code" = 401; then break; fi
+            sleep 1
+          done
+          test "$code" = 401
+          if curl --cacert "$PREVIEW_CI_MATERIAL/db.pem" -s -o /dev/null https://127.0.0.1:18496/_preview; then
+            echo 'Wrong trust anchor accepted' >&2; exit 1
+          fi
+      - name: Real authenticated browser journey and failure recovery
+        run: |
+          set -euo pipefail
+          sudo chmod 644 "$PREVIEW_CI_MATERIAL/browser.json"
+          mkdir -p "$RUNNER_TEMP/preview-browser"
+          cd "$RUNNER_TEMP/preview-browser"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund playwright@1.58.2 >/dev/null
+          npx playwright install --with-deps chromium >/dev/null
+          NODE_PATH="$RUNNER_TEMP/preview-browser/node_modules" node "$GITHUB_WORKSPACE/tests/fixtures/preview-http/browser.cjs" | tee "$RUNNER_TEMP/sites-renderer-long-text-http.log"
+          grep -q '^REVIEW PAGINATION HTTP PASS: 39 new checks; 394 existing checks retained[.]' "$RUNNER_TEMP/sites-renderer-long-text-http.log"
+          grep -q '^REVIEW ACCESSIBILITY HTTP PASS: 6 new checks; 433 existing checks retained[.]' "$RUNNER_TEMP/sites-renderer-long-text-http.log"
+          grep -q '^RENDERER WRAP HTTP PASS: 8 new checks; 439 existing checks retained;' "$RUNNER_TEMP/sites-renderer-long-text-http.log"
+          grep -q '^PREVIEW HTTP BROWSER PASS: 447 checks;' "$RUNNER_TEMP/sites-renderer-long-text-http.log"
+      - name: Sanitized failure status
+        if: failure()
+        run: |
+          docker compose -f tests/fixtures/preview-http/compose.yaml ps
+          docker compose -f tests/fixtures/preview-http/compose.yaml logs --tail 20 app proxy
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: sites-renderer-long-text-preview-http
+          path: /tmp/sites-preview-http-evidence
+          retention-days: 7
+      - name: Remove CI-only disposable resources
+        if: always()
+        run: |
+          docker compose -f tests/fixtures/preview-http/compose.yaml down -v --remove-orphans
+          sudo rm -rf "$PREVIEW_CI_MATERIAL"

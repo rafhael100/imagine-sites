@@ -172,6 +172,6 @@ em PostgreSQL/TLS foi aprovada nas duas versões PHP:
 
 A #521 não possui nova prova F383 ou de containers: essas evidências pertencem
 à base #520. Os resultados acima também não provam a execução da nova CLI de
-registro, que possui validação própria pendente. Nenhum teste autoriza merge,
+registro, cuja validação própria na #522 está no [manual correspondente](STORED-BRIEF-REGISTRATION-CLI.md). Nenhum teste autoriza merge,
 deploy ou dados reais. Os dez gates de prontidão continuam BLOCKED e
 AGI-11-RB01 permanece desativado.

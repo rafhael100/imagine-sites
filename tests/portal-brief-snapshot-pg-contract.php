@@ -33,8 +33,8 @@ final class BriefSnapshotFixtureAssertion extends RuntimeException {}
 const BS_PASSWORD = 'native-brief-snapshot-fictional-only';
 const BS_RECORD_API = 'sites_core.record_portal_brief_snapshot(text,text)';
 const BS_READ_API = 'sites_core.read_portal_brief_snapshot(uuid,uuid,integer,text)';
-const BS_HTML_SHA = '12549ec46a09e83ea76353a43a48723daa99aa30c6bbdd461923f1a800543d15';
-const BS_HTML_BYTES = 5167;
+const BS_HTML_SHA = 'ab999fc8c61d4f22ab250c6d5d86442a0ceca24659d1f4173db3580e4694740e';
+const BS_HTML_BYTES = 5223;
 
 $bsChecks = 0;
 $bsStage = 'initial configuration';
