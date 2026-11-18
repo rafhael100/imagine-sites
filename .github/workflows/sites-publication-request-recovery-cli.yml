@@ -1,0 +1,58 @@
+name: Sites private publication request recovery CLI (draft)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['feature/sites-publication-request-reader-2026-11-18']
+    paths:
+      - '.github/workflows/sites-publication-request-recovery-cli.yml'
+      - 'src/Publication/PrivatePublicationRequestRecovery.php'
+      - 'src/Publication/PrivatePublicationRequestReceipt.php'
+      - 'ops/publication-candidate/recover-request.php'
+      - 'tests/publication-request-recovery-cli-offline.php'
+      - 'docs/PUBLICATION-REQUEST-RECOVERY-CLI.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sites-request-recovery-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  recovery-offline:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'feature/sites-publication-request-recovery-cli-2026-11-18' &&
+      github.event.pull_request.base.sha == '849636107cc8562f68ad6c42a34bb71c5b7f66e1'
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    timeout-minutes: 8
+    steps:
+      - name: Checkout exact unmerged review candidate
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Setup isolated PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          extensions: mbstring, pdo_pgsql
+          tools: none
+      - name: Validate CLI, recovery service and file custody
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l src/Publication/PrivatePublicationRequestRecovery.php
+          php -l src/Publication/PrivatePublicationRequestReceipt.php
+          php -l ops/publication-candidate/recover-request.php
+          php -l tests/publication-request-recovery-cli-offline.php
+          php tests/publication-request-recovery-cli-offline.php | tee "$RUNNER_TEMP/recovery-cli.log"
+          grep -Eq '^PUBLICATION RECOVERY CLI OFFLINE PASS: [1-9][0-9]* checks; no SQL result simulated[.]$' "$RUNNER_TEMP/recovery-cli.log"

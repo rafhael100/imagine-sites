@@ -165,6 +165,13 @@ SQL)->fetchColumn(), true, 64, JSON_THROW_ON_ERROR);
                 'selectors' => [$prrExpected['siteRef'], $prrExpected['releaseRef'], $prrExpected['bindingRevision'],
                     $prrExpected['portalAcceptanceRef'], $prrExpected['idempotencyKey']]];
         }
+        if (getenv('SITES_PUBLICATION_REQUEST_RECOVERY_CI') === '1') {
+            // Recover an existing real journal UUID with the reader validated here.
+            // Own fixture assertions are separate from the 33 historical checks.
+            (require dirname(__DIR__).'/publication-request-recovery/contract.php')(
+                $prrAdmin, $prrPassword, $prrCases, $prrDbs, $prrState,
+            );
+        }
         $prrRead = static fn (string $company, array $selectors): array => $prrReaders[$company]->readRequest(...$selectors);
         $prrRaw = static fn (string $company, array $selectors): mixed => bapSql($prrDbs[$company], $prrSignature, $selectors)->fetchColumn();
         $prrUnavailable = static function (callable $operation): bool {

@@ -3,6 +3,10 @@ set -euo pipefail
 # Own disposable CI cluster only. Never attach to an existing service or target.
 test "${GITHUB_ACTIONS:-}" = true
 test "${SITES_RELEASE_REGISTRY_CI:-}" = 1
+if [[ "${SITES_PUBLICATION_REQUEST_RECOVERY_CI:-}" == 1 ]]; then
+  test "${SITES_PUBLICATION_REQUEST_READER_CI:-}" = 1
+  test "${SITES_PUBLICATION_REQUEST_CI:-}" = 1
+fi
 if [[ "${SITES_PUBLICATION_REQUEST_READER_CI:-}" == 1 ]]; then
   test "${SITES_PROJECT_INTAKE_RECOVERY_CLI_CI:-}" = 1
 fi
@@ -118,6 +122,11 @@ cleanup() {
   if [[ "${SITES_EDITORIAL_INSPECTION_CI:-}" == 1 && -f "$lab/editorial-inspection-paths.json" ]]; then
     sudo -n env GITHUB_ACTIONS=true SITES_RELEASE_REGISTRY_CI=1 SITES_EDITORIAL_INSPECTION_CI=1 \
       python3 "$repo/tests/fixtures/editorial-inspection/cli-paths.py" \
+      cleanup "$lab" "$(id -u)" "$(id -g)" || failed=1
+  fi
+  if [[ "${SITES_PUBLICATION_REQUEST_RECOVERY_CI:-}" == 1 && -f "$lab/publication-request-recovery-paths.json" ]]; then
+    sudo -n env GITHUB_ACTIONS=true SITES_RELEASE_REGISTRY_CI=1 SITES_PUBLICATION_REQUEST_RECOVERY_CI=1 \
+      python3 "$repo/tests/fixtures/publication-request-recovery/cli-paths.py" \
       cleanup "$lab" "$(id -u)" "$(id -g)" || failed=1
   fi
   if [[ "${SITES_PUBLICATION_REQUEST_CI:-}" == 1 && -f "$lab/publication-request-paths.json" ]]; then
@@ -328,6 +337,15 @@ if [[ "${SITES_PROJECT_INTAKE_RECOVERY_CLI_CI:-}" == 1 ]]; then
     python3 "$repo/tests/fixtures/project-intake-recovery/cli-paths.py" \
     verify-mismatch "$lab" "$(id -u)" "$(id -g)"
 fi
+if [[ "${SITES_PUBLICATION_REQUEST_RECOVERY_CI:-}" == 1 ]]; then
+  test "${SITES_PUBLICATION_REQUEST_READER_CI:-}" = 1
+  sudo -n env GITHUB_ACTIONS=true SITES_RELEASE_REGISTRY_CI=1 SITES_PUBLICATION_REQUEST_RECOVERY_CI=1 \
+    python3 "$repo/tests/fixtures/publication-request-recovery/cli-paths.py" \
+    prepare "$lab" "$(id -u)" "$(id -g)"
+  sudo -n env GITHUB_ACTIONS=true SITES_RELEASE_REGISTRY_CI=1 SITES_PUBLICATION_REQUEST_RECOVERY_CI=1 \
+    python3 "$repo/tests/fixtures/publication-request-recovery/cli-paths.py" \
+    verify-mismatch "$lab" "$(id -u)" "$(id -g)"
+fi
 "$PHP_BIN" "$repo/tests/release-registry-pg-contract.php" | tee "$lab/contract.log"
 grep -q '^OK: [1-9][0-9]* persistent release registry assertions;' "$lab/contract.log"
 grep -q '^TECHNICAL PACKAGE CI PASS: [1-9][0-9]* assertions;' "$lab/contract.log"
@@ -396,6 +414,9 @@ if [[ "${SITES_PROJECT_INTAKE_RECOVERY_CLI_CI:-}" == 1 ]]; then
   if [[ "${SITES_PUBLICATION_REQUEST_READER_CI:-}" != 1 ]]; then
     grep -q '^OK: 1208 persistent release registry assertions;' "$lab/contract.log"
   fi
+fi
+if [[ "${SITES_PUBLICATION_REQUEST_RECOVERY_CI:-}" == 1 ]]; then
+  grep -q '^PUBLICATION REQUEST RECOVERY CLI PG PASS: [1-9][0-9]* checks;' "$lab/contract.log"
 fi
 if [[ "${SITES_PUBLICATION_REQUEST_READER_CI:-}" == 1 ]]; then
   grep -q '^PUBLICATION REQUEST READER CI PASS: 33 assertions; 1208 existing assertions retained;' "$lab/contract.log"
