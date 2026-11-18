@@ -166,6 +166,24 @@ jobs anteriores reverteram as quinze migrations próprias e removeram os três s
 cluster Sites, removeram os helpers na ordem correta e encerraram o serviço
 Portal com sua rede. Não houve consumo de recibo confirmado nessa tentativa.
 
+### Terceira execução e inventário nativo das tabelas
+
+O [run 44388532734](https://github.com/rafhael100/imagine-sites/actions/runs/44388532734),
+HEAD `dcafa152cee70a8387b7e1d1fcc54e5355f2b28a`, jobs **135099575441 /
+135099576110**, passou pelo comando nativo do Portal e recusou o inventário
+inicial da fixture. A regra genérica exigia RLS nas 23 tabelas, mas o contrato
+[do preview](../../contracts/private-preview/001-workspace.sql) conserva
+`sites_preview.principals` como diretório global privado por grants; apenas as
+quatro tabelas de recursos desse schema têm RLS habilitada e forçada.
+
+A fixture agora compara o mapa exato das 23 relações, seus nomes, tipo de tabela
+e dois flags: quinze core, três journal e quatro preview com `true/true`, e
+somente `sites_preview.principals` com `false/false`. Relações extras, ausentes
+ou substituídas continuam recusadas. SQL, grants e políticas permanecem
+inalterados, assim como o total13. Lint e diffcheck passaram. Os dois jobs
+confirmaram rollback15, ausência dos schemas e cleanup dos dois ambientes;
+não chegaram a confirmar recebimento e recuperação do recibo.
+
 ## Limites da conclusão
 
 A prova cobre o pedido Onepage nativo de revisão 1 e este consumidor fixado.

@@ -683,13 +683,49 @@ function prbRecover(PDO $db, array $context, array $identity): void
     $initial = prbState($db);
     $receiveOutputs = prbOutputs(PRB_RECEIVE_PARENT, PRB_RECEIVE_REF);
     $recoveryOutputs = prbOutputs(PRB_RECOVERY_PARENT, PRB_RECOVERY_REF);
+    // Native preview keeps its global principal directory private through
+    // grants; its four resource tables, all core tables and journal use RLS.
+    $expectedTables = [
+        'sites_core.contract_refs'=>true,
+        'sites_core.db_login_bindings'=>true,
+        'sites_core.editorial_operator_bindings'=>true,
+        'sites_core.editorial_revisions'=>true,
+        'sites_core.portal_brief_principals'=>true,
+        'sites_core.portal_brief_snapshots'=>true,
+        'sites_core.portal_project_intakes'=>true,
+        'sites_core.release_artifact_provenance'=>true,
+        'sites_core.release_artifacts'=>true,
+        'sites_core.release_binding_events'=>true,
+        'sites_core.release_registry_principals'=>true,
+        'sites_core.replay_nonces'=>true,
+        'sites_core.site_outbox'=>true,
+        'sites_core.site_projects'=>true,
+        'sites_core.tenant_accounts'=>true,
+        'sites_preview.audit'=>true,
+        'sites_preview.principals'=>false,
+        'sites_preview.projects'=>true,
+        'sites_preview.reviews'=>true,
+        'sites_preview.versions'=>true,
+        'sites_publication.journal_events'=>true,
+        'sites_publication.journal_operations'=>true,
+        'sites_publication.journal_principals'=>true,
+    ];
+    $expectedProfile = [];
+    foreach ($expectedTables as $relation=>$forced) {
+        $expectedProfile[] = ['relation'=>$relation,'relkind'=>'r',
+            'relrowsecurity'=>$forced,'relforcerowsecurity'=>$forced];
+    }
+    $tableProfile = $db->query("SELECT n.nspname||'.'||c.relname AS relation,
+        c.relkind,c.relrowsecurity,c.relforcerowsecurity
+        FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+        WHERE n.nspname IN ('sites_core','sites_publication','sites_preview')
+          AND c.relkind IN ('r','p','v','m','f')
+        ORDER BY n.nspname COLLATE \"C\",c.relname COLLATE \"C\"")->fetchAll(PDO::FETCH_ASSOC);
     prbCheck(count(prbTracked($db)) === 15 && count($initial['rows']) === 23 &&
         array_unique(array_values($initial['rows'])) === ['[]'] &&
         $receiveOutputs['files'] === [] && $recoveryOutputs['files'] === [] &&
         (int)$db->query("SELECT count(*) FROM pg_roles WHERE rolname IN ('pir_a_receiver','pirr_a_reader')")->fetchColumn() === 0 &&
-        (int)$db->query("SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-            WHERE n.nspname IN ('sites_core','sites_publication','sites_preview') AND c.relkind IN ('r','p')
-            AND (NOT c.relrowsecurity OR NOT c.relforcerowsecurity)")->fetchColumn() === 0,
+        $tableProfile === $expectedProfile,
         'all product tables and both private destinations are fresh before the one intake');
     $inputEvidence = prbInputs();
     foreach (['/run/secrets/sites_project_intake_receive_password','/run/secrets/sites_project_intake_recovery_reader'] as $path) {

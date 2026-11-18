@@ -44,6 +44,16 @@ A fixture agora exige configuração Portal efetivamente sem debug e serializa
 intactos. A conversão foi reproduzida com Loader/PhpHandler reais, sem app ou SQL;
 lint e diffcheck PASS. Cleanup Sites, helpers e serviço/rede Portal confirmados.
 
+A terceira execução, HEAD `dcafa152cee70a8387b7e1d1fcc54e5355f2b28a`,
+[run 44388532734](https://github.com/rafhael100/imagine-sites/actions/runs/44388532734),
+chegou ao comando nativo no bridge. Parou no segundo check, pois a fixture exigia
+FORCE RLS também na tabela global `sites_preview.principals`, cujo contrato
+nativo usa grants restritos. O ajuste compara nomes, tipo e ambos os flags das
+23 tabelas: 22 com RLS habilitada/forçada e essa tabela com ambos falsos, recusando
+ausências, extras e tipos divergentes. Nenhum SQL ou privilégio foi modificado.
+Rollback15 e cleanup passaram nas duas versões; a jornada de recibo aguarda CI.
+
+
 
 
 ## 18/11/2026 — recuperação privada do recibo validada na #532
