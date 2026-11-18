@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:imagine-sites:candidate:brief-snapshot:v0.1",
+  "title": "sites.brief-snapshot.candidate.v0.1",
+  "description": "Proposed private immutable Onepage briefing snapshot. Every identity and sourceState is a selector or declaration, never authentication or proof of payment, material approval, client acceptance or permission to generate/publish.",
+  "$comment": "Schema validation alone cannot verify private access, duplicate JSON keys, exact byte digests/sizes, source authority, source-version history, CAS, idempotency, unique material payloadRef values or total material bytes. The candidate semantic rules require briefRevision = expectedBriefRevision + 1, unique material payloadRef values and at most 52428800 material bytes. sourceVersion is the legacy aggregate order version; it is not briefRevision. The private JSON body follows onepage-brief-payload.schema.json plus its documented UTF-16 and submission semantics. No byte normalization or JSON re-encoding is allowed when checking a referenced SHA-256.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "operationId",
+    "idempotencyKey",
+    "tenantRef",
+    "siteRef",
+    "orderRef",
+    "contractRef",
+    "contractRevision",
+    "productCode",
+    "sourceProfile",
+    "sourceVersion",
+    "sourceState",
+    "snapshotRef",
+    "expectedBriefRevision",
+    "briefRevision",
+    "payload",
+    "materials"
+  ],
+  "$defs": {
+    "reference": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+      "not": {"pattern": "[\r\n]"},
+      "description": "Opaque selector. It is not a URL, path, credential or permission to resolve a private object."
+    },
+    "uuid": {
+      "type": "string",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$"
+    },
+    "sha256": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "Lowercase SHA-256 of the exact referenced bytes, including any whitespace or final LF. Not a semantic JSON digest."
+    },
+    "briefPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["payloadRef", "mediaType", "sizeBytes", "sha256"],
+      "properties": {
+        "payloadRef": {"$ref": "#/$defs/reference"},
+        "mediaType": {"const": "application/json"},
+        "sizeBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 150000,
+          "description": "Proposed technical byte ceiling compatible with the existing protected file reader. Distinct from legacy HTTP body limits and per-field UTF-16 limits."
+        },
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "materialPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["payloadRef", "mediaType", "sizeBytes", "sha256"],
+      "properties": {
+        "payloadRef": {"$ref": "#/$defs/reference"},
+        "mediaType": {"enum": ["image/png", "image/jpeg", "image/webp", "application/pdf"]},
+        "sizeBytes": {"type": "integer", "minimum": 1, "maximum": 10485760},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "material": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "payload"],
+      "properties": {
+        "kind": {"enum": ["logo", "manual"]},
+        "payload": {"$ref": "#/$defs/materialPayload"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"kind": {"const": "manual"}}, "required": ["kind"]},
+          "then": {"properties": {"payload": {"properties": {"mediaType": {"const": "application/pdf"}}}}}
+        }
+      ]
+    }
+  },
+  "properties": {
+    "schemaVersion": {"const": "sites.brief-snapshot.candidate.v0.1"},
+    "operationId": {"$ref": "#/$defs/reference"},
+    "idempotencyKey": {"$ref": "#/$defs/reference"},
+    "tenantRef": {"$ref": "#/$defs/reference"},
+    "siteRef": {"$ref": "#/$defs/uuid"},
+    "orderRef": {"$ref": "#/$defs/reference"},
+    "contractRef": {"$ref": "#/$defs/reference"},
+    "contractRevision": {"type": "integer", "minimum": 1, "maximum": 2147483647},
+    "productCode": {"const": "onepage"},
+    "sourceProfile": {"const": "sites.onepage-brief-payload.candidate.v0.1"},
+    "sourceVersion": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991,
+      "description": "Reported aggregate legacy version, including save/submit/review/upload/delete changes. Not an immutable content revision."
+    },
+    "sourceState": {
+      "const": "approved",
+      "description": "Reported source state only. Validation does not verify the approver, source freshness or permission to consume the payload/materials."
+    },
+    "snapshotRef": {"$ref": "#/$defs/uuid"},
+    "expectedBriefRevision": {"type": "integer", "minimum": 0, "maximum": 2147483646},
+    "briefRevision": {"type": "integer", "minimum": 1, "maximum": 2147483647},
+    "payload": {"$ref": "#/$defs/briefPayload"},
+    "materials": {"type": "array", "minItems": 0, "maxItems": 10, "items": {"$ref": "#/$defs/material"}}
+  }
+}

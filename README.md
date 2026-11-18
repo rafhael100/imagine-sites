@@ -97,6 +97,8 @@ O Portal controla contratos, aceite expresso e evento oficial `ENTREGUE`; Sites 
 
 - [Arquitetura e autoridades](docs/SITES-ARQ-02-BOUNDARIES.md)
 - [Contratos candidatos Portal ↔ Sites](docs/SITES-CT-01-PORTAL-SITES-v0.1.md)
+- [Briefing rico, revisão capturada e plano de renderização candidato](docs/SITES-BRIEF-PRODUCTION-CONTRACT-CANDIDATE-v0.1.md)
+- [Schemas e exemplos sintéticos do contrato de briefing](contracts/portal-sites/candidates/brief-production-v1/README.md)
 - [Gates de segurança](docs/SITES-SEC-01-GATES.md)
 - [Inventário de migração](docs/SITES-MIG-01-INVENTARIO.md)
 - [Provisionamento de prévias](ops/preview-candidate/README.md)
