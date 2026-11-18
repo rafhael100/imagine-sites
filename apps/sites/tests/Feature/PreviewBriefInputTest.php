@@ -115,7 +115,7 @@ final class PreviewBriefInputTest extends TestCase
         self::assertSame(1501, mb_strlen($benefits, 'UTF-8'));
         $errors = $this->assertInvalidField(array_replace($this->form(), ['benefits' => $benefits]), 'benefits');
         self::assertSame(['benefits'], array_keys($errors));
-        self::assertStringContainsString('1500', $errors['benefits'][0]);
+        self::assertSame(['Use até 1500 caracteres no campo benefícios.'], $errors['benefits']);
     }
 
     public function test_existing_product_and_expected_revision_are_required_for_revision(): void
@@ -173,6 +173,13 @@ final class PreviewBriefInputTest extends TestCase
 
     public function test_each_field_accepts_unicode_at_its_limit_and_reports_one_extra_codepoint(): void
     {
+        $messages = [
+            'brand' => 'Use até 120 caracteres no campo marca fictícia.',
+            'headline' => 'Use até 180 caracteres no campo chamada principal.',
+            'description' => 'Use até 600 caracteres no campo descrição.',
+            'call_to_action' => 'Use até 80 caracteres no campo chamada do botão.',
+            'benefits' => 'Use até 180 caracteres em cada benefício.',
+        ];
         foreach (['á', '😀', "e\u{0301}"] as $unit) {
             foreach (['brand' => 120, 'headline' => 180, 'description' => 600, 'call_to_action' => 80, 'benefits' => 180] as $field => $limit) {
                 $input = array_replace($this->form(), [$field => str_repeat($unit, intdiv($limit, mb_strlen($unit, 'UTF-8')))]);
@@ -180,7 +187,8 @@ final class PreviewBriefInputTest extends TestCase
                 $property = $field === 'call_to_action' ? 'callToAction' : $field;
                 self::assertSame($input[$field], $field === 'benefits' ? $brief->benefits[0] : $brief->{$property});
                 $input[$field] .= 'x';
-                $this->assertInvalidField($input, $field);
+                $errors = $this->assertInvalidField($input, $field);
+                self::assertSame([$field => [$messages[$field]]], $errors);
                 self::assertSame($input, PreviewBriefInput::preserve($input));
             }
         }

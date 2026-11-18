@@ -69,9 +69,21 @@ final class PreviewBriefRequestInputTest extends TestCase
 
     public function test_invalid_encoding_is_cleared_but_valid_over_limit_input_is_retained_after_middleware(): void
     {
+        foreach ([
+            'brand' => [120, 'Use até 120 caracteres no campo marca fictícia.'],
+            'headline' => [180, 'Use até 180 caracteres no campo chamada principal.'],
+            'description' => [600, 'Use até 600 caracteres no campo descrição.'],
+            'call_to_action' => [80, 'Use até 80 caracteres no campo chamada do botão.'],
+        ] as $field => [$limit, $message]) {
+            $input = array_replace($this->form(), [$field => str_repeat('😀', $limit + 1)]);
+            $this->post('/_test/private-preview-brief-input', $input)
+                ->assertStatus(422)->assertJsonPath('errors', [$field => [$message]])
+                ->assertJsonPath('preserved', $input);
+        }
         $input = array_replace($this->form(), ['brand' => "Marca\xFF", 'headline' => str_repeat('😀', 181)]);
         $this->post('/_test/private-preview-brief-input', $input)
             ->assertStatus(422)->assertJsonValidationErrors(['brand', 'headline'])
+            ->assertJsonPath('errors.headline', ['Use até 180 caracteres no campo chamada principal.'])
             ->assertJsonPath('preserved', array_replace($input, ['brand' => '']));
     }
 
@@ -89,12 +101,14 @@ final class PreviewBriefRequestInputTest extends TestCase
     public function test_request_rejects_nine_real_benefits_whitespace_only_and_the_existing_raw_field_limit(): void
     {
         foreach ([
-            implode("\r\n\u{00A0}\u{2003}\r\n", array_fill(0, 9, 'Benefício real')),
-            "A\n".str_repeat("\u{00A0}", 1497)."\nB",
-        ] as $benefits) {
+            [implode("\r\n\u{00A0}\u{2003}\r\n", array_fill(0, 9, 'Benefício real')),
+                'Informe de um a oito benefícios, um por linha.'],
+            ["A\n".str_repeat("\u{00A0}", 1497)."\nB", 'Use até 1500 caracteres no campo benefícios.'],
+        ] as [$benefits, $message]) {
             $input = array_replace($this->form(), ['benefits' => $benefits]);
             $this->post('/_test/private-preview-brief-input', $input)
                 ->assertStatus(422)->assertJsonValidationErrors('benefits')
+                ->assertJsonPath('errors', ['benefits' => [$message]])
                 ->assertJsonPath('preserved', $input);
         }
         $this->post('/_test/private-preview-brief-input', array_replace($this->form(), [

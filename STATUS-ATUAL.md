@@ -1,8 +1,25 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 18/11/2026 — mensagens de limite de tamanho em português
+
+Branch `fix/sites-preview-limit-messages-2026-11-18`, sobre a #526 validada no
+HEAD `2ffbcb5303afe12593e11a11a4a6dd45a175ac3f`. A chave inline `max.string`
+era ignorada pelo Validator instalado; o briefing recusava corretamente os
+campos longos, mas exibia a mensagem padrão em inglês. O ajuste usa `max` com
+o array de tipo `string`, preservando limites, locale global e a regra numérica
+de versão esperada. As cinco mensagens passam a informar campo e teto em português.
+
+**Prova local:** grupo focado **21/367**, suíte geral **284/4310/27**, laboratório
+sintético **32**, lint e sintaxe JS PASS. A jornada HTTP reutiliza o negativo de
+marca e acrescenta somente quatro negativos nos outros campos; confere mensagem
+exata, tentativa integral e ausência de nova versão. **Cinco checks novos/456
+totais previstos, pendentes do CI próprio.** [Recorte e mensagens](docs/reviews/SITES-PREVIEW-LIMIT-MESSAGES-2026-11-18.md).
+
 ## 18/11/2026 — composição da entrada privada de snapshots com a proveniência
 
-Branch `integration/sites-brief-snapshot-cli-chain-2026-11-18`, sobre a #525 /
+A [#526](https://github.com/rafhael100/imagine-sites/pull/526), branch
+`integration/sites-brief-snapshot-cli-chain-2026-11-18`, concluiu **12/12 checks
+SUCCESS** no HEAD `2ffbcb5303afe12593e11a11a4a6dd45a175ac3f`, sobre a #525 /
 `e5c30cd7157b97aabedaec009e1fca366b0d0335`. Incorpora os seis arquivos da #523,
 fixados em `751b084fdd7a3bbbd276c649de2caf8c2f555b77`, sem alterar a branch de
 origem. A entrada `receive-brief-snapshot.php` mantém cinco mounts, plano de dez
@@ -21,9 +38,13 @@ A fixture nova recebe duas revisões de briefing B nos intakes já existentes,
 apura a segunda após descartar stdout, registra um artefato dessa seleção e
 consulta a associação com o inspetor atual. Inclui controles positivos antes de
 recusas de tenant/CAS, replay sob epoch atual, revogação, custódia e comparação
-integral das linhas. **29 checks novos/1123 registry totais previstos, pendentes
-do CI próprio em PHP 8.3/8.4.** Runner com dezesseis opt-ins, cleanup dos cinco
-mounts novos antes dos demais e base/HEAD restritos. [Contrato e limites](docs/reviews/SITES-BRIEF-SNAPSHOT-CLI-CHAIN-2026-11-18.md).
+integral das linhas. O [registry 44358994325](https://github.com/rafhael100/imagine-sites/actions/runs/44358994325),
+jobs **134994843518 / 134994844208**, confirmou **29 novos/1123 totais** em PHP
+8.3/8.4, com os cinco mounts novos e os demais inputs removidos, clusters
+próprios inativos e rollback/reapply14 dentro da composição. O
+[Laravel 44358994106](https://github.com/rafhael100/imagine-sites/actions/runs/44358994106),
+jobs **134994842923 / 134994842386**, confirmou **284/4280/27** e **284/4292/21**.
+Não houve novo F383, HTTP ou containers; conservam a evidência da #525. [Contrato e limites](docs/reviews/SITES-BRIEF-SNAPSHOT-CLI-CHAIN-2026-11-18.md).
 
 ## 18/11/2026 — linhas vazias Unicode no formulário de benefícios
 

@@ -6,16 +6,20 @@
 
 Essa conclusão delimita a integração; não afirma esgotamento de todo desenvolvimento. O trabalho autorizado em branch isolada pode continuar em componentes com uso concreto e defeitos demonstrados. A inspeção privada do diário é um exemplo: consome a API persistente existente sem criar autoridade ou depender de um briefing inventado.
 
-### Entrada privada de snapshots em composição
+### Entrada privada de snapshots validada na #526
 
 A implementação da [#523](https://github.com/rafhael100/imagine-sites/pull/523),
-HEAD `751b084fdd7a3bbbd276c649de2caf8c2f555b77`, está sendo integrada sobre a
-#525 por nova branch, sem alteração da origem. O wrapper reutiliza o recorder
+HEAD `751b084fdd7a3bbbd276c649de2caf8c2f555b77`, foi integrada sobre a #525 na
+[#526](https://github.com/rafhael100/imagine-sites/pull/526), HEAD
+`2ffbcb5303afe12593e11a11a4a6dd45a175ac3f`, **12/12 checks SUCCESS**, sem alterar a origem. O wrapper reutiliza o recorder
 nativo da #519 e exige cinco entradas privadas, alvo observado, plano e
 confirmação explícita. Os nove negativos offline de target/CA foram corrigidos;
-**74 checks locais PASS**. O ensaio real previsto recebe o snapshot, apura uma
-resposta descartada com o leitor exato e consome essa revisão pelo registro e
-inspetor existentes. **29 novos/1123 registry previstos; CI próprio pendente.**
+**74 checks locais PASS**. O ensaio real recebeu o snapshot, apurou uma
+resposta descartada com o leitor exato e consumiu essa revisão pelo registro e
+inspetor existentes. O [run 44358994325](https://github.com/rafhael100/imagine-sites/actions/runs/44358994325)
+confirmou **29 novos/1123 registry totais** em PHP 8.3/8.4, com cleanup. A matriz
+[Laravel 44358994106](https://github.com/rafhael100/imagine-sites/actions/runs/44358994106)
+confirmou **284/4280/27** e **284/4292/21**.
 [Manual e fronteiras da composição](SITES-BRIEF-SNAPSHOT-CLI-CHAIN-2026-11-18.md).
 Essa entrada local não implementa exportação oficial, produtor ou transporte Portal.
 

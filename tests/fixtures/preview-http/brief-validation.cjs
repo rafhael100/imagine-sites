@@ -8,6 +8,8 @@ module.exports=async({ctx,o,base,dir,ok})=>{
  const fields=['brand','headline','description','call_to_action','benefits'];
  let blankLineChecks=0;
  const blankLineOk=(condition,label)=>{ok(condition,'benefit blank lines: '+label);blankLineChecks++;};
+ let limitMessageChecks=0;
+ const limitMessageOk=(condition,label)=>{ok(condition,'limit messages: '+label);limitMessageChecks++;};
  const field=name=>page.locator('#'+name);
  const fill=async values=>{for(const name of fields)await field(name).fill(values[name]);};
  const submit=async name=>{
@@ -53,6 +55,35 @@ module.exports=async({ctx,o,base,dir,ok})=>{
  ok(await field('brand').inputValue()===oversized&&await field('description').inputValue()===boundary.description&&
     await field('brand').getAttribute('aria-invalid')==='true'&&await page.locator('#error-brand').isVisible(),
     'valid over-limit text remains intact with an associated field error');
+ const verifyLimitMessage=async(name,values,message)=>{
+   const attempt=await Promise.all(fields.map(async other=>({name:other,
+     value:await field(other).inputValue(),invalid:await field(other).getAttribute('aria-invalid')})));
+   limitMessageOk((await page.locator('#error-'+name).textContent()).trim()===message&&
+     attempt.every(item=>item.value===values[item.name]&&
+       (item.name===name?item.invalid==='true':item.invalid!=='true'))&&
+     await page.locator('input[name=expected_revision]').inputValue()==='1'&&
+     await page.locator('[data-version]').count()===1,
+     name+' has its exact Portuguese maximum message, only that field is invalid, and the complete attempt and saved revision1 remain intact');
+ };
+ await verifyLimitMessage('brand',{...boundary,brand:oversized},'Use até 120 caracteres no campo marca fictícia.');
+ // The existing brand rejection is reused. Each additional field has one
+ // isolated negative POST on this same project, before the existing no-append
+ // and immutable-HTML assertions below. No extra successful edit is introduced.
+ const otherLimits=[
+   ['headline','🌿'.repeat(181),'Use até 180 caracteres no campo chamada principal.'],
+   ['description','🪴'.repeat(601),'Use até 600 caracteres no campo descrição.'],
+   ['call_to_action','🚀'.repeat(81),'Use até 80 caracteres no campo chamada do botão.'],
+   // Interior whitespace survives TrimStrings on the entire textarea. After
+   // line parsing there would be two short benefits, so only the raw limit fails.
+   ['benefits','Primeiro benefício\n'+' '.repeat(1501)+'\nSegundo benefício','Use até 1500 caracteres no campo benefícios.'],
+ ];
+ for(const [name,value,message] of otherLimits){
+   const values={...boundary,[name]:value};
+   await fill(values);
+   const rejected=await submit(/^Gerar nova versão privada/);
+   if(rejected.status()!==422)throw new Error('Expected isolated briefing maximum validation for '+name);
+   await verifyLimitMessage(name,values,message);
+ }
 
  const normal={brand:'Estúdio Aurora — fictício',headline:'Projetos claros para começar bem',
    description:'Conteúdo sintético para verificar a correção do briefing sem perder os outros campos.',
@@ -147,5 +178,6 @@ module.exports=async({ctx,o,base,dir,ok})=>{
    await page.locator('[data-version]').count()===2&&await field('benefits').inputValue()===realBenefits.join('\n'),
    'the rejected ninth benefit appends no version and leaves both immutable HTML bodies and the eight-item saved briefing unchanged');
  console.log('BENEFIT BLANK LINES HTTP PASS: '+blankLineChecks+' new checks; 447 existing checks retained.');
+ console.log('LIMIT MESSAGES HTTP PASS: '+limitMessageChecks+' new checks; 451 existing checks retained.');
  await context.close();
 };

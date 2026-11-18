@@ -36,7 +36,7 @@ final class PreviewBriefInput
         ], [
             'required' => 'Preencha o campo :attribute.',
             'string' => 'Use somente texto no campo :attribute.',
-            'max.string' => 'Use até :max caracteres no campo :attribute.',
+            'max' => ['string' => 'Use até :max caracteres no campo :attribute.'],
             'product.in' => $existingProduct === null
                 ? 'Escolha Site Onepage ou Landing Page.'
                 : 'O formato deste projeto não pode ser alterado. Crie outro projeto para usar outro formato.',
