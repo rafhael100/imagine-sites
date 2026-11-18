@@ -1,6 +1,6 @@
 {
   "schema": "SITES_PREVIEW_PROVISION_V1",
-  "contract_sha256": "5ecfa4e626c622b387047d51e3a672b733d5830283b4e34d847f7469df5279eb",
+  "contract_sha256": "d0c26c3bcc71c0615ad8efeeb6ebc1b10b9bede37a82d90173a913863ffc08d5",
   "target": {
     "database": "sites_staging",
     "bootstrap_login": "sites_bootstrap",

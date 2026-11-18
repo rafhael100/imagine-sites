@@ -14,15 +14,22 @@ final class PrivatePreviewProvisioning
 {
     public const OWNER = 'sites_preview_owner';
     public const MIGRATION = '2026_11_16_000004_add_private_preview_workspace';
+    public const NOTES_MIGRATION = '2026_11_18_000008_add_private_preview_review_notes';
+    public const MIGRATIONS = [self::MIGRATION, self::NOTES_MIGRATION];
     private const TABLES = ['principals', 'projects', 'versions', 'reviews', 'audit'];
     private const FUNCTIONS = ['can_access(uuid,text)', 'review_version(uuid,uuid,integer,text,text)',
+        'review_version(uuid,uuid,integer,text,text,text)',
         'record_change()', 'check_writer_identity()', 'immutable()'];
 
     public function __construct(private readonly Connection $db) {}
 
     public static function contractSha(): string
     {
-        return hash_file('sha256', dirname(__DIR__, 2).'/contracts/private-preview/001-workspace.sql');
+        $root = dirname(__DIR__, 2).'/contracts/private-preview/';
+        $base = file_get_contents($root.'001-workspace.sql');
+        $notes = file_get_contents($root.'002-review-notes.sql');
+        if (!is_string($base) || $base === '' || !is_string($notes) || $notes === '') self::deny('contract_unavailable');
+        return hash('sha256', "sites.preview.contract.v2\0".$base."\0".$notes);
     }
 
     /** No connection or filesystem writes. Also used by the CLI's offline validation. */
@@ -96,15 +103,19 @@ final class PrivatePreviewProvisioning
                 $this->db->statement("COMMENT ON ROLE $owner IS ".$this->quote($this->ownerMarker($manifest)));
                 $this->db->statement("GRANT CREATE ON DATABASE $database TO $owner");
                 $this->db->statement("SET LOCAL ROLE $owner");
-                // Reuse the versioned migration and its SQL exactly. Both the
-                // migration and its ledger write share this verified connection.
-                $migration = require dirname(__DIR__, 2).'/apps/sites/database/migrations/'.self::MIGRATION.'.php';
-                $migration->up();
+                // Apply the immutable base and its additive notes migration on
+                // this same owner/connection/transaction. Never reinterpret an
+                // existing managed V1 installation as this contract bundle.
+                foreach (self::MIGRATIONS as $name) {
+                    $migration = require dirname(__DIR__, 2).'/apps/sites/database/migrations/'.$name.'.php';
+                    $migration->up();
+                }
                 $this->db->statement('SET LOCAL ROLE NONE');
                 $this->db->statement("REVOKE CREATE ON DATABASE $database FROM $owner");
                 $repository = new DatabaseMigrationRepository(app('db'), 'migrations');
                 $repository->setSource($this->db->getName());
-                $repository->log(self::MIGRATION, $repository->getNextBatchNumber());
+                $batch = $repository->getNextBatchNumber();
+                foreach (self::MIGRATIONS as $name) $repository->log($name, $batch);
                 foreach ($manifest['principals'] as $p) {
                     $login = self::identifier($p['login']);
                     $this->db->statement("GRANT CONNECT ON DATABASE $database TO $login");
@@ -112,11 +123,13 @@ final class PrivatePreviewProvisioning
                     $this->db->statement("GRANT SELECT ON sites_preview.projects,sites_preview.versions,sites_preview.reviews,sites_preview.audit TO $login");
                     $this->db->statement("GRANT EXECUTE ON FUNCTION sites_preview.can_access(uuid,text) TO $login");
                     if ($p['profile'] === 'author') $this->db->statement("GRANT INSERT ON sites_preview.projects,sites_preview.versions TO $login");
-                    if ($p['profile'] === 'reviewer') $this->db->statement("GRANT EXECUTE ON FUNCTION sites_preview.review_version(uuid,uuid,integer,text,text) TO $login");
+                    if ($p['profile'] === 'reviewer') {
+                        $this->db->statement("GRANT EXECUTE ON FUNCTION sites_preview.review_version(uuid,uuid,integer,text,text),sites_preview.review_version(uuid,uuid,integer,text,text,text) TO $login");
+                    }
                     $this->db->insert('INSERT INTO sites_preview.principals(database_login,company_id,can_edit,can_review,expires_at) VALUES(?,?::uuid,?::boolean,?::boolean,to_timestamp(?))',
                         [$p['login'], $p['company_id'], $p['profile'] === 'author' ? 'true' : 'false', $p['profile'] === 'reviewer' ? 'true' : 'false', $p['expires_at']]);
                 }
-                $marker = ['kind' => 'SITES_PREVIEW_MANAGED_V1', 'target' => $this->ownerMarker($manifest),
+                $marker = ['kind' => 'SITES_PREVIEW_MANAGED_V2', 'target' => $this->ownerMarker($manifest),
                     'contract_sha256' => self::contractSha(), 'structure_sha256' => $this->structureSha()];
                 $this->db->statement('COMMENT ON SCHEMA sites_preview IS '.$this->quote(self::canonical($marker)));
                 $after = $this->buildPlan($manifest, true);
@@ -130,7 +143,7 @@ final class PrivatePreviewProvisioning
     {
         $identity = $this->identity($manifest['target'], $inTransaction);
         if ($this->db->selectOne("SELECT to_regclass('public.migrations') AS relation")->relation === null) self::deny('migration_repository_missing');
-        $ledger = $this->db->select('SELECT migration,batch FROM public.migrations WHERE migration=?', [self::MIGRATION]);
+        $ledger = $this->db->select('SELECT migration,batch FROM public.migrations WHERE migration IN (?,?) ORDER BY migration', self::MIGRATIONS);
         $namespace = $this->db->selectOne("SELECT oid,nspowner::regrole::text AS owner,obj_description(oid,'pg_namespace') AS marker FROM pg_namespace WHERE nspname='sites_preview'");
         $owner = $this->role(self::OWNER);
         $runtimeRoles = [];
@@ -145,15 +158,24 @@ final class PrivatePreviewProvisioning
         if ($namespace === null) {
             if ($owner !== null || $ledger !== []) self::deny('partial_or_unmanaged_state');
             $status = 'ready';
-            $actions = ['create_nonlogin_owner', 'apply_migration_000004', 'record_migration_000004', 'grant_existing_logins', 'verify'];
+            $actions = ['create_nonlogin_owner', 'apply_migration_000004', 'apply_migration_000008',
+                'record_migration_000004', 'record_migration_000008', 'grant_existing_logins', 'verify'];
             $state = ['absent' => true, 'roles' => $runtimeRoles];
         } else {
             if ($owner === null || $owner['rolcanlogin'] !== false || $owner['rolinherit'] !== false ||
                 !$this->restricted($owner) || $this->hasMembership(self::OWNER) || $namespace->owner !== self::OWNER ||
-                $owner['marker'] !== $this->ownerMarker($manifest) || count($ledger) !== 1) self::deny('owner_or_migration_drift');
+                $owner['marker'] !== $this->ownerMarker($manifest)) self::deny('owner_or_migration_drift');
             if ($this->db->selectOne("SELECT has_database_privilege(?,current_database(),'CREATE') AS unsafe", [self::OWNER])->unsafe !== false) self::deny('owner_create_not_removed');
             $marker = json_decode((string) $namespace->marker, true, 8, JSON_THROW_ON_ERROR);
-            if (!is_array($marker) || ($marker['kind'] ?? null) !== 'SITES_PREVIEW_MANAGED_V1' ||
+            if (is_array($marker) && ($marker['kind'] ?? null) === 'SITES_PREVIEW_MANAGED_V1') {
+                self::deny('managed_upgrade_required');
+            }
+            if (array_map(static fn(object $row): string => $row->migration, $ledger) !== self::MIGRATIONS ||
+                count(array_unique(array_map(static fn(object $row): int => (int) $row->batch, $ledger))) !== 1 ||
+                (int) $ledger[0]->batch < 1) {
+                self::deny('owner_or_migration_drift');
+            }
+            if (!is_array($marker) || ($marker['kind'] ?? null) !== 'SITES_PREVIEW_MANAGED_V2' ||
                 ($marker['target'] ?? null) !== $this->ownerMarker($manifest) ||
                 ($marker['contract_sha256'] ?? null) !== self::contractSha() ||
                 ($marker['structure_sha256'] ?? null) !== $this->structureSha()) self::deny('structure_drift');
@@ -217,11 +239,13 @@ final class PrivatePreviewProvisioning
                 ($o->relname === 'audit_id_seq' ? $o->relkind !== 'S' : $o->relkind !== 'r') ||
                 (!in_array($o->relname, ['principals', 'audit_id_seq'], true) && (!$o->relrowsecurity || !$o->relforcerowsecurity))) self::deny('object_owner_rls');
         }
-        $functions = $this->db->select("SELECT proname,proowner::regrole::text AS owner,prosecdef,proconfig FROM pg_proc WHERE pronamespace='sites_preview'::regnamespace ORDER BY proname");
-        if (count($functions) !== 5) self::deny('unexpected_functions');
+        $functions = $this->db->select("SELECT oid::regprocedure::text AS signature,proname,proowner::regrole::text AS owner,prosecdef,proconfig FROM pg_proc WHERE pronamespace='sites_preview'::regnamespace ORDER BY proname,oid::regprocedure::text");
+        if (count($functions) !== count(self::FUNCTIONS)) self::deny('unexpected_functions');
+        $expectedFunctions = array_map(static fn(string $function): string => 'sites_preview.'.$function, self::FUNCTIONS);
         foreach ($functions as $f) {
             $definer = in_array($f->proname, ['can_access', 'record_change', 'review_version'], true);
-            if ($f->owner !== self::OWNER || $f->prosecdef !== $definer ||
+            if (!in_array($f->signature, $expectedFunctions, true) ||
+                $f->owner !== self::OWNER || $f->prosecdef !== $definer ||
                 ($definer && !str_contains((string) $f->proconfig, 'search_path=pg_catalog, sites_preview'))) self::deny('definer_drift');
         }
     }
@@ -246,7 +270,8 @@ final class PrivatePreviewProvisioning
             foreach (self::FUNCTIONS as $function) {
                 $acl = $this->db->selectOne("SELECT has_function_privilege(?,?,'EXECUTE') AS allowed,has_function_privilege(?,?,'EXECUTE WITH GRANT OPTION') AS excess", [$login, 'sites_preview.'.$function, $login, 'sites_preview.'.$function]);
                 $allowed = in_array($function, ['can_access(uuid,text)', 'check_writer_identity()', 'immutable()'], true) ||
-                    ($function === 'review_version(uuid,uuid,integer,text,text)' && $p['profile'] === 'reviewer');
+                    (in_array($function, ['review_version(uuid,uuid,integer,text,text)',
+                        'review_version(uuid,uuid,integer,text,text,text)'], true) && $p['profile'] === 'reviewer');
                 if ($acl->allowed !== $allowed || $acl->excess !== false) self::deny('function_acl');
             }
         }
@@ -321,7 +346,8 @@ final class PrivatePreviewProvisioning
     {
         return ['schema' => 'SITES_PREVIEW_PROVISION_RESULT_V1', 'status' => $changed ? 'applied' : 'already_applied',
             'changed' => $changed, 'plan_sha256' => $plan['plan_sha256'], 'principal_count' => $plan['principal_count'],
-            'migration' => self::MIGRATION, 'can_accept_orders' => false, 'can_publish' => false];
+            'migration' => self::MIGRATION, 'migrations' => self::MIGRATIONS,
+            'contract_sha256' => self::contractSha(), 'can_accept_orders' => false, 'can_publish' => false];
     }
 
     private function safe(callable $operation): array

@@ -62,7 +62,7 @@ const {chromium}=require('playwright');const fs=require('fs'),cp=require('child_
  await p.getByLabel('Benefícios').fill(original.benefits);
  const switched=await a.request.post(one,{form:{...original,product:'landing_page'}});
  ok(switched.status()===422&&(await switched.text()).includes('O formato deste projeto não pode ser alterado'),'product tampering gets safe validation feedback');
- let html=(await a.request.get(one+'/versions/1/html'));let body=await html.body();let digest=crypto.createHash('sha256').update(body).digest('hex');ok(html.status()===200&&await p.getByText('SHA-256: '+digest,{exact:true}).isVisible(),'stored exact digest');
+ let html=(await a.request.get(one+'/versions/1/html'));let body=await html.body();let digest=crypto.createHash('sha256').update(body).digest('hex');ok(html.status()===200&&await p.locator('[data-version="1"]').getByText('SHA-256: '+digest,{exact:true}).isVisible(),'stored exact digest');
  ok(html.headers()['cache-control'].includes('no-store')&&html.headers()['content-security-policy'].includes('sandbox'),'private sandboxed HTML');
  ok((await a.request.post(one)).status()===419,'CSRF missing denied');
  const bad=await a.request.post(one,{form:{_token:await p.locator('input[name=_token]').first().getAttribute('value'),company_id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'}});ok(bad.status()===422,'browser company field rejected');
@@ -78,7 +78,7 @@ const {chromium}=require('playwright');const fs=require('fs'),cp=require('child_
  ok(conflict.status()===409&&conflictBody.includes('Briefing de outra aba preservado')&&conflictBody.includes('Outra versão foi criada'),'concurrent edit returns409 with briefing retained');
  ok((await a.request.get(one+'/versions/3/html')).status()===403,'validation and conflicts created no extra revision');
  ok(crypto.createHash('sha256').update(await (await a.request.get(one+'/versions/1/html')).body()).digest('hex')===digest,'old immutable version');
- const own=await a.request.post(one+'/versions/2/review',{form:{_token:await p.locator('input[name=_token]').first().getAttribute('value'),sha256:(await p.locator('code').first().textContent()).replace('SHA-256: ',''),decision:'approved_internal'},headers:{'Remote-User':'editor'}});ok(own.status()===403,'own editorial review denied and identity header ignored');
+ const own=await a.request.post(one+'/versions/2/review',{form:{_token:await p.locator('input[name=_token]').first().getAttribute('value'),sha256:(await p.locator('[data-version="2"] code').first().textContent()).replace('SHA-256: ',''),decision:'approved_internal'},headers:{'Remote-User':'editor'}});ok(own.status()===403,'own editorial review denied and identity header ignored');
  const ep=await e.newPage();await ep.goto(base+'/_preview');
  const projectId=new URL(one).pathname.split('/').pop();
  ok(await ep.locator('[data-project="'+projectId+'"]').getByText('Aguardando revisão',{exact:true}).isVisible(),'queue shows current revision awaiting editorial review');
@@ -197,6 +197,7 @@ const {chromium}=require('playwright');const fs=require('fs'),cp=require('child_
     await comparisonPage.getByLabel('Chamada principal').inputValue()===comparisonEdit.headline,
     'editing after historical comparison appends62 from actual head61');
  await comparisonContext.close();
+ await require('./editorial-feedback.cjs')({a,e,o,p,ep,base,dir,historyUrl,ok});
  ok([403,404].includes((await o.request.get(one)).status()),'cross company workspace denied');ok((await o.request.get(one+'/versions/1/html')).status()===403,'cross company bytes denied');
  await p.setViewportSize({width:1440,height:1000});await p.goto(one);await p.screenshot({path:dir+'/workspace-desktop.png',fullPage:true});
  await p.setViewportSize({width:390,height:844});await p.screenshot({path:dir+'/workspace-mobile.png',fullPage:true});ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'mobile no horizontal overflow');

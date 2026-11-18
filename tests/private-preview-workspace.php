@@ -1,16 +1,17 @@
 <?php
 declare(strict_types=1);
 if(getenv('CI')!=='true'||getenv('SITES_PRIVATE_PREVIEW_PG_CI')!=='1')exit(1);
-foreach(['SiteBrief','ReleaseArtifact','StaticSiteRenderer','PrivatePreviewWorkspace'] as $c)require __DIR__.'/../src/Production/'.$c.'.php';
+foreach(['SiteBrief','ReleaseArtifact','StaticSiteRenderer','PreviewRevisionConflict','PreviewReviewInput','PrivatePreviewWorkspace'] as $c)require __DIR__.'/../src/Production/'.$c.'.php';
 use Imagine\Sites\Production\PrivatePreviewWorkspace as W;
 use Imagine\Sites\Production\SiteBrief as B;
 $dsn='pgsql:host=127.0.0.1;port=5432;dbname=sites_preview_ci';$owner=new PDO($dsn,'postgres',getenv('PGPASSWORD'),[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
 $actual=$owner->query("SELECT current_database() AS db,session_user AS login,host(inet_server_addr()) AS addr,inet_server_port() AS port,(SELECT system_identifier::text FROM pg_control_system()) AS cluster")->fetch(PDO::FETCH_ASSOC);
 if(!$actual||$actual['db']!=='sites_preview_ci'||$actual['login']!=='postgres'||$actual['addr']!==getenv('SITES_PREVIEW_EXPECTED_DB_ADDR')||(int)$actual['port']!==5432||$actual['cluster']!==getenv('SITES_PREVIEW_EXPECTED_CLUSTER')){fwrite(STDERR,"PREVIEW_DISPOSABLE_DATABASE_DENIED ".json_encode(['db'=>$actual['db']==='sites_preview_ci','login'=>$actual['login']==='postgres','address'=>$actual['addr']===getenv('SITES_PREVIEW_EXPECTED_DB_ADDR'),'port'=>(int)$actual['port']===5432,'cluster'=>$actual['cluster']===getenv('SITES_PREVIEW_EXPECTED_CLUSTER')])."\n");exit(2);}
 $owner->exec(file_get_contents(__DIR__.'/../contracts/private-preview/001-workspace.sql'));
+$owner->exec(file_get_contents(__DIR__.'/../contracts/private-preview/002-review-notes.sql'));
 $company='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';$other='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';$pw=bin2hex(random_bytes(32));
 foreach(['preview_author','preview_editor','preview_other'] as $role){
- $owner->exec("CREATE ROLE $role LOGIN PASSWORD '$pw' NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE; GRANT USAGE ON SCHEMA sites_preview TO $role; GRANT SELECT ON sites_preview.projects,sites_preview.versions,sites_preview.reviews,sites_preview.audit TO $role; GRANT INSERT ON sites_preview.projects,sites_preview.versions TO $role; GRANT EXECUTE ON FUNCTION sites_preview.can_access(uuid,text),sites_preview.review_version(uuid,uuid,integer,text,text) TO $role;");
+ $owner->exec("CREATE ROLE $role LOGIN PASSWORD '$pw' NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE; GRANT USAGE ON SCHEMA sites_preview TO $role; GRANT SELECT ON sites_preview.projects,sites_preview.versions,sites_preview.reviews,sites_preview.audit TO $role; GRANT INSERT ON sites_preview.projects,sites_preview.versions TO $role; GRANT EXECUTE ON FUNCTION sites_preview.can_access(uuid,text),sites_preview.review_version(uuid,uuid,integer,text,text),sites_preview.review_version(uuid,uuid,integer,text,text,text) TO $role;");
 }
 $owner->exec("INSERT INTO sites_preview.principals VALUES('preview_author','$company',true,true,now()+interval '1 hour',NULL),('preview_editor','$company',false,true,now()+interval '1 hour',NULL),('preview_other','$other',true,true,now()+interval '1 hour',NULL)");
 $connect=fn($role)=>new PDO($dsn,$role,$pw,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);$db=$connect('preview_author');$w=new W($db);$editor=new W($connect('preview_editor'));$cross=new W($connect('preview_other'));

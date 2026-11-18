@@ -59,10 +59,11 @@ $denied=function(callable $operation,string $label)use($ok):void {
     try{$operation();}catch(PDOException|RuntimeException $e){$ok(true,$label);return;}
     $ok(false,$label);
 };
+require __DIR__.'/fixtures/preview-feedback/upgrade.php';
 $owner=$admin->query("SELECT NOT rolcanlogin AND NOT rolsuper AND NOT rolbypassrls AND NOT rolcreatedb AND NOT rolcreaterole AND NOT rolreplication AS safe FROM pg_roles WHERE rolname='lab486_owner'")->fetchColumn();
 $ok($owner===true,'NOLOGIN non-bypass owner');
 $ok((int)$admin->query("SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='sites_preview' AND c.relkind IN ('r','S') AND c.relowner='lab486_owner'::regrole")->fetchColumn()===6,'all five tables and audit sequence owned by synthetic owner');
-$ok((int)$admin->query("SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='sites_preview' AND p.proowner='lab486_owner'::regrole")->fetchColumn()===5,'all five functions have non-bypass owner');
+$ok((int)$admin->query("SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='sites_preview' AND p.proowner='lab486_owner'::regrole")->fetchColumn()===6,'all six functions have non-bypass owner');
 $ok($admin->query("SELECT nspowner='lab486_owner'::regrole FROM pg_namespace WHERE nspname='sites_preview'")->fetchColumn()===true,'schema owner');
 $ok((int)$admin->query("SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='sites_preview' AND c.relname IN ('projects','versions','reviews','audit') AND c.relrowsecurity AND c.relforcerowsecurity")->fetchColumn()===4,'FORCE RLS on all four scoped tables');
 // PUBLIC ACL inspection only: do not alter migration grants or invoke helper functions.
@@ -70,7 +71,7 @@ $ok((int)$admin->query("SELECT count(*) FROM pg_namespace n CROSS JOIN LATERAL a
 $ok((int)$admin->query("SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace CROSS JOIN LATERAL aclexplode(coalesce(c.relacl,acldefault(CASE WHEN c.relkind='S' THEN 'S'::\"char\" ELSE 'r'::\"char\" END,c.relowner))) a WHERE n.nspname='sites_preview' AND c.relkind IN ('r','S') AND a.grantee=0")->fetchColumn()===0,'no PUBLIC table/sequence privileges');
 $publicFunctions=$admin->query("SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace CROSS JOIN LATERAL aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a WHERE n.nspname='sites_preview' AND a.grantee=0 AND a.privilege_type='EXECUTE' ORDER BY p.proname")->fetchAll(PDO::FETCH_COLUMN);
 $ok($publicFunctions===['check_writer_identity','immutable'],'document existing PUBLIC helper EXECUTE, not a blanket no-PUBLIC-functions claim');
-$ok((int)$admin->query("SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='sites_preview' AND p.proname IN ('can_access','record_change','review_version') AND p.prosecdef AND EXISTS(SELECT 1 FROM unnest(p.proconfig) setting WHERE replace(setting,' ','')='search_path=pg_catalog,sites_preview')")->fetchColumn()===3,'security definer functions preserve fixed search path');
+$ok((int)$admin->query("SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='sites_preview' AND p.proname IN ('can_access','record_change','review_version') AND p.prosecdef AND EXISTS(SELECT 1 FROM unnest(p.proconfig) setting WHERE replace(setting,' ','')='search_path=pg_catalog,sites_preview')")->fetchColumn()===4,'security definer functions preserve fixed search path');
 foreach($connections as $tenant=>$roles)foreach($roles as $profile=>$db) {
     $row=$db->query("SELECT NOT rolsuper AND NOT rolbypassrls AND NOT rolcreatedb AND NOT rolcreaterole AND NOT rolreplication AND current_user=session_user AND NOT pg_has_role(current_user,'lab486_owner','MEMBER') AS safe FROM pg_roles WHERE rolname=current_user")->fetchColumn();
     $ok($row===true,'native unprivileged non-owner runtime');
@@ -198,9 +199,9 @@ try {
     $admin->exec("REVOKE lab486_a_reader FROM $driftRole");
 }
 $ok($driftWorkspace->view($projects['a'],$companies['a'],2)['sha256']===$original['sha256'],'safe access restored after SET ROLE');
-$ok((int)$admin->query('SELECT count(*) FROM sites_preview.versions')->fetchColumn()===4&&
-    (int)$admin->query('SELECT count(*) FROM sites_preview.audit')->fetchColumn()===8&&
-    (int)$admin->query('SELECT count(*) FROM sites_preview.reviews')->fetchColumn()===2,
+$ok((int)$admin->query('SELECT count(*) FROM sites_preview.versions')->fetchColumn()===4+$notesLegacyCounts['versions']&&
+    (int)$admin->query('SELECT count(*) FROM sites_preview.audit')->fetchColumn()===8+$notesLegacyCounts['audit']&&
+    (int)$admin->query('SELECT count(*) FROM sites_preview.reviews')->fetchColumn()===2+$notesLegacyCounts['reviews'],
     'all denied drift attempts preserve versions, reviews and audit');
 foreach($connections as $tenant=>$roles)foreach($roles as $profile=>$db) {
     $ok((int)$workspaces[$tenant][$profile]->view($projects[$tenant],$companies[$tenant],2)['revision']===2,
@@ -242,16 +243,16 @@ $ok($approved[0]['editorial_status']==='approved_internal'&&$approved[0]['latest
 $workspaces['a']['reviewer']->review($projects['a'],$companies['a'],3,$next['sha256'],'approved_internal');
 // A second independent reviewer disagrees on the same immutable version.
 // These temporary grants are confined to the already verified disposable lab.
-$admin->exec("GRANT EXECUTE ON FUNCTION sites_preview.review_version(uuid,uuid,integer,text,text) TO lab486_a_reader");
+$admin->exec("GRANT EXECUTE ON FUNCTION sites_preview.review_version(uuid,uuid,integer,text,text),sites_preview.review_version(uuid,uuid,integer,text,text,text) TO lab486_a_reader");
 $admin->exec("UPDATE sites_preview.principals SET can_review=true WHERE database_login='lab486_a_reader'");
 try {
-    $workspaces['a']['reader']->review($projects['a'],$companies['a'],3,$next['sha256'],'changes_requested');
+    $workspaces['a']['reader']->review($projects['a'],$companies['a'],3,$next['sha256'],'changes_requested','Explique melhor o benefício principal neste exemplo fictício.');
     $mixed=$overviews['a']['author']->projects($companies['a']);
     $ok($mixed[0]['editorial_status']==='changes_requested'&&$mixed[0]['latest_revision']===3&&$mixed[0]['sha256']===$next['sha256'],
         'changes requested prevails over approval for the same current revision');
 } finally {
     $admin->exec("UPDATE sites_preview.principals SET can_review=false WHERE database_login='lab486_a_reader'");
-    $admin->exec("REVOKE EXECUTE ON FUNCTION sites_preview.review_version(uuid,uuid,integer,text,text) FROM lab486_a_reader");
+    $admin->exec("REVOKE EXECUTE ON FUNCTION sites_preview.review_version(uuid,uuid,integer,text,text),sites_preview.review_version(uuid,uuid,integer,text,text,text) FROM lab486_a_reader");
 }
 $overviewDenied=function(callable $operation,string $label)use($ok):void {
     try{$operation();}catch(RuntimeException $e){
@@ -405,4 +406,5 @@ foreach($comparisonBadRows as $index=>[$badBrief,$badHtml]) {
 }
 echo 'COMPARISON OK: '.($count-$comparisonChecksBefore).
     " real SQL assertions for exact historical versions, text, Unicode, isolation, runtime, integrity and readonly behavior.\n";
+require __DIR__.'/fixtures/preview-feedback/contract.php';
 echo "OK: $count synthetic ownership/ACL/RLS/profile assertions; real existing migration, NOLOGIN/NOBYPASSRLS owner, two companies. No operational acceptance or backup evidence.\n";

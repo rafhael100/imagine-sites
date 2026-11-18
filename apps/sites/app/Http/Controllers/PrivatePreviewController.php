@@ -7,9 +7,9 @@ namespace App\Http\Controllers;
 use App\Preview\PreviewBriefInput;
 use App\Preview\PreviewNavigation;
 use App\Preview\PreviewPrincipal;
+use App\Preview\PreviewReviewInput;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Imagine\Sites\Production\PrivatePreviewComparison;
 use Imagine\Sites\Production\PrivatePreviewOverview;
@@ -51,7 +51,7 @@ final class PrivatePreviewController
             if (strlen($request->getContent()) > PreviewBriefInput::MAX_FORM_BYTES) {
                 return $this->secure(response('Formulário excede o limite.', 413));
             }
-            $allowed = $action === 'review' ? ['_token', 'decision', 'sha256'] : [
+            $allowed = $action === 'review' ? ['_token', 'decision', 'sha256', 'note'] : [
                 '_token', 'product', 'brand', 'headline', 'description', 'call_to_action', 'benefits', 'expected_revision',
             ];
             // Navigation parameters are never briefing, identity or authority.
@@ -63,11 +63,9 @@ final class PrivatePreviewController
             $data = $this->pageData($principal, $project, $navigation);
             try {
                 if ($action === 'review') {
-                    $input = Validator::make($payload, [
-                        'sha256' => 'required|string|regex:/\A[a-f0-9]{64}\z/D',
-                        'decision' => 'required|string|in:approved_internal,changes_requested',
-                    ])->validate();
-                    $workspace->review($project, $principal->company, (int) $revision, $input['sha256'], $input['decision']);
+                    $input = PreviewReviewInput::parse($payload);
+                    $workspace->review($project, $principal->company, (int) $revision,
+                        $input['sha256'], $input['decision'], $input['note']);
                 } else {
                     $brief = PreviewBriefInput::parse($payload, $data['brief']['productCode'] ?? null);
                     if ($project === null) {
@@ -81,8 +79,14 @@ final class PrivatePreviewController
                     $action === 'review' ? $navigation->beforeRevision : null,
                     $action === 'review' ? $navigation->afterRevision : null)));
             } catch (ValidationException $error) {
-                return $this->renderWorkspace($principal, $data, $action === 'review' ? [] : $payload, $error->errors(), 422);
+                return $this->renderWorkspace($principal, $data, $action === 'review' ? [] : $payload, $error->errors(), 422,
+                    $action === 'review' ? PreviewReviewInput::preserve($payload, (int) $revision) : null);
             } catch (PreviewRevisionConflict) {
+                if ($action === 'review') {
+                    return $this->renderWorkspace($principal, $this->pageData($principal, $project, $navigation), [], [
+                        'review' => ['Seu acesso já registrou um parecer para esta versão. O texto enviado foi preservado abaixo e não foi registrado novamente.'],
+                    ], 409, PreviewReviewInput::preserve($payload, (int) $revision));
+                }
                 return $this->renderWorkspace($principal, $this->pageData($principal, $project, $navigation), $payload, [
                     'expected_revision' => ['Outra versão foi criada enquanto você editava. Confira a versão atual antes de gerar novamente. Seu briefing foi mantido abaixo.'],
                 ], 409);
@@ -97,21 +101,24 @@ final class PrivatePreviewController
     private function pageData(PreviewPrincipal $principal, ?string $project, PreviewNavigation $navigation): array
     {
         $projects = [];
-        $versions = $reviews = [];
+        $versions = $reviews = $currentReviews = [];
         $brief = null;
         $comparison = null;
-        $currentRevision = $queueNext = $historyOlder = $historyNewer = null;
-        $reviewsTruncated = false;
+        $currentRevision = $currentSha256 = $queueNext = $historyOlder = $historyNewer = null;
+        $reviewsTruncated = $currentReviewsTruncated = false;
         if ($project !== null) {
             $history = (new PrivatePreviewHistory($principal->db))->page($principal->company, $project,
                 $navigation->beforeRevision, $navigation->afterRevision);
             $versions = $history['versions'];
             $reviews = $history['reviews'];
+            $currentReviews = $history['current_reviews'];
             $brief = $history['brief'];
             $currentRevision = $history['current_revision'];
+            $currentSha256 = $history['current_sha256'];
             $historyOlder = $history['older_before'];
             $historyNewer = $history['newer_after'];
             $reviewsTruncated = $history['reviews_truncated'];
+            $currentReviewsTruncated = $history['current_reviews_truncated'];
             if ($navigation->compareFrom !== null) {
                 $comparison = (new PrivatePreviewComparison($principal->db))->compare($principal->company, $project,
                     $navigation->compareFrom, $navigation->compareTo);
@@ -121,11 +128,11 @@ final class PrivatePreviewController
             $projects = $queue['items'];
             $queueNext = $queue['next_cursor'];
         }
-        return compact('projects', 'project', 'versions', 'reviews', 'brief', 'currentRevision', 'comparison',
-            'queueNext', 'historyOlder', 'historyNewer', 'reviewsTruncated', 'navigation');
+        return compact('projects', 'project', 'versions', 'reviews', 'brief', 'currentRevision', 'currentSha256', 'comparison',
+            'queueNext', 'historyOlder', 'historyNewer', 'reviewsTruncated', 'currentReviews', 'currentReviewsTruncated', 'navigation');
     }
 
-    private function renderWorkspace(PreviewPrincipal $principal, array $data, array $submitted = [], array $fieldErrors = [], int $status = 200)
+    private function renderWorkspace(PreviewPrincipal $principal, array $data, array $submitted = [], array $fieldErrors = [], int $status = 200, ?array $reviewSubmission = null)
     {
         $principal->requireCapability('read');
         $canEdit = $principal->allows('edit');
@@ -142,7 +149,18 @@ final class PrivatePreviewController
                 $form[$key] = $submitted[$key];
             }
         }
-        return $this->secure(response()->view('preview.workspace', $data + compact('form', 'fieldErrors', 'canEdit', 'canReview'), $status));
+        if ($reviewSubmission !== null) {
+            $reviewSubmission['canRetry'] = false;
+            foreach ($data['versions'] as $version) {
+                if ($canReview && $status === 422 && $version['reviewable'] &&
+                    $version['revision'] === $reviewSubmission['revision'] &&
+                    $version['sha256'] === $reviewSubmission['sha256']) {
+                    $reviewSubmission['canRetry'] = true;
+                    break;
+                }
+            }
+        }
+        return $this->secure(response()->view('preview.workspace', $data + compact('form', 'fieldErrors', 'canEdit', 'canReview', 'reviewSubmission'), $status));
     }
 
     private function secure($response)

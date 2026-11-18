@@ -92,11 +92,18 @@ $ok($result['status']==='applied'&&$result['changed']===true,'real candidate app
 $ok($service->check($manifest)['status']==='verified','real candidate check');
 $ready=$service->plan($manifest); $noop=$service->apply($manifest,$ready['plan_sha256'],true);
 $ok($noop['status']==='already_applied'&&$noop['changed']===false,'idempotent no-op');
-$ok((int)$db->query('SELECT count(*) FROM public.migrations')->fetchColumn()===1&&
+$ok((int)$db->query('SELECT count(*) FROM public.migrations')->fetchColumn()===2&&
     (int)$db->query('SELECT count(*) FROM sites_preview.audit')->fetchColumn()===0&&
     $db->query('SELECT value FROM public.provision_fixture_sentinel WHERE id=1')->fetchColumn()==='unrelated synthetic state',
-    'ledger singular no data writes unrelated state preserved');
+    'two exact migration ledger entries and unrelated state preserved');
 $stage='managed-drift-refusals';
+$originalMarker=$db->query("SELECT obj_description(oid,'pg_namespace') FROM pg_namespace WHERE nspname='sites_preview'")->fetchColumn();
+$legacyMarker=json_decode($originalMarker,true,8,JSON_THROW_ON_ERROR);$legacyMarker['kind']='SITES_PREVIEW_MANAGED_V1';
+$db->exec('COMMENT ON SCHEMA sites_preview IS '.$db->quote(json_encode($legacyMarker,JSON_THROW_ON_ERROR)));
+try {
+    $denied(fn()=>$service->plan($manifest),'managed_upgrade_required');
+    $denied(fn()=>$service->apply($manifest,$ready['plan_sha256'],true),'managed_upgrade_required');
+} finally {$db->exec('COMMENT ON SCHEMA sites_preview IS '.$db->quote($originalMarker));}
 $db->exec('GRANT INSERT ON sites_preview.reviews TO sites_preview_author');
 try{$denied(fn()=>$service->check($manifest),'table_acl');$denied(fn()=>$service->apply($manifest,$ready['plan_sha256'],true),'table_acl');}
 finally{$db->exec('REVOKE INSERT ON sites_preview.reviews FROM sites_preview_author');}
