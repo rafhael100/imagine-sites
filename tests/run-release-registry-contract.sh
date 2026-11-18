@@ -3,6 +3,9 @@ set -euo pipefail
 # Own disposable CI cluster only. Never attach to an existing service or target.
 test "${GITHUB_ACTIONS:-}" = true
 test "${SITES_RELEASE_REGISTRY_CI:-}" = 1
+if [[ "${SITES_PUBLICATION_REQUEST_READER_CI:-}" == 1 ]]; then
+  test "${SITES_PROJECT_INTAKE_RECOVERY_CLI_CI:-}" = 1
+fi
 if [[ "${SITES_PROJECT_INTAKE_RECOVERY_CLI_CI:-}" == 1 ]]; then
   test "${SITES_PROJECT_INTAKE_RECEIVER_CLI_CI:-}" = 1
 fi
@@ -390,5 +393,11 @@ if [[ "${SITES_PROJECT_INTAKE_RECEIVER_CLI_CI:-}" == 1 ]]; then
 fi
 if [[ "${SITES_PROJECT_INTAKE_RECOVERY_CLI_CI:-}" == 1 ]]; then
   grep -q '^PROJECT INTAKE RECOVERY CLI CI PASS: 30 assertions;' "$lab/contract.log"
-  grep -q '^OK: 1208 persistent release registry assertions;' "$lab/contract.log"
+  if [[ "${SITES_PUBLICATION_REQUEST_READER_CI:-}" != 1 ]]; then
+    grep -q '^OK: 1208 persistent release registry assertions;' "$lab/contract.log"
+  fi
+fi
+if [[ "${SITES_PUBLICATION_REQUEST_READER_CI:-}" == 1 ]]; then
+  grep -q '^PUBLICATION REQUEST READER CI PASS: 33 assertions; 1208 existing assertions retained;' "$lab/contract.log"
+  grep -q '^OK: 1241 persistent release registry assertions;' "$lab/contract.log"
 fi

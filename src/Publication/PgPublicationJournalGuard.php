@@ -22,11 +22,25 @@ final class PgPublicationJournalGuard
     ];
 
     /** @return array{database:string,login:string,pid:int} */
-    public static function snapshot(PDO $db): array
+    public static function snapshot(PDO $db, bool $readOnly = false): array
     {
         if ($db->getAttribute(PDO::ATTR_DRIVER_NAME) !== 'pgsql' || $db->inTransaction() ||
             $db->getAttribute(PDO::ATTR_ERRMODE) !== PDO::ERRMODE_EXCEPTION) {
             throw new RuntimeException('Publication journal connection unavailable');
+        }
+        // Only the exact-request reader opts in. Existing journal entry points
+        // retain their connection contract and do not acquire a new setting.
+        if ($readOnly) {
+            $context = $db->query(<<<'SQL'
+SELECT pg_catalog.current_setting('default_transaction_read_only') AS default_read_only,
+ pg_catalog.current_setting('transaction_read_only') AS transaction_read_only,
+ pg_catalog.current_setting('client_encoding') AS client_encoding
+SQL)->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($context) || ($context['default_read_only'] ?? null) !== 'on' ||
+                ($context['transaction_read_only'] ?? null) !== 'on' ||
+                ($context['client_encoding'] ?? null) !== 'UTF8') {
+                throw new RuntimeException('Publication journal connection unavailable');
+            }
         }
         $row = $db->query(<<<'SQL'
 SELECT current_database() AS database,session_user AS login,pg_backend_pid() AS pid,

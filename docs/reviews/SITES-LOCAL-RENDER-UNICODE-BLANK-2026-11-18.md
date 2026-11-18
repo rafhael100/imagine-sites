@@ -74,5 +74,18 @@ executam sua limpeza; não usam mounts em `/run`, credenciais ou PostgreSQL.
 Cada script focado foi executado uma vez após o fechamento do código.
 A suíte geral confirmou **296 testes/4705 assertions/27 skips** com cache de
 resultados desativado, e os **32 checks sintéticos** obrigatórios passaram.
-**O CI desta candidata ainda está pendente.** Não houve
+**Nessa etapa o CI ainda estava pendente; a evidência final está abaixo.** Não houve
 execução local de PostgreSQL ou navegador.
+
+## Evidência final da #535
+
+A [#535](https://github.com/rafhael100/imagine-sites/pull/535) confirmou **12/12
+checks SUCCESS** no HEAD `d5ef3a45d45d0db073c5b43d8b23e68e537bec0a`.
+O [run dedicado 44392728209](https://github.com/rafhael100/imagine-sites/actions/runs/44392728209),
+jobs **135114374901 / 135114374731**, confirmou **159 checks do serviço e 97 da
+CLI** em PHP 8.3/8.4, com execução dos positivos, negativos e cleanup do diretório
+próprio. O [Laravel 44392728069](https://github.com/rafhael100/imagine-sites/actions/runs/44392728069),
+jobs **135114374101 /135114373530**, confirmou **296/4705/27** e **296/4717/21**
+com opt-in nas duas versões. A revisão local final conferiu 733 arquivos, dois
+blocos Bash, 182 links locais e diffcheck. Produto/testes/workflow também tiveram
+revisão independente. Esta correção não repetiu PostgreSQL/registry ou navegador.

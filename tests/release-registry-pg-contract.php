@@ -5,6 +5,8 @@ declare(strict_types=1);
 // verifier together. It never installs a provider, admits a client or publishes.
 if (PHP_SAPI!=='cli' || getenv('GITHUB_ACTIONS')!=='true' ||
     getenv('SITES_RELEASE_REGISTRY_CI')!=='1') exit(2);
+if (getenv('SITES_PUBLICATION_REQUEST_READER_CI') === '1' &&
+    getenv('SITES_PROJECT_INTAKE_RECOVERY_CLI_CI') !== '1') exit(2);
 if (getenv('SITES_BRIEF_SNAPSHOTS_CI') === '1' &&
     getenv('SITES_REGISTRY_INTAKE_PERMISSIONS_CI') !== '1') exit(2);
 if (getenv('SITES_BRIEF_ARTIFACT_PROVENANCE_CI') === '1' &&
@@ -506,6 +508,19 @@ if (getenv('SITES_BRIEF_ARTIFACT_PROVENANCE_CI') === '1') {
     $briefArtifactMigration = require __DIR__.'/../apps/sites/database/migrations/2026_11_18_000014_add_brief_artifact_provenance.php';
     $briefArtifactMigration->up();
     require __DIR__.'/fixtures/brief-artifact-provenance/contract.php';
+}
+if (getenv('SITES_PUBLICATION_REQUEST_READER_CI') === '1') {
+    if ($checks !== 1208 || !isset($publicationRequestReaderOriginalGuard)) {
+        throw new RuntimeException('Complete predecessor journal and registry proof required');
+    }
+    $publicationRequestReaderBefore = $checks;
+    $publicationRequestReaderChecks = (require __DIR__.'/fixtures/publication-request-reader/contract.php')(
+        $admin, $connection, $connect, $tenants, $password, $publicationRequestReaderOriginalGuard, $ok,
+    );
+    if (!is_int($publicationRequestReaderChecks) || $publicationRequestReaderChecks < 1 ||
+        $checks !== $publicationRequestReaderBefore + $publicationRequestReaderChecks) {
+        throw new RuntimeException('Exact publication request reader check accounting required');
+    }
 }
 echo "OK: $checks persistent release registry assertions; actual core/editorial/migration/PDO/evidence path, synthetic CI only\n";
 echo "BLOCKED: no operational grants, client acceptance, payment, publisher, VPS or deployment.\n";
