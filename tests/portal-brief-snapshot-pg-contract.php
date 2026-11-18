@@ -200,12 +200,14 @@ function bsDenied(callable $work, string $message = 'BRIEF_SNAPSHOT_DENIED', str
     throw new BriefSnapshotFixtureAssertion('expected application refusal');
 }
 
-function bsSqlDenied(callable $work, string $state = '42501'): void
+function bsSqlDenied(callable $work, string $state = '42501', ?string $message = null): void
 {
     try {
         $work();
     } catch (PDOException $error) {
-        bsCheck($error->getCode() === $state, 'SQL refuses the operation with its expected bounded state');
+        bsCheck($error->getCode() === $state && ($message === null ||
+            str_contains((string)($error->errorInfo[2] ?? ''), $message)),
+            'SQL refuses the operation with its expected bounded state and specified guard');
         return;
     }
     throw new BriefSnapshotFixtureAssertion('expected SQL refusal');
@@ -516,6 +518,10 @@ SQL)->fetch(PDO::FETCH_ASSOC);
     bsCheck($admin->query("SELECT pg_catalog.to_regprocedure('".BS_RECORD_API."') IS NOT NULL AND ".
         "pg_catalog.to_regprocedure('".BS_READ_API."') IS NOT NULL")->fetchColumn() === true,
         'both APIs come from the native migration');
+    $withProvenance = $admin->query("SELECT to_regclass('sites_core.release_artifact_provenance') IS NOT NULL")->fetchColumn() === true;
+    if ($withProvenance && getenv('SITES_BRIEF_PROVENANCE_SCHEMA_TESTS') !== '1') {
+        throw new BriefSnapshotFixtureAssertion('dependent provenance migration requires explicit schema opt-in');
+    }
 
     $bsStage = 'isolated native setup';
     $suffix = bin2hex(random_bytes(5));
@@ -806,13 +812,19 @@ SQL, [$tenantA, $manual['siteRef'], $manual['contractRef'], 'manual-operation-'.
     bsSqlDenied(fn() => $receiverA->exec('SET ROLE sites_core_brief_receiver'));
     bsSqlDenied(fn() => $admin->exec('UPDATE sites_core.portal_brief_snapshots SET source_version=source_version'));
     bsSqlDenied(fn() => $admin->exec('DELETE FROM sites_core.portal_brief_snapshots'));
-    bsSqlDenied(fn() => $admin->exec('TRUNCATE sites_core.portal_brief_snapshots'));
+    $denyTruncate = static function (string $sql) use ($admin): void {
+        $admin->beginTransaction();
+        try { bsSqlDenied(fn() => $admin->exec($sql), '42501', 'BRIEF_SNAPSHOT_DENIED'); }
+        finally { if ($admin->inTransaction()) $admin->rollBack(); }
+    };
+    $provenanceDependent = $withProvenance ? ',sites_core.release_artifact_provenance' : '';
+    $denyTruncate('TRUNCATE sites_core.portal_brief_snapshots'.$provenanceDependent);
     bsSqlDenied(fn() => bsRun($admin,
         'UPDATE sites_core.portal_brief_principals SET active=active WHERE login_name=?', [$actors['a_receiver']]));
     bsSqlDenied(fn() => bsRun($admin,
         "UPDATE sites_core.portal_brief_principals SET duty='reader',authorization_epoch=authorization_epoch+1 WHERE login_name=?", [$actors['a_receiver']]));
     bsSqlDenied(fn() => bsRun($admin, 'DELETE FROM sites_core.portal_brief_principals WHERE login_name=?', [$actors['a_receiver']]));
-    bsSqlDenied(fn() => $admin->exec('TRUNCATE sites_core.portal_brief_principals,sites_core.portal_brief_snapshots'));
+    $denyTruncate('TRUNCATE sites_core.portal_brief_principals,sites_core.portal_brief_snapshots'.$provenanceDependent);
     bsCheck(bsRows($admin) === $before, 'direct ACL, immutable history and principal identity refusals preserve all rows');
 
     $bsStage = 'unexpected ACL and RLS drift';
@@ -1029,34 +1041,66 @@ SQL, [$tenantA, $tenantB])->fetchColumn();
         (int)$migrationPdo->query('SELECT inet_server_port()')->fetchColumn() === (int)getenv('DB_PORT'),
         'the real Laravel migration connection matches the already verified laboratory');
     $migration = require __DIR__.'/../apps/sites/database/migrations/2026_11_18_000013_add_portal_brief_snapshots.php';
-    $beforeDown = bsRows($admin, true);
-    $didDown = false;
+    $dependentMigration = null;
+    if ($withProvenance) {
+        $beforeDependencyRefusal = bsRows($admin);
+        $beforeDependencyCatalog = bsCatalog($admin);
+        $dependencyDenied = false;
+        try { $migration->down(); } catch (PDOException $error) {
+            $dependencyDenied = ($error->errorInfo[0] ?? $error->getCode()) === '2BP01' &&
+                str_contains($error->getMessage(), 'release_provenance_snapshot_fk');
+        }
+        bsCheck($dependencyDenied && bsRows($admin) === $beforeDependencyRefusal &&
+            bsCatalog($admin) === $beforeDependencyCatalog,
+            'migration 13 refuses reversal while its provenance dependency is installed without changing data or catalog');
+        bsCheck((int)$admin->query('SELECT count(*) FROM sites_core.release_artifact_provenance')->fetchColumn() === 0,
+            'the schema-only dependent relation is empty before the ordered rollback proof');
+        $dependentMigration = require __DIR__.'/../apps/sites/database/migrations/2026_11_18_000014_add_brief_artifact_provenance.php';
+        $dependentMigration->down();
+        unset($beforeDependencyRefusal['sites_core.release_artifact_provenance']);
+        bsCheck(bsRows($admin) === $beforeDependencyRefusal,
+            'reverting the empty dependent migration preserves every original briefing and business row');
+    }
     try {
-        $migration->down();
-        $didDown = true;
-        bsCheck($admin->query(<<<'SQL'
-SELECT pg_catalog.to_regclass('sites_core.portal_brief_principals') IS NULL
- AND pg_catalog.to_regclass('sites_core.portal_brief_snapshots') IS NULL
- AND pg_catalog.to_regprocedure('sites_core.record_portal_brief_snapshot(text,text)') IS NULL
- AND pg_catalog.to_regprocedure('sites_core.read_portal_brief_snapshot(uuid,uuid,integer,text)') IS NULL
- AND NOT EXISTS(SELECT 1 FROM pg_catalog.pg_roles
-  WHERE rolname IN ('sites_core_brief_owner','sites_core_brief_receiver','sites_core_brief_reader'))
-SQL)->fetchColumn() === true && bsRows($admin, true) === $beforeDown,
-            'down removes only the new candidate objects and preserves every older row');
+        $beforeDown = bsRows($admin, true);
+        $didDown = false;
+        try {
+            $migration->down();
+            $didDown = true;
+            bsCheck($admin->query(<<<'SQL'
+    SELECT pg_catalog.to_regclass('sites_core.portal_brief_principals') IS NULL
+     AND pg_catalog.to_regclass('sites_core.portal_brief_snapshots') IS NULL
+     AND pg_catalog.to_regprocedure('sites_core.record_portal_brief_snapshot(text,text)') IS NULL
+     AND pg_catalog.to_regprocedure('sites_core.read_portal_brief_snapshot(uuid,uuid,integer,text)') IS NULL
+     AND NOT EXISTS(SELECT 1 FROM pg_catalog.pg_roles
+      WHERE rolname IN ('sites_core_brief_owner','sites_core_brief_receiver','sites_core_brief_reader'))
+    SQL)->fetchColumn() === true && bsRows($admin, true) === $beforeDown,
+                'down removes only the new candidate objects and preserves every older row');
+        } finally {
+            if ($didDown) $migration->up();
+        }
+        bsCheck((int)$admin->query('SELECT count(*) FROM sites_core.portal_brief_principals')->fetchColumn() === 0 &&
+            (int)$admin->query('SELECT count(*) FROM sites_core.portal_brief_snapshots')->fetchColumn() === 0 &&
+            bsRows($admin, true) === $beforeDown,
+            'reapply creates empty default-deny storage without restoring authority or historical data');
+        foreach ([$actors['a_receiver'], $actors['a_reader'], $actors['b_receiver'], $actors['b_reader']] as $login) {
+            bsCheck(bsRun($admin, 'SELECT NOT pg_catalog.has_function_privilege(?,?::regprocedure,\'EXECUTE\') AND NOT pg_catalog.has_function_privilege(?,?::regprocedure,\'EXECUTE\')',
+                [$login, BS_RECORD_API, $login, BS_READ_API])->fetchColumn() === true,
+                'reapply does not recover an earlier runtime EXECUTE grant');
+        }
+        bsNoMutation($admin, fn() => bsRecord(bsDb($actors['a_receiver']), $first));
+        bsNoMutation($admin, fn() => bsRead(bsDb($actors['a_reader'], true), $first));
     } finally {
-        if ($didDown) $migration->up();
+        if ($dependentMigration !== null) $dependentMigration->up();
     }
-    bsCheck((int)$admin->query('SELECT count(*) FROM sites_core.portal_brief_principals')->fetchColumn() === 0 &&
-        (int)$admin->query('SELECT count(*) FROM sites_core.portal_brief_snapshots')->fetchColumn() === 0 &&
-        bsRows($admin, true) === $beforeDown,
-        'reapply creates empty default-deny storage without restoring authority or historical data');
-    foreach ([$actors['a_receiver'], $actors['a_reader'], $actors['b_receiver'], $actors['b_reader']] as $login) {
-        bsCheck(bsRun($admin, 'SELECT NOT pg_catalog.has_function_privilege(?,?::regprocedure,\'EXECUTE\') AND NOT pg_catalog.has_function_privilege(?,?::regprocedure,\'EXECUTE\')',
-            [$login, BS_RECORD_API, $login, BS_READ_API])->fetchColumn() === true,
-            'reapply does not recover an earlier runtime EXECUTE grant');
+    if ($dependentMigration !== null) {
+        $restoredOldRows = $beforeDown;
+        $restoredOldRows['sites_core.release_artifact_provenance'] = '[]';
+        ksort($restoredOldRows);
+        bsCheck(bsRows($admin, true) === $restoredOldRows &&
+            (int)$admin->query('SELECT count(*) FROM sites_core.release_artifact_provenance')->fetchColumn() === 0,
+            'ordered reapplication restores empty provenance after snapshots without changing prior business rows');
     }
-    bsNoMutation($admin, fn() => bsRecord(bsDb($actors['a_receiver']), $first));
-    bsNoMutation($admin, fn() => bsRead(bsDb($actors['a_reader'], true), $first));
     echo "PASS native Portal brief snapshots: {$bsChecks} checks; exact committed bytes, scoped replay/CAS, current authorization, concurrent callers, persisted rendering and native rollback/reapply; no production authority.\n";
     echo "NATIVE BRIEF SNAPSHOTS CI PASS\n";
 } catch (Throwable $error) {

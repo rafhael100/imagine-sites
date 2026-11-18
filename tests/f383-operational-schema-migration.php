@@ -39,6 +39,7 @@ $names=[
     'db_login_bindings','editorial_operator_bindings',
     'release_registry_principals','release_artifacts','release_binding_events',
     'portal_project_intakes','portal_brief_principals','portal_brief_snapshots',
+    'release_artifact_provenance',
 ];
 $registryTables=['release_registry_principals','release_artifacts','release_binding_events'];
 $briefTables=['portal_brief_principals','portal_brief_snapshots'];
@@ -51,7 +52,7 @@ $state=$db->query(
       WHERE n.nspname='sites_core' AND c.relkind IN ('r','p','v','m','f')"
 )->fetchAll(PDO::FETCH_ASSOC);
 f383Check(count($state)===count($names),
-    'exact fourteen core tables after all reversible Laravel migrations');
+    'exact fifteen core tables after all reversible Laravel migrations');
 $seen=[];
 foreach ($state as $row) {
     $seen[]=$row['tablename'];
@@ -66,6 +67,10 @@ foreach ($state as $row) {
     if (in_array($row['tablename'],$briefTables,true)) {
         f383Check($row['owner']==='sites_core_brief_owner',
             'briefing table belongs only to its internal owner: '.$row['tablename']);
+    }
+    if ($row['tablename']==='release_artifact_provenance') {
+        f383Check($row['owner']==='sites_core_provenance_owner',
+            'artifact provenance belongs only to its internal owner');
     }
 }
 sort($seen);
@@ -127,6 +132,9 @@ $expectedPolicies=[
     'portal_brief_snapshots.brief_snapshots_internal_read'=>$readPolicy(['sites_core_brief_reader','sites_core_brief_receiver']),
     'portal_brief_snapshots.brief_snapshots_internal_write'=>$writePolicy(['sites_core_brief_receiver']),
     'portal_project_intakes.brief_native_intake_read'=>$readPolicy(['sites_core_brief_receiver']),
+    'release_artifact_provenance.provenance_internal_read'=>$readPolicy(['sites_core_provenance_reader','sites_core_provenance_writer']),
+    'release_artifact_provenance.provenance_internal_write'=>$writePolicy(['sites_core_provenance_writer']),
+    'release_artifacts.provenance_artifact_read'=>$readPolicy(['sites_core_provenance_writer']),
 ];
 $actualPolicies=[];
 foreach ($policyRows as $policy) {
@@ -138,7 +146,7 @@ foreach ($policyRows as $policy) {
 }
 ksort($actualPolicies);ksort($expectedPolicies);
 f383Check($actualPolicies===$expectedPolicies,
-    'exact table, command, roles and predicates for all forty-two internal policies; no PUBLIC or extra policy');
+    'exact table, command, roles and predicates for all forty-five internal policies; no PUBLIC or extra policy');
 
 $registryRoles=$db->query(
     "SELECT rolname,rolcanlogin,rolsuper,rolbypassrls,rolcreatedb,rolcreaterole,rolreplication,rolinherit
@@ -155,7 +163,7 @@ foreach ($registryRoles as $role) {
             $role['rolname'].' has no '.$attribute.' capability');
     }
 }
-foreach (['db_login_bindings','editorial_operator_bindings','portal_project_intakes',...$registryTables,...$briefTables] as $table) {
+foreach (['db_login_bindings','editorial_operator_bindings','portal_project_intakes',...$registryTables,...$briefTables,'release_artifact_provenance'] as $table) {
     f383Check((int)$db->query('SELECT count(*) FROM sites_core.'.$table)->fetchColumn()===0,
         'migration seeds no principal, artifact or binding: '.$table);
 }
@@ -193,6 +201,41 @@ f383Check(array_column($briefFunctions,'proname')===[
 foreach ($briefFunctions as $function) {
     f383Check(in_array($function['private'],[true,'t','1',1],true),
         'briefing function grants no PUBLIC execute: '.$function['proname']);
+}
+
+$provenanceRoles=$db->query(
+    "SELECT rolname,rolcanlogin,rolsuper,rolbypassrls,rolcreatedb,rolcreaterole,rolreplication,rolinherit
+       FROM pg_roles WHERE rolname IN
+       ('sites_core_provenance_owner','sites_core_provenance_writer','sites_core_provenance_reader')
+      ORDER BY rolname"
+)->fetchAll(PDO::FETCH_ASSOC);
+f383Check(array_column($provenanceRoles,'rolname')===[
+    'sites_core_provenance_owner','sites_core_provenance_reader','sites_core_provenance_writer',
+],'exact three artifact provenance roles exist');
+foreach ($provenanceRoles as $role) {
+    foreach (['rolcanlogin','rolsuper','rolbypassrls','rolcreatedb','rolcreaterole','rolreplication','rolinherit'] as $attribute) {
+        f383Check(in_array($role[$attribute],[false,'f',0,'0'],true),
+            $role['rolname'].' has no '.$attribute.' capability');
+    }
+}
+$provenanceFunctions=$db->query(
+    "SELECT p.proname,
+            NOT EXISTS(SELECT 1 FROM aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a
+              WHERE a.grantee=0 AND a.privilege_type='EXECUTE') AS private
+       FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+      WHERE n.nspname='sites_core' AND p.proname IN
+       ('brief_artifact_provenance_immutable','brief_artifact_provenance_input',
+        'brief_artifact_provenance_runtime_safe','record_brief_release_artifact',
+        'read_brief_release_artifact_receipt') ORDER BY p.proname"
+)->fetchAll(PDO::FETCH_ASSOC);
+f383Check(array_column($provenanceFunctions,'proname')===[
+    'brief_artifact_provenance_immutable','brief_artifact_provenance_input',
+    'brief_artifact_provenance_runtime_safe','read_brief_release_artifact_receipt',
+    'record_brief_release_artifact',
+],'exact five provenance functions exist without missing or extra overload');
+foreach ($provenanceFunctions as $function) {
+    f383Check(in_array($function['private'],[true,'t','1',1],true),
+        'provenance function grants no PUBLIC execute: '.$function['proname']);
 }
 
 $journalTables=['journal_events','journal_operations','journal_principals'];

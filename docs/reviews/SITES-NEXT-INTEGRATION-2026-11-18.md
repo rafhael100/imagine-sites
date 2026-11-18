@@ -6,33 +6,55 @@
 
 Essa conclusão delimita a integração; não afirma esgotamento de todo desenvolvimento. O trabalho autorizado em branch isolada pode continuar em componentes com uso concreto e defeitos demonstrados. A inspeção privada do diário é um exemplo: consome a API persistente existente sem criar autoridade ou depender de um briefing inventado.
 
-### Armazenamento técnico candidato e consumo persistido implementados
+### Composição persistente em implementação candidata
 
-A branch `feature/sites-native-brief-snapshots-2026-11-18`, baseada na #518 /
-`907e2883393b776eebcba59fafb672aa34c99bf6`, implementa o
-[recebimento de snapshots candidatos](../PORTAL-BRIEF-SNAPSHOTS.md) na migration 13.
-O contexto vem do intake e do principal SQL corrente; o manifesto e o corpo rico
-são preservados como bytes imutáveis, com CAS de `briefRevision` e replay exato.
-`sourceVersion` continua sendo o contador agregado independente da origem.
+A branch `feature/sites-brief-artifact-provenance-2026-11-18` acrescenta a
+[ligação técnica ao registry](../STORED-BRIEF-RELEASE-PROVENANCE.md), sobre a base
+#519 validada. `StoredBriefReleaseRegistration` recebe plano/editorial originais,
+lê o snapshot exato e gera o HTML internamente. Não recebe sidecar ou artefato
+externo como prova. A migration 14 usa a operação existente de registro e
+persiste a relação na mesma transação, sem adoção retroativa de artefatos antigos
+sem associação; a API anterior mantém seu contrato e sua capacidade exclusiva.
 
-O reader separado resolve quatro seletores exatos, revalida todo o perfil PHP
-e alimenta `StoredBriefRendering` com os bytes armazenados e a entrada editorial
-escolhida. O resultado é HTML/proveniência em memória, sem gravação de arquivos
-ou registro de artefato. O [recibo de armazenamento](../../contracts/portal-sites/candidates/brief-production-v1/brief-snapshot-receipt.schema.json)
-tem treze campos e quatro flags falsas. Não autentica `sourceState=approved`,
-pagamento ou aceite do cliente. Endpoint e transporte não foram ativados.
+O plano tem dez campos, o resultado de registro vinte e o leitor histórico
+exato dezoito. `commitmentSha256` vincula alvo, plano/editorial originais e HTML;
+`planSha256` identifica os bytes do plano. O SQL confere estrutura, hashes e FK
+no banco do writer; a geração e a auditoria permanecem no PHP. A leitura do
+snapshot termina antes da escrita, sem prometer autorização atômica entre
+sessões. O reader histórico usa identidade separada e não repete a escrita de
+um autor/epoch antigo. Não há retry automático, aprovação oficial ou ativação
+de CLI, HTTP, provider ou transporte.
 
-As provas locais compreendem onze testes do input já aprovados e intactos,
-**34 testes/904 assertions** de serviços após a correção de ERRMODE e
-**109 checks** de regressão do consumidor local. São 45 testes novos, sem
-atribuir o resultado anterior da suíte geral ao último ajuste. A fixture
-PostgreSQL e a compatibilidade de **923 checks registry previstos** aguardam CI;
-nenhum número de PR ou resultado de execução é presumido.
+**Prova atual desse incremento:** grupo PHP focado de **39 testes/1172 assertions
+PASS**, com **28 novos e onze Unit existentes**; regressões **109/271 PASS**,
+lint e diffcheck. Não é a suíte geral e não demonstra execução PostgreSQL.
+Nova fixture/CI ainda estão pendentes, sem presumir número de PR. Produtor
+Portal, exportação consistente, transporte e materiais reais permanecem
+dependências operacionais distintas.
 
-A próxima relação durável ainda aberta é `snapshot → artefato do registry`:
-renderizar a revisão armazenada não cria esse vínculo no banco. Adoção pelo
-produtor Portal, exportação consistente, identidade de transporte e uso
-operacional continuam exigindo suas evidências próprias.
+### Armazenamento técnico candidato e consumo persistido validados na #519
+
+A [PR #519](https://github.com/rafhael100/imagine-sites/pull/519), HEAD
+`cdfad4464d65355962d487396911fe06092dfde5`, concluiu **15/15 checks SUCCESS**.
+A migration 13 conserva manifesto/corpo imutáveis, CAS de `briefRevision` e
+replay exato sob principal SQL; `sourceVersion` permanece contador agregado
+independente. O reader revalida o perfil completo e resolve a seleção exata
+para `StoredBriefRendering`. Seu resultado isolado é HTML/proveniência em
+memória. O [recibo de armazenamento](../../contracts/portal-sites/candidates/brief-production-v1/brief-snapshot-receipt.schema.json)
+tem treze campos e quatro flags falsas; não autentica aprovação, pagamento ou
+aceite do cliente.
+
+O [F383 44336308019](https://github.com/rafhael100/imagine-sites/actions/runs/44336308019)
+confirmou **241 checks de briefing**, **65 de intake**, recorder **18/84**,
+grupos de leitura/editorial **3/12** e **2/12**, rollback das **13 migrations**
+e ausência dos dois schemas. O [registry 44336307622](https://github.com/rafhael100/imagine-sites/actions/runs/44336307622)
+confirmou **923 totais/62 de registro**, quatro checks antigos/quatro novos de
+renderização e um de schema, com clusters inativos. A
+[matriz Laravel 44336308278](https://github.com/rafhael100/imagine-sites/actions/runs/44336308278)
+confirmou **251/3140/27** e **251/3152/21** em PHP 8.3/8.4; o
+[ensaio de containers 44336308134](https://github.com/rafhael100/imagine-sites/actions/runs/44336308134)
+também concluiu cleanup. Essa é a prova histórica da base, não da nova
+associação. [Manual de snapshots](../PORTAL-BRIEF-SNAPSHOTS.md).
 
 ### Primeiro consumidor do briefing candidato implementado
 
@@ -133,6 +155,7 @@ A [Sites #516](https://github.com/rafhael100/imagine-sites/pull/516), HEAD funci
 | [BriefRenderProvenance](../../src/Production/BriefRenderProvenance.php) e [render.php](../../ops/release-candidate/render.php) | Conferem um snapshot candidato e sua entrada editorial por bytes exatos, preservando o renderer existente e um sidecar privado. Não consultam head, autenticação do Portal ou autorização comercial, nem persistem briefing em `sites_core`. |
 | [BriefSnapshotInput](../../src/Production/BriefSnapshotInput.php), [recorder e reader nativos](../PORTAL-BRIEF-SNAPSHOTS.md) | A migration 13 e os serviços implementam armazenamento técnico, CAS/replay e leitura exata sob principal SQL corrente. O perfil rico completo é validado em PHP; o recibo não comprova aprovação da origem. |
 | [StoredBriefRendering](../../apps/sites/app/Integration/StoredBriefRendering.php) | Usa o snapshot persistido selecionado pelo plano, sem fallback para o head. Retorna HTML/proveniência em memória e não grava o artefato ou sua relação no registry. |
+| [StoredBriefReleaseRegistration e consulta histórica](../STORED-BRIEF-RELEASE-PROVENANCE.md) | Composição em implementação: usa renderização interna, confirma compromisso próprio e solicita registro/associação atômicos; uma identidade de leitura separada consulta o recibo exato. Não ingere sidecar nem autentica aprovação Portal. |
 | [Pacote técnico](../../ops/release-candidate/README.md), [diário](../../contracts/publication-journal/README.md) e [inspector](../../src/Publication/PrivatePublicationInspection.php) | Trabalham sobre artefato/vínculo e estado técnico já existentes. Não fornecem o insumo ausente, não verificam pagamento/aceite e não autorizam envio. |
 
 Os nomes lógicos `SubmitBriefRevision` e `RequestGenerateRelease` já constam em [SITES-CT-01](../SITES-CT-01-PORTAL-SITES-v0.1.md), explicitamente candidato e não homologado. O [contrato de briefing](../SITES-BRIEF-PRODUCTION-CONTRACT-CANDIDATE-v0.1.md) acrescenta payloads e regras técnicas revisáveis, hoje usados pelo consumidor local e pelo armazenamento candidato. A identidade SQL verificada nesse recebimento não transforma a declaração `approved` em aprovação oficial nem ativa o transporte dos comandos lógicos.
@@ -141,9 +164,9 @@ Os nomes lógicos `SubmitBriefRevision` e `RequestGenerateRelease` já constam e
 
 1. **Adoção versionada pelo Portal, com responsável e SHA revisável:** fonte oficial, regras de revisão/substituição/conflito, conteúdo permitido e vínculo com pedido/projeto/produto. Os exemplos e campos candidatos já existem; falta comprovar que o produtor autorizado os emite consistentemente. Endpoint e transporte permanecem separados dessa definição.
 2. **Leitura e entrega autorizadas:** identidade entre serviços e escopo por empresa/recurso, revogação corrente, acesso aos materiais privados e custódia/retenção operacionais. Referência recebida no JSON não concede acesso. O candidato já tem tabelas, capacidade SQL, replay e reader negados por padrão; ativação de grants, transporte e uso real exigem fonte e autorização próprias.
-3. **Consumidor de produção autorizado:** o modo local e o consumidor do snapshot persistido já vinculam bytes e geram HTML inerte. Ainda é necessário comprovar qual operação pode iniciar produção real, a aprovação humana da entrada editorial e a relação durável entre snapshot e artefato do registry. Para IA/ferramenta externa, definir previamente ferramenta, orçamento e dados permitidos; o fixture não substitui execução autorizada.
+3. **Consumidor de produção autorizado:** o modo local e o consumidor do snapshot persistido já vinculam bytes e geram HTML inerte; a composição durável com o registry está em implementação técnica e ainda precisa de sua prova SQL. Continua necessário comprovar qual operação pode iniciar produção real e a aprovação humana da entrada editorial. Para IA/ferramenta externa, definir previamente ferramenta, orçamento e dados permitidos; a fixture não substitui execução autorizada.
 
-O desenvolvimento em draft agora pode fechar a relação persistente com o registry, mantendo revisões de briefing e editorial distintas. A fixture do receptor já descreve as provas de isolamento, repetição exata, conflito concorrente, revogação e recuperação, ainda pendentes de execução em CI. A composição pareada posterior deve usar fontes fixadas dos dois repositórios; um sucesso só do Sites não comprova o produtor Portal ou o transporte.
+O desenvolvimento em draft está fechando a relação persistente com o registry, mantendo revisões de briefing e editorial distintas. A #519 já executou as provas do receptor; elas não substituem a nova fixture de registro/associação e recuperação histórica. A composição pareada posterior deve usar fontes fixadas dos dois repositórios; um sucesso só do Sites não comprova o produtor Portal ou o transporte.
 
 ## Dependências operacionais e alçadas preservadas
 

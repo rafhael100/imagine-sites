@@ -4,8 +4,10 @@ Estes arquivos são uma **proposta revisável**, com consumo local no `render.ph
 existente e armazenamento técnico candidato na migration 13. O primeiro verifica
 arquivos privados e grava HTML com proveniência local, sem DB. O segundo conserva
 os JSONs originais sob identidade SQL e oferece leitura exata para um consumidor
-interno do renderer. Nenhum deles ativa endpoint, transporte, worker ou autoridade
-operacional. A especificação e as decisões ainda abertas estão em
+interno do renderer. A composição com o registry está em implementação candidata
+na migration 14, preservando essas duas entradas e seus contratos. Nenhum desses
+componentes ativa endpoint, transporte, worker ou autoridade operacional.
+A especificação e as decisões ainda abertas estão em
 [SITES-BRIEF-PRODUCTION-CONTRACT-CANDIDATE-v0.1](../../../../docs/SITES-BRIEF-PRODUCTION-CONTRACT-CANDIDATE-v0.1.md).
 
 | Schema | O que descreve |
@@ -20,8 +22,8 @@ Os schemas verificam estrutura e limites representáveis por JSON Schema
 CAS, replay ou acesso a materiais. As anotações
 `x-legacy-max-utf16-code-units-before-trim` **não são assertions de JSON Schema**:
 O objeto compartilhado `BriefSnapshotInput` aplica esses limites sem confundi-los
-com `maxLength` em code points. Ele e o parser de plano usado por
-`BriefRenderProvenance` recusam chaves duplicadas e formas numéricas não canônicas
+com `maxLength` em code points. Ele e `BriefRenderPlanInput`, compartilhado por
+`BriefRenderProvenance` e pela composição, recusam chaves duplicadas e formas numéricas não canônicas
 e conferem os vínculos de bytes que o schema sozinho não verifica. Essas
 validações puras não autenticam a origem nem estabelecem CAS ou replay durável;
 tais mecanismos de persistência pertencem à API SQL candidata descrita abaixo.
@@ -105,9 +107,41 @@ Recorder e reader têm transações próprias de uma tentativa e conexões com
 `ERRMODE_EXCEPTION`; o reader exige default e transação somente leitura. Uma
 falha de commit ou perda de resposta não prova ausência de escrita. Não há
 retry automático, transação conjunta com arquivos ou registro de artefato
-por esse consumidor. A relação durável entre snapshot e artefato do registry
-permanece aberta. Consulte [o manual de armazenamento e leitura](../../../../docs/PORTAL-BRIEF-SNAPSHOTS.md)
+por esse consumidor isolado. A #519 validou essa capacidade; a composição
+descrita abaixo acrescenta a relação persistente por serviço separado.
+Consulte [o manual de armazenamento e leitura](../../../../docs/PORTAL-BRIEF-SNAPSHOTS.md)
 para permissões, recusas e reversão. Nenhum endpoint foi ativado.
+
+## Composição persistente em implementação
+
+`StoredBriefReleaseRegistration` recebe plano e editorial originais, reusa o
+parser compartilhado e lê/renderiza o snapshot internamente. Não aceita um
+sidecar ou `ReleaseArtifact` externo como prova. A confirmação exige um
+`commitmentSha256` de domínio próprio que inclui alvo canônico, plano/editorial
+originais e HTML; `planSha256` continua sendo somente o SHA do plano bruto.
+Serializações ou snapshots diferentes não compartilham essa confirmação
+apenas por gerarem o mesmo HTML.
+
+A migration 14 chama a operação existente de registro e grava uma associação
+atômica com FK para a seleção exata no próprio banco do writer. A relação guarda
+plano/editorial originais, sem duplicar HTML ou corpo rico. Não há adoção
+retroativa de artefato antigo sem associação. A API antiga e seu replay por
+autor/epoch são preservados; a capacidade composta é exclusiva e alternativa.
+
+| Projeção técnica | Campos e interpretação |
+| --- | --- |
+| Plano | Dez campos; consulta o snapshot, mas não reserva autorização de escrita. |
+| Registro | Vinte campos, incluindo o compromisso confirmado, `created` e timestamp devolvidos pelo SQL. |
+| Leitura histórica exata | Dezoito campos por site/release/`planSha256`; sem `created`, compromisso antigo, texto bruto ou login. Usa reader atual separado, sem repetir writer de epoch antigo. |
+
+As quatro flags `authorityVerified`, `clientAccepted`, `canPublish` e
+`canAcceptRealOrders` continuam falsas. SQL valida estrutura/hashes/vínculo;
+PHP revalida o perfil, gera e audita HTML. A leitura termina antes da escrita,
+sem atomicidade da autorização entre sessões. Falha pode seguir commit e não
+autoriza retry automático. Não há CLI, HTTP, provider, transporte ou aprovação
+Portal ativados. O [manual da composição](../../../../docs/STORED-BRIEF-RELEASE-PROVENANCE.md)
+detalha o contrato; a execução da nova fixture PostgreSQL ainda está pendente.
+O modo local abaixo permanece sem DB e sem mudanças de flags ou sidecar.
 
 ## Consumo local implementado
 
@@ -214,8 +248,16 @@ arquivos usam diretórios temporários privados e o comando real; não atribuem
 autoridade oficial do Portal, execução PostgreSQL ou implantação a esse
 resultado.
 
-Para o armazenamento candidato, os onze testes do input passaram antes do
-último ajuste transacional e ficaram intactos; o arquivo de serviços passou
-depois com **34 testes/904 assertions**, sem avisos. A extração do parser
-preservou os 109 checks de proveniência. As execuções PostgreSQL e registry
-**923 checks previstos** ainda aguardam CI; não são resultados deste inventário.
+O armazenamento foi validado na **#519**, HEAD
+`cdfad4464d65355962d487396911fe06092dfde5`, com **15/15 checks SUCCESS**:
+**241 checks de briefing**, **923 registry/62 de registro** e Laravel
+**251/3140/27**, além de **251/3152/21** no opt-in, em PHP 8.3/8.4.
+As provas de rollback e cleanup estão no
+[manual de snapshots](../../../../docs/PORTAL-BRIEF-SNAPSHOTS.md).
+
+Na composição seguinte, o grupo PHP focado passou com **39 testes/1172
+assertions**, incluindo **28 novos e onze Unit existentes**, sem representar
+toda a suíte. Regressões **109** de proveniência e **271** do registro anterior
+PASS. A nova prova PostgreSQL/CI permanece pendente; esses resultados PHP não
+demonstram persistência da nova relação. Nenhum novo schema ou exemplo foi
+acrescentado a este diretório pela composição.

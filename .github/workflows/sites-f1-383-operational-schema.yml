@@ -22,6 +22,7 @@ on:
       - 'apps/sites/tests/Feature/PortalProjectIntakeRecorderTest.php'
       - 'tests/portal-project-intake-pg-contract.php'
       - 'contracts/portal-sites/002-brief-snapshots.sql'
+      - 'contracts/release-registry/005-brief-artifact-provenance.sql'
       - 'src/Production/Brief*.php'
       - 'apps/sites/app/Integration/*Brief*.php'
       - 'apps/sites/tests/**/*Brief*.php'
@@ -62,6 +63,7 @@ jobs:
       SITES_F385_EDITORIAL_LAB: '1'
       SITES_PROJECT_INTAKE_TESTS: '1'
       SITES_BRIEF_SNAPSHOT_TESTS: '1'
+      SITES_BRIEF_PROVENANCE_SCHEMA_TESTS: '1'
       DB_CONNECTION: pgsql
       DB_HOST: 127.0.0.1
       DB_PORT: '5432'
@@ -97,6 +99,7 @@ jobs:
           php -l apps/sites/tests/Feature/PortalProjectIntakeRecorderTest.php
           php -l tests/portal-project-intake-pg-contract.php
           php -l apps/sites/database/migrations/2026_11_18_000013_add_portal_brief_snapshots.php
+          php -l apps/sites/database/migrations/2026_11_18_000014_add_brief_artifact_provenance.php
           php -l src/Production/BriefCandidateJson.php
           php -l src/Production/BriefSnapshotInput.php
           php -l src/Production/BriefRenderProvenance.php
@@ -181,13 +184,13 @@ jobs:
         working-directory: apps/sites
         run: |
           set -euo pipefail
-          # The same batch includes both native ledgers and all synthetic fixture rows.
+          # The same batch includes both native ledgers and their dependent provenance relation.
           php -r '
             $db=new PDO("pgsql:host=127.0.0.1;dbname=sites_f383_lab",
               "postgres","f383-fictional-admin-only");
             $count=(int)$db->query("SELECT count(*) FROM migrations WHERE batch=1")->fetchColumn();
-            if($count!==13)exit(1);
-            echo "F1-383 PASS: exactly 13 migrations in the disposable batch.\n";
+            if($count!==14)exit(1);
+            echo "F1-383 PASS: exactly 14 migrations in the disposable batch.\n";
           '
           php artisan migrate:rollback --batch=1 --force --no-ansi
           php -r '

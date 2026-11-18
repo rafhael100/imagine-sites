@@ -1,9 +1,15 @@
 # Snapshots candidatos de briefing: recebimento, leitura exata e renderização
 
-**Estado em 18/11/2026:** implementação isolada sobre a
-[#518](https://github.com/rafhael100/imagine-sites/pull/518), HEAD
-`907e2883393b776eebcba59fafb672aa34c99bf6`, na branch
-`feature/sites-native-brief-snapshots-2026-11-18`. Não há ativação operacional.
+**Estado em 18/11/2026:** capacidade candidata validada na
+[#519](https://github.com/rafhael100/imagine-sites/pull/519), HEAD
+`cdfad4464d65355962d487396911fe06092dfde5`, com **15/15 checks SUCCESS**.
+A branch `feature/sites-native-brief-snapshots-2026-11-18` partiu da #518 /
+`907e2883393b776eebcba59fafb672aa34c99bf6`. Não há ativação operacional.
+
+A [composição posterior com o registry](STORED-BRIEF-RELEASE-PROVENANCE.md)
+está em implementação candidata na migration 14, em branch separada. Ela
+reutiliza o armazenamento e o renderer deste manual; a prova da #519 não
+substitui a execução dos novos ensaios SQL de associação.
 
 ## Resultado
 
@@ -25,6 +31,7 @@ comando de shell novo é registrado por esta entrega.
 | --- | --- |
 | [`BriefSnapshotInput`](../src/Production/BriefSnapshotInput.php) | Valida o manifesto e o corpo rico; mantém seus JSONs originais e metadados escalares em objeto imutável. |
 | [`BriefCandidateJson`](../src/Production/BriefCandidateJson.php) | Compartilha tipos, chaves exatas, duplicatas decodificadas, números lexicais e descritores. |
+| [`BriefRenderPlanInput`](../src/Production/BriefRenderPlanInput.php) | Na composição posterior, extrai o parser único do plano; conserva bytes/seletores e valida a entrada editorial e o HTML esperado, sem autenticar a origem. |
 | [`PortalBriefSnapshotRecorder`](../apps/sites/app/Integration/PortalBriefSnapshotRecorder.php) | Grava pela API SQL e valida o recibo antes de permitir o commit e a devolução do resultado. |
 | [`StoredBriefSnapshotReader`](../apps/sites/app/Integration/StoredBriefSnapshotReader.php) | Lê por quatro seletores exatos, revalida o perfil completo e confere novamente a identidade dos bytes. |
 | [`StoredBriefRendering`](../apps/sites/app/Integration/StoredBriefRendering.php) | Usa o reader para obter a fonte armazenada e chama `BriefRenderProvenance::render`. |
@@ -192,25 +199,30 @@ separados; o consumidor não promete uma transação conjunta.
 
 ## Provas e reversão
 
-Os testes PHP exercitam parsing, recibo, seleção exata e a fronteira
-transacional com PDO desconectada. A regressão da #518 conserva seus 109 checks.
-Esses resultados locais não são uma prova PostgreSQL.
+Os testes PHP de parsing, recibo, seleção e fronteira transacional usam PDO
+desconectada. A regressão da #518 conserva seus 109 checks. Esses resultados
+locais são distintos da prova PostgreSQL final da #519 abaixo.
 
-A [fixture nativa](../tests/portal-brief-snapshot-pg-contract.php) usa intake,
-recorder, reader e renderer reais num PostgreSQL 18 descartável. Inclui
-reconexão, história após novo head, isolamento, conflitos, concorrência, resposta
-descartada, revogação e a distinção entre armazenamento SQL e perfil PHP.
-O [workflow F383](../.github/workflows/sites-f1-383-operational-schema.yml)
-confere inicialmente 14 tabelas/42 policies, conserva as provas anteriores e
-termina com rollback das 13 migrations e ausência dos dois schemas próprios.
-Resultados de CI serão registrados depois da execução.
+| Prova da #519 no HEAD `cdfad4464d65355962d487396911fe06092dfde5` | Resultado confirmado |
+| --- | --- |
+| [F383 — run 44336308019](https://github.com/rafhael100/imagine-sites/actions/runs/44336308019) | PHP 8.3/8.4: **241 checks de briefing**, **65 de intake**, recorder **18 testes/84 assertions**, leitura/editorial **3/12** e **2/12**; rollback das **13 migrations**, ausência dos dois schemas próprios e cleanup. |
+| [Registry — run 44336307622](https://github.com/rafhael100/imagine-sites/actions/runs/44336307622) | PHP 8.3/8.4: **923 checks totais**, **62 de registro**, quatro antigos/quatro novos de renderização e um do schema; clusters próprios inativos. |
+| [Laravel — run 44336308278](https://github.com/rafhael100/imagine-sites/actions/runs/44336308278) | PHP 8.3/8.4: padrão **251/3140/27**, opt-in sintético **251/3152/21**. |
+| [Containers — run 44336308134](https://github.com/rafhael100/imagine-sites/actions/runs/44336308134) | Ensaio e cleanup concluídos. |
 
-O [workflow de compatibilidade](../.github/workflows/sites-native-brief-snapshots.yml)
-aplica a migration 13 explicitamente no runner registry por opt-in separado.
-Acrescenta uma verificação de presença/RLS/ausência de principal ou snapshot e
-mantém as 922 verificações anteriores: **923 totais esperados**, em PHP 8.3/8.4,
-com PostgreSQL 18/TLS e confirmação de cluster inativo. A definição do workflow
-não substitui sua execução.
+A [fixture nativa](../tests/portal-brief-snapshot-pg-contract.php) executou
+intake, recorder, reader e renderer reais em PostgreSQL 18 descartável:
+reconexão, história após novo head, isolamento, conflito, concorrência, resposta
+descartada, revogação e diferença entre shape SQL e perfil PHP. O
+[workflow F383](../.github/workflows/sites-f1-383-operational-schema.yml) dessa
+entrega conferiu inicialmente 14 tabelas/42 policies e preservou as provas
+anteriores antes do rollback completo.
+
+O [workflow de compatibilidade da #519](../.github/workflows/sites-native-brief-snapshots.yml)
+aplicou a migration 13 explicitamente no runner registry. Seu check adicional
+de presença/RLS/ausência de principal ou snapshot manteve as 922 verificações
+anteriores e resultou nos 923 confirmados acima. Esses números são históricos
+da base, não resultados atribuídos à migration 14.
 
 O down confere a identidade dos objetos e remove somente as estruturas novas,
 sem CASCADE, remoção de projetos ou restauração de grants. **Ele apaga os
@@ -219,6 +231,34 @@ rollback operacional, que exige política própria de retenção, backup e revis
 Reapply recria estruturas vazias e mantém capacidades desativadas.
 
 Não foram alterados gates, staging, infraestrutura, serviços existentes ou
-fontes oficiais. A associação persistente entre um snapshot e um artefato do
-registry ainda é uma fronteira separada: o HTML/proveniência produzido em
-memória não cria esse vínculo no banco por si só.
+fontes oficiais. `StoredBriefRendering` continua retornando HTML/proveniência
+em memória; esse resultado isolado não registra o artefato.
+
+## Composição posterior em implementação candidata
+
+`StoredBriefReleaseRegistration` reutiliza essa leitura e renderização
+internamente. O plano tem dez campos e o resultado de registro vinte;
+`commitmentSha256` vincula alvo canônico, plano/editorial originais e HTML,
+enquanto `planSha256` identifica somente o plano bruto. Nenhum sidecar ou
+artefato externo é aceito como prova.
+
+A migration 14 chama `record_release_artifact` existente e grava a associação
+na mesma transação SQL, sem adotar retroativamente artefato antigo sem relação.
+As identidades de snapshot e artefato são resolvidas no próprio banco do writer.
+SQL confere estrutura/hashes/FK; PHP revalida o perfil, gera e audita HTML.
+O reader do snapshot termina antes dessa escrita: a relação atômica no writer
+não significa autorização atômica entre sessões.
+
+Uma consulta histórica exata separada retorna dezoito campos por site/release/
+hash do plano. Usa reader atual e não exige repetir writer de epoch antigo;
+não devolve `created`, compromisso antigo, JSON bruto ou login privado.
+API e semântica do registro antigo permanecem preservadas, com capacidades
+alternativas exclusivas. Erro ou resposta perdida pode seguir commit, sem
+retry automático ou atribuição de autoridade oficial.
+
+O grupo PHP focado da composição passou com **39 testes/1172 assertions**,
+sendo **28 novos e onze Unit existentes**; regressões **109/271 PASS**, lint e
+diffcheck. Esse grupo não é a suíte geral. A nova prova PostgreSQL/CI ainda
+está pendente, sem número de PR presumido. O [manual da composição](STORED-BRIEF-RELEASE-PROVENANCE.md)
+detalha projeções e recuperação. Produtor Portal, transporte, materiais reais e
+uso operacional continuam exigindo integração e evidência próprias.

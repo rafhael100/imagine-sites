@@ -26,7 +26,11 @@ A renderização local também pode conferir um plano, um snapshot candidato do 
 
 O armazenamento nativo candidato recebe o manifesto e o corpo rico Onepage como bytes imutáveis, com identidade SQL própria e vínculo ao intake de projeto. A migration 13 mantém uma sequência de `briefRevision` distinta do contador agregado `sourceVersion`, com CAS e replay exato. O recibo técnico tem treze campos e conserva `authorityVerified`, `clientAccepted`, `canPublish` e `canAcceptRealOrders` falsos; ele não autentica a aprovação declarada pelo Portal.
 
-Uma conexão de leitura separada recupera a seleção exata do snapshot e revalida o perfil completo antes de alimentar o renderer com a entrada editorial escolhida. Esse consumidor interno não escreve arquivos ou registra o artefato. O comando de renderização local continua sem DB. Endpoint, transporte, produtor Portal autorizado e a relação durável entre snapshot e artefato do registry permanecem integrações próprias. Consulte o [manual dos snapshots candidatos](docs/PORTAL-BRIEF-SNAPSHOTS.md).
+Uma conexão de leitura separada recupera a seleção exata do snapshot e revalida o perfil completo antes de alimentar o renderer com a entrada editorial escolhida. Esse consumidor interno continua sem escrever arquivos ou registrar o artefato por conta própria. O armazenamento foi validado na #519; consulte o [manual dos snapshots candidatos](docs/PORTAL-BRIEF-SNAPSHOTS.md).
+
+A composição seguinte está em implementação candidata: `StoredBriefReleaseRegistration` lê e renderiza internamente, confirma um compromisso que inclui alvo, plano, editorial e HTML originais e solicita uma única operação SQL. A migration 14 associa o snapshot e registra o artefato atomicamente pela operação existente do registry, sem adotar retroativamente artefatos antigos sem relação. O SQL confere estrutura, hashes e vínculo persistente; a geração e a auditoria do HTML continuam no PHP. A API antiga conserva seu contrato.
+
+O plano composto tem dez campos, o resultado de registro vinte e a consulta histórica exata dezoito. `commitmentSha256` identifica a confirmação completa; `planSha256` identifica somente os bytes do plano. Um reader separado permite consultar o recibo histórico sem repetir um writer cuja época já mudou. Falha após a chamada pode seguir commit, sem retry automático. Esse percurso não aceita sidecar arbitrário, não autentica aprovação Portal e não ativa CLI, HTTP ou provider. O comando local da #518 continua sem DB; produtor, transporte e materiais reais permanecem integrações próprias. Consulte o [manual da composição](docs/STORED-BRIEF-RELEASE-PROVENANCE.md).
 
 O guard do registry inspeciona permissões de tabela e coluna em todo o schema nativo, incluindo o ledger de recebimento do Portal. A ampliação usa uma migration aditiva que preserva identidade e ACL da função existente; nenhuma capacidade de recebimento, pagamento ou publicação é concedida por essa verificação.
 
@@ -52,7 +56,7 @@ Esses componentes não constituem homologação operacional. Contrato, pagamento
 | `src/Production` | Briefing, validação compartilhada de snapshots/planos, renderer, auditoria de HTML, versões, fila, histórico e comparação |
 | `src/Publication` | Vínculo da release, evidências, pacote privado e diário persistente de tentativas |
 | `src/Integration` | Contratos e adaptadores candidatos de integração com o Portal |
-| `apps/sites/app/Integration` | Recebimento nativo de projetos e snapshots, leitura exata e renderização dos bytes armazenados |
+| `apps/sites/app/Integration` | Recebimento nativo, leitura exata, renderização de snapshots e composição candidata de registro com recuperação histórica |
 | `contracts` | Regras SQL versionadas e fronteiras dos componentes |
 | `ops/preview-candidate` | Provisionamento explícito e revisável do workspace privado |
 | `ops/release-candidate` | Renderização local, registro, associação/revogação, consulta do último evento e `prepare`/`verify` do pacote técnico |
@@ -126,6 +130,7 @@ O Portal controla contratos, aceite expresso e evento oficial `ENTREGUE`; Sites 
 - [Renderização de briefing local privado](docs/reviews/SITES-LOCAL-ARTIFACT-RENDERING-2026-11-18.md)
 - [Proveniência local do briefing ao HTML](docs/reviews/SITES-LOCAL-RENDER-PROVENANCE-2026-11-18.md)
 - [Snapshots candidatos: armazenamento, leitura exata e consumo](docs/PORTAL-BRIEF-SNAPSHOTS.md)
+- [Composição candidata: snapshot, artefato e recibo histórico](docs/STORED-BRIEF-RELEASE-PROVENANCE.md)
 - [Schemas e exemplos de briefing, plano e recibo técnico](contracts/portal-sites/candidates/brief-production-v1/README.md)
 - [Próxima integração Portal → briefing → geração](docs/reviews/SITES-NEXT-INTEGRATION-2026-11-18.md)
 - [Orientação editorial por versão](docs/reviews/SITES-EDITORIAL-FEEDBACK-2026-11-18.md)

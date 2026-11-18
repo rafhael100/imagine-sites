@@ -7,6 +7,8 @@ if (PHP_SAPI!=='cli' || getenv('GITHUB_ACTIONS')!=='true' ||
     getenv('SITES_RELEASE_REGISTRY_CI')!=='1') exit(2);
 if (getenv('SITES_BRIEF_SNAPSHOTS_CI') === '1' &&
     getenv('SITES_REGISTRY_INTAKE_PERMISSIONS_CI') !== '1') exit(2);
+if (getenv('SITES_BRIEF_ARTIFACT_PROVENANCE_CI') === '1' &&
+    getenv('SITES_BRIEF_SNAPSHOTS_CI') !== '1') exit(2);
 if (getenv('SITES_REGISTRY_INTAKE_PERMISSIONS_CI') === '1') {
     foreach (['SITES_PUBLICATION_JOURNAL_CI', 'SITES_PUBLICATION_INSPECTION_CI',
         'SITES_RELEASE_REGISTRATION_CI', 'SITES_EDITORIAL_TRANSITION_CI', 'SITES_RELEASE_BINDING_CI',
@@ -491,5 +493,15 @@ try {$registryMigration->down();} catch (RuntimeException $error) {
 }
 $ok($rollbackRefused,'populated registry rollback refused specifically to preserve history');
 $ok($snapshot()===$beforeRollback,'rollback refusal preserved all persisted history');
+if (getenv('SITES_BRIEF_ARTIFACT_PROVENANCE_CI') === '1') {
+    // The predecessor's guard-12 down/up proof runs before its new dependent
+    // migration. The new fixture then exercises composition and compatibility
+    // with migration 14 installed, on the very same verified TLS laboratory.
+    if ($checks !== 923) throw new RuntimeException('Complete predecessor registry proof required');
+    echo "BRIEF ARTIFACT PREDECESSOR CI PASS: 923 assertions; all prior contracts completed before migration 14.\n";
+    $briefArtifactMigration = require __DIR__.'/../apps/sites/database/migrations/2026_11_18_000014_add_brief_artifact_provenance.php';
+    $briefArtifactMigration->up();
+    require __DIR__.'/fixtures/brief-artifact-provenance/contract.php';
+}
 echo "OK: $checks persistent release registry assertions; actual core/editorial/migration/PDO/evidence path, synthetic CI only\n";
 echo "BLOCKED: no operational grants, client acceptance, payment, publisher, VPS or deployment.\n";
