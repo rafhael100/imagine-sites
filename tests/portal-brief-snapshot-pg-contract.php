@@ -492,17 +492,27 @@ try {
     $admin = bsDb();
     $identity = $admin->query(<<<'SQL'
 SELECT pg_catalog.current_database() AS database_name,session_user::text AS login,
- pg_catalog.inet_server_addr()::text AS address,pg_catalog.inet_server_port() AS port,
+ pg_catalog.host(pg_catalog.inet_server_addr()) AS address,pg_catalog.inet_server_port() AS port,
  pg_catalog.current_setting('server_version_num')::integer AS version,
  pg_catalog.current_setting('server_encoding') AS encoding,
  pg_catalog.current_setting('role') AS role,
  (SELECT rolsuper FROM pg_catalog.pg_roles WHERE rolname=session_user) AS is_admin
 SQL)->fetch(PDO::FETCH_ASSOC);
-    bsCheck($identity['database_name'] === 'sites_f383_lab' && $identity['login'] === 'postgres' &&
-        $identity['address'] === $bsServerAddress && $identity['port'] === (int)getenv('DB_PORT') &&
-        is_int($identity['version']) && $identity['version'] >= 180000 && $identity['version'] < 190000 &&
-        $identity['encoding'] === 'UTF8' && $identity['role'] === 'none' && $identity['is_admin'] === true &&
-        !$admin->inTransaction(), 'verified disposable PostgreSQL18 identity before the first write');
+    $identityGuards = [
+        'database' => $identity['database_name'] === 'sites_f383_lab',
+        'login' => $identity['login'] === 'postgres',
+        'service address' => $identity['address'] === $bsServerAddress,
+        'port' => $identity['port'] === (int)getenv('DB_PORT'),
+        'version' => is_int($identity['version']) && $identity['version'] >= 180000 && $identity['version'] < 190000,
+        'encoding' => $identity['encoding'] === 'UTF8',
+        'role' => $identity['role'] === 'none',
+        'administrator' => $identity['is_admin'] === true,
+        'transaction' => !$admin->inTransaction(),
+    ];
+    foreach ($identityGuards as $guard => $safe) {
+        if (!$safe) throw new BriefSnapshotFixtureAssertion('disposable identity denied: '.$guard);
+    }
+    bsCheck(true, 'verified disposable PostgreSQL18 identity before the first write');
     bsCheck($admin->query("SELECT pg_catalog.to_regprocedure('".BS_RECORD_API."') IS NOT NULL AND ".
         "pg_catalog.to_regprocedure('".BS_READ_API."') IS NOT NULL")->fetchColumn() === true,
         'both APIs come from the native migration');
@@ -1015,7 +1025,7 @@ SQL, [$tenantA, $tenantB])->fetchColumn();
     $migrationPdo = Illuminate\Support\Facades\DB::connection()->getPdo();
     bsCheck($migrationPdo->query('SELECT current_database()')->fetchColumn() === 'sites_f383_lab' &&
         $migrationPdo->query('SELECT session_user')->fetchColumn() === 'postgres' &&
-        $migrationPdo->query('SELECT inet_server_addr()::text')->fetchColumn() === $bsServerAddress &&
+        $migrationPdo->query('SELECT host(inet_server_addr())')->fetchColumn() === $bsServerAddress &&
         (int)$migrationPdo->query('SELECT inet_server_port()')->fetchColumn() === (int)getenv('DB_PORT'),
         'the real Laravel migration connection matches the already verified laboratory');
     $migration = require __DIR__.'/../apps/sites/database/migrations/2026_11_18_000013_add_portal_brief_snapshots.php';
