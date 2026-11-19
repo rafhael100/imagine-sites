@@ -647,6 +647,12 @@ if (!isset($admin, $connection, $connect, $password, $caFile, $ok)) {
         $before = bapRows($bapAdmin); $secondSnapshot = $bapSnapshot('main', 1, 20);
         $bapCheck(bapAppendOnly($before, bapRows($bapAdmin), ['sites_core.portal_brief_snapshots' => 1]),
             'a newer source version appends one snapshot without altering registered bytes or editorial history');
+        if (getenv('SITES_ONEPAGE_SUPERSESSION_CI') === '1') {
+            if (getenv('SITES_ONEPAGE_STORED_REVIEW_CI') !== '1') {
+                throw new RuntimeException('Stored Onepage review PG18 predecessor required');
+            }
+            require __DIR__.'/../portal-review-supersession/contract.php';
+        }
         $before = bapRows($bapAdmin);
         $bapCheck($bapMakePlan($bapRoles['writer_a'], $bapPlans['main']) === $bapMainPlan &&
             $bapInspect($bapRoles['receipt_a'], $bapPlans['main']) === $bapMainHistory &&
