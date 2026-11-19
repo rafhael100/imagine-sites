@@ -79,9 +79,9 @@ try {
     [$ca,$cert,$key] = $files;
     $host='portal.example.test';
     $url='https://portal.example.test/internal/sites/v1/brief-head/current';
-    $construct=static fn(string $endpoint,string $expectedHost='portal.example.test',string $caPath=$ca,int $timeout=3000):
+    $construct=static fn(string $endpoint,string $expectedHost='portal.example.test',?string $caPath=null,int $timeout=3000):
         PortalOnepageHeadMtlsHttpSource =>
-        new PortalOnepageHeadMtlsHttpSource($endpoint,$expectedHost,$caPath,$cert,$key,$timeout);
+        new PortalOnepageHeadMtlsHttpSource($endpoint,$expectedHost,$caPath ?? $ca,$cert,$key,$timeout);
     $source=$construct($url);
     $ok($source instanceof CurrentPortalOnepageHeadSource, 'candidate implements current-head source');
     $ok($source->readCurrent('bad value', 'order-A', $site) === null,
