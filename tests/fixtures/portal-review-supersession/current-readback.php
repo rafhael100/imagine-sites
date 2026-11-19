@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Integration\StoredOnepageReviewSupersession;
+
 // Loaded only from the two-revision PG18 contract, under the explicit new CI
 // flag. The preceding fixture has already stored both Portal-generated inputs.
 if (PHP_SAPI !== 'cli' || getenv('APP_ENV') !== 'testing' ||
