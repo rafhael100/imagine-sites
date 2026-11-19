@@ -1,0 +1,276 @@
+name: Sites pinned Portal briefing export through real PG18 (isolated draft)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['integration/sites-request-recovery-composition-2026-11-18']
+    paths:
+      - '.github/workflows/sites-portal-brief-export-pg18.yml'
+      - 'src/Production/**'
+      - 'src/Publication/**'
+      - 'src/Integration/**'
+      - 'contracts/release-registry/**'
+      - 'contracts/publication-journal/**'
+      - 'apps/sites/tests/**'
+      - 'apps/sites/app/Integration/**'
+      - 'apps/sites/database/migrations/**'
+      - 'contracts/portal-sites/002-brief-snapshots.sql'
+      - 'contracts/portal-sites/001-project-intake.sql'
+      - 'contracts/portal-sites/003-project-intake-receipts.sql'
+      - 'contracts/portal-sites/v1/project-intake-receipt.schema.json'
+      - 'ops/release-candidate/**'
+      - 'ops/publication-candidate/**'
+      - 'contracts/portal-sites/candidates/brief-production-v1/**'
+      - 'tests/**'
+      - '.github/workflows/sites-portal-brief-export-pg18.yml'
+      - 'docs/reviews/SITES-PORTAL-BRIEF-EXPORT-PAIR-2026-11-19.md'
+permissions:
+  contents: read
+concurrency:
+  group: sites-portal-brief-export-pg18-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  portal-brief-paired-persistence:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'integration/sites-portal-brief-export-pg18-2026-11-19' &&
+      github.event.pull_request.base.ref == 'integration/sites-request-recovery-composition-2026-11-18' &&
+      github.event.pull_request.base.sha == '3ac4e9c7d3106b57096b6eb7143a057d0267de35'
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Checkout immutable Portal candidate exporter and plan composer
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: rafhael100/imagine-portal
+          ref: e7c15a93660acb946e8ce7ac2e6a9ebf92050d70
+          path: .pinned-portal
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo_pgsql, mbstring, sodium, dom, xml
+          tools: composer:v2
+          coverage: none
+      - name: Extract authenticated official PG18 tooling without system installation
+        run: |
+          set -euo pipefail
+          . /etc/os-release
+          test "$ID" = ubuntu
+          test "$VERSION_CODENAME" = noble
+          test "$(dpkg --print-architecture)" = amd64
+          tooling=$(mktemp -d "$RUNNER_TEMP/sites-portal-brief-export-pg18-XXXXXXXX")
+          mkdir -p "$tooling/lists/partial" "$tooling/cache/archives/partial" "$tooling/debs" "$tooling/root"
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc -o "$tooling/pgdg.asc"
+          fingerprint=$(gpg --batch --show-keys --with-colons "$tooling/pgdg.asc" | awk -F: '$1 == "fpr" {print $10; exit}')
+          test "$fingerprint" = B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8
+          test -r /usr/share/keyrings/ubuntu-archive-keyring.gpg
+          # All APT indexes/cache/config are local. Normal signature/hash checks remain enabled.
+          # No system APT hooks, package installation, maintainer scripts or global files.
+          cat > "$tooling/apt.conf" <<EOF
+          Dir::Etc::parts "-";
+          Dir::Etc::main "-";
+          Dir::Etc::sourcelist "$tooling/sources.list";
+          Dir::Etc::sourceparts "-";
+          Dir::State::lists "$tooling/lists";
+          Dir::Cache "$tooling/cache";
+          Dir::Log "$tooling";
+          EOF
+          cat > "$tooling/sources.list" <<EOF
+          deb [signed-by=$tooling/pgdg.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://archive.ubuntu.com/ubuntu noble main universe
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://archive.ubuntu.com/ubuntu noble-updates main universe
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://security.ubuntu.com/ubuntu noble-security main universe
+          EOF
+          export APT_CONFIG="$tooling/apt.conf"
+          apt-get --error-on=any update -qq
+          cd "$tooling/debs"
+          # Other runtime libraries are supplied by the standard Noble runner and checked below.
+          apt-get download postgresql-18 postgresql-client-18 libpq5 liburing2
+          for package in ./*.deb; do
+            dpkg-deb --show "$package"
+            sha256sum "$package"
+            dpkg-deb --extract "$package" "$tooling/root"
+          done
+          pg_bin="$tooling/root/usr/lib/postgresql/18/bin"
+          runtime_lib="$tooling/root/usr/lib/x86_64-linux-gnu"
+          export LD_LIBRARY_PATH="$runtime_lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          for binary in postgres initdb pg_ctl pg_controldata psql; do
+            ldd "$pg_bin/$binary" > "$tooling/$binary.ldd"
+            cat "$tooling/$binary.ldd"
+            if grep -q 'not found' "$tooling/$binary.ldd"; then
+              echo 'Required local runtime library unavailable; stopping before cluster creation' >&2
+              exit 1
+            fi
+          done
+          "$pg_bin/initdb" --version | grep -E '^initdb \(PostgreSQL\) 18[.]'
+          "$pg_bin/postgres" --version | grep -E '^postgres \(PostgreSQL\) 18[.]'
+          echo "PG_BIN=$pg_bin" >> "$GITHUB_ENV"
+          echo "SITES_PG_RUNTIME_LIB=$runtime_lib" >> "$GITHUB_ENV"
+      - name: Locked application dependencies without scripts or plugins
+        run: composer install --working-dir=apps/sites --no-interaction --no-progress --prefer-dist --no-scripts --no-plugins
+      - name: Validate private request recovery and inherited contracts
+        run: |
+          set -euo pipefail
+          php -l ops/publication-candidate/recover-request.php
+          php -l src/Publication/PrivatePublicationRequestReceipt.php
+          php -l tests/publication-request-recovery-cli-offline.php
+          php -l src/Publication/PrivatePublicationRequestRecovery.php
+          php -l tests/fixtures/publication-request-recovery/contract.php
+          python3 -c "from pathlib import Path; p=Path('tests/fixtures/publication-request-recovery/cli-paths.py'); compile(p.read_text(), str(p), 'exec')"
+          php -l src/Publication/PgPublicationJournal.php
+          php -l src/Publication/PgPublicationJournalGuard.php
+          php -l apps/sites/database/migrations/2026_11_18_000016_add_publication_request_reader.php
+          php -l tests/publication-request-reader-offline.php
+          php -l tests/fixtures/publication-request-reader/contract.php
+          php -l ops/release-candidate/recover-project-intake-receipt.php
+          php -l tests/project-intake-recovery-cli-offline.php
+          php -l tests/fixtures/project-intake-recovery/contract.php
+          php -l apps/sites/app/Integration/StoredProjectIntakeReceiptReader.php
+          php -l apps/sites/database/migrations/2026_11_18_000015_add_portal_project_intake_reader.php
+          python3 -c "from pathlib import Path; p=Path('tests/fixtures/project-intake-recovery/cli-paths.py'); compile(p.read_text(), str(p), 'exec')"
+          python3 -m json.tool ops/release-candidate/project-intake-recovery.example.json > /dev/null
+          php -l ops/release-candidate/receive-project-intake.php
+          php -l src/Integration/PrivateProjectIntakeReceipt.php
+          php -l tests/project-intake-receiver-cli-offline.php
+          php -l tests/project-intake-receipt-offline.php
+          php -l tests/fixtures/project-intake-receiver/contract.php
+          python3 -c "from pathlib import Path; p=Path('tests/fixtures/project-intake-receiver/cli-paths.py'); compile(p.read_text(), str(p), 'exec')"
+          python3 -m json.tool ops/release-candidate/project-intake-receive.example.json > /dev/null
+          php -l ops/release-candidate/inspect-brief-snapshot.php
+          php -l tests/brief-snapshot-inspection-cli-offline.php
+          php -l tests/fixtures/brief-snapshot-inspection/contract.php
+          python3 -c "from pathlib import Path; p=Path('tests/fixtures/brief-snapshot-inspection/cli-paths.py'); compile(p.read_text(), str(p), 'exec')"
+          python3 -m json.tool ops/release-candidate/brief-snapshot-inspection.example.json > /dev/null
+          php -l ops/release-candidate/receive-brief-snapshot.php
+          php -l tests/brief-snapshot-receiver-cli-offline.php
+          php -l tests/fixtures/brief-snapshot-receiver/contract.php
+          python3 -c "from pathlib import Path; p=Path('tests/fixtures/brief-snapshot-receiver/cli-paths.py'); compile(p.read_text(), str(p), 'exec')"
+          php -l ops/release-candidate/register-provenance.php
+          php -l tests/brief-artifact-registration-cli-offline.php
+          php -l tests/fixtures/brief-artifact-registration/contract.php
+          python3 -c "from pathlib import Path; p=Path('tests/fixtures/brief-artifact-registration/cli-paths.py'); compile(p.read_text(), str(p), 'exec')"
+          php -l ops/release-candidate/inspect-provenance.php
+          php -l tests/brief-artifact-inspection-cli-offline.php
+          php -l tests/fixtures/brief-artifact-inspection/contract.php
+          python3 -c "from pathlib import Path; p=Path('tests/fixtures/brief-artifact-inspection/cli-paths.py'); compile(p.read_text(), str(p), 'exec')"
+          php -l src/Production/BriefRenderProvenance.php
+          php -l src/Production/BriefRenderPlanInput.php
+          php -l src/Publication/ReleaseArtifactConnection.php
+          php -l src/Publication/PrivateReleaseRegistration.php
+          php -l apps/sites/app/Integration/BriefReleaseReceipt.php
+          php -l apps/sites/app/Integration/StoredBriefReleaseRegistration.php
+          php -l apps/sites/app/Integration/StoredBriefReleaseReceiptReader.php
+          php -l apps/sites/database/migrations/2026_11_18_000014_add_brief_artifact_provenance.php
+          test "$(git -C .pinned-portal rev-parse HEAD)" = e7c15a93660acb946e8ce7ac2e6a9ebf92050d70
+          php -l .pinned-portal/apps/portal/app/Domain/SitesIntegration/SiteContractSnapshot.php
+          php -l .pinned-portal/apps/portal/app/Domain/SitesIntegration/OnepageBriefSnapshotCandidateEncoder.php
+          php -l .pinned-portal/apps/portal/app/Domain/SitesIntegration/OnepageRenderPlanCandidateEncoder.php
+          php -l tests/fixtures/brief-artifact-provenance/contract.php
+          php -l src/Production/BriefCandidateJson.php
+          php -l src/Production/BriefSnapshotInput.php
+          php -l apps/sites/app/Integration/BriefSnapshotTransaction.php
+          php -l apps/sites/app/Integration/PortalBriefSnapshotRecorder.php
+          php -l apps/sites/app/Integration/StoredBriefSnapshotReader.php
+          php -l apps/sites/app/Integration/StoredBriefRendering.php
+          php -l apps/sites/database/migrations/2026_11_18_000013_add_portal_brief_snapshots.php
+          php -l tests/release-registry-pg-contract.php
+          php -l src/Production/LocalSiteRenderingFiles.php
+          php -l ops/release-candidate/render.php
+          php -l tests/brief-render-provenance-offline.php
+          php -l tests/local-site-rendering-provenance-cli-offline.php
+          php -l tests/fixtures/release-registration/contract.php
+          bash -n tests/run-release-registry-contract.sh
+      - name: Recovery custody and inherited offline contracts
+        run: |
+          set -euo pipefail
+          export PHP_BIN="$(command -v php)"
+          php tests/publication-request-cli-offline.php | tee "$RUNNER_TEMP/sites-publication-request-legacy-offline.log"
+          grep -q '^PUBLICATION REQUEST CLI OFFLINE PASS: 207 checks' "$RUNNER_TEMP/sites-publication-request-legacy-offline.log"
+          php tests/publication-request-recovery-cli-offline.php | tee "$RUNNER_TEMP/sites-publication-request-recovery-cli-offline.log"
+          grep -q '^PUBLICATION RECOVERY CLI OFFLINE PASS: 63 checks;' "$RUNNER_TEMP/sites-publication-request-recovery-cli-offline.log"
+          if SITES_PUBLICATION_REQUEST_RECOVERY_CI=0 php tests/fixtures/publication-request-recovery/contract.php; then
+            echo 'Unexpected request recovery fixture without its opt-in' >&2
+            exit 1
+          fi
+          php tests/publication-journal-offline.php
+          php tests/publication-request-reader-offline.php | tee "$RUNNER_TEMP/sites-publication-request-recovery-offline.log"
+          grep -q '^PUBLICATION REQUEST READER OFFLINE PASS: 49 checks;' "$RUNNER_TEMP/sites-publication-request-recovery-offline.log"
+          if SITES_PUBLICATION_REQUEST_READER_CI=0 php tests/fixtures/publication-request-reader/contract.php; then
+            echo 'Unexpected request reader fixture without its opt-in' >&2
+            exit 1
+          fi
+          php tests/project-intake-recovery-cli-offline.php | tee "$RUNNER_TEMP/sites-project-intake-recovery-offline.log"
+          grep -q '^PROJECT INTAKE RECOVERY CLI OFFLINE PASS: 83 checks;' "$RUNNER_TEMP/sites-project-intake-recovery-offline.log"
+          php tests/project-intake-receiver-cli-offline.php | tee "$RUNNER_TEMP/sites-project-intake-receiver-offline.log"
+          grep -q '^PROJECT INTAKE RECEIVER CLI OFFLINE PASS: 77 checks;' "$RUNNER_TEMP/sites-project-intake-receiver-offline.log"
+          php tests/project-intake-receipt-offline.php | tee "$RUNNER_TEMP/sites-project-intake-receipt-offline.log"
+          grep -q '^PROJECT INTAKE RECEIPT OFFLINE PASS: 123 checks;' "$RUNNER_TEMP/sites-project-intake-receipt-offline.log"
+          php tests/brief-snapshot-inspection-cli-offline.php | tee "$RUNNER_TEMP/sites-brief-snapshot-inspection-offline.log"
+          grep -q '^BRIEF SNAPSHOT INSPECTION CLI OFFLINE PASS: 56 checks;' "$RUNNER_TEMP/sites-brief-snapshot-inspection-offline.log"
+          php tests/brief-snapshot-receiver-cli-offline.php
+          php tests/brief-artifact-registration-cli-offline.php
+          php tests/brief-artifact-inspection-cli-offline.php
+          php tests/local-site-rendering-offline.php
+          php tests/local-site-rendering-cli-offline.php
+          php tests/brief-render-provenance-offline.php
+          php tests/local-site-rendering-provenance-cli-offline.php
+      - name: Recover a private operation pointer under a separate current reader
+        env:
+          SITES_RELEASE_REGISTRY_CI: '1'
+          SITES_PUBLICATION_JOURNAL_CI: '1'
+          SITES_PUBLICATION_INSPECTION_CI: '1'
+          SITES_RELEASE_REGISTRATION_CI: '1'
+          SITES_EDITORIAL_TRANSITION_CI: '1'
+          SITES_RELEASE_BINDING_CI: '1'
+          SITES_PUBLICATION_RECONCILIATION_CI: '1'
+          SITES_PUBLICATION_REQUEST_CI: '1'
+          SITES_EDITORIAL_INSPECTION_CI: '1'
+          SITES_RELEASE_BINDING_INSPECTION_CI: '1'
+          SITES_REGISTRY_INTAKE_PERMISSIONS_CI: '1'
+          SITES_BRIEF_SNAPSHOTS_CI: '1'
+          SITES_BRIEF_ARTIFACT_PROVENANCE_CI: '1'
+          SITES_BRIEF_ARTIFACT_INSPECTION_CI: '1'
+          SITES_BRIEF_ARTIFACT_REGISTRATION_CI: '1'
+          SITES_BRIEF_SNAPSHOT_RECEIVER_CLI_CI: '1'
+          SITES_BRIEF_SNAPSHOT_INSPECTION_CI: '1'
+          SITES_PROJECT_INTAKE_RECEIVER_CLI_CI: '1'
+          SITES_PROJECT_INTAKE_RECOVERY_CLI_CI: '1'
+          SITES_PUBLICATION_REQUEST_READER_CI: '1'
+          SITES_PUBLICATION_REQUEST_RECOVERY_CI: '1'
+          SITES_PORTAL_BRIEF_EXPORT_CI: '1'
+        run: |
+          set -euo pipefail
+          export LD_LIBRARY_PATH="$SITES_PG_RUNTIME_LIB${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          export PHP_BIN="$(command -v php)"
+          bash tests/run-release-registry-contract.sh | tee "$RUNNER_TEMP/sites-publication-request-recovery.log"
+          grep -q '^LOCAL RENDERING REGISTRY CI PASS: 4 new assertions;' "$RUNNER_TEMP/sites-publication-request-recovery.log"
+          grep -q '^LOCAL RENDER PROVENANCE REGISTRY CI PASS: 4 new assertions;' "$RUNNER_TEMP/sites-publication-request-recovery.log"
+          grep -q '^NATIVE BRIEF SCHEMA REGISTRY CI PASS: 1 new assertion;' "$RUNNER_TEMP/sites-publication-request-recovery.log"
+          grep -q '^BRIEF ARTIFACT PREDECESSOR CI PASS: 923 assertions;' "$RUNNER_TEMP/sites-publication-request-recovery.log"
+          grep -q '^PORTAL BRIEF PRODUCER PG18 PASS: 2 paired import/plan steps; original registry counters unchanged[.]' "$RUNNER_TEMP/sites-publication-request-recovery.log"
+          grep -q '^BRIEF ARTIFACT PROVENANCE CI PASS: 119 new assertions; 923 existing assertions retained[.]' "$RUNNER_TEMP/sites-publication-request-recovery.log"
+          grep -q '^BRIEF ARTIFACT INSPECTION CI PASS: 25 assertions;' "$RUNNER_TEMP/sites-publication-request-recovery.log"
+          grep -q '^BRIEF ARTIFACT REGISTRATION CI PASS: 27 assertions;' "$RUNNER_TEMP/sites-publication-request-recovery.log"
+          grep -q '^BRIEF SNAPSHOT RECEIVER CI PASS: 29 assertions;' "$RUNNER_TEMP/sites-publication-request-recovery.log"
+          grep -q '^BRIEF SNAPSHOT INSPECTION CI PASS: 26 assertions;' "$RUNNER_TEMP/sites-publication-request-recovery.log"
+          grep -q '^PROJECT INTAKE RECEIVER CLI CI PASS: 29 assertions;' "$RUNNER_TEMP/sites-publication-request-recovery.log"
+          grep -q '^PROJECT INTAKE RECOVERY CLI CI PASS: 30 assertions;' "$RUNNER_TEMP/sites-publication-request-recovery.log"
+          grep -q '^PUBLICATION REQUEST READER CI PASS: 33 assertions; 1208 existing assertions retained;' "$RUNNER_TEMP/sites-publication-request-recovery.log"
+          grep -q '^PUBLICATION REQUEST RECOVERY CLI CI PASS: 38 assertions; 1241 existing assertions retained;' "$RUNNER_TEMP/sites-publication-request-recovery.log"
+          grep -q '^OK: 1279 persistent release registry assertions;' "$RUNNER_TEMP/sites-publication-request-recovery.log"
+          grep -q '^RECOVERY CLI PATHS CLEANUP OK:' "$RUNNER_TEMP/sites-publication-request-recovery.log"
+          grep -q '^PROJECT INTAKE RECOVERY CLI PATHS CLEANUP OK:' "$RUNNER_TEMP/sites-publication-request-recovery.log"
+          grep -q '^PROJECT INTAKE RECEIVER CLI PATHS CLEANUP OK:' "$RUNNER_TEMP/sites-publication-request-recovery.log"
+          grep -q '^Own disposable release registry cluster inactive;' "$RUNNER_TEMP/sites-publication-request-recovery.log"
