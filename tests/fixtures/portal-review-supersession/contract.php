@@ -132,5 +132,9 @@ $suNoWrite('tampering and tenant denials');
 $suOk($suProof === $suMake($suPrevious, $suOld, $suOldPlan, $suNext, $suNextPlan),
     'legitimate replay remains identical after every negative case');
 $suNoWrite('final replay');
+if (getenv('SITES_ONEPAGE_SUPERSESSION_READBACK_CI') === '1') {
+    require __DIR__.'/current-readback.php';
+}
+
 echo 'ONEPAGE REVIEW SUPERSESSION PG18 PASS: '.$suChecks.
     " checks; fresh revision needs independent re-review, no approval/publication.\n";
