@@ -135,6 +135,9 @@ $suNoWrite('final replay');
 if (getenv('SITES_ONEPAGE_SUPERSESSION_READBACK_CI') === '1') {
     require __DIR__.'/current-readback.php';
 }
+if (getenv('SITES_ONEPAGE_CURRENT_PORTAL_HEAD_CI') === '1') {
+    require __DIR__.'/current-portal-head.php';
+}
 
 echo 'ONEPAGE REVIEW SUPERSESSION PG18 PASS: '.$suChecks.
     " checks; fresh revision needs independent re-review, no approval/publication.\n";
