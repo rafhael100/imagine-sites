@@ -505,6 +505,13 @@ if (!isset($admin, $connection, $connect, $password, $caFile, $ok)) {
             return (new StoredBriefReleaseReceiptReader($bapDb($reader, true)))->readExact(
                 bapTarget($bapAdmin, $reader, $bapCaSha), $selection->siteRef, $selection->releaseRef, $selection->planSha256, $bapCaSha);
         };
+        if (getenv('SITES_PORTAL_RENDER_PLAN_BOUNDARY_CI') === '1') {
+            if (getenv('SITES_PORTAL_BRIEF_EXPORT_CI') !== '1' ||
+                getenv('SITES_PORTAL_BRIEF_ADVERSARIAL_CI') !== '1') {
+                throw new RuntimeException('Portal producer and adversarial PG18 prerequisites required');
+            }
+            require __DIR__.'/../portal-render-plan-boundary/contract.php';
+        }
         $bapReceipt = static function (array $receipt, string $plan, string $commitment, bool $created, ?string $editorial = null) use ($bapCheck, $bapEditorial): void {
             $selection = BriefRenderPlanInput::fromJson($plan);
             $expected = [
