@@ -2,7 +2,7 @@ name: Sites Onepage head strict mTLS contract and PG18 (draft only)
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    branches: ['test/sites-onepage-supersession-proof-readback-2026-11-19-r6']
+    branches: ['test/sites-onepage-current-portal-head-pg18-2026-11-19-r7']
     paths:
       - '.github/workflows/sites-onepage-head-mtls-candidate-pg18.yml'
       - 'apps/sites/app/Integration/StoredOnepageReviewHandoff.php'
@@ -222,110 +222,7 @@ jobs:
           set -euo pipefail
           export PHP_BIN="$(command -v php)"
           php tests/onepage-head-mtls-transport-offline.php | tee "$RUNNER_TEMP/onepage-head-mtls-offline.log"
-          grep -Eq '^ONEPAGE HEAD MTLS TRANSPORT OFFLINE PASS: [0-9]+ checks; no network requests, no Portal endpoint, no approval or publication[.] | tee "$RUNNER_TEMP/sites-publication-request-legacy-offline.log"
-          grep -q '^PUBLICATION REQUEST CLI OFFLINE PASS: 207 checks' "$RUNNER_TEMP/sites-publication-request-legacy-offline.log"
-          php .pinned-portal/tests/onepage-brief-export-candidate-offline.php | tee "$RUNNER_TEMP/portal-brief-export-offline.log"
-          grep -q '^PORTAL ONEPAGE BRIEF CANDIDATE OFFLINE PASS: 51 checks;' "$RUNNER_TEMP/portal-brief-export-offline.log"
-          php .pinned-portal/tests/onepage-approved-brief-export-gate-offline.php | tee "$RUNNER_TEMP/portal-approved-gate-offline.log"
-          grep -q '^ONEPAGE APPROVED BRIEF SOURCE BOUNDARY PASS: 30 checks;' "$RUNNER_TEMP/portal-approved-gate-offline.log"
-          if SITES_PORTAL_APPROVED_GATE_CI=0 php tests/fixtures/portal-approved-brief-gate/contract.php; then
-            echo 'Unexpected Portal approval gate fixture without CI opt-in' >&2
-            exit 1
-          fi
-          php .pinned-portal/tests/onepage-render-plan-candidate-offline.php | tee "$RUNNER_TEMP/portal-render-plan-offline.log"
-          grep -q '^PORTAL ONEPAGE RENDER PLAN CANDIDATE OFFLINE PASS: 60 checks;' "$RUNNER_TEMP/portal-render-plan-offline.log"
-          php tests/publication-request-recovery-cli-offline.php | tee "$RUNNER_TEMP/sites-publication-request-recovery-cli-offline.log"
-          grep -q '^PUBLICATION RECOVERY CLI OFFLINE PASS: 63 checks;' "$RUNNER_TEMP/sites-publication-request-recovery-cli-offline.log"
-          if SITES_PUBLICATION_REQUEST_RECOVERY_CI=0 php tests/fixtures/publication-request-recovery/contract.php; then
-            echo 'Unexpected request recovery fixture without its opt-in' >&2
-            exit 1
-          fi
-          php tests/publication-journal-offline.php
-          php tests/publication-request-reader-offline.php | tee "$RUNNER_TEMP/sites-publication-request-recovery-offline.log"
-          grep -q '^PUBLICATION REQUEST READER OFFLINE PASS: 49 checks;' "$RUNNER_TEMP/sites-publication-request-recovery-offline.log"
-          if SITES_PUBLICATION_REQUEST_READER_CI=0 php tests/fixtures/publication-request-reader/contract.php; then
-            echo 'Unexpected request reader fixture without its opt-in' >&2
-            exit 1
-          fi
-          php tests/project-intake-recovery-cli-offline.php | tee "$RUNNER_TEMP/sites-project-intake-recovery-offline.log"
-          grep -q '^PROJECT INTAKE RECOVERY CLI OFFLINE PASS: 83 checks;' "$RUNNER_TEMP/sites-project-intake-recovery-offline.log"
-          php tests/project-intake-receiver-cli-offline.php | tee "$RUNNER_TEMP/sites-project-intake-receiver-offline.log"
-          grep -q '^PROJECT INTAKE RECEIVER CLI OFFLINE PASS: 77 checks;' "$RUNNER_TEMP/sites-project-intake-receiver-offline.log"
-          php tests/project-intake-receipt-offline.php | tee "$RUNNER_TEMP/sites-project-intake-receipt-offline.log"
-          grep -q '^PROJECT INTAKE RECEIPT OFFLINE PASS: 123 checks;' "$RUNNER_TEMP/sites-project-intake-receipt-offline.log"
-          php tests/brief-snapshot-inspection-cli-offline.php | tee "$RUNNER_TEMP/sites-brief-snapshot-inspection-offline.log"
-          grep -q '^BRIEF SNAPSHOT INSPECTION CLI OFFLINE PASS: 56 checks;' "$RUNNER_TEMP/sites-brief-snapshot-inspection-offline.log"
-          php tests/brief-snapshot-receiver-cli-offline.php
-          php tests/brief-artifact-registration-cli-offline.php
-          php tests/brief-artifact-inspection-cli-offline.php
-          php tests/local-site-rendering-offline.php
-          php tests/local-site-rendering-cli-offline.php
-          php tests/brief-render-provenance-offline.php
-          php tests/local-site-rendering-provenance-cli-offline.php
-      - name: Recover a private operation pointer under a separate current reader
-        env:
-          SITES_RELEASE_REGISTRY_CI: '1'
-          SITES_PUBLICATION_JOURNAL_CI: '1'
-          SITES_PUBLICATION_INSPECTION_CI: '1'
-          SITES_RELEASE_REGISTRATION_CI: '1'
-          SITES_EDITORIAL_TRANSITION_CI: '1'
-          SITES_RELEASE_BINDING_CI: '1'
-          SITES_PUBLICATION_RECONCILIATION_CI: '1'
-          SITES_PUBLICATION_REQUEST_CI: '1'
-          SITES_EDITORIAL_INSPECTION_CI: '1'
-          SITES_RELEASE_BINDING_INSPECTION_CI: '1'
-          SITES_REGISTRY_INTAKE_PERMISSIONS_CI: '1'
-          SITES_BRIEF_SNAPSHOTS_CI: '1'
-          SITES_BRIEF_ARTIFACT_PROVENANCE_CI: '1'
-          SITES_BRIEF_ARTIFACT_INSPECTION_CI: '1'
-          SITES_BRIEF_ARTIFACT_REGISTRATION_CI: '1'
-          SITES_BRIEF_SNAPSHOT_RECEIVER_CLI_CI: '1'
-          SITES_BRIEF_SNAPSHOT_INSPECTION_CI: '1'
-          SITES_PROJECT_INTAKE_RECEIVER_CLI_CI: '1'
-          SITES_PROJECT_INTAKE_RECOVERY_CLI_CI: '1'
-          SITES_PUBLICATION_REQUEST_READER_CI: '1'
-          SITES_PUBLICATION_REQUEST_RECOVERY_CI: '1'
-          SITES_PORTAL_BRIEF_EXPORT_CI: '1'
-          SITES_PORTAL_BRIEF_ADVERSARIAL_CI: '1'
-          SITES_PORTAL_RENDER_PLAN_BOUNDARY_CI: '1'
-          SITES_PORTAL_APPROVED_GATE_CI: '1'
-          SITES_ONEPAGE_STORED_REVIEW_CI: '1'
-          SITES_ONEPAGE_SUPERSESSION_CI: '1'
-          SITES_ONEPAGE_SUPERSESSION_READBACK_CI: '1'
-          SITES_ONEPAGE_CURRENT_PORTAL_HEAD_CI: '1'
-        run: |
-          set -euo pipefail
-          export LD_LIBRARY_PATH="$SITES_PG_RUNTIME_LIB${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-          export PHP_BIN="$(command -v php)"
-          bash tests/run-release-registry-contract.sh | tee "$RUNNER_TEMP/sites-publication-request-recovery.log"
-          grep -q '^LOCAL RENDERING REGISTRY CI PASS: 4 new assertions;' "$RUNNER_TEMP/sites-publication-request-recovery.log"
-          grep -q '^LOCAL RENDER PROVENANCE REGISTRY CI PASS: 4 new assertions;' "$RUNNER_TEMP/sites-publication-request-recovery.log"
-          grep -q '^NATIVE BRIEF SCHEMA REGISTRY CI PASS: 1 new assertion;' "$RUNNER_TEMP/sites-publication-request-recovery.log"
-          grep -q '^BRIEF ARTIFACT PREDECESSOR CI PASS: 923 assertions;' "$RUNNER_TEMP/sites-publication-request-recovery.log"
-          grep -q '^PORTAL BRIEF PRODUCER PG18 PASS: original and later revision stored/rendered; registry counters unchanged[.]' "$RUNNER_TEMP/sites-publication-request-recovery.log"
-          grep -q '^PORTAL BRIEF ADVERSARIAL PG18 PASS: 21 checks;' "$RUNNER_TEMP/sites-publication-request-recovery.log"
-          grep -q '^PORTAL RENDER PLAN BOUNDARY PG18 PASS: 30 checks;' "$RUNNER_TEMP/sites-publication-request-recovery.log"
-          grep -q '^PORTAL APPROVED BRIEF GATE PG18 PASS: ' "$RUNNER_TEMP/sites-publication-request-recovery.log"
-          grep -Eq '^ONEPAGE SUPERSESSION CURRENT READBACK PG18 PASS: [0-9]+ checks; evidence only, no official current Portal head or publication[.]$' "$RUNNER_TEMP/sites-publication-request-recovery.log"
-          grep -Eq '^ONEPAGE CURRENT PORTAL HEAD PG18 PASS: [0-9]+ checks; source is a lab double, no authenticated Portal authority or publication[.]$' "$RUNNER_TEMP/sites-publication-request-recovery.log"
-          grep -Eq '^ONEPAGE REVIEW SUPERSESSION PG18 PASS: [0-9]+ checks; fresh revision needs independent re-review, no approval/publication[.]$' "$RUNNER_TEMP/sites-publication-request-recovery.log"
-          grep -Eq '^ONEPAGE CURRENT READBACK PG18 PASS: [0-9]+ checks; no publication, approval or mutation[.]$' "$RUNNER_TEMP/sites-publication-request-recovery.log"
-          grep -Eq '^ONEPAGE STORED REVIEW PG18 PASS: [0-9]+ checks; tenant-scoped current reader; zero real approval or publication[.]$' "$RUNNER_TEMP/sites-publication-request-recovery.log"
-          grep -q '^BRIEF ARTIFACT PROVENANCE CI PASS: 119 new assertions; 923 existing assertions retained[.]' "$RUNNER_TEMP/sites-publication-request-recovery.log"
-          grep -q '^BRIEF ARTIFACT INSPECTION CI PASS: 25 assertions;' "$RUNNER_TEMP/sites-publication-request-recovery.log"
-          grep -q '^BRIEF ARTIFACT REGISTRATION CI PASS: 27 assertions;' "$RUNNER_TEMP/sites-publication-request-recovery.log"
-          grep -q '^BRIEF SNAPSHOT RECEIVER CI PASS: 29 assertions;' "$RUNNER_TEMP/sites-publication-request-recovery.log"
-          grep -q '^BRIEF SNAPSHOT INSPECTION CI PASS: 26 assertions;' "$RUNNER_TEMP/sites-publication-request-recovery.log"
-          grep -q '^PROJECT INTAKE RECEIVER CLI CI PASS: 29 assertions;' "$RUNNER_TEMP/sites-publication-request-recovery.log"
-          grep -q '^PROJECT INTAKE RECOVERY CLI CI PASS: 30 assertions;' "$RUNNER_TEMP/sites-publication-request-recovery.log"
-          grep -q '^PUBLICATION REQUEST READER CI PASS: 33 assertions; 1208 existing assertions retained;' "$RUNNER_TEMP/sites-publication-request-recovery.log"
-          grep -q '^PUBLICATION REQUEST RECOVERY CLI CI PASS: 38 assertions; 1241 existing assertions retained;' "$RUNNER_TEMP/sites-publication-request-recovery.log"
-          grep -q '^OK: 1279 persistent release registry assertions;' "$RUNNER_TEMP/sites-publication-request-recovery.log"
-          grep -q '^RECOVERY CLI PATHS CLEANUP OK:' "$RUNNER_TEMP/sites-publication-request-recovery.log"
-          grep -q '^PROJECT INTAKE RECOVERY CLI PATHS CLEANUP OK:' "$RUNNER_TEMP/sites-publication-request-recovery.log"
-          grep -q '^PROJECT INTAKE RECEIVER CLI PATHS CLEANUP OK:' "$RUNNER_TEMP/sites-publication-request-recovery.log"
-          grep -q '^Own disposable release registry cluster inactive;' "$RUNNER_TEMP/sites-publication-request-recovery.log"
- "$RUNNER_TEMP/onepage-head-mtls-offline.log"
+          grep -Eq '^ONEPAGE HEAD MTLS TRANSPORT OFFLINE PASS: [0-9]+ checks; no network requests, no Portal endpoint, no approval or publication[.]$' "$RUNNER_TEMP/onepage-head-mtls-offline.log"
           php tests/publication-request-cli-offline.php | tee "$RUNNER_TEMP/sites-publication-request-legacy-offline.log"
           grep -q '^PUBLICATION REQUEST CLI OFFLINE PASS: 207 checks' "$RUNNER_TEMP/sites-publication-request-legacy-offline.log"
           php .pinned-portal/tests/onepage-brief-export-candidate-offline.php | tee "$RUNNER_TEMP/portal-brief-export-offline.log"
