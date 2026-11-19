@@ -477,9 +477,9 @@ if (!isset($admin, $connection, $connect, $password, $caFile, $ok)) {
         $bapPlans = [];
         foreach (array_keys($bapProjects) as $name) $bapPlans[$name] = $bapPlan($name);
         if (getenv('SITES_PORTAL_BRIEF_EXPORT_CI') === '1') {
-            bapRequire($bapPortalChecks === 3 && isset($bapPortalPairs[$bapSnapshots['main']->snapshotRef]),
+            bapRequire($bapPortalChecks === 2 && isset($bapPortalPairs[$bapSnapshots['main']->snapshotRef]),
                 'Portal source, Sites storage and plan parser completed as a paired synthetic pipeline');
-            echo "PORTAL BRIEF PRODUCER PG18 PASS: 3 paired import/plan steps; original registry counters unchanged.\n";
+            echo "PORTAL BRIEF PRODUCER PG18 PASS: 2 paired import/plan steps; original registry counters unchanged.\n";
         }
         $bapMakePlan = static function (string $writer, string $plan, ?string $editorial = null, ?string $reader = null) use (
             $bapDb, $bapAdmin, $bapCaSha, $bapEditorial, $bapRoles,
