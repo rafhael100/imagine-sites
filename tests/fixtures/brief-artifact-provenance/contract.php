@@ -528,6 +528,12 @@ if (!isset($admin, $connection, $connect, $password, $caFile, $ok)) {
             }
             require __DIR__.'/../portal-approved-brief-gate/contract.php';
         }
+        if (getenv('SITES_ONEPAGE_STORED_REVIEW_CI') === '1') {
+            if (getenv('SITES_PORTAL_APPROVED_GATE_CI') !== '1') {
+                throw new RuntimeException('Portal approved-brief PG18 predecessor required');
+            }
+            require __DIR__.'/../portal-stored-review-handoff/contract.php';
+        }
         $bapReceipt = static function (array $receipt, string $plan, string $commitment, bool $created, ?string $editorial = null) use ($bapCheck, $bapEditorial): void {
             $selection = BriefRenderPlanInput::fromJson($plan);
             $expected = [
