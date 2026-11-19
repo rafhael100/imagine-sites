@@ -1,0 +1,9 @@
+# Onepage: nova revisão invalida o encaminhamento anterior para decisão
+
+**19/11/2026.** Continuação isolada das PRs Sites [#541](https://github.com/rafhael100/imagine-sites/pull/541) a [#547](https://github.com/rafhael100/imagine-sites/pull/547), derivada somente da HEAD `1e1f38cd0e5f2ee7fc8334bbf0bd868cf76ce80c`. Novo `StoredOnepageReviewSupersession::prepareNext()`: compara dois ponteiros de revisão cujo conteúdo foi revalidado individualmente pelo leitor PostgreSQL 18 do mesmo tenant e pelo renderer original. Exige mesmo serviço/pedido/contrato/site/empresa, revisão consecutiva, contador de fonte crescente, novo snapshot, novo plano e release distinta. Produz compromisso opaco com estado `requires_independent_rereview`, sem mostrar briefing e sem conceder aprovação, publicação, pagamento ou aceite.
+
+A fixture com segunda revisão nativa já persistida verifica replay determinístico, HTML idêntico apesar da revisão, recusa de release reutilizada, cronologia invertida, digest falsificado de aprovação, bytes divergentes e leitor de outra empresa. Contratos anteriores e registros não são alterados. Execução exclusivamente opt-in, em CI draft-only PHP 8.3/8.4 com PG18/SCRAM/TLS descartável e exportadores do Portal fixados em `89e309b497137cec4960b87f90a49d00bbf92843`.
+
+**Limite essencial:** este método **não** identifica sozinho a HEAD mais nova no Portal nem assegura que a revisão 2 permanece a mais recente. O chamador fornece ambas as revisões; fonte de verdade oficial, testemunho de aprovação autenticado, invalidação durável de sessões/decisões, controle transacional, transporte assinado e aceite continuam pendentes. A prova não autoriza publicação nem significa homologação operacional.
+
+**DRAFT / NO-MERGE / NO-DEPLOY / NO-GO.** Nenhuma alteração em main, VPS, Cloudflare, DNS, Asaas, produção, credenciais ou dados reais. Dez gates operacionais permanecem bloqueados.
