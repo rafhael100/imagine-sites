@@ -50,4 +50,32 @@ final readonly class StoredOnepageReviewHandoff
             throw new RuntimeException('ONEPAGE_STORED_REVIEW_DENIED');
         }
     }
+
+    /**
+     * Checks an untrusted internal review pointer against its exact persisted
+     * source in the current tenant-scoped PostgreSQL reader. No authority grant.
+     * Unlike pure assertMatches(), this denies when the current database reader
+     * refuses the source, even if the caller has supplied self-consistent bytes.
+     */
+    public function assertCurrent(
+        array $claimed,
+        array $portalCandidate,
+        string $planJson,
+        string $editorialJson,
+    ): void {
+        try {
+            OnepageReviewHandoffCandidate::assertMatches(
+                $claimed, $portalCandidate, $planJson, $editorialJson,
+            );
+            $current = $this->prepare($portalCandidate, $planJson, $editorialJson);
+            if (!hash_equals($current['reviewSha256'], $claimed['reviewSha256']) ||
+                !hash_equals($current['reviewBytes'], $claimed['reviewBytes'])) {
+                throw new RuntimeException();
+            }
+        } catch (Throwable) {
+            // No disclosure of tenant, SQL role, source or claimed values.
+            throw new RuntimeException('ONEPAGE_STORED_REVIEW_DENIED');
+        }
+    }
+
 }

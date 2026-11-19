@@ -103,5 +103,87 @@ $srNoMutation('forged authority flag');
 $srOk($allowed->prepare($export, $bapPlans['main'], $bapEditorial) === $packet,
     'valid original selection remains readable after every refusal');
 $srNoMutation('final valid replay');
+
+$crChecks = 0;
+$crOk = static function (bool $condition, string $label) use (&$crChecks): void {
+    if (!$condition) throw new RuntimeException('Onepage current readback PG18: '.$label);
+    ++$crChecks;
+};
+$crDeny = static function (callable $callback, string $label) use ($crOk): void {
+    $denied = false;
+    ob_start();
+    try { $callback(); } catch (RuntimeException $error) {
+        $denied = $error->getMessage() === 'ONEPAGE_STORED_REVIEW_DENIED' &&
+            $error->getPrevious() === null;
+    }
+    $output = ob_get_clean();
+    $crOk($denied && $output === '', $label.' is redacted');
+};
+$crNoMutation = static function (string $label) use ($crOk, $srRows, $srCatalog, $bapAdmin): void {
+    $crOk(bapRows($bapAdmin) === $srRows && bapCatalog($bapAdmin) === $srCatalog,
+        $label.' preserves every row and catalog object');
+};
+$allowed->assertCurrent($packet, $export, $bapPlans['main'], $bapEditorial);
+$crOk(true, 'valid persisted pointer can be revalidated exactly');
+$allowed->assertCurrent($packet, $export, $bapPlans['main'], $bapEditorial);
+$crOk(true, 'readback replay is deterministic');
+$crNoMutation('positive readback');
+
+$claim = $packet;
+$claim['reviewSha256'] = str_repeat('a', 64);
+$crDeny(static fn() => $allowed->assertCurrent($claim, $export, $bapPlans['main'], $bapEditorial),
+    'altered digest');
+$claim = $packet;
+$reviewData = json_decode($claim['reviewBytes'], true, 16, JSON_THROW_ON_ERROR);
+$reviewData['state'] = 'approved_for_publication';
+$claim['reviewBytes'] = bapJson($reviewData);
+$claim['reviewSha256'] = hash('sha256', "SITES_ONEPAGE_REVIEW_HANDOFF_CANDIDATE_V1\0".$claim['reviewBytes']);
+$crDeny(static fn() => $allowed->assertCurrent($claim, $export, $bapPlans['main'], $bapEditorial),
+    'approval spoofed with valid recalculated digest');
+$claim = $packet;
+$reviewData = json_decode($claim['reviewBytes'], true, 16, JSON_THROW_ON_ERROR);
+$reviewData['tenantRef'] = 'other-company';
+$claim['reviewBytes'] = bapJson($reviewData);
+$claim['reviewSha256'] = hash('sha256', "SITES_ONEPAGE_REVIEW_HANDOFF_CANDIDATE_V1\0".$claim['reviewBytes']);
+$crDeny(static fn() => $allowed->assertCurrent($claim, $export, $bapPlans['main'], $bapEditorial),
+    'different tenant forged with valid recalculated digest');
+$claim = $packet;
+$claim['canPublish'] = true;
+$crDeny(static fn() => $allowed->assertCurrent($claim, $export, $bapPlans['main'], $bapEditorial),
+    'added authority flag');
+$claim = $packet;
+unset($claim['reviewBytes']);
+$crDeny(static fn() => $allowed->assertCurrent($claim, $export, $bapPlans['main'], $bapEditorial),
+    'missing payload');
+$claim = $packet;
+$claim['reviewSha256'] = false;
+$crDeny(static fn() => $allowed->assertCurrent($claim, $export, $bapPlans['main'], $bapEditorial),
+    'wrong digest type');
+$crNoMutation('forged claimed packets');
+
+$otherPlan = json_decode($bapPlans['main'], true, 16, JSON_THROW_ON_ERROR);
+$otherPlan['releaseRef'] = 'other-review-release';
+$otherPlanBytes = bapJson($otherPlan);
+$otherPacket = OnepageReviewHandoffCandidate::build($export, $otherPlanBytes, $bapEditorial);
+$crOk($otherPacket['reviewSha256'] !== $packet['reviewSha256'],
+    'different release binds different packet');
+$crDeny(static fn() => $allowed->assertCurrent($packet, $export, $otherPlanBytes, $bapEditorial),
+    'old release reused for a new release');
+$crDeny(static fn() => $allowed->assertCurrent($otherPacket, $export, $bapPlans['main'], $bapEditorial),
+    'new release reused for an old release');
+$crDeny(static fn() => $reader($bapRoles['source_reader_b'])->assertCurrent(
+    $packet, $export, $bapPlans['main'], $bapEditorial), 'foreign tenant SQL reader');
+$otherExport = $export;
+$otherExport['sourceBytes'] .= ' ';
+$otherExport['payloadSha256'] = hash('sha256', $otherExport['sourceBytes']);
+$crDeny(static fn() => $allowed->assertCurrent(
+    $packet, $otherExport, $bapPlans['main'], $bapEditorial), 'changed source from earlier review');
+$crNoMutation('stale release and denied tenant');
+$allowed->assertCurrent($packet, $export, $bapPlans['main'], $bapEditorial);
+$crOk(true, 'original pointer remains valid after all denials');
+$crNoMutation('final valid replay');
+echo 'ONEPAGE CURRENT READBACK PG18 PASS: '.$crChecks.
+    " checks; no publication, approval or mutation.\n";
+
 echo 'ONEPAGE STORED REVIEW PG18 PASS: '.$srChecks.
     " checks; tenant-scoped current reader; zero real approval or publication.\n";
