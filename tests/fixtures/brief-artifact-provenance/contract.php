@@ -512,6 +512,22 @@ if (!isset($admin, $connection, $connect, $password, $caFile, $ok)) {
             }
             require __DIR__.'/../portal-render-plan-boundary/contract.php';
         }
+        if (getenv('SITES_PORTAL_APPROVED_GATE_CI') === '1') {
+            if (getenv('SITES_PORTAL_RENDER_PLAN_BOUNDARY_CI') !== '1') {
+                throw new RuntimeException('Portal render plan and exact-source PG18 prerequisites required');
+            }
+            // Solely in an explicit synthetic lab: no operational source/witness is installed.
+            $portalApprovedRoot = $bapRepo.'/.pinned-portal/apps/portal/app/Domain/SitesIntegration/';
+            foreach ([
+                'PortalSiteContractSource', 'DenyingPortalSiteContractSource',
+                'ApprovedOnepageBriefSnapshot', 'ApprovedOnepageBriefSnapshotSource',
+                'DenyingApprovedOnepageBriefSnapshotSource', 'CurrentOnepageBriefApprovalWitness',
+                'DenyingCurrentOnepageBriefApprovalWitness', 'OnepageApprovedBriefExportGate',
+            ] as $portalApprovedClass) {
+                require_once $portalApprovedRoot.$portalApprovedClass.'.php';
+            }
+            require __DIR__.'/../portal-approved-brief-gate/contract.php';
+        }
         $bapReceipt = static function (array $receipt, string $plan, string $commitment, bool $created, ?string $editorial = null) use ($bapCheck, $bapEditorial): void {
             $selection = BriefRenderPlanInput::fromJson($plan);
             $expected = [
