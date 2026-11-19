@@ -479,7 +479,8 @@ if (!isset($admin, $connection, $connect, $password, $caFile, $ok)) {
         if (getenv('SITES_PORTAL_BRIEF_EXPORT_CI') === '1') {
             bapRequire($bapPortalChecks === 2 && isset($bapPortalPairs[$bapSnapshots['main']->snapshotRef]),
                 'Portal source, Sites storage and plan parser completed as a paired synthetic pipeline');
-            echo "PORTAL BRIEF PRODUCER PG18 PASS: 2 paired import/plan steps; original registry counters unchanged.\n";
+            // Final marker is emitted only after the persisted artifact and
+            // rollback checks, not merely after constructing a plan.
         }
         $bapMakePlan = static function (string $writer, string $plan, ?string $editorial = null, ?string $reader = null) use (
             $bapDb, $bapAdmin, $bapCaSha, $bapEditorial, $bapRoles,
@@ -1061,6 +1062,11 @@ if (!isset($admin, $connection, $connect, $password, $caFile, $ok)) {
             AND to_regnamespace('sites_preview') IS NULL")->fetchColumn() === true &&
             (int) bapSql($bapAdmin, 'SELECT count(*) FROM sites_core.site_outbox WHERE tenant_id IN (?::uuid,?::uuid)', array_values($bapTenants))->fetchColumn() === count($bapProjects),
             'native intake adds only its blocked ProjectQueued rows; no client acceptance, payment, publication or demonstration authority is enabled');
+        if (getenv('SITES_PORTAL_BRIEF_EXPORT_CI') === '1') {
+            bapRequire($bapPortalChecks >= 4,
+                'Portal candidate generated the initial and later revision before successful registry proof');
+            echo "PORTAL BRIEF PRODUCER PG18 PASS: original and later revision stored/rendered; registry counters unchanged.\n";
+        }
         echo 'BRIEF ARTIFACT PROVENANCE CI PASS: '.$bapChecks.' new assertions; 923 existing assertions retained. '.
             "Real stored-source rendering, atomic native registration, historical inspection and ordered rollback; no publication authority.\n";
     } catch (Throwable $error) {
