@@ -9,6 +9,8 @@ if (getenv('SITES_PUBLICATION_REQUEST_RECOVERY_CI') === '1' &&
     getenv('SITES_PUBLICATION_REQUEST_READER_CI') !== '1') exit(2);
 if (getenv('SITES_PUBLICATION_REQUEST_READER_CI') === '1' &&
     getenv('SITES_PROJECT_INTAKE_RECOVERY_CLI_CI') !== '1') exit(2);
+if (getenv('SITES_PORTAL_BRIEF_ADVERSARIAL_CI') === '1' &&
+    getenv('SITES_PORTAL_BRIEF_EXPORT_CI') !== '1') exit(2);
 if (getenv('SITES_BRIEF_SNAPSHOTS_CI') === '1' &&
     getenv('SITES_REGISTRY_INTAKE_PERMISSIONS_CI') !== '1') exit(2);
 if (getenv('SITES_BRIEF_ARTIFACT_PROVENANCE_CI') === '1' &&

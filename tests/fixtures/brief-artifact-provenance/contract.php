@@ -476,6 +476,12 @@ if (!isset($admin, $connection, $connect, $password, $caFile, $ok)) {
         };
         $bapPlans = [];
         foreach (array_keys($bapProjects) as $name) $bapPlans[$name] = $bapPlan($name);
+        if (getenv('SITES_PORTAL_BRIEF_ADVERSARIAL_CI') === '1') {
+            if (getenv('SITES_PORTAL_BRIEF_EXPORT_CI') !== '1') {
+                throw new RuntimeException('Portal producer fixture prerequisite denied');
+            }
+            require __DIR__.'/../portal-brief-adversarial/contract.php';
+        }
         if (getenv('SITES_PORTAL_BRIEF_EXPORT_CI') === '1') {
             bapRequire($bapPortalChecks === 2 && isset($bapPortalPairs[$bapSnapshots['main']->snapshotRef]),
                 'Portal source, Sites storage and plan parser completed as a paired synthetic pipeline');

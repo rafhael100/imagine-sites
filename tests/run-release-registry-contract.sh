@@ -3,6 +3,9 @@ set -euo pipefail
 # Own disposable CI cluster only. Never attach to an existing service or target.
 test "${GITHUB_ACTIONS:-}" = true
 test "${SITES_RELEASE_REGISTRY_CI:-}" = 1
+if [[ "${SITES_PORTAL_BRIEF_ADVERSARIAL_CI:-}" == 1 ]]; then
+  test "${SITES_PORTAL_BRIEF_EXPORT_CI:-}" = 1
+fi
 if [[ "${SITES_PUBLICATION_REQUEST_RECOVERY_CI:-}" == 1 ]]; then
   test "${SITES_PUBLICATION_REQUEST_READER_CI:-}" = 1
   test "${SITES_PUBLICATION_REQUEST_CI:-}" = 1
