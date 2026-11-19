@@ -52,7 +52,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: rafhael100/imagine-portal
-          ref: e7c15a93660acb946e8ce7ac2e6a9ebf92050d70
+          ref: 7acee97ebaf474d630415ca456a616b5e12f2df7
           path: .pinned-portal
           persist-credentials: false
           fetch-depth: 1
@@ -173,7 +173,7 @@ jobs:
           php -l apps/sites/app/Integration/StoredBriefReleaseRegistration.php
           php -l apps/sites/app/Integration/StoredBriefReleaseReceiptReader.php
           php -l apps/sites/database/migrations/2026_11_18_000014_add_brief_artifact_provenance.php
-          test "$(git -C .pinned-portal rev-parse HEAD)" = e7c15a93660acb946e8ce7ac2e6a9ebf92050d70
+          test "$(git -C .pinned-portal rev-parse HEAD)" = 7acee97ebaf474d630415ca456a616b5e12f2df7
           php -l .pinned-portal/apps/portal/app/Domain/SitesIntegration/SiteContractSnapshot.php
           php -l .pinned-portal/apps/portal/app/Domain/SitesIntegration/OnepageBriefSnapshotCandidateEncoder.php
           php -l .pinned-portal/apps/portal/app/Domain/SitesIntegration/OnepageRenderPlanCandidateEncoder.php
@@ -201,7 +201,7 @@ jobs:
           php .pinned-portal/tests/onepage-brief-export-candidate-offline.php | tee "$RUNNER_TEMP/portal-brief-export-offline.log"
           grep -q '^PORTAL ONEPAGE BRIEF CANDIDATE OFFLINE PASS: 51 checks;' "$RUNNER_TEMP/portal-brief-export-offline.log"
           php .pinned-portal/tests/onepage-render-plan-candidate-offline.php | tee "$RUNNER_TEMP/portal-render-plan-offline.log"
-          grep -q '^PORTAL ONEPAGE RENDER PLAN CANDIDATE OFFLINE PASS: 45 checks;' "$RUNNER_TEMP/portal-render-plan-offline.log"
+          grep -q '^PORTAL ONEPAGE RENDER PLAN CANDIDATE OFFLINE PASS: 60 checks;' "$RUNNER_TEMP/portal-render-plan-offline.log"
           php tests/publication-request-recovery-cli-offline.php | tee "$RUNNER_TEMP/sites-publication-request-recovery-cli-offline.log"
           grep -q '^PUBLICATION RECOVERY CLI OFFLINE PASS: 63 checks;' "$RUNNER_TEMP/sites-publication-request-recovery-cli-offline.log"
           if SITES_PUBLICATION_REQUEST_RECOVERY_CI=0 php tests/fixtures/publication-request-recovery/contract.php; then
