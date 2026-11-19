@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Integration\CurrentPortalOnepageHeadSource;
 use App\Integration\StoredOnepageReviewCurrentHeadGate;
+use App\Integration\StoredOnepageReviewSupersession;
 
 // Test-only adapter, never installed in a runtime service. The real Portal
 // current-head authority and approvals are NOT implemented by this fixture.
