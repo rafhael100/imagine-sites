@@ -112,6 +112,7 @@ foreach ($fixtures as $label => [
         $raw->payloadSha256 === hash('sha256', $source),
         $label.' remains parseable and byte-coherent before the SQL authorization test');
     $before = bapRows($bapAdmin);
+    $catalogBefore = bapCatalog($bapAdmin);
     $denied = false;
     try {
         (new PortalBriefSnapshotRecorder(bapConnection(
@@ -122,8 +123,9 @@ foreach ($fixtures as $label => [
             'BRIEF_SNAPSHOT_DENIED', 'BRIEF_SNAPSHOT_CONFLICT',
         ], true) && $error->getPrevious() === null;
     }
-    $advCheck($denied && bapRows($bapAdmin) === $before,
-        $label.' denied by native scoped/CAS/replay SQL without appended rows');
+    $advCheck($denied && bapRows($bapAdmin) === $before &&
+        bapCatalog($bapAdmin) === $catalogBefore,
+        $label.' denied by native scoped/CAS/replay SQL without row or catalog mutation');
 }
 $advCheck(bapRows($bapAdmin) === $advBase &&
     bapCatalog($bapAdmin) === $advCatalog,
