@@ -101,4 +101,47 @@ final readonly class StoredOnepageReviewSupersession
             throw new RuntimeException('ONEPAGE_REVIEW_SUPERSESSION_DENIED');
         }
     }
+
+    /**
+     * Revalidates an untrusted supersession receipt against BOTH currently
+     * tenant-scoped stored snapshots and their native rendered review pointers.
+     *
+     * The receipt is only a request for a FRESH independent review. It never
+     * asserts that either selected revision is the latest Portal head, and it
+     * cannot authorize review approval, payment, publication or client acceptance.
+     */
+    public function assertCurrent(
+        array $claimed,
+        array $previousClaim,
+        array $previousExport,
+        string $previousPlan,
+        string $previousEditorial,
+        array $nextExport,
+        string $nextPlan,
+        string $nextEditorial,
+    ): void {
+        try {
+            if (count($claimed) !== 2 ||
+                array_diff(['supersessionBytes', 'supersessionSha256'], array_keys($claimed)) !== [] ||
+                !is_string($claimed['supersessionBytes'] ?? null) ||
+                !is_string($claimed['supersessionSha256'] ?? null)) {
+                throw new RuntimeException();
+            }
+
+            // Never trust a caller-provided digest or claimed review state.
+            // Re-read both immutable snapshots under the CURRENT authorized
+            // SQL principal before comparing byte-for-byte with the claim.
+            $current = $this->prepareNext(
+                $previousClaim, $previousExport, $previousPlan, $previousEditorial,
+                $nextExport, $nextPlan, $nextEditorial,
+            );
+            if (!hash_equals($current['supersessionSha256'], $claimed['supersessionSha256']) ||
+                !hash_equals($current['supersessionBytes'], $claimed['supersessionBytes'])) {
+                throw new RuntimeException();
+            }
+        } catch (Throwable) {
+            throw new RuntimeException('ONEPAGE_REVIEW_SUPERSESSION_DENIED');
+        }
+    }
+
 }
