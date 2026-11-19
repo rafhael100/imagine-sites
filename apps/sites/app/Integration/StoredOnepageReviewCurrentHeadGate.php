@@ -59,6 +59,12 @@ final readonly class StoredOnepageReviewCurrentHeadGate
 
             // The independent Portal head is examined before AND after the
             // native tenant-scoped PG18 proof. A revoked or newer head refuses.
+            // Prove tenant-scoped stored authority FIRST, before asking the
+            // independent Portal source about a claimed company/order/site.
+            $this->supersession->assertCurrent(
+                $claim, $previousReview, $previousExport, $previousPlan,
+                $previousEditorial, $nextExport, $nextPlan, $nextEditorial,
+            );
             $before = $this->readHead($expected);
             $this->supersession->assertCurrent(
                 $claim, $previousReview, $previousExport, $previousPlan,
