@@ -279,6 +279,15 @@ if (!isset($admin, $connection, $connect, $password, $caFile, $ok)) {
         $bapInstalledGuard = bapGuard($bapAdmin);
         $bapCaSha = hash_file('sha256', $bapCaFile);
         $bapRepo = dirname(__DIR__, 3);
+        if (getenv('SITES_PORTAL_BRIEF_EXPORT_CI') === '1') {
+            $portalRoot = $bapRepo.'/.pinned-portal';
+            if (!is_dir($portalRoot) || is_link($portalRoot)) {
+                throw new RuntimeException('Immutable Portal producer checkout required');
+            }
+            require_once $portalRoot.'/apps/portal/app/Domain/SitesIntegration/SiteContractSnapshot.php';
+            require_once $portalRoot.'/apps/portal/app/Domain/SitesIntegration/OnepageBriefSnapshotCandidateEncoder.php';
+            require_once $portalRoot.'/apps/portal/app/Domain/SitesIntegration/OnepageRenderPlanCandidateEncoder.php';
+        }
         $examples = $bapRepo.'/contracts/portal-sites/candidates/brief-production-v1/examples/';
         $bapSource = file_get_contents($examples.'onepage-brief.synthetic.json');
         $bapEditorial = file_get_contents($examples.'render-input.synthetic.json');
@@ -370,8 +379,11 @@ if (!isset($admin, $connection, $connect, $password, $caFile, $ok)) {
             $bapProjects[$name] = ['command' => $command, 'receipt' => $intake, 'key' => $key];
             if ($intake['authorityVerified'] !== false || $intake['clientAccepted'] !== false || $intake['canPublish'] !== false) throw new RuntimeException('Intake authority changed');
         }
+        $bapPortalPairs = [];
+        $bapPortalChecks = 0;
         $bapSnapshot = static function (string $name, int $expected = 0, int $sourceVersion = 12) use (
             $bapSnapshotTemplate, $bapSource, $bapProjects, $bapSuffix, $bapDb, $bapRoles,
+            &$bapPortalPairs, &$bapPortalChecks,
         ): BriefSnapshotInput {
             $project = $bapProjects[$name]; $manifest = $bapSnapshotTemplate;
             foreach (['tenantRef', 'siteRef', 'orderRef', 'contractRef', 'contractRevision'] as $key) $manifest[$key] = $project['receipt'][$key];
@@ -379,7 +391,42 @@ if (!isset($admin, $connection, $connect, $password, $caFile, $ok)) {
             $manifest['idempotencyKey'] = 'bap-snapshot-key-'.$name.'-'.$expected.'-'.$bapSuffix;
             $manifest['snapshotRef'] = bapUuid(); $manifest['sourceVersion'] = $sourceVersion;
             $manifest['expectedBriefRevision'] = $expected; $manifest['briefRevision'] = $expected + 1;
-            $input = BriefSnapshotInput::fromJson(bapJson($manifest), $bapSource);
+            if (getenv('SITES_PORTAL_BRIEF_EXPORT_CI') === '1' && $name === 'main') {
+                $native = $project['receipt'];
+                $portalContract = new \App\Domain\SitesIntegration\SiteContractSnapshot(
+                    $native['tenantRef'], $native['orderRef'], $native['contractRef'],
+                    $native['contractRevision'], 'onepage',
+                );
+                $pair = \App\Domain\SitesIntegration\OnepageBriefSnapshotCandidateEncoder::build(
+                    $portalContract,
+                    [
+                        'siteRef' => $native['siteRef'],
+                        'snapshotRef' => $manifest['snapshotRef'],
+                        'operationId' => $manifest['operationId'],
+                        'idempotencyKey' => $manifest['idempotencyKey'],
+                        'sourceVersion' => $sourceVersion,
+                        'expectedBriefRevision' => $expected,
+                        'payloadRef' => $manifest['payload']['payloadRef'],
+                    ],
+                    $bapSource,
+                );
+                bapRequire($pair['sourceBytes'] === $bapSource &&
+                    $pair['payloadSha256'] === hash('sha256', $bapSource) &&
+                    $pair['authorityVerified'] === false &&
+                    $pair['clientAccepted'] === false &&
+                    $pair['canPublish'] === false &&
+                    $pair['canAcceptRealOrders'] === false,
+                    'Portal candidate source retains exact bytes and no business authority');
+                $input = BriefSnapshotInput::fromJson($pair['manifestBytes'], $pair['sourceBytes']);
+                bapRequire($input->siteRef === $native['siteRef'] &&
+                    $input->manifestSha256 === $pair['manifestSha256'] &&
+                    $input->briefRevision === $expected + 1,
+                    'Sites parser accepts Portal candidate snapshot with exact intake anchor');
+                $bapPortalPairs[$input->snapshotRef] = $pair;
+                ++$bapPortalChecks;
+            } else {
+                $input = BriefSnapshotInput::fromJson(bapJson($manifest), $bapSource);
+            }
             $receipt = (new PortalBriefSnapshotRecorder(bapConnection($bapDb($bapRoles['source_receiver_'.$project['key']]))))->record($input);
             if ($receipt['manifestSha256'] !== $input->manifestSha256 || $receipt['payloadSha256'] !== $input->payloadSha256 ||
                 $receipt['authorityVerified'] !== false || $receipt['canPublish'] !== false || $receipt['canAcceptRealOrders'] !== false) throw new RuntimeException('Stored briefing receipt mismatch');
@@ -388,7 +435,8 @@ if (!isset($admin, $connection, $connect, $password, $caFile, $ok)) {
         $bapSnapshots = [];
         foreach (array_keys($bapProjects) as $name) $bapSnapshots[$name] = $bapSnapshot($name);
         $bapPlan = static function (string $name, ?BriefSnapshotInput $snapshot = null, ?string $editorial = null) use (
-            $bapPlanTemplate, $bapSnapshots, $bapEditorial, $bapSuffix,
+            $bapPlanTemplate, $bapSnapshots, $bapEditorial, $bapSuffix, $bapHtml,
+            &$bapPortalPairs, &$bapPortalChecks,
         ): string {
             $snapshot ??= $bapSnapshots[$name]; $editorial ??= $bapEditorial; $plan = $bapPlanTemplate;
             $plan['operationId'] = 'bap-render-'.$name.'-'.$bapSuffix;
@@ -397,10 +445,42 @@ if (!isset($admin, $connection, $connect, $password, $caFile, $ok)) {
             $plan['releaseRef'] = 'bap-release-'.$name.'-'.$bapSuffix;
             $plan['snapshot'] = ['snapshotRef' => $snapshot->snapshotRef, 'briefRevision' => $snapshot->briefRevision, 'manifestSha256' => $snapshot->manifestSha256];
             $plan['renderInput']['sizeBytes'] = strlen($editorial); $plan['renderInput']['sha256'] = hash('sha256', $editorial);
+            if (getenv('SITES_PORTAL_BRIEF_EXPORT_CI') === '1' && $name === 'main') {
+                $pair = $bapPortalPairs[$snapshot->snapshotRef] ?? null;
+                bapRequire(is_array($pair), 'Portal candidate pair selected by immutable snapshot UUID');
+                $export = \App\Domain\SitesIntegration\OnepageRenderPlanCandidateEncoder::build(
+                    $pair, $editorial,
+                    [
+                        'operationId' => $plan['operationId'],
+                        'idempotencyKey' => $plan['idempotencyKey'],
+                        'releaseRef' => $plan['releaseRef'],
+                        'renderInputRef' => $plan['renderInput']['payloadRef'],
+                    ],
+                    ['sha256' => BAP_HTML_SHA, 'sizeBytes' => strlen($bapHtml)],
+                );
+                $parsed = BriefRenderPlanInput::fromJson($export['planBytes']);
+                bapRequire($parsed->snapshotRef === $snapshot->snapshotRef &&
+                    $parsed->manifestSha256 === $snapshot->manifestSha256 &&
+                    $parsed->briefRevision === $snapshot->briefRevision &&
+                    $parsed->renderInputSha256 === hash('sha256', $editorial) &&
+                    $parsed->expectedArtifactDigest === BAP_HTML_SHA &&
+                    $export['authorityVerified'] === false &&
+                    $export['clientAccepted'] === false &&
+                    $export['canPublish'] === false &&
+                    $export['canAcceptRealOrders'] === false,
+                    'Portal candidate plan selects the exact stored Sites snapshot and editorial copy');
+                ++$bapPortalChecks;
+                return $export['planBytes'];
+            }
             return bapJson($plan);
         };
         $bapPlans = [];
         foreach (array_keys($bapProjects) as $name) $bapPlans[$name] = $bapPlan($name);
+        if (getenv('SITES_PORTAL_BRIEF_EXPORT_CI') === '1') {
+            bapRequire($bapPortalChecks === 3 && isset($bapPortalPairs[$bapSnapshots['main']->snapshotRef]),
+                'Portal source, Sites storage and plan parser completed as a paired synthetic pipeline');
+            echo "PORTAL BRIEF PRODUCER PG18 PASS: 3 paired import/plan steps; original registry counters unchanged.\n";
+        }
         $bapMakePlan = static function (string $writer, string $plan, ?string $editorial = null, ?string $reader = null) use (
             $bapDb, $bapAdmin, $bapCaSha, $bapEditorial, $bapRoles,
         ): array {
