@@ -1,0 +1,52 @@
+name: Sites Onepage review handoff candidate (offline only)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['test/sites-portal-approved-brief-gate-pg18-2026-11-19']
+    paths:
+      - 'src/Production/OnepageReviewHandoffCandidate.php'
+      - 'tests/onepage-review-handoff-offline.php'
+      - 'docs/reviews/SITES-ONEPAGE-REVIEW-HANDOFF-2026-11-19.md'
+      - '.github/workflows/sites-onepage-review-handoff-offline.yml'
+permissions:
+  contents: read
+concurrency:
+  group: sites-onepage-review-handoff-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  review-handoff-no-effects:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'test/sites-onepage-review-handoff-candidate-2026-11-19' &&
+      github.event.pull_request.base.ref == 'test/sites-portal-approved-brief-gate-pg18-2026-11-19' &&
+      github.event.pull_request.base.sha == '8e291d42a75790a63dab66a17c6d1383ab0e5ff5'
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, dom, xml
+          coverage: none
+      - name: Syntax and deterministic private review pointer
+        run: |
+          set -euo pipefail
+          php -l src/Production/OnepageReviewHandoffCandidate.php
+          php -l tests/onepage-review-handoff-offline.php
+          php tests/onepage-review-handoff-offline.php | tee "$RUNNER_TEMP/sites-review-handoff.log"
+          grep -Eq '^ONEPAGE REVIEW HANDOFF OFFLINE PASS: [0-9]+ checks; zero real approval or publication[.]$' "$RUNNER_TEMP/sites-review-handoff.log"
+      - name: Prevent accidental deployment hooks
+        run: |
+          set -euo pipefail
+          test ! -d .pinned-portal
+          test ! -e /run/secrets/imagine
