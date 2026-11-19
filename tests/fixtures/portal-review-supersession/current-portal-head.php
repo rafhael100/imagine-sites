@@ -17,7 +17,8 @@ if (PHP_SAPI !== 'cli' || getenv('APP_ENV') !== 'testing' ||
 }
 
 $chStart = $suChecks;
-$chPacket = json_decode($suNewPacket['reviewBytes'], true, 16, JSON_THROW_ON_ERROR);
+// The parent fixture has already decoded the exact current review packet.
+$chPacket = $suNewPacket;
 $chHead = [
     'tenantRef' => $chPacket['tenantRef'],
     'orderRef' => $chPacket['orderRef'],
