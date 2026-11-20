@@ -13,3 +13,7 @@ O retorno contém os bytes do artefato **somente para revisão privada**, SHA-25
 Não há fonte oficial de atores/aprovações, integração com pedidos pagos, credencial mTLS homologada, persistência de revisão/artefato, revisão/consentimento do cliente, HTTP operacional ou publicação. Releituras não são transação distribuída; revogação posterior é possível. HTML/render não deve ser servido a usuários sem autenticação, autorização e armazenamento próprio aprovados. Os dez gates permanecem **BLOCKED**. Nenhum merge/deploy, VPS, produção, Cloudflare/DNS, Asaas, credencial, custo ou pagamento.
 
 CI draft-only em PHP 8.3/8.4; resultados e SHAs devem ser registrados apenas após confirmação do GitHub Actions. Próxima dependência: ledger oficial de briefing e ator do Portal com grants/RLS homologados, seguido de custódia transacional do artefato e revisão vinculada ao source digest.
+
+## Evidência verificada
+
+Na HEAD `1fa38dd855aaa7260d59f23c67238b8d3643ecf6`, o [workflow específico 44709743707](https://github.com/rafhael100/imagine-sites/actions/runs/44709743707) terminou com **2/2 jobs SUCCESS**, em PHP 8.3 e 8.4. Logs dos jobs registram, em cada versão, `SITES LANDING PRIVATE EDITORIAL DRAFT PASS: 34 checks` e `SITES LANDING PRIVATE CURRENT READBACK PASS: 42 checks`, além de lint PHP aprovado. A CI da HEAD com este documento será checada separadamente; não presumir sucesso futuro.
