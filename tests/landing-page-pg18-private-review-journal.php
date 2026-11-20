@@ -76,6 +76,22 @@ $denyReview=static function(callable $fn,string $label) use ($expect):void {
 $expect($reviewA->query('select session_user')->fetchColumn()==='sites_landing_ci_reviewer_a',
     'reviewer A has independent PostgreSQL login');
 $expect($countReview()===0,'empty immutable observation journal');
+// The reviewer must serialize with custody on the same tenant/site row.
+// A row held by an independent transaction cannot be bypassed by a
+// correctly admitted reviewer, even with an otherwise valid pointer.
+$admin->beginTransaction();
+$lockedReviewSite=$admin->prepare(
+    "SELECT 1 FROM sites_landing_custody.admitted_sites
+      WHERE tenant_ref='tenant-A' AND site_ref=? FOR UPDATE"
+);
+$lockedReviewSite->execute([$site]);
+$lockedReviewSite->closeCursor();
+$reviewA->exec("SET lock_timeout='300ms'");
+$denyReview(static fn()=>$observe($journalA,'review-A3-lock-blocked','tenant-A',$packetA,3),
+    'review cannot race an independent custody admission row lock');
+$reviewA->exec('RESET lock_timeout');
+$admin->rollBack();
+$expect($countReview()===0,'review lock timeout leaves append-only journal empty');
 $result=$observe($journalA,'review-A3','tenant-A',$packetA,3);
 $expect($result['state']==='observation_private_only' &&
     $result['reviewSha256']===$packetA['reviewSha256'],

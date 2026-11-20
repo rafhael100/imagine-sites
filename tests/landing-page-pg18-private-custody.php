@@ -163,6 +163,22 @@ $ok($run($b,'operation-B1','tenant-B')['state']==='pending_private_only',
     'separate B tenant can store under its own authenticated role');
 $ok($count()===2,'same site UUID kept tenant-keyed without collisions');
 $state->version=2;
+// The independent admission row serializes custody writes across connections.
+// Hold it in an outer transaction, prove the valid writer times out, then
+// release it and prove the same head can be stored successfully.
+$admin->beginTransaction();
+$lockedAdmission=$admin->prepare(
+    "SELECT 1 FROM sites_landing_custody.admitted_sites
+      WHERE tenant_ref='tenant-A' AND site_ref=? FOR UPDATE"
+);
+$lockedAdmission->execute([$site]);
+$lockedAdmission->closeCursor();
+$dbA->exec("SET lock_timeout='300ms'");
+$deny(static fn()=>$run($a,'operation-A-v2-lock-blocked'),
+    'a valid new version cannot pass a separately locked admission row');
+$dbA->exec('RESET lock_timeout');
+$admin->rollBack();
+$ok($count()===2,'lock timeout did not persist an artifact');
 $deny(static fn()=>$run($a,'operation-A-old','tenant-A',1),
     'stale prior source version refused after supersession');
 $ok($run($a,'operation-A-v2')['state']==='pending_private_only' && $count()===3,
