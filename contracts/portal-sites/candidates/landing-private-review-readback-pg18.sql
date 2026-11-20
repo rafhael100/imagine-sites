@@ -40,6 +40,17 @@ BEGIN
     RAISE EXCEPTION 'LANDING_REVIEW_READBACK_DENIED' USING ERRCODE='42501';
   END IF;
 
+  -- Lock tenant/site BEFORE the next statement takes its snapshot of the
+  -- latest immutable custody head. record_pending uses FOR UPDATE on this
+  -- exact row; an in-flight newer version must finish first, rather than
+  -- allowing the readback statement to see an old snapshot while waiting.
+  PERFORM 1 FROM sites_landing_custody.admitted_sites s
+    WHERE s.tenant_ref=v_tenant AND s.site_ref=p_site AND s.active IS TRUE
+    FOR SHARE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'LANDING_REVIEW_READBACK_DENIED' USING ERRCODE='42501';
+  END IF;
+
   RETURN QUERY
     SELECT obs.decision, obs.reason_code, obs.operation_ref,
            obs.observed_by::text, obs.review_sha256, obs.artifact_sha256,
