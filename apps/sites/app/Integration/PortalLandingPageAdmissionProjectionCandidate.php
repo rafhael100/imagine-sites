@@ -21,11 +21,16 @@ final class PortalLandingPageAdmissionProjectionCandidate
      */
     public static function decode(
         string $bytes, string $expectedTenant, string $expectedOrder, string $expectedSite,
+        string $expectedContractRef, int $expectedContractRevision,
     ): array {
         try {
             BriefCandidateJson::reference($expectedTenant);
             BriefCandidateJson::reference($expectedOrder);
             BriefCandidateJson::uuid($expectedSite);
+            BriefCandidateJson::reference($expectedContractRef);
+            if ($expectedContractRevision < 1 || $expectedContractRevision > 9007199254740991) {
+                throw new RuntimeException();
+            }
             if ($bytes === '' || strlen($bytes) > 2048 || str_contains($bytes, "\0")) {
                 throw new RuntimeException();
             }
@@ -39,6 +44,8 @@ final class PortalLandingPageAdmissionProjectionCandidate
                 $object->orderRef !== $expectedOrder ||
                 $object->siteRef !== $expectedSite ||
                 $object->productCode !== 'landing_page' ||
+                $object->contractRef !== $expectedContractRef ||
+                $object->contractRevision !== $expectedContractRevision ||
                 !is_string($object->contractRef) ||
                 !is_int($object->contractRevision) ||
                 $object->contractRevision < 1 ||
