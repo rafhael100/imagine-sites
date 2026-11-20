@@ -1,5 +1,41 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 20/11/2026 — admissão Landing Page com vínculo independente de site (draft)
+
+A [PR Sites #555](https://github.com/rafhael100/imagine-sites/pull/555),
+branch `integration/sites-landing-site-bound-pair-2026-11-20-r12`,
+partiu de Sites #554, SHA `4c2a6f010f6db51c0b950a6cc48c854ba0d614ac`,
+sem disputar outra branch. A contraparte
+[Portal #1010](https://github.com/rafhael100/imagine-portal/pull/1010)
+está pinada em `9f85a3c2d4923bfa0420de2c0278859934833f55`;
+continua a cadeia Sites #541/#542 e Portal #1008.
+
+O Portal agora requer vínculo independente `tenantRef + orderRef + siteRef`,
+com contrato, revisão e produto Landing Page conferidos nas duas leituras;
+um contrato do pedido sozinho não prova autorização sobre o site.
+O Sites acrescentou um leitor candidato, que compara duas projeções canônicas
+contra a expectativa de empresa/pedido/site/contrato/revisão estabelecida fora
+da resposta, e nega por padrão. O teste de paridade precedente foi atualizado
+para a nova interface, sem alterar contrato de saída ou liberar flags.
+
+HEAD de código inicial `a900f6ad3626629b53150df2eaa936502986f15c`.
+Na [execução Sites 44667686496](https://github.com/rafhael100/imagine-sites/actions/runs/44667686496),
+os dois jobs PHP 8.3/8.4 registraram **30 checks do readback, 30 da paridade,
+15 do pedido Landing e 15 de regressão Onepage** cada. Os cinco workflows da
+HEAD de código terminaram com SUCCESS. No
+[Portal 44667265781](https://github.com/rafhael100/imagine-portal/actions/runs/44667265781),
+os dois jobs PHP 8.3/8.4 aprovaram **54 checks de admissão, 20 de pedido
+Landing e 30 de regressão Onepage** cada; os seis workflows Portal foram
+SUCCESS. Todos são **testes offline com provedores sintéticos**.
+
+**NO-GO:** faltam autorização/identidade S2S real, persistência Portal
+transacional de briefing Landing aprovado e versionado com revogação/auditoria,
+fonte de vínculo por tenant/site no banco oficial, renderização e revisão
+formal, publicação técnica homologada e aceite do cliente. Dupla leitura não
+equivale a transação. Dez gates operacionais continuam bloqueados; nenhuma
+publicação, merge, deploy, pagamento, main, VPS, Cloudflare/DNS, Asaas,
+credencial ou produção foi alterada. [Limites do recorte](docs/reviews/SITES-LANDING-BOUND-ADMISSION-READBACK-2026-11-20.md).
+
 ## 18/11/2026 — composição da recuperação privada do diário
 
 A branch `integration/sites-request-recovery-composition-2026-11-18` deriva da
