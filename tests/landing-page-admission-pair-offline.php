@@ -10,6 +10,8 @@ foreach ([
     'SiteContractSnapshot', 'PortalSiteContractSource', 'DenyingPortalSiteContractSource',
     'PortalLandingPageHeadServiceWitness','DenyingPortalLandingPageHeadServiceWitness',
     'LandingPageCurrentHeadS2sRequestCandidate','LandingPageCurrentHeadAdmissionCandidate',
+    'LandingPageSiteOrderBinding','PortalLandingPageSiteOrderBindingSource',
+    'DenyingPortalLandingPageSiteOrderBindingSource',
 ] as $class) {
     require_once __DIR__.'/../.pinned-portal/apps/portal/app/Domain/SitesIntegration/'.$class.'.php';
 }
@@ -20,6 +22,8 @@ use App\Domain\SitesIntegration\PortalLandingPageHeadServiceWitness;
 use App\Domain\SitesIntegration\PortalSiteContractSource;
 use App\Domain\SitesIntegration\SiteContractSnapshot;
 use App\Domain\SitesIntegration\LandingPageCurrentHeadAdmissionCandidate as PortalAdmission;
+use App\Domain\SitesIntegration\LandingPageSiteOrderBinding;
+use App\Domain\SitesIntegration\PortalLandingPageSiteOrderBindingSource;
 
 $checks=0;
 $ok = static function(bool $valid,string $label) use (&$checks): void {
@@ -55,14 +59,27 @@ $contracts = new class implements PortalSiteContractSource {
             'tenant-landing-A','order-landing-A','contract-landing-A',7,$this->product);
     }
 };
-$portal = new PortalAdmission($peer,$contracts);
+$siteBinding = new class implements PortalLandingPageSiteOrderBindingSource {
+    public int $calls=0;
+    public string $site='11111111-1111-4111-8111-111111111111';
+    public bool $revoked=false;
+    public function readCurrentBinding(string $tenant,string $order,string $site): ?LandingPageSiteOrderBinding {
+        ++$this->calls;
+        if ($this->revoked) return null;
+        return new LandingPageSiteOrderBinding(
+            'tenant-landing-A','order-landing-A',$this->site,
+            'contract-landing-A',7,'landing_page'
+        );
+    }
+};
+$portal = new PortalAdmission($peer,$contracts,$siteBinding);
 $portalRequest=LandingRequest::encode($tenant,$order,$site);
 $projection=$portal->inspect($portalRequest,'verified-synthetic-peer');
 $bytes=json_encode($projection,JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);
 $ok(Projection::decode($bytes,$tenant,$order,$site,'contract-landing-A',7)===$projection,
     'real Portal projection matches actual Sites response parser');
-$ok($peer->calls===2 && $contracts->calls===2,
-    'Portal admission rereads independent service and order');
+$ok($peer->calls===2 && $contracts->calls===2 && $siteBinding->calls===2,
+    'Portal admission rereads independent service, order and site binding');
 $deny(static fn()=>Projection::decode($bytes,$tenant,$order,$site,'contract-landing-B',7),
     'different independently expected contract');
 $deny(static fn()=>Projection::decode($bytes,$tenant,$order,$site,'contract-landing-A',8),
@@ -99,6 +116,22 @@ foreach ([
 }
 $ok($peer->calls===2 && $contracts->calls===2,
     'response parsing never makes additional Portal authority reads');
+$siteBinding->site='22222222-2222-4222-8222-222222222222';
+$portalRejected=false;
+try { $portal->inspect($portalRequest,'verified-synthetic-peer'); }
+catch (RuntimeException $error) {
+    $portalRejected=$error->getMessage()==='PORTAL_LANDING_PAGE_HEAD_ADMISSION_DENIED';
+}
+$ok($portalRejected,'Portal refuses a contract for a different independently bound site');
+$siteBinding->site='11111111-1111-4111-8111-111111111111';
+$siteBinding->revoked=true;
+$portalRejected=false;
+try { $portal->inspect($portalRequest,'verified-synthetic-peer'); }
+catch (RuntimeException $error) {
+    $portalRejected=$error->getMessage()==='PORTAL_LANDING_PAGE_HEAD_ADMISSION_DENIED';
+}
+$ok($portalRejected,'Portal refuses removed site ownership');
+$siteBinding->revoked=false;
 $contracts->product='onepage';
 $portalRejected=false;
 try {
