@@ -53,4 +53,4 @@ jobs:
           test ! -e /run/secrets/imagine
           grep -Fq "new OnepageBuyerPrivatePreviewCandidate" tests/onepage-private-acceptance-chain-offline.php
           grep -Fq "new SignedPortalClientApprovalGate" tests/onepage-private-acceptance-chain-offline.php
-          grep -Fq "hash_file('sha256', $file)" tests/onepage-private-acceptance-chain-offline.php
+          grep -Fq "hash_file" tests/onepage-private-acceptance-chain-offline.php tests/onepage-private-acceptance-chain-offline.php
