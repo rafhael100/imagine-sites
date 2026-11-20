@@ -1,0 +1,88 @@
+name: Sites Landing PG18 monotonic custody and review lock (draft only)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['feature/sites-landing-pg18-review-readback-2026-11-20-r24']
+    paths:
+      - '.github/workflows/sites-landing-pg18-review-readback.yml'
+      - 'contracts/portal-sites/candidates/landing-private-review-readback-pg18.sql'
+      - 'contracts/portal-sites/candidates/landing-private-custody-pg18.sql'
+      - 'contracts/portal-sites/candidates/landing-private-review-journal-pg18.sql'
+      - 'tests/landing-page-pg18-private-custody.php'
+      - 'docs/reviews/SITES-LANDING-PG18-MONOTONIC-CUSTODY-2026-11-20.md'
+      - 'apps/sites/app/Integration/PortalLandingPageReviewReadbackCandidate.php'
+      - 'tests/landing-page-pg18-review-readback.php'
+      - 'docs/reviews/SITES-LANDING-PG18-REVIEW-READBACK-2026-11-20.md'
+permissions:
+  contents: read
+concurrency:
+  group: sites-landing-monotonic-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  private-review-readback:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'fix/sites-landing-pg18-monotonic-custody-review-2026-11-20-r25' &&
+      github.event.pull_request.base.ref == 'feature/sites-landing-pg18-review-readback-2026-11-20-r24' &&
+      github.event.pull_request.base.sha == '0f524fb53d1a6d6630ea8b42399cc56a290e7ce3'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: ci-only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      GITHUB_ACTIONS: 'true'
+      SITES_LANDING_CUSTODY_CI: '1'
+      SITES_LANDING_REVIEW_CI: '1'
+      SITES_LANDING_READBACK_CI: '1'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: rafhael100/imagine-portal
+          ref: 4a5e1e06376188f85c90bee3d10056ab3ce2302a
+          path: .pinned-portal
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring,pdo_pgsql
+          coverage: none
+      - name: Verify immutable Portal, PHP syntax, and fail-closed CI gate
+        run: |
+          set -euo pipefail
+          test "$(git -C .pinned-portal rev-parse HEAD)" = 4a5e1e06376188f85c90bee3d10056ab3ce2302a
+          php -m | grep -x pdo_pgsql
+          php -m | grep -x mbstring
+          php -l apps/sites/app/Integration/PortalLandingPageReviewReadbackCandidate.php
+          php -l tests/landing-page-pg18-review-readback.php
+          if SITES_LANDING_READBACK_CI=0 php tests/landing-page-pg18-review-readback.php >/dev/null 2>&1; then
+            echo 'Unsafe: readback fixture ran without explicit CI-only gate'
+            exit 1
+          fi
+      - name: Verify monotonic custody, serialized review and readback on PG18
+        run: |
+          set -euo pipefail
+          php tests/landing-page-pg18-review-readback.php | tee readback.log
+          grep -Eq '^SITES LANDING PG18 PRIVATE CUSTODY PASS: [0-9]+ checks; synthetic admissions only\.$' readback.log
+          grep -Eq '^SITES LANDING PG18 PRIVATE REVIEW JOURNAL PASS: [0-9]+ checks; synthetic identities, NO RELEASE AUTHORITY\.$' readback.log
+          grep -Eq '^SITES LANDING PG18 REVIEW READBACK PASS: [0-9]+ checks; private evidence only, NO APPROVAL OR RELEASE\.$' readback.log
+          echo 'CI only: no human approval, release authority, client acceptance or payment'
