@@ -57,7 +57,7 @@ $confirmation = $bound + [
 ];
 $approval = $bound + [
     'reviewerRef' => 'separate-authorized-reviewer', 'approvalRef' => 'approval-001',
-    'approved' => true,
+    'buyerConfirmationRef' => $confirmation['confirmationRef'], 'approved' => true,
 ];
 $original = compact('record', 'head', 'confirmation', 'approval');
 $create = static function (array &$fixture): OnepageBuyerPrivatePreviewCandidate {
@@ -121,6 +121,10 @@ $mutate(static function (array &$s): void { $s['confirmation']['payloadSha256'] 
 $mutate(static function (array &$s): void { $s['approval']['approved'] = false; }, 'revoked approval');
 $mutate(static function (array &$s): void { $s['approval']['reviewerRef'] = 'buyer-one'; }, 'self approval not independent');
 $mutate(static function (array &$s): void { $s['approval']['sourceVersion']++; }, 'obsolete reviewer approval');
+$mutate(static function (array &$s): void { unset($s['approval']['buyerConfirmationRef']); }, 'review approval missing buyer confirmation link');
+$mutate(static function (array &$s): void { $s['approval']['buyerConfirmationRef'] = 'confirm-older'; }, 'review approval for earlier buyer confirmation');
+$mutate(static function (array &$s): void { $s['approval']['buyerConfirmationRef'] = 'buyer-two'; }, 'review approval linked to unrelated confirmation');
+$mutate(static function (array &$s): void { $s['confirmation']['confirmationRef'] = 'confirm-002'; }, 'buyer reconfirmed without independent reapproval');
 $mutate(static function (array &$s): void { $s['approval']['contractRef'] = 'other-contract'; }, 'review approval from another contract');
 $mutate(static function (array &$s): void { $s['approval']['contractRevision']++; }, 'review approval for obsolete contract revision');
 $mutate(static function (array &$s): void { $s['approval']['productCode'] = 'landing-page'; }, 'review approval for Landing Page instead of Onepage');
@@ -134,6 +138,12 @@ $mutate(static function (array &$s): void { $s['record']['buyerRef'] = 'other-bu
 $mutate(static function (array &$s): void { $s['head']['canPublish'] = true; }, 'extra head authority');
 $mutate(static function (array &$s): void { $s['confirmation']['canPublish'] = true; }, 'extra buyer authority');
 $mutate(static function (array &$s): void { $s['approval']['canPublish'] = true; }, 'extra reviewer authority');
+// New confirmation reference requires a *new* reviewer witness linking to it.
+$reconfirmed = $original;
+$reconfirmed['confirmation']['confirmationRef'] = 'confirm-002';
+$reconfirmed['approval']['buyerConfirmationRef'] = 'confirm-002';
+$reconfirmed['approval']['approvalRef'] = 'approval-002';
+$ok($call($create($reconfirmed))['privatePreview'] === true, 'new synthetic confirmation and linked reviewer receipt');
 $mutate(static function (array &$s) use ($json): void {
     $changed = json_decode($s['record']['export']['manifestBytes'], true, 16, JSON_THROW_ON_ERROR);
     $changed['productCode'] = 'landing-page';
