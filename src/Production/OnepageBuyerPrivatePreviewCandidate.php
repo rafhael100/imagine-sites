@@ -45,7 +45,7 @@ final readonly class OnepageBuyerPrivatePreviewCandidate
             }
             $record = ($this->readExact)($tenantRef, $orderRef, $siteRef, $sourceVersion);
             $brief = $this->validateRecord($record, $viewerRef, $tenantRef, $orderRef, $siteRef, $sourceVersion);
-            $this->assertCurrentProofs($brief, $record['buyerRef']);
+            $beforeProofs = $this->assertCurrentProofs($brief, $record['buyerRef']);
 
             // Reuse established parser, Portal export contract, render plan,
             // private review handoff, and deterministic HTML renderer.
@@ -66,7 +66,8 @@ final readonly class OnepageBuyerPrivatePreviewCandidate
             $again = ($this->readExact)($tenantRef, $orderRef, $siteRef, $sourceVersion);
             $this->validateRecord($again, $viewerRef, $tenantRef, $orderRef, $siteRef, $sourceVersion);
             if ($again !== $record) throw new RuntimeException();
-            $this->assertCurrentProofs($brief, $record['buyerRef']);
+            $afterProofs = $this->assertCurrentProofs($brief, $record['buyerRef']);
+            if ($afterProofs !== $beforeProofs) throw new RuntimeException();
 
             return [
                 'html' => $artifact->html,
@@ -111,7 +112,7 @@ final readonly class OnepageBuyerPrivatePreviewCandidate
         return $brief;
     }
 
-    private function assertCurrentProofs(BriefSnapshotInput $brief, string $buyer): void
+    private function assertCurrentProofs(BriefSnapshotInput $brief, string $buyer): array
     {
         $selection = [
             'tenantRef' => $brief->tenantRef,
@@ -144,15 +145,24 @@ final readonly class OnepageBuyerPrivatePreviewCandidate
             !self::includes($buyerWitness, $bound)) {
             throw new RuntimeException();
         }
+        // A reviewer must attest the *current buyer confirmation*, not only
+        // matching source bytes. Otherwise an approval for an earlier rights
+        // declaration could be replayed after the buyer reconfirms.
         $reviewWitness = ($this->readReviewerApproval)($selection);
         if (!is_array($reviewWitness) ||
-            !self::keys($reviewWitness, [...array_keys($bound), 'reviewerRef', 'approvalRef', 'approved']) ||
+            !self::keys($reviewWitness, [...array_keys($bound), 'reviewerRef', 'approvalRef', 'buyerConfirmationRef', 'approved']) ||
             !self::ref($reviewWitness['reviewerRef'] ?? null) ||
             $reviewWitness['reviewerRef'] === $buyer ||
             !self::ref($reviewWitness['approvalRef'] ?? null) ||
+            !self::ref($reviewWitness['buyerConfirmationRef'] ?? null) ||
+            !hash_equals($buyerWitness['confirmationRef'], $reviewWitness['buyerConfirmationRef']) ||
             $reviewWitness['approved'] !== true || !self::includes($reviewWitness, $bound)) {
             throw new RuntimeException();
         }
+        // Refuse an observed change to either attestation or current head
+        // across rendering, even if both receipts rotate together and each
+        // separate read is internally consistent. Not a transactional CAS.
+        return [$head, $buyerWitness, $reviewWitness];
     }
 
     private static function keys(mixed $value, array $keys): bool
