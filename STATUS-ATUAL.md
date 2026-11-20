@@ -1,5 +1,9 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 20/11/2026 — custódia da HEAD antes de readback privado (candidata draft)
+
+Branch isolada após #568 HEAD `a9660b34bc0eab2c2c6be59186ff1e08cf2d1967`. Uma segunda instrução `FOR SHARE` no site ocorre **antes** da consulta da versão corrente do artefato, eliminando o risco de snapshot antigo durante espera por escritor que usa `FOR UPDATE`. Teste PG18 de duas sessões prova que um writer de mesma empresa/site não obtém lock enquanto a leitura privada mantém a transação aberta. [Documento](docs/reviews/SITES-LANDING-PG18-READBACK-HEAD-SERIALIZATION-2026-11-20.md). **CI pendente de observação; laboratório não é aprovação, publicação, entrega ou cobrança. Dez gates BLOCKED.** Sem merge/deploy/main/VPS/Cloudflare/DNS/Asaas.
+
 ## 20/11/2026 — proteção do readback Landing contra revogação concorrente (candidata draft)
 
 Branch isolada sobre #567 HEAD `5c2d40b8bd16cf3e4c1935b1789ede054d6ef29d`, sem disputa com #541/#542, Portal ou main. A função candidata de leitura privada passa a travar com `FOR SHARE` as admissões de leitor, site, autor e revisor até COMMIT/ROLLBACK; o adaptador deixa de usar `SET TRANSACTION READ ONLY` porque PostgreSQL proíbe row locks nesse modo, mas não recebe grants de escrita. Quatro fixtures novas simulam revogação concorrente por sessões PostgreSQL independentes. Ver [relatório de limitações](docs/reviews/SITES-LANDING-PG18-READBACK-REVOCATION-FENCE-2026-11-20.md). **CI ainda não declarado até execução na HEAD final; homologação operacional, aprovação, publicação, aceite e dez gates permanecem bloqueados.** Sem merge/deploy, mudanças em main, VPS, produção, Cloudflare/DNS, credenciais ou Asaas.
