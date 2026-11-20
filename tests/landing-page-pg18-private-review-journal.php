@@ -92,6 +92,27 @@ $denyReview(static fn()=>$observe($journalA,'review-A3-lock-blocked','tenant-A',
 $reviewA->exec('RESET lock_timeout');
 $admin->rollBack();
 $expect($countReview()===0,'review lock timeout leaves append-only journal empty');
+// Reviewer deactivation cannot race an immutable observation to commit.
+$admin->beginTransaction();
+$admin->query("SELECT login_name FROM sites_landing_custody.reviewers WHERE login_name='sites_landing_ci_reviewer_a' FOR UPDATE")->fetchColumn();
+$reviewA->exec("SET lock_timeout='300ms'");
+$denyReview(static fn()=>$observe($journalA,'review-A3-reviewer-locked','tenant-A',$packetA,3),
+    'review journal denies while independent reviewer login is locked');
+$reviewA->exec('RESET lock_timeout');
+$admin->rollBack();
+$expect($countReview()===0 && !$reviewA->inTransaction(),
+    'reviewer identity contention preserves empty journal and closes transaction');
+// A still-admitted reviewer must also wait for the author's revocation,
+// otherwise the observation can be recorded against an expired author.
+$admin->beginTransaction();
+$admin->query("SELECT login_name FROM sites_landing_custody.principals WHERE login_name='sites_landing_ci_a' FOR UPDATE")->fetchColumn();
+$reviewA->exec("SET lock_timeout='300ms'");
+$denyReview(static fn()=>$observe($journalA,'review-A3-author-locked','tenant-A',$packetA,3),
+    'review journal denies while independently admitted author is locked');
+$reviewA->exec('RESET lock_timeout');
+$admin->rollBack();
+$expect($countReview()===0 && !$reviewA->inTransaction(),
+    'author identity contention preserves journal and closes transaction');
 $result=$observe($journalA,'review-A3','tenant-A',$packetA,3);
 $expect($result['state']==='observation_private_only' &&
     $result['reviewSha256']===$packetA['reviewSha256'],
