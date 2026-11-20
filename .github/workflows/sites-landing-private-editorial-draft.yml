@@ -1,0 +1,58 @@
+name: Sites Landing private editorial draft (draft only)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['test/sites-landing-pg18-tenant-roles-pair-2026-11-20-r20']
+    paths:
+      - '.github/workflows/sites-landing-private-editorial-draft.yml'
+      - 'apps/sites/app/Integration/PortalLandingPageEditorialDraftCandidate.php'
+      - 'tests/landing-page-editorial-draft-offline.php'
+      - 'docs/reviews/SITES-LANDING-PRIVATE-EDITORIAL-DRAFT-2026-11-20.md'
+permissions:
+  contents: read
+concurrency:
+  group: sites-landing-editorial-draft-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  private-editorial:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'feature/sites-landing-private-editorial-draft-2026-11-20-r21' &&
+      github.event.pull_request.base.ref == 'test/sites-landing-pg18-tenant-roles-pair-2026-11-20-r20' &&
+      github.event.pull_request.base.sha == '3b7274d8fd2b4ba1884ef2c8a8d28495bf9d1ce0'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: rafhael100/imagine-portal
+          ref: 4a5e1e06376188f85c90bee3d10056ab3ce2302a
+          path: .pinned-portal
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+          coverage: none
+      - name: Validate pinned Portal, syntax and isolated new review preview
+        run: |
+          set -euo pipefail
+          test "$(git -C .pinned-portal rev-parse HEAD)" = 4a5e1e06376188f85c90bee3d10056ab3ce2302a
+          php -m | grep -x mbstring
+          php -l apps/sites/app/Integration/PortalLandingPageEditorialDraftCandidate.php
+          php -l tests/landing-page-editorial-draft-offline.php
+          php tests/landing-page-editorial-draft-offline.php | tee editorial-draft.log
+          grep -Eq '^SITES LANDING PRIVATE EDITORIAL DRAFT PASS: [0-9]+ checks;' editorial-draft.log
+          php tests/landing-page-private-current-readback-offline.php | tee landing-readback.log
+          grep -Eq '^SITES LANDING PRIVATE CURRENT READBACK PASS: [0-9]+ checks;' landing-readback.log
