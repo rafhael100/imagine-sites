@@ -10,6 +10,8 @@ on:
       - 'apps/sites/app/Integration/PortalLandingPageAdmissionReadbackCandidate.php'
       - 'tests/landing-page-current-admission-consistency-offline.php'
       - 'tests/landing-page-admission-pair-offline.php'
+      - 'STATUS-ATUAL.md'
+      - 'docs/reviews/SITES-LANDING-BOUND-ADMISSION-READBACK-2026-11-20.md'
 permissions:
   contents: read
 concurrency:
