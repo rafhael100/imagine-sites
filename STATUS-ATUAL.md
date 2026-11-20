@@ -1,5 +1,9 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 20/11/2026 — proteção do readback Landing contra revogação concorrente (candidata draft)
+
+Branch isolada sobre #567 HEAD `5c2d40b8bd16cf3e4c1935b1789ede054d6ef29d`, sem disputa com #541/#542, Portal ou main. A função candidata de leitura privada passa a travar com `FOR SHARE` as admissões de leitor, site, autor e revisor até COMMIT/ROLLBACK; o adaptador deixa de usar `SET TRANSACTION READ ONLY` porque PostgreSQL proíbe row locks nesse modo, mas não recebe grants de escrita. Quatro fixtures novas simulam revogação concorrente por sessões PostgreSQL independentes. Ver [relatório de limitações](docs/reviews/SITES-LANDING-PG18-READBACK-REVOCATION-FENCE-2026-11-20.md). **CI ainda não declarado até execução na HEAD final; homologação operacional, aprovação, publicação, aceite e dez gates permanecem bloqueados.** Sem merge/deploy, mudanças em main, VPS, produção, Cloudflare/DNS, credenciais ou Asaas.
+
 ## 20/11/2026 — leitura independente do diário de revisão Landing PG18 (draft #564)
 
 [PR Sites #564](https://github.com/rafhael100/imagine-sites/pull/564) em branch isolada descendente da #563 HEAD `533bc571d9c04aee0ff5d2cd0fcf8d0ab7b01985`, sem tocar #541/#542, main ou branch de outra pessoa. Implementados SQL read-only com RLS FORCE e identidade do leitor derivada de `session_user`, adapter PHP com revalidação Portal pré/pós leitura e fixture adversarial de revogação, tenant cruzado, nova versão, identidade e digest. O resultado é **somente observação privada**, nunca aprovação formal, publicação ou aceite.
