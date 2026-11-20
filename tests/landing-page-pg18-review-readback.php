@@ -79,6 +79,37 @@ $checkRead($read($readerA,'tenant-A',$packetA5,5)===$rA,
     'repeat read is stable and has no write side effects');
 $checkRead($countReview()===4,'reads do not create journal rows');
 
+ // The readback holds site admission until the caller commits. A new custody
+ // revision uses FOR UPDATE on this row and cannot supersede the witness
+ // midway through a consumer transaction.
+$readerAConnection->beginTransaction();
+$heldRead=$readerAConnection->prepare(
+    'SELECT * FROM sites_landing_custody.read_current_review_observation(?,?)'
+);
+$heldRead->execute([$site,$packetA5['reviewSha256']]);
+$lockedWitness=$heldRead->fetch(PDO::FETCH_ASSOC);
+$heldRead->closeCursor();
+$checkRead(is_array($lockedWitness) && $lockedWitness['operation_ref']==='review-A5-final',
+    'direct PG18 witness can be inspected inside a held reader transaction');
+$admin->exec("SET lock_timeout='300ms'");
+$writerWaits=false;
+try {
+    $headLock=$admin->prepare(
+        "SELECT site_ref FROM sites_landing_custody.admitted_sites
+         WHERE tenant_ref='tenant-A' AND site_ref=? FOR UPDATE"
+    );
+    $headLock->execute([$site]);
+    $headLock->closeCursor();
+} catch(PDOException) {
+    $writerWaits=true;
+}
+$admin->exec('RESET lock_timeout');
+$checkRead($writerWaits,'future custody update cannot pass an open readback witness');
+$readerAConnection->commit();
+$checkRead(!$readerAConnection->inTransaction() && $read($readerA,'tenant-A',$packetA5,5)===$rA,
+    'release of readback fence allows current, exact private observation');
+
+
  // A readback witness must not escape while any of its independently
  // admitted identities/site is being revoked by another PG18 session.
  // A timeout must fail closed, roll back and preserve the private journal.
