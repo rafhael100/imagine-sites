@@ -53,8 +53,10 @@ DECLARE
   pending sites_landing_custody.pending_artifacts%ROWTYPE;
   existing sites_landing_custody.review_observations%ROWTYPE;
 BEGIN
+  -- Hold reviewer admission through transaction commit: active=true must
+  -- not be checked once and then concurrently revoked before the write.
   SELECT tenant_ref INTO t FROM sites_landing_custody.reviewers
-    WHERE login_name=session_user AND active IS TRUE;
+    WHERE login_name=session_user AND active IS TRUE FOR SHARE;
   IF t IS NULL OR p_operation IS NULL OR
      p_operation COLLATE "C" !~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$' OR
      p_site IS NULL OR
@@ -82,15 +84,20 @@ BEGIN
   IF NOT FOUND OR pending.review_sha256 IS DISTINCT FROM p_review_sha OR
      pending.recorded_by IS NOT DISTINCT FROM session_user OR
      NOT EXISTS (
-       SELECT 1 FROM sites_landing_custody.principals p
-       WHERE p.login_name=pending.recorded_by AND p.tenant_ref=t AND p.active IS TRUE
-     ) OR
-     NOT EXISTS (
        SELECT 1 FROM sites_landing_custody.admitted_sites s
        WHERE s.tenant_ref=t AND s.site_ref=p_site AND
        s.order_ref=pending.order_ref AND s.contract_ref=pending.contract_ref AND
        s.contract_revision=pending.contract_revision AND s.active IS TRUE
      ) THEN
+    RAISE EXCEPTION 'LANDING_REVIEW_DENIED' USING ERRCODE='42501';
+  END IF;
+
+  -- Independent artifact author must still be admitted; serialize any
+  -- revocation of that login with this observation's commit as well.
+  PERFORM 1 FROM sites_landing_custody.principals p
+    WHERE p.login_name=pending.recorded_by AND p.tenant_ref=t
+      AND p.active IS TRUE FOR SHARE;
+  IF NOT FOUND THEN
     RAISE EXCEPTION 'LANDING_REVIEW_DENIED' USING ERRCODE='42501';
   END IF;
 

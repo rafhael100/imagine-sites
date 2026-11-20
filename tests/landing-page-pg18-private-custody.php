@@ -130,6 +130,17 @@ $count=static fn():int => (int)$admin->query(
 $ok($dbA->query('SELECT current_user')->fetchColumn()==='sites_landing_ci_a','non-owner A role');
 $ok($dbB->query('SELECT current_user')->fetchColumn()==='sites_landing_ci_b','non-owner B role');
 $ok($count()===0,'empty starting custody');
+// A privileged, separate session holds the login row as if admission were
+// being revoked. A writer must not commit while that identity is undecided.
+$admin->beginTransaction();
+$admin->query("SELECT login_name FROM sites_landing_custody.principals WHERE login_name='sites_landing_ci_a' FOR UPDATE")->fetchColumn();
+$dbA->exec("SET lock_timeout='300ms'");
+$deny(static fn()=>$run($a,'operation-A1-principal-locked'),
+    'writer blocked by concurrent identity admission revocation lock');
+$dbA->exec('RESET lock_timeout');
+$admin->rollBack();
+$ok($count()===0 && !$dbA->inTransaction(),
+    'principal lock denial leaves no private artifact and no open transaction');
 $first=$run($a,'operation-A1');
 $ok($first['state']==='pending_private_only' && strlen($first['reviewSha256'])===64,
   'A stores pending private pointer, not approval');
