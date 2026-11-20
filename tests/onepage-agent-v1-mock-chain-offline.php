@@ -244,5 +244,5 @@ $safeEvidence = [
     'htmlSha256' => $e['htmlSha256'],
 ];
 echo 'ONEPAGE_AGENT_SYNTHETIC_EVIDENCE='.json_encode($safeEvidence,
-    JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES)."\\n";
+    JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES)."\n";
 echo 'ONEPAGE AGENT V1 MOCK CHAIN PASS: '.$checks." synthetic assertions; NO-GO; NO OPENAI REQUEST.\n";
