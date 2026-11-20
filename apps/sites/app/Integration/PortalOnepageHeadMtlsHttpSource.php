@@ -58,21 +58,13 @@ final readonly class PortalOnepageHeadMtlsHttpSource implements CurrentPortalOne
     public function readCurrent(string $tenantRef, string $orderRef, string $siteRef): ?array
     {
         try {
-            BriefCandidateJson::reference($tenantRef);
-            BriefCandidateJson::reference($orderRef);
-            BriefCandidateJson::uuid($siteRef);
+            $request = PortalOnepageHeadRequestCandidate::encode(
+                $tenantRef, $orderRef, $siteRef,
+            );
             if (!extension_loaded('curl') || !defined('CURLPROTO_HTTPS') ||
                 !defined('CURL_SSLVERSION_TLSv1_2')) {
                 return null;
             }
-            $request = json_encode([
-                'schemaVersion' => 'sites.onepage-current-head.fetch.v1',
-                'tenantRef' => $tenantRef,
-                'orderRef' => $orderRef,
-                'siteRef' => $siteRef,
-                'productCode' => 'onepage',
-            ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
-            if (!is_string($request) || strlen($request) > 1024) return null;
             $handle = curl_init($this->endpoint);
             if ($handle === false) return null;
             $response = '';
