@@ -154,6 +154,7 @@ BEGIN
  RETURN 'pending_private_only';
 END $fn$;
 
+REVOKE ALL ON FUNCTION sites_landing_custody.deny_mutation() FROM PUBLIC;
 REVOKE ALL ON FUNCTION sites_landing_custody.record_pending(text,text,text,text) FROM PUBLIC;
 RESET ROLE;
 -- Deliberately no USAGE/EXECUTE grant or principal/site seeds.
