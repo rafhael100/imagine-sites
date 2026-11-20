@@ -73,8 +73,11 @@ DECLARE
  a_sha text;
  r_sha text;
 BEGIN
+ -- Lock the independently admitted login through commit. Without this
+ -- fence, a concurrent revocation could commit after our initial SELECT
+ -- and before the private artifact transaction commits.
  SELECT tenant_ref INTO t FROM sites_landing_custody.principals
-  WHERE login_name=session_user AND active IS TRUE;
+  WHERE login_name=session_user AND active IS TRUE FOR SHARE;
  IF t IS NULL OR p_operation IS NULL OR
   p_operation COLLATE "C" !~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$' OR
   p_artifact IS NULL OR octet_length(p_artifact) NOT BETWEEN 1 AND 200000 OR
