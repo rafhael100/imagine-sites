@@ -1,0 +1,65 @@
+name: Sites Landing Page head selector protocol isolation (draft only)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['integration/sites-onepage-head-request-pair-2026-11-19-r9']
+    paths:
+      - '.github/workflows/sites-landing-head-request.yml'
+      - 'apps/sites/app/Integration/PortalLandingPageHeadRequestCandidate.php'
+      - 'tests/landing-page-head-request-offline.php'
+      - 'docs/reviews/SITES-LANDING-HEAD-REQUEST-2026-11-19.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sites-landing-head-protocol-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  distinct-landing-protocol:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'feature/sites-landing-head-request-candidate-2026-11-19-r10' &&
+      github.event.pull_request.base.ref == 'integration/sites-onepage-head-request-pair-2026-11-19-r9' &&
+      github.event.pull_request.base.sha == '2d8f9cd639dde4ba016220383b6dfcbccc103a2c'
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: rafhael100/imagine-portal
+          ref: 3ddd391d47317ce4e181ec9edca3a3427f2e8261
+          path: .pinned-portal
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, curl
+          coverage: none
+      - name: Pin independent Portal protocol and syntax
+        run: |
+          set -euo pipefail
+          test "$(git -C .pinned-portal rev-parse HEAD)" = 3ddd391d47317ce4e181ec9edca3a3427f2e8261
+          php -l apps/sites/app/Integration/PortalLandingPageHeadRequestCandidate.php
+          php -l tests/landing-page-head-request-offline.php
+          php -l .pinned-portal/apps/portal/app/Domain/SitesIntegration/OnepageCurrentHeadS2sRequestCandidate.php
+      - name: Reject mixed products and preserve existing Onepage roundtrip
+        run: |
+          set -euo pipefail
+          php tests/landing-page-head-request-offline.php | tee landing.log
+          grep -Eq '^SITES LANDING HEAD REQUEST PASS: [0-9]+ checks;' landing.log
+          php tests/onepage-head-request-pair-offline.php | tee onepage.log
+          grep -Eq '^SITES PORTAL ONEPAGE REQUEST PARITY PASS: [0-9]+ checks;' onepage.log
