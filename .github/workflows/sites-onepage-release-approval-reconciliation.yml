@@ -1,0 +1,58 @@
+name: Sites Onepage release consent and publisher fence (isolated only)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['test/sites-onepage-local-release-switchback-2026-11-20-r34']
+    paths:
+      - 'src/Publication/OnepageReleaseConsentAndPublisherFenceCandidate.php'
+      - 'tests/onepage-release-approval-reconciliation-offline.php'
+      - 'docs/reviews/SITES-ONEPAGE-RELEASE-APPROVAL-RECONCILIATION-2026-11-20.md'
+      - '.github/workflows/sites-onepage-release-approval-reconciliation.yml'
+permissions:
+  contents: read
+concurrency:
+  group: sites-onepage-release-approval-reconciliation-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  onepage-release-consent-reconciliation:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'test/sites-onepage-release-approval-reconciliation-2026-11-20-r35' &&
+      github.event.pull_request.base.ref == 'test/sites-onepage-local-release-switchback-2026-11-20-r34' &&
+      github.event.pull_request.base.sha == 'e5d0fc0a7b717c71e4c10a2951400b88ba09a8a5'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    env:
+      SITES_ONEPAGE_RELEASE_RECONCILIATION_LAB: '1'
+      SITES_F391_APPROVAL_LAB: '1'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: sodium
+          coverage: none
+      - name: Prove current consent is necessary but not sufficient
+        run: |
+          set -euo pipefail
+          php -l src/Publication/OnepageReleaseConsentAndPublisherFenceCandidate.php
+          php -l tests/onepage-release-approval-reconciliation-offline.php
+          php tests/onepage-release-approval-reconciliation-offline.php | tee "$RUNNER_TEMP/onepage-consent-fence.log"
+          grep -Eq '^ONEPAGE RELEASE CONSENT RECONCILIATION PASS: [0-9]+ synthetic assertions; NO-GO[.]$' "$RUNNER_TEMP/onepage-consent-fence.log"
+      - name: Guard never-installed publication integration
+        run: |
+          set -euo pipefail
+          test ! -e .env.production
+          test ! -e /run/secrets/imagine
+          grep -Fq 'OnepageReleaseConsentAndPublisherFenceCandidate' tests/onepage-release-approval-reconciliation-offline.php
+          grep -Fq 'SignedPortalClientApprovalGate' tests/onepage-release-approval-reconciliation-offline.php
+          grep -Fq 'publisher_authority_unbound' src/Publication/OnepageReleaseConsentAndPublisherFenceCandidate.php
