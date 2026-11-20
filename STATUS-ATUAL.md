@@ -1,5 +1,20 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 20/11/2026 — bloqueio de reaprovação após evento terminal Landing (draft)
+
+Nova candidata Sites, filha isolada da #558, emparelhada à Portal #1017
+(`30f10691c6710e7b5effb220d0f4788c7f91914e`). Testa em PG18
+descartável as sequências hostis de evento `revoked/superseded → approved`
+na mesma revisão/epoch, antes toleradas pelo reader #1015. A fonte Portal
+foi endurecida para negar qualquer evento terminal daquela revisão,
+independentemente da ordem, e a prova Sites exercita reader, encoder,
+decoder e readback reais candidatos; admission e atores permanecem sintéticos.
+
+**Resultado CI pendente de confirmação nesta HEAD.** Não é aprovação real
+de cliente nem integração de produção. RLS/ator autenticado, S2S/mTLS,
+ledger oficial, revisão editorial, publicação técnica, aceite e cobrança
+permanecem não homologados. Dez gates BLOCKED; sem merge/deploy/produção.
+
 ## 20/11/2026 — Portal PG18 transacional → Sites Landing (draft, não operacional)
 
 A [PR Sites #558](https://github.com/rafhael100/imagine-sites/pull/558), base
