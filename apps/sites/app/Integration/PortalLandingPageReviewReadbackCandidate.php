@@ -44,7 +44,9 @@ final readonly class PortalLandingPageReviewReadbackCandidate
                 throw new RuntimeException();
             }
             $this->readerConnection->beginTransaction();
-            $this->readerConnection->exec('SET TRANSACTION READ ONLY');
+            // SQL is read-only in effect, but needs row-level FOR SHARE locks
+            // to fence concurrent revocation until commit; PostgreSQL prohibits
+            // such locks in a READ ONLY transaction. Role has no table writes.
 
             $before = $this->draft->prepareForInternalReview(
                 $tenantRef, $orderRef, $siteRef, $contractRef,
