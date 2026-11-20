@@ -15,3 +15,7 @@ Continua Sites [#541](https://github.com/rafhael100/imagine-sites/pull/541) e [#
 O cadastro de atores, o produto comprado, o briefing aprovado, a autorização de site e o transporte Portal → Sites são **sintéticos**. O revisor não é identidade humana autenticada pela aplicação Portal; esta consulta não é autorização para release. Faltam fonte oficial de aprovação e versionamento no Portal, RLS/migrations/roles da aplicação, mTLS homologado, fluxo humano de revisão formal, publicação técnica e aceite expresso. Todos os dez gates permanecem **BLOCKED**. Não há deploy, merge, produção, VPS, credenciais, Cloudflare/DNS, pagamento nem Asaas.
 
 Verificação: workflow novo `.github/workflows/sites-landing-pg18-review-readback.yml` em PHP 8.3/8.4 com PG18 descartável. Registrar CI real depois da execução; não considerar testes sintéticos como entrega operacional.
+
+## Evidência do CI (HEAD inicial)
+
+[GitHub Actions #44734530237](https://github.com/rafhael100/imagine-sites/actions/runs/44734530237) finalizou **SUCCESS**, dois jobs PostgreSQL 18 (PHP 8.3 e 8.4). Cada versão registrou `SITES LANDING PG18 PRIVATE CUSTODY PASS: 35 checks`, `PRIVATE REVIEW JOURNAL PASS: 26 checks` e `REVIEW READBACK PASS: 26 checks`. [PR #564](https://github.com/rafhael100/imagine-sites/pull/564) segue draft. Os demais quatro workflows da mesma HEAD tiveram conclusão SUCCESS. A execução de CI não homologou identidades/autorizações reais, Portal em produção, pagamento ou publicação.

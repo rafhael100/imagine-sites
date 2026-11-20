@@ -1,5 +1,11 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 20/11/2026 — leitura independente do diário de revisão Landing PG18 (draft #564)
+
+[PR Sites #564](https://github.com/rafhael100/imagine-sites/pull/564) em branch isolada descendente da #563 HEAD `533bc571d9c04aee0ff5d2cd0fcf8d0ab7b01985`, sem tocar #541/#542, main ou branch de outra pessoa. Implementados SQL read-only com RLS FORCE e identidade do leitor derivada de `session_user`, adapter PHP com revalidação Portal pré/pós leitura e fixture adversarial de revogação, tenant cruzado, nova versão, identidade e digest. O resultado é **somente observação privada**, nunca aprovação formal, publicação ou aceite.
+
+**Evidência na HEAD inicial `c908fc8bc1f9f65a686eb79cf8b48bf1303c3691`:** [run PG18 #44734530237](https://github.com/rafhael100/imagine-sites/actions/runs/44734530237), PHP 8.3 e 8.4, **2/2 jobs SUCCESS**, marcadores `PRIVATE CUSTODY PASS: 35 checks`, `PRIVATE REVIEW JOURNAL PASS: 26 checks`, `REVIEW READBACK PASS: 26 checks` por versão; **5/5 workflows SUCCESS** nessa HEAD. Estes testes usam identidades e aprovações fictícias; o transporte S2S, fonte oficial Portal, migrações/roles operacionais, revisão humana, publicação e aceite permanecem não homologados. **Dez gates BLOCKED**. Nenhum merge/deploy/cobrança/produção/VPS/Cloudflare/DNS/Asaas.
+
 ## 20/11/2026 — custódia privada e idempotente do rascunho Landing em PG18 (draft #562)
 
 [PR Sites #562](https://github.com/rafhael100/imagine-sites/pull/562) em branch exclusiva, descendente da #561 HEAD imutável `b7303b8f8c8c7638823c88ae4e5c555fafc274b3`, sem modificar #541/#542, Portal nem main. Contrato PG18 candidato mantém HTML e ponteiro privado de revisão, com hashes e entrada por role vinculada independentemente a tenant/site/pedido/contrato; restringe funções, rejeita campos de publicação/aceite, identifica replay exato, recusa colisões e registra somente estado pendente. Adapter PHP revalida o head Portal antes de confirmar a transação; revogação observada após INSERT causa ROLLBACK.
