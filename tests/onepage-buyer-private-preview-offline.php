@@ -175,6 +175,24 @@ $revoking = new OnepageBuyerPrivatePreviewCandidate(
 );
 $deny(static fn() => $call($revoking), 'approval revoked between checks');
 $ok($approvals === 2, 'approval revalidated after rendering');
+// Both human witnesses can change together and still match the same HEAD.
+// Such an observed mid-render rotation must not be silently accepted.
+$confirmReads = 0;
+$reviewReads = 0;
+$pairedRotation = new OnepageBuyerPrivatePreviewCandidate(
+    static fn() => $record,
+    static fn() => $head,
+    static function () use (&$confirmReads, $confirmation): array {
+        return ++$confirmReads === 1 ? $confirmation :
+            array_replace($confirmation, ['confirmationRef' => 'confirm-002']);
+    },
+    static function () use (&$reviewReads, $approval): array {
+        return ++$reviewReads === 1 ? $approval :
+            array_replace($approval, ['approvalRef' => 'approval-002', 'buyerConfirmationRef' => 'confirm-002']);
+    },
+);
+$deny(static fn() => $call($pairedRotation), 'paired buyer and reviewer receipts changed during render');
+$ok($confirmReads === 2 && $reviewReads === 2, 'both human proofs independently reread after render');
 $heads = 0;
 $superseding = new OnepageBuyerPrivatePreviewCandidate(
     static fn() => $record,
