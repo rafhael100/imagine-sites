@@ -1,5 +1,13 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 20/11/2026 — custódia privada e idempotente do rascunho Landing em PG18 (draft #562)
+
+[PR Sites #562](https://github.com/rafhael100/imagine-sites/pull/562) em branch exclusiva, descendente da #561 HEAD imutável `b7303b8f8c8c7638823c88ae4e5c555fafc274b3`, sem modificar #541/#542, Portal nem main. Contrato PG18 candidato mantém HTML e ponteiro privado de revisão, com hashes e entrada por role vinculada independentemente a tenant/site/pedido/contrato; restringe funções, rejeita campos de publicação/aceite, identifica replay exato, recusa colisões e registra somente estado pendente. Adapter PHP revalida o head Portal antes de confirmar a transação; revogação observada após INSERT causa ROLLBACK.
+
+**Evidência verificada na HEAD `9b9199f059e594e6b37f04ae8daaeee14047c575`:** [workflow PG18 44718436983](https://github.com/rafhael100/imagine-sites/actions/runs/44718436983) **2/2 jobs SUCCESS**, PHP 8.3/8.4, `SITES LANDING PG18 PRIVATE CUSTODY PASS: 34 checks` e 34 regressões editoriais por versão. Também **5/5 workflows da HEAD SUCCESS**; não há homologação operacional.
+
+O cadastro de papéis, a admissão do site e a aprovação de Portal usados nos testes são fictícios. Faltam fonte oficial autenticada, grants/RLS de produção homologados, reviewer autenticado, journal de revisão/aceite, S2S/mTLS operacional, publicação e entrega. Releitura não equivale a autorização distribuída atômica. **Dez gates BLOCKED.** Sem merge/deploy, alteração de VPS, main, produção, credenciais, Cloudflare/DNS, Asaas ou custos.
+
 ## 20/11/2026 — rascunho editorial Landing privado com fonte corrente (draft #561)
 
 A [PR Sites #561](https://github.com/rafhael100/imagine-sites/pull/561) foi criada em branch isolada sobre a HEAD #560 `3b7274d8fd2b4ba1884ef2c8a8d28495bf9d1ce0`, sem alterar #541/#542 ou outra branch. O encoder privado Portal está fixado na HEAD #1019 `4a5e1e06376188f85c90bee3d10056ab3ce2302a`.
