@@ -1,0 +1,70 @@
+name: Sites ↔ Portal Onepage current-head canonical request parity (draft only)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['feature/sites-onepage-current-head-mtls-candidate-2026-11-19-r8']
+    paths:
+      - '.github/workflows/sites-onepage-head-request-pair.yml'
+      - 'apps/sites/app/Integration/PortalOnepageHeadRequestCandidate.php'
+      - 'apps/sites/app/Integration/PortalOnepageHeadMtlsHttpSource.php'
+      - 'tests/onepage-head-request-pair-offline.php'
+      - 'docs/reviews/SITES-ONEPAGE-HEAD-REQUEST-PAIR-2026-11-19.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sites-onepage-request-pair-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  cross-repo-request-parity:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'integration/sites-onepage-head-request-pair-2026-11-19-r9' &&
+      github.event.pull_request.base.ref == 'feature/sites-onepage-current-head-mtls-candidate-2026-11-19-r8' &&
+      github.event.pull_request.base.sha == '49e6f0a8da848ebf50b6f507d2d3cec6ae65dc97'
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: rafhael100/imagine-portal
+          ref: 51cc13a3baf1ac7c95fce226378296d9a7d76022
+          path: .pinned-portal
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, curl
+          coverage: none
+      - name: Pin immutable Portal and lint both sides
+        run: |
+          set -euo pipefail
+          test "$(git -C .pinned-portal rev-parse HEAD)" = 51cc13a3baf1ac7c95fce226378296d9a7d76022
+          php -l apps/sites/app/Integration/PortalOnepageHeadRequestCandidate.php
+          php -l apps/sites/app/Integration/PortalOnepageHeadMtlsHttpSource.php
+          php -l tests/onepage-head-request-pair-offline.php
+          php -l .pinned-portal/apps/portal/app/Domain/SitesIntegration/OnepageCurrentHeadS2sRequestCandidate.php
+          php -l .pinned-portal/tests/onepage-current-head-s2s-request-offline.php
+      - name: Test exact request encoding and deny invalid requests
+        run: |
+          set -euo pipefail
+          php tests/onepage-head-request-pair-offline.php | tee pair.log
+          grep -Eq '^SITES PORTAL ONEPAGE REQUEST PARITY PASS: [0-9]+ checks;' pair.log
+          php .pinned-portal/tests/onepage-current-head-s2s-request-offline.php | tee portal.log
+          grep -Eq '^PORTAL ONEPAGE CURRENT HEAD REQUEST PASS: [0-9]+ checks;' portal.log
+          php tests/onepage-head-mtls-transport-offline.php | tee transport.log
+          grep -Eq '^ONEPAGE HEAD MTLS TRANSPORT OFFLINE PASS: [0-9]+ checks;' transport.log
