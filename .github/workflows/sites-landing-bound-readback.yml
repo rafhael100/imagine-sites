@@ -1,0 +1,71 @@
+name: Sites Landing Page site-bound Portal readback (draft)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['integration/sites-landing-admission-projection-2026-11-19-r11']
+    paths:
+      - '.github/workflows/sites-landing-bound-readback.yml'
+      - 'apps/sites/app/Integration/CurrentPortalLandingPageAdmissionSource.php'
+      - 'apps/sites/app/Integration/DenyingCurrentPortalLandingPageAdmissionSource.php'
+      - 'apps/sites/app/Integration/PortalLandingPageAdmissionReadbackCandidate.php'
+      - 'tests/landing-page-current-admission-consistency-offline.php'
+      - 'tests/landing-page-admission-pair-offline.php'
+      - 'STATUS-ATUAL.md'
+      - 'docs/reviews/SITES-LANDING-BOUND-ADMISSION-READBACK-2026-11-20.md'
+permissions:
+  contents: read
+concurrency:
+  group: sites-landing-bound-readback-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  landing-bound-readback:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'integration/sites-landing-site-bound-pair-2026-11-20-r12' &&
+      github.event.pull_request.base.ref == 'integration/sites-landing-admission-projection-2026-11-19-r11' &&
+      github.event.pull_request.base.sha == '4c2a6f010f6db51c0b950a6cc48c854ba0d614ac'
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: rafhael100/imagine-portal
+          ref: 9f85a3c2d4923bfa0420de2c0278859934833f55
+          path: .pinned-portal
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+          coverage: none
+      - name: Pin exact Portal revision and lint PHP
+        run: |
+          set -euo pipefail
+          test "$(git -C .pinned-portal rev-parse HEAD)" = 9f85a3c2d4923bfa0420de2c0278859934833f55
+          php -l apps/sites/app/Integration/CurrentPortalLandingPageAdmissionSource.php
+          php -l apps/sites/app/Integration/DenyingCurrentPortalLandingPageAdmissionSource.php
+          php -l apps/sites/app/Integration/PortalLandingPageAdmissionReadbackCandidate.php
+          php -l tests/landing-page-current-admission-consistency-offline.php
+          php -l tests/landing-page-admission-pair-offline.php
+      - name: Exercise real pinned Portal site custody candidate and Site gates
+        run: |
+          set -euo pipefail
+          php tests/landing-page-current-admission-consistency-offline.php | tee readback.log
+          grep -Eq '^SITES LANDING BOUND READBACK PASS: [0-9]+ checks;' readback.log
+          php tests/landing-page-admission-pair-offline.php | tee parity.log
+          grep -Eq '^SITES LANDING ADMISSION PARITY PASS: [0-9]+ checks;' parity.log
+          php tests/landing-page-head-request-offline.php | tee request.log
+          grep -Eq '^SITES LANDING HEAD REQUEST PASS: [0-9]+ checks;' request.log
+          php tests/onepage-head-request-pair-offline.php | tee onepage.log
+          grep -Eq '^SITES PORTAL ONEPAGE REQUEST PARITY PASS: [0-9]+ checks;' onepage.log
