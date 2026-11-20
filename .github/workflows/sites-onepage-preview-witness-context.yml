@@ -1,0 +1,55 @@
+name: Sites Onepage private preview full-context witness (draft only)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['feature/sites-onepage-buyer-private-preview-2026-11-20-r30']
+    paths:
+      - 'src/Production/OnepageBuyerPrivatePreviewCandidate.php'
+      - 'tests/onepage-buyer-private-preview-offline.php'
+      - 'docs/reviews/SITES-ONEPAGE-PREVIEW-WITNESS-CONTEXT-2026-11-20.md'
+      - '.github/workflows/sites-onepage-preview-witness-context.yml'
+permissions:
+  contents: read
+concurrency:
+  group: sites-onepage-witness-context-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  buyer-reviewer-full-context:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'fix/sites-onepage-private-preview-witness-context-2026-11-20-r31' &&
+      github.event.pull_request.base.ref == 'feature/sites-onepage-buyer-private-preview-2026-11-20-r30' &&
+      github.event.pull_request.base.sha == 'c141f0d5603dbffc03ca8c47570969aaa113a73f'
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, dom, xml
+          coverage: none
+      - name: Validate syntax and private Onepage exact witness proofs
+        run: |
+          set -euo pipefail
+          php -l src/Production/OnepageBuyerPrivatePreviewCandidate.php
+          php -l tests/onepage-buyer-private-preview-offline.php
+          php tests/onepage-buyer-private-preview-offline.php | tee "$RUNNER_TEMP/onepage-witness-context.log"
+          grep -Eq '^ONEPAGE BUYER PRIVATE PREVIEW OFFLINE PASS: [0-9]+ checks; synthetic witnesses only; NO-GO[.]$' "$RUNNER_TEMP/onepage-witness-context.log"
+      - name: Preserve no-runtime-binding and no secret access
+        run: |
+          set -euo pipefail
+          grep -Fq 'private ?Closure $readExact = null' src/Production/OnepageBuyerPrivatePreviewCandidate.php
+          grep -Fq 'private ?Closure $readBuyerConfirmation = null' src/Production/OnepageBuyerPrivatePreviewCandidate.php
+          grep -Fq 'private ?Closure $readReviewerApproval = null' src/Production/OnepageBuyerPrivatePreviewCandidate.php
+          test ! -e .env.production
+          test ! -e /run/secrets/imagine

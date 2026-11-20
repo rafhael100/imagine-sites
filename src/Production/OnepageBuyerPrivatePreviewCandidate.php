@@ -129,16 +129,11 @@ final readonly class OnepageBuyerPrivatePreviewCandidate
         $head = ($this->readCurrentHead)($brief->tenantRef, $brief->orderRef, $brief->siteRef);
         if (!self::exact($head, $selection)) throw new RuntimeException();
 
-        $bound = [
-            'tenantRef' => $brief->tenantRef,
-            'orderRef' => $brief->orderRef,
-            'siteRef' => $brief->siteRef,
-            'snapshotRef' => $brief->snapshotRef,
-            'sourceVersion' => $brief->sourceVersion,
-            'briefRevision' => $brief->briefRevision,
-            'manifestSha256' => $brief->manifestSha256,
-            'payloadSha256' => $brief->payloadSha256,
-        ];
+        // Human confirmation and independent approval must cover the ENTIRE
+        // current immutable head, including the contract revision and product.
+        // A valid receipt from another contract cannot authorize this preview,
+        // even inside the same tenant/order/site with coincident digests.
+        $bound = $selection;
         $buyerWitness = ($this->readBuyerConfirmation)($selection);
         if (!is_array($buyerWitness) ||
             !self::keys($buyerWitness, [...array_keys($bound), 'buyerRef', 'confirmationRef', 'rightsDeclared', 'confirmed']) ||

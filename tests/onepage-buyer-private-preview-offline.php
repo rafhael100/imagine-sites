@@ -50,10 +50,7 @@ $head = [
     'sourceVersion' => $brief->sourceVersion, 'manifestSha256' => $brief->manifestSha256,
     'payloadSha256' => $brief->payloadSha256,
 ];
-$bound = array_intersect_key($head, array_fill_keys([
-    'tenantRef', 'orderRef', 'siteRef', 'snapshotRef', 'briefRevision',
-    'sourceVersion', 'manifestSha256', 'payloadSha256',
-], true));
+$bound = $head; // full immutable head: product + contract and revision also bound
 $confirmation = $bound + [
     'buyerRef' => 'buyer-one', 'confirmationRef' => 'confirm-001',
     'rightsDeclared' => true, 'confirmed' => true,
@@ -116,10 +113,18 @@ $mutate(static function (array &$s): void { $s['confirmation']['buyerRef'] = 'ot
 $mutate(static function (array &$s): void { $s['confirmation']['rightsDeclared'] = false; }, 'missing rights declaration');
 $mutate(static function (array &$s): void { $s['confirmation']['confirmed'] = false; }, 'unconfirmed source');
 $mutate(static function (array &$s): void { $s['confirmation']['sourceVersion']++; }, 'old buyer confirmation');
+$mutate(static function (array &$s): void { $s['confirmation']['contractRef'] = 'other-contract'; }, 'buyer confirmation from another contract');
+$mutate(static function (array &$s): void { $s['confirmation']['contractRevision']++; }, 'buyer confirmation on obsolete contract revision');
+$mutate(static function (array &$s): void { $s['confirmation']['productCode'] = 'landing-page'; }, 'buyer confirmation from other product');
+$mutate(static function (array &$s): void { unset($s['confirmation']['contractRef']); }, 'buyer confirmation missing contract provenance');
 $mutate(static function (array &$s): void { $s['confirmation']['payloadSha256'] = str_repeat('f', 64); }, 'buyer hash mismatch');
 $mutate(static function (array &$s): void { $s['approval']['approved'] = false; }, 'revoked approval');
 $mutate(static function (array &$s): void { $s['approval']['reviewerRef'] = 'buyer-one'; }, 'self approval not independent');
 $mutate(static function (array &$s): void { $s['approval']['sourceVersion']++; }, 'obsolete reviewer approval');
+$mutate(static function (array &$s): void { $s['approval']['contractRef'] = 'other-contract'; }, 'review approval from another contract');
+$mutate(static function (array &$s): void { $s['approval']['contractRevision']++; }, 'review approval for obsolete contract revision');
+$mutate(static function (array &$s): void { $s['approval']['productCode'] = 'landing-page'; }, 'review approval for Landing Page instead of Onepage');
+$mutate(static function (array &$s): void { unset($s['approval']['productCode']); }, 'review approval missing product provenance');
 $mutate(static function (array &$s): void { $s['approval']['manifestSha256'] = str_repeat('a', 64); }, 'reviewer hash mismatch');
 $mutate(static function (array &$s): void { $s['head']['briefRevision']++; }, 'current head superseded');
 $mutate(static function (array &$s): void { $s['head']['payloadSha256'] = str_repeat('0', 64); }, 'current head hash mismatch');
