@@ -1,5 +1,15 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 20/11/2026 — rascunho editorial Landing privado com fonte corrente (draft #561)
+
+A [PR Sites #561](https://github.com/rafhael100/imagine-sites/pull/561) foi criada em branch isolada sobre a HEAD #560 `3b7274d8fd2b4ba1884ef2c8a8d28495bf9d1ce0`, sem alterar #541/#542 ou outra branch. O encoder privado Portal está fixado na HEAD #1019 `4a5e1e06376188f85c90bee3d10056ab3ce2302a`.
+
+O novo `PortalLandingPageEditorialDraftCandidate` consome a leitura independente do briefing Landing aprovado candidato, valida conteúdo fechado (`portal.landing-content.candidate.v1`), gera um HTML **inerte e privado** com identidade #F9941D, escapa texto de cliente e produz ponteiro de revisão com hash separado, vínculo de tenant/pedido/site/contrato/revisão/epoch e SHA-256 da origem/artefato. Reconsulta o head após renderizar e nega drift observado. O CTA é não operante, não existem URLs externas, scripts ou formulários. O ponteiro não contém os bytes privados do briefing.
+
+**CI confirmado em [44709743707](https://github.com/rafhael100/imagine-sites/actions/runs/44709743707)**: jobs PHP 8.3 e 8.4 SUCCESS, com **34 verificações novas** e **42 regressões de readback por versão**. Os outros workflows da HEAD devem ser consultados separadamente antes de declarar CI geral integral.
+
+**Limites:** fonte de aprovação/ator e vínculo autenticado continuam inexistentes em produção; fixtures são sintéticas; nenhum writer ou journal de revisão Landing está integrado; releituras não são transação distribuída; renderização não concede aceite, autorização de publicação, pagamento ou entrega. Dez gates BLOCKED; PR draft, sem merge/deploy/produção/VPS/Cloudflare/DNS/Asaas/credenciais.
+
 ## 20/11/2026 — bloqueio de reaprovação após evento terminal Landing (draft)
 
 Nova candidata Sites, filha isolada da #558, emparelhada à Portal #1017
