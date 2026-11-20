@@ -134,6 +134,8 @@ $first=$run($a,'operation-A1');
 $ok($first['state']==='pending_private_only' && strlen($first['reviewSha256'])===64,
   'A stores pending private pointer, not approval');
 $ok($count()===1,'one durable private pending artifact');
+$ok($admin->query("SELECT recorded_by FROM sites_landing_custody.pending_artifacts WHERE tenant_ref='tenant-A'")->fetchColumn()==='sites_landing_ci_a',
+  'immutable write audit captures authenticated database login');
 $stored=$admin->query('SELECT artifact_bytes,review_bytes,artifact_sha256,review_sha256 FROM sites_landing_custody.pending_artifacts')->fetch(PDO::FETCH_ASSOC);
 $ok(hash_equals(hash('sha256',$stored['artifact_bytes']),$stored['artifact_sha256']),
     'stored bytes cryptographically tied to artifact digest');
