@@ -59,18 +59,22 @@ $portal = new PortalAdmission($peer,$contracts);
 $portalRequest=LandingRequest::encode($tenant,$order,$site);
 $projection=$portal->inspect($portalRequest,'verified-synthetic-peer');
 $bytes=json_encode($projection,JSON_THROW_ON_ERROR|JSON_UNESCAPED_SLASHES);
-$ok(Projection::decode($bytes,$tenant,$order,$site)===$projection,
+$ok(Projection::decode($bytes,$tenant,$order,$site,'contract-landing-A',7)===$projection,
     'real Portal projection matches actual Sites response parser');
 $ok($peer->calls===2 && $contracts->calls===2,
     'Portal admission rereads independent service and order');
+$deny(static fn()=>Projection::decode($bytes,$tenant,$order,$site,'contract-landing-B',7),
+    'different independently expected contract');
+$deny(static fn()=>Projection::decode($bytes,$tenant,$order,$site,'contract-landing-A',8),
+    'different independently expected contract revision');
 $ok($projection['productCode']==='landing_page' &&
     $projection['contractRevision']===7,
     'response retains correct product and exact contract revision');
 $ok(!array_intersect(['approvalRef','sourceBytes','canPublish','clientAccepted',
     'paymentAuthorized','authorityVerified','canAcceptRealOrders'],array_keys($projection)),
     'no authority or private briefing content in projection');
-$ok(Projection::decode($bytes,$tenant,$order,$site)===
-    Projection::decode($bytes,$tenant,$order,$site),'read-only idempotent replay');
+$ok(Projection::decode($bytes,$tenant,$order,$site,'contract-landing-A',7)===
+    Projection::decode($bytes,$tenant,$order,$site,'contract-landing-A',7),'read-only idempotent replay');
 
 foreach ([
     ['wrong expected tenant',$bytes,'tenant-landing-B',$order,$site],
@@ -91,7 +95,7 @@ foreach ([
     ['invalid JSON','{',$tenant,$order,$site],
     ['oversized',$bytes.str_repeat(' ',2100),$tenant,$order,$site],
 ] as [$label,$payload,$wantTenant,$wantOrder,$wantSite]) {
-    $deny(static fn()=>Projection::decode($payload,$wantTenant,$wantOrder,$wantSite),$label);
+    $deny(static fn()=>Projection::decode($payload,$wantTenant,$wantOrder,$wantSite,'contract-landing-A',7),$label);
 }
 $ok($peer->calls===2 && $contracts->calls===2,
     'response parsing never makes additional Portal authority reads');
@@ -110,7 +114,7 @@ try {
     $portalRejected=$error->getMessage()==='PORTAL_LANDING_PAGE_HEAD_ADMISSION_DENIED';
 }
 $ok($portalRejected,'real Portal rejects Onepage wire format for Landing');
-$ok(Projection::decode($bytes,$tenant,$order,$site)===$projection,
+$ok(Projection::decode($bytes,$tenant,$order,$site,'contract-landing-A',7)===$projection,
     'negative probes do not mutate deterministic projection');
 echo 'SITES LANDING ADMISSION PARITY PASS: '.$checks.
     " checks; synthetic admission only, NO official head, mTLS route, approval, release or payment.\n";
