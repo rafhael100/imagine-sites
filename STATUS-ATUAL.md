@@ -1,5 +1,9 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 20/11/2026 — prévia privada do comprador Onepage (draft #570, sem bind operacional)
+
+[PR Sites #570](https://github.com/rafhael100/imagine-sites/pull/570), branch isolada sobre #569 HEAD `8172e5cc14e97951e529c843059c214e05c33db5`. Candidata de visualização privada de Onepage requer: origem imutável do Portal #976, confirmação exata do comprador responsável com declaração de direitos, aprovação/revogação corrente de revisor independente e HEAD Portal #1003/Sites #552; todas as portas não vinculadas ao runtime e padrão negadas. Testes offline sintéticos comprovam 36 verificações por versão PHP 8.3/8.4 na [CI inicial #44773217062](https://github.com/rafhael100/imagine-sites/actions/runs/44773217062) HEAD `58f487f325a45a80d098be529a27d453090aa0af`. A CI da próxima HEAD deve ser reconferida. Visualização privada NÃO é aceite final, autorização de publicação ou pagamento; domínio só na publicação. A fonte oficial humana/bytes/revogação e S2S autenticado ainda faltam; #38 e dez gates BLOCKED. Nenhum merge/deploy/main/VPS/Cloudflare/DNS/Asaas. [Limitações e tests](docs/reviews/SITES-ONEPAGE-BUYER-PRIVATE-PREVIEW-2026-11-20.md).
+
 ## 20/11/2026 — custódia da HEAD antes de readback privado (candidata draft)
 
 Branch isolada após #568 HEAD `a9660b34bc0eab2c2c6be59186ff1e08cf2d1967`. Uma segunda instrução `FOR SHARE` no site ocorre **antes** da consulta da versão corrente do artefato, eliminando o risco de snapshot antigo durante espera por escritor que usa `FOR UPDATE`. Teste PG18 de duas sessões prova que um writer de mesma empresa/site não obtém lock enquanto a leitura privada mantém a transação aberta. [Documento](docs/reviews/SITES-LANDING-PG18-READBACK-HEAD-SERIALIZATION-2026-11-20.md). **CI pendente de observação; laboratório não é aprovação, publicação, entrega ou cobrança. Dez gates BLOCKED.** Sem merge/deploy/main/VPS/Cloudflare/DNS/Asaas.
