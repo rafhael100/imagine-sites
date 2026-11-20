@@ -19,9 +19,12 @@ $checks=0;
 $ok=static function(bool $ok,string $label)use(&$checks):void {
  if (!$ok)throw new RuntimeException('LANDING PRIVATE PAIR FAILURE: '.$label);++$checks;
 };
-$decode=static fn(string $raw,string $tenant=$t,string $order=$o,string $site=$s,
- string $contract=$c,int $revision=7,int $version=3,string $approval=$ar,int $epoch=2) =>
- SitesEnvelope::decode($raw,$tenant,$order,$site,$contract,$revision,$version,$approval,$epoch);
+$decode=static function(string $raw,?string $tenant=null,?string $order=null,?string $site=null,
+ ?string $contract=null,?int $revision=null,?int $version=null,?string $approval=null,?int $epoch=null)
+ use ($t,$o,$s,$c,$ar): SitesEnvelope {
+ return SitesEnvelope::decode($raw,$tenant??$t,$order??$o,$site??$s,
+  $contract??$c,$revision??7,$version??3,$approval??$ar,$epoch??2);
+};
 $deny=static function(callable $work,string $label)use($ok):void {
  ob_start();$bad=false;
  try{$work();}catch(RuntimeException $e){
