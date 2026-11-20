@@ -28,6 +28,7 @@ CREATE TABLE sites_landing_custody.pending_artifacts (
  artifact_sha256 text NOT NULL, artifact_bytes text NOT NULL,
  review_sha256 text NOT NULL, review_bytes text NOT NULL,
  operation_ref text NOT NULL,
+ recorded_by name NOT NULL DEFAULT session_user,
  recorded_at timestamptz NOT NULL DEFAULT clock_timestamp(),
  PRIMARY KEY(tenant_ref,site_ref,source_version,approval_epoch),
  UNIQUE(tenant_ref,operation_ref),
@@ -147,6 +148,7 @@ BEGIN
   existing.review_sha256 IS DISTINCT FROM r_sha OR
   existing.artifact_sha256 IS DISTINCT FROM a_sha OR
   existing.review_bytes IS DISTINCT FROM p_review OR
+  existing.recorded_by IS DISTINCT FROM session_user OR
   existing.artifact_bytes IS DISTINCT FROM p_artifact THEN
   RAISE EXCEPTION 'LANDING_CUSTODY_DENIED' USING ERRCODE='42501';
  END IF;
