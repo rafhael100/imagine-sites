@@ -1,0 +1,61 @@
+name: Sites Landing private approved brief pair (draft)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['integration/sites-landing-site-bound-pair-2026-11-20-r12']
+    paths:
+      - '.github/workflows/sites-landing-approved-brief-private.yml'
+      - 'apps/sites/app/Integration/PortalLandingPageApprovedBriefEnvelopeCandidate.php'
+      - 'tests/landing-page-approved-brief-private-pair-offline.php'
+permissions:
+  contents: read
+concurrency:
+  group: sites-landing-private-approval-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  landing-private-parity:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'integration/sites-landing-approved-brief-private-handoff-2026-11-20-r15' &&
+      github.event.pull_request.base.ref == 'integration/sites-landing-site-bound-pair-2026-11-20-r12' &&
+      github.event.pull_request.base.sha == 'fbcbc9d090e62b2cd20c302ff9e549cfa46ef185'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: rafhael100/imagine-portal
+          ref: e0f38d8d98c151ffa5743c9c372ac039074b9ea7
+          path: .pinned-portal
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+          coverage: none
+      - name: Verify Portal SHA and lint code
+        run: |
+          set -euo pipefail
+          test "$(git -C .pinned-portal rev-parse HEAD)" = e0f38d8d98c151ffa5743c9c372ac039074b9ea7
+          php -l apps/sites/app/Integration/PortalLandingPageApprovedBriefEnvelopeCandidate.php
+          php -l tests/landing-page-approved-brief-private-pair-offline.php
+      - name: Run true cross-repo private handoff checks and previous guards
+        run: |
+          set -euo pipefail
+          php tests/landing-page-approved-brief-private-pair-offline.php | tee parity.log
+          grep -Eq '^SITES LANDING PRIVATE APPROVED BRIEF PARITY PASS: [0-9]+ checks;' parity.log
+          php tests/landing-page-current-admission-consistency-offline.php | tee admission.log
+          grep -Eq '^SITES LANDING BOUND READBACK PASS: [0-9]+ checks;' admission.log
+          php tests/landing-page-admission-pair-offline.php | tee projection.log
+          grep -Eq '^SITES LANDING ADMISSION PARITY PASS: [0-9]+ checks;' projection.log
