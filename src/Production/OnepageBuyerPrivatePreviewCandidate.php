@@ -144,12 +144,17 @@ final readonly class OnepageBuyerPrivatePreviewCandidate
             !self::includes($buyerWitness, $bound)) {
             throw new RuntimeException();
         }
+        // A reviewer must attest the *current buyer confirmation*, not only
+        // matching source bytes. Otherwise an approval for an earlier rights
+        // declaration could be replayed after the buyer reconfirms.
         $reviewWitness = ($this->readReviewerApproval)($selection);
         if (!is_array($reviewWitness) ||
-            !self::keys($reviewWitness, [...array_keys($bound), 'reviewerRef', 'approvalRef', 'approved']) ||
+            !self::keys($reviewWitness, [...array_keys($bound), 'reviewerRef', 'approvalRef', 'buyerConfirmationRef', 'approved']) ||
             !self::ref($reviewWitness['reviewerRef'] ?? null) ||
             $reviewWitness['reviewerRef'] === $buyer ||
             !self::ref($reviewWitness['approvalRef'] ?? null) ||
+            !self::ref($reviewWitness['buyerConfirmationRef'] ?? null) ||
+            !hash_equals($buyerWitness['confirmationRef'], $reviewWitness['buyerConfirmationRef']) ||
             $reviewWitness['approved'] !== true || !self::includes($reviewWitness, $bound)) {
             throw new RuntimeException();
         }
