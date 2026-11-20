@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/sites-landing-pg18-portal-head-pair.yml'
       - 'tests/landing-page-pg18-portal-pair.php'
+      - 'STATUS-ATUAL.md'
 permissions:
   contents: read
 concurrency:
