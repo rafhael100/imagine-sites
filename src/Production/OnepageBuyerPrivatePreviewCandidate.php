@@ -1,0 +1,191 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Imagine\Sites\Production;
+
+use Closure;
+use RuntimeException;
+use Throwable;
+
+/**
+ * NO-RUNTIME-BIND candidate for the buyer's private Onepage preview.
+ *
+ * Ports must be implemented by independently reviewed trusted Portal readers
+ * before runtime use. Default construction denies. The viewer identity MUST
+ * originate from a server-side authenticated principal, never request input.
+ */
+final readonly class OnepageBuyerPrivatePreviewCandidate
+{
+    private const DENIED = 'ONEPAGE_BUYER_PRIVATE_PREVIEW_DENIED';
+
+    /**
+     * @param ?Closure $readExact (tenant,order,site,version) -> immutable
+     *        {export:array,plan:string,editorial:string,buyerRef:string}
+     * @param ?Closure $readCurrentHead independently authenticated Portal head
+     * @param ?Closure $readBuyerConfirmation durable exact buyer/rights witness
+     * @param ?Closure $readReviewerApproval live independent reviewer witness
+     */
+    public function __construct(
+        private ?Closure $readExact = null,
+        private ?Closure $readCurrentHead = null,
+        private ?Closure $readBuyerConfirmation = null,
+        private ?Closure $readReviewerApproval = null,
+    ) {}
+
+    /** Only a private preview, NEVER final acceptance or publication. */
+    public function render(string $viewerRef, string $tenantRef, string $orderRef, string $siteRef, int $sourceVersion): array
+    {
+        try {
+            if ($this->readExact === null || $this->readCurrentHead === null ||
+                $this->readBuyerConfirmation === null || $this->readReviewerApproval === null ||
+                !self::ref($viewerRef) || !self::ref($tenantRef) || !self::ref($orderRef) ||
+                !self::uuid($siteRef) || $sourceVersion < 0 || $sourceVersion > 9007199254740991) {
+                throw new RuntimeException();
+            }
+            $record = ($this->readExact)($tenantRef, $orderRef, $siteRef, $sourceVersion);
+            $brief = $this->validateRecord($record, $viewerRef, $tenantRef, $orderRef, $siteRef, $sourceVersion);
+            $this->assertCurrentProofs($brief, $record['buyerRef']);
+
+            // Reuse established parser, Portal export contract, render plan,
+            // private review handoff, and deterministic HTML renderer.
+            OnepageReviewHandoffCandidate::build($record['export'], $record['plan'], $record['editorial']);
+            $rendered = BriefRenderProvenance::render(
+                $record['plan'], $record['export']['manifestBytes'],
+                $record['export']['sourceBytes'], $record['editorial'],
+            );
+            $artifact = $rendered['artifact'];
+            if (!$artifact instanceof ReleaseArtifact ||
+                !hash_equals($artifact->digest, hash('sha256', $artifact->html)) ||
+                $artifact->sizeBytes !== strlen($artifact->html)) {
+                throw new RuntimeException();
+            }
+
+            // Detect observed concurrent replacement/revocation, not an
+            // atomicity claim. Operational CAS/epoch remains mandatory.
+            $again = ($this->readExact)($tenantRef, $orderRef, $siteRef, $sourceVersion);
+            $this->validateRecord($again, $viewerRef, $tenantRef, $orderRef, $siteRef, $sourceVersion);
+            if ($again !== $record) throw new RuntimeException();
+            $this->assertCurrentProofs($brief, $record['buyerRef']);
+
+            return [
+                'html' => $artifact->html,
+                'sha256' => $artifact->digest,
+                'sourceVersion' => $brief->sourceVersion,
+                'briefRevision' => $brief->briefRevision,
+                'privatePreview' => true,
+                'clientFinalAccepted' => false,
+                'publicationAuthorized' => false,
+                'canPublish' => false,
+            ];
+        } catch (Throwable) {
+            throw new RuntimeException(self::DENIED);
+        }
+    }
+
+    private function validateRecord(mixed $record, string $viewer, string $tenant, string $order, string $site, int $version): BriefSnapshotInput
+    {
+        if (!self::keys($record, ['export', 'plan', 'editorial', 'buyerRef']) ||
+            !is_array($record['export']) || !is_string($record['plan']) ||
+            !is_string($record['editorial']) || !is_string($record['buyerRef']) ||
+            !self::ref($record['buyerRef']) || !hash_equals($record['buyerRef'], $viewer)) {
+            throw new RuntimeException();
+        }
+        $export = $record['export'];
+        if (!self::keys($export, ['manifestBytes', 'sourceBytes', 'manifestSha256',
+            'payloadSha256', 'authorityVerified', 'clientAccepted', 'canPublish', 'canAcceptRealOrders']) ||
+            !is_string($export['manifestBytes']) || !is_string($export['sourceBytes']) ||
+            !is_string($export['manifestSha256']) || !is_string($export['payloadSha256']) ||
+            $export['authorityVerified'] !== false || $export['clientAccepted'] !== false ||
+            $export['canPublish'] !== false || $export['canAcceptRealOrders'] !== false) {
+            throw new RuntimeException();
+        }
+        $brief = BriefSnapshotInput::fromJson($export['manifestBytes'], $export['sourceBytes']);
+        if ($brief->productCode !== 'onepage' || $brief->tenantRef !== $tenant ||
+            $brief->orderRef !== $order || $brief->siteRef !== $site ||
+            $brief->sourceVersion !== $version ||
+            !hash_equals($brief->manifestSha256, $export['manifestSha256']) ||
+            !hash_equals($brief->payloadSha256, $export['payloadSha256'])) {
+            throw new RuntimeException();
+        }
+        return $brief;
+    }
+
+    private function assertCurrentProofs(BriefSnapshotInput $brief, string $buyer): void
+    {
+        $selection = [
+            'tenantRef' => $brief->tenantRef,
+            'orderRef' => $brief->orderRef,
+            'siteRef' => $brief->siteRef,
+            'contractRef' => $brief->contractRef,
+            'contractRevision' => $brief->contractRevision,
+            'productCode' => 'onepage',
+            'snapshotRef' => $brief->snapshotRef,
+            'briefRevision' => $brief->briefRevision,
+            'sourceVersion' => $brief->sourceVersion,
+            'manifestSha256' => $brief->manifestSha256,
+            'payloadSha256' => $brief->payloadSha256,
+        ];
+        $head = ($this->readCurrentHead)($brief->tenantRef, $brief->orderRef, $brief->siteRef);
+        if (!self::exact($head, $selection)) throw new RuntimeException();
+
+        $bound = [
+            'tenantRef' => $brief->tenantRef,
+            'orderRef' => $brief->orderRef,
+            'siteRef' => $brief->siteRef,
+            'snapshotRef' => $brief->snapshotRef,
+            'sourceVersion' => $brief->sourceVersion,
+            'briefRevision' => $brief->briefRevision,
+            'manifestSha256' => $brief->manifestSha256,
+            'payloadSha256' => $brief->payloadSha256,
+        ];
+        $buyerWitness = ($this->readBuyerConfirmation)($selection);
+        if (!is_array($buyerWitness) ||
+            !self::keys($buyerWitness, [...array_keys($bound), 'buyerRef', 'confirmationRef', 'rightsDeclared', 'confirmed']) ||
+            !self::ref($buyerWitness['buyerRef'] ?? null) ||
+            $buyerWitness['buyerRef'] !== $buyer ||
+            !self::ref($buyerWitness['confirmationRef'] ?? null) ||
+            $buyerWitness['rightsDeclared'] !== true || $buyerWitness['confirmed'] !== true ||
+            !self::includes($buyerWitness, $bound)) {
+            throw new RuntimeException();
+        }
+        $reviewWitness = ($this->readReviewerApproval)($selection);
+        if (!is_array($reviewWitness) ||
+            !self::keys($reviewWitness, [...array_keys($bound), 'reviewerRef', 'approvalRef', 'approved']) ||
+            !self::ref($reviewWitness['reviewerRef'] ?? null) ||
+            $reviewWitness['reviewerRef'] === $buyer ||
+            !self::ref($reviewWitness['approvalRef'] ?? null) ||
+            $reviewWitness['approved'] !== true || !self::includes($reviewWitness, $bound)) {
+            throw new RuntimeException();
+        }
+    }
+
+    private static function keys(mixed $value, array $keys): bool
+    {
+        return is_array($value) && count($value) === count($keys) &&
+            array_diff($keys, array_keys($value)) === [];
+    }
+
+    private static function exact(mixed $actual, array $expected): bool
+    {
+        return self::keys($actual, array_keys($expected)) && self::includes($actual, $expected);
+    }
+
+    private static function includes(array $actual, array $expected): bool
+    {
+        foreach ($expected as $key => $value) {
+            if (!array_key_exists($key, $actual) || $actual[$key] !== $value) return false;
+        }
+        return true;
+    }
+
+    private static function ref(mixed $value): bool
+    {
+        return is_string($value) && preg_match('/\A[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\z/D', $value) === 1;
+    }
+
+    private static function uuid(string $value): bool
+    {
+        return preg_match('/\A[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}\z/D', $value) === 1;
+    }
+}
