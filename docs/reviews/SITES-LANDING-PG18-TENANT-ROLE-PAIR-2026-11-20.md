@@ -1,0 +1,7 @@
+# Sites — defesa de tenant via role PostgreSQL no handoff Landing
+
+Sequência: Sites #541/#542 → #558 → #559 (base imutável 4d2a3d14bf8842e2f4e6157b87de50452ca9c71a); Portal #1017 → #1019 (HEAD fixa 4a5e1e06376188f85c90bee3d10056ab3ce2302a).
+
+A prova anterior Portal→Sites lia PostgreSQL com proprietário/superusuário no CI (RLS ignorado). Esta etapa exercita o **reader real candidato do Portal**, o encoder de envelope privado e o decoder/readback Sites com conexão PG18 de role de leitura não proprietária, sob políticas sintéticas distintas de tenant A e tenant B. Mesmo uma fonte de admissão sintética declarando acesso ao tenant B, a role A não recebe seus bytes, e vice-versa. Uma role com GRANT SELECT e sem policy nega tudo. Revogação terminal A bloqueia o Sites sem interferir na revisão B; nova versão A só passa com aprovação distinta. Testa não vazamento de erros e fechamento de transações e mantém regressões anteriores.
+
+**Não é operacional**: essa policy está apenas no CI descartável, o ator e o vínculo de pedido continuam sintéticos, não existe autenticação de serviço/ator verificada nem ledger oficial de aprovações no Portal. Nenhum caminho HTTP real, contrato de pagamento, geração editorial Landing, revisão formal, publicação técnica ou aceite de cliente é ativado. O risco de revogação posterior à última leitura permanece. Dez gates BLOCKED; PR draft, nenhum merge, deploy, alteração de produção/VPS/Cloudflare/DNS/Asaas, nem credenciais ou cobrança.
