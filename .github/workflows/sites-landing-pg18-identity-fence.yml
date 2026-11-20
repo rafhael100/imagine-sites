@@ -2,7 +2,7 @@ name: Sites Landing PG18 identity revocation fence (draft only)
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    branches: ['fix/sites-landing-pg18-identity-fence-2026-11-20-r27']
+    branches: ['test/sites-landing-pg18-row-lock-contention-2026-11-20-r26']
     paths:
       - '.github/workflows/sites-landing-pg18-identity-fence.yml'
       - 'contracts/portal-sites/candidates/landing-private-review-readback-pg18.sql'
