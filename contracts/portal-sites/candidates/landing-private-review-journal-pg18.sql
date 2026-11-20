@@ -65,6 +65,15 @@ BEGIN
     RAISE EXCEPTION 'LANDING_REVIEW_DENIED' USING ERRCODE='42501';
   END IF;
 
+  -- Serialize with record_pending on the SAME tenant/site admission row.
+  -- Prevent a newer custody version being inserted between head selection
+  -- and this immutable observation write.
+  PERFORM 1 FROM sites_landing_custody.admitted_sites s
+    WHERE s.tenant_ref=t AND s.site_ref=p_site AND s.active IS TRUE
+    FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'LANDING_REVIEW_DENIED' USING ERRCODE='42501';
+  END IF;
   -- Current stored artifact is selected independently; supplied hash cannot
   -- select an older artifact after the next version exists.
   SELECT * INTO pending FROM sites_landing_custody.pending_artifacts

@@ -117,10 +117,27 @@ BEGIN
   (p_review::json #> '{artifactSizeBytes}')::text !~ '^[1-9][0-9]{0,8}$' THEN
   RAISE EXCEPTION 'LANDING_CUSTODY_DENIED' USING ERRCODE='42501';
  END IF;
- IF NOT EXISTS(SELECT 1 FROM sites_landing_custody.admitted_sites s
+ -- Serialize all writes/reviews for one tenant/site on the independently
+ -- admitted row. The lock survives through the caller's transaction commit.
+ PERFORM 1 FROM sites_landing_custody.admitted_sites s
   WHERE s.tenant_ref=t AND s.site_ref=d->>'siteRef' AND s.order_ref=d->>'orderRef'
    AND s.contract_ref=d->>'contractRef'
-   AND s.contract_revision=(d->>'contractRevision')::integer AND s.active IS TRUE) THEN
+   AND s.contract_revision=(d->>'contractRevision')::integer AND s.active IS TRUE
+  FOR UPDATE;
+ IF NOT FOUND THEN
+  RAISE EXCEPTION 'LANDING_CUSTODY_DENIED' USING ERRCODE='42501';
+ END IF;
+ -- Reject NEW stale writes even when their JSON and SHA-256 are valid.
+ -- Exact historical operation replays are checked below and never add rows.
+ IF EXISTS (
+  SELECT 1 FROM sites_landing_custody.pending_artifacts latest
+  WHERE latest.tenant_ref=t AND latest.site_ref=d->>'siteRef'
+   AND (latest.source_version,latest.approval_epoch) >
+       ((d->>'sourceVersion')::integer,(d->>'approvalEpoch')::integer)
+ ) AND NOT EXISTS (
+  SELECT 1 FROM sites_landing_custody.pending_artifacts replay
+  WHERE replay.tenant_ref=t AND replay.operation_ref=p_operation
+ ) THEN
   RAISE EXCEPTION 'LANDING_CUSTODY_DENIED' USING ERRCODE='42501';
  END IF;
  a_sha := encode(sha256(convert_to(p_artifact,'UTF8')),'hex');
