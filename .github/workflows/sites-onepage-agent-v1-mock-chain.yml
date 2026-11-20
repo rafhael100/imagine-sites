@@ -1,0 +1,57 @@
+name: Sites OnePage Agents v1 simulated copy-to-preview (isolated NO-GO)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['test/sites-onepage-publisher-grant-scope-2026-11-20-r36']
+    paths:
+      - 'src/Production/OnepageAgentCopyLabCandidate.php'
+      - 'tests/onepage-agent-v1-mock-chain-offline.php'
+      - 'docs/reviews/SITES-ONEPAGE-AGENTS-V1-MOCK-PROVENANCE-2026-11-20.md'
+      - '.github/workflows/sites-onepage-agent-v1-mock-chain.yml'
+permissions:
+  contents: read
+concurrency:
+  group: sites-onepage-agent-v1-mock-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  onepage-synthetic-agent:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'test/sites-onepage-agent-v1-mock-provenance-2026-11-20-r37' &&
+      github.event.pull_request.base.ref == 'test/sites-onepage-publisher-grant-scope-2026-11-20-r36' &&
+      github.event.pull_request.base.sha == '752ad11a8ac5dabe2de00ae838553c9b910fb67b'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    env:
+      SITES_ONEPAGE_AGENT_COPY_LAB: '1'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, dom, xml
+          coverage: none
+      - name: Execute bounded mock agent task and observe preview SHA via loopback
+        run: |
+          set -euo pipefail
+          php -l src/Production/OnepageAgentCopyLabCandidate.php
+          php -l tests/onepage-agent-v1-mock-chain-offline.php
+          php tests/onepage-agent-v1-mock-chain-offline.php | tee "$RUNNER_TEMP/onepage-agent-v1-mock.log"
+          grep -Eq '^ONEPAGE AGENT V1 MOCK CHAIN PASS: [0-9]+ synthetic assertions; NO-GO; NO OPENAI REQUEST[.]$' "$RUNNER_TEMP/onepage-agent-v1-mock.log"
+      - name: Verify no real-model adapter or deployment binding
+        run: |
+          set -euo pipefail
+          test ! -e .env.production
+          test ! -e /run/secrets/imagine
+          grep -Fq 'sites.ai-copy.v1' src/Production/StructuredCopyCandidate.php
+          grep -Fq 'executionMode' src/Production/OnepageAgentCopyLabCandidate.php
+          ! grep -Eq 'curl_exec|api[.]openai[.]com|OPENAI_API_KEY|Asaas|checkout|Cloudflare' src/Production/OnepageAgentCopyLabCandidate.php tests/onepage-agent-v1-mock-chain-offline.php
