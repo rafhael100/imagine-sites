@@ -16,6 +16,9 @@ CREATE POLICY owner_readers ON sites_landing_custody.review_readers
 -- The caller cannot choose its tenant or read raw artifact/review bytes.
 -- The latest stored custody revision must match the exact observation. The
 -- independent writer and reviewer must still be registered and active.
+-- VOLATILE + FOR SHARE holds authorization rows through the caller's
+-- transaction commit, serializing concurrent revocation. The caller must
+-- NOT use a READ ONLY transaction (row locks are forbidden there).
 CREATE FUNCTION sites_landing_custody.read_current_review_observation(
     p_site text, p_review_sha text
 ) RETURNS TABLE (
@@ -23,13 +26,13 @@ CREATE FUNCTION sites_landing_custody.read_current_review_observation(
     review_sha256 text, artifact_sha256 text, source_version integer,
     approval_epoch integer
 )
-LANGUAGE plpgsql STABLE SECURITY DEFINER
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER
 SET search_path=pg_catalog SET row_security=on AS $fn$
 DECLARE v_tenant text;
 BEGIN
   SELECT rr.tenant_ref INTO v_tenant
     FROM sites_landing_custody.review_readers rr
-    WHERE rr.login_name=session_user AND rr.active IS TRUE;
+    WHERE rr.login_name=session_user AND rr.active IS TRUE FOR SHARE;
   IF v_tenant IS NULL OR p_site IS NULL OR
      p_site COLLATE "C" !~ '^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$' OR
      p_review_sha IS NULL OR
@@ -69,7 +72,8 @@ BEGIN
         WHERE latest.tenant_ref=v_tenant AND latest.site_ref=p_site
         ORDER BY latest.source_version DESC,latest.approval_epoch DESC LIMIT 1
       )
-    LIMIT 1;
+    LIMIT 1
+    FOR SHARE OF site, author, reviewer;
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'LANDING_REVIEW_READBACK_DENIED' USING ERRCODE='42501';
