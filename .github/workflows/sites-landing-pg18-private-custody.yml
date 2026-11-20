@@ -1,0 +1,82 @@
+name: Sites Landing PG18 private artifact custody (draft only)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['feature/sites-landing-private-editorial-draft-2026-11-20-r21']
+    paths:
+      - '.github/workflows/sites-landing-pg18-private-custody.yml'
+      - 'contracts/portal-sites/candidates/landing-private-custody-pg18.sql'
+      - 'apps/sites/app/Integration/PortalLandingPagePrivateCustodyCandidate.php'
+      - 'tests/landing-page-pg18-private-custody.php'
+      - 'docs/reviews/SITES-LANDING-PG18-PRIVATE-CUSTODY-2026-11-20.md'
+permissions:
+  contents: read
+concurrency:
+  group: sites-landing-pg18-private-custody-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  private-custody:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'feature/sites-landing-pg18-private-artifact-custody-2026-11-20-r22' &&
+      github.event.pull_request.base.ref == 'feature/sites-landing-private-editorial-draft-2026-11-20-r21' &&
+      github.event.pull_request.base.sha == 'b7303b8f8c8c7638823c88ae4e5c555fafc274b3'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: ci-only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      GITHUB_ACTIONS: 'true'
+      SITES_LANDING_CUSTODY_CI: '1'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: rafhael100/imagine-portal
+          ref: 4a5e1e06376188f85c90bee3d10056ab3ce2302a
+          path: .pinned-portal
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring,pdo_pgsql
+          coverage: none
+      - name: Validate exact source and CI-only test entry
+        run: |
+          set -euo pipefail
+          test "$(git -C .pinned-portal rev-parse HEAD)" = 4a5e1e06376188f85c90bee3d10056ab3ce2302a
+          php -m | grep -x pdo_pgsql
+          php -m | grep -x mbstring
+          php -l apps/sites/app/Integration/PortalLandingPagePrivateCustodyCandidate.php
+          php -l tests/landing-page-pg18-private-custody.php
+          if SITES_LANDING_CUSTODY_CI=0 php tests/landing-page-pg18-private-custody.php >/dev/null 2>&1; then
+            echo 'Unsafe: SQL fixture ran without opt-in'
+            exit 1
+          fi
+      - name: Verify role-bound PG18 private custody, replay and rollback
+        run: |
+          set -euo pipefail
+          php tests/landing-page-pg18-private-custody.php | tee custody.log
+          grep -Eq '^SITES LANDING PG18 PRIVATE CUSTODY PASS: [0-9]+ checks; synthetic admissions only\.$' custody.log
+          php tests/landing-page-editorial-draft-offline.php | tee editorial.log
+          grep -Eq '^SITES LANDING PRIVATE EDITORIAL DRAFT PASS: [0-9]+ checks;' editorial.log
+          echo 'CI ONLY. No public API, publisher, billing or authentic Portal approval.'
