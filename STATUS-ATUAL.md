@@ -1,5 +1,32 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 20/11/2026 — contrato privado do briefing Landing aprovado (draft)
+
+A [PR Sites #556](https://github.com/rafhael100/imagine-sites/pull/556)
+deriva da #555 fixada em `fbcbc9d090e62b2cd20c302ff9e549cfa46ef185`,
+sem alterar as branches da cadeia #541/#542. O Portal implementou na
+[PR #1012](https://github.com/rafhael100/imagine-portal/pull/1012)
+o `ApprovedLandingPageBriefHead`, a fonte corrente aprovada padrão DENY,
+três revalidações de tenant/pedido/site/contrato e um encoder privado candidato.
+A HEAD Portal `e0f38d8d98c151ffa5743c9c372ac039074b9ea7` teve 6/6
+workflows SUCCESS, com 34 novos testes de aprovação por PHP 8.3/8.4
+([CI Portal 44674006409](https://github.com/rafhael100/imagine-portal/actions/runs/44674006409)).
+
+No Sites, o decoder privado verifica a forma canônica, SHA-256 dos bytes
+originais do briefing, tipo Landing, contrato e revisão, versão de conteúdo,
+aprovação e epoch contra expectativas independentes. Bloqueia serialização
+direta e entradas com autoridade de publicação/aceite, sem converter Landing
+em Onepage. O [CI par 44674320186](https://github.com/rafhael100/imagine-sites/actions/runs/44674320186)
+confirmou 31 checks novos de paridade com o encoder Portal verdadeiro, 30 de
+readback de admissão e 30 de regressão de projeção em **cada** PHP 8.3/8.4.
+
+**Resultado apenas contratual/offline:** não há fonte oficial no Portal
+com aprovação autenticada/revogação atômica/auditoria, nem transporte mTLS
+ativo, perfil/editorial e renderer Landing, revisão formal, publicação
+homologada ou aceite. A leitura dupla/tripla não resolve ABA. Sem ativação
+ou titularidade de autoridade no Sites; dez gates seguem BLOCKED.
+Sem merge, deploy, main, VPS, produção, Cloudflare, DNS, Asaas ou pagamentos.
+
 ## 20/11/2026 — admissão Landing Page com vínculo independente de site (draft)
 
 A [PR Sites #555](https://github.com/rafhael100/imagine-sites/pull/555),
