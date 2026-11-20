@@ -1,0 +1,62 @@
+name: Sites Landing Page admission projection against pinned Portal (draft)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['feature/sites-landing-head-request-candidate-2026-11-19-r10']
+    paths:
+      - '.github/workflows/sites-landing-admission-projection.yml'
+      - 'apps/sites/app/Integration/PortalLandingPageAdmissionProjectionCandidate.php'
+      - 'tests/landing-page-admission-pair-offline.php'
+      - 'docs/reviews/SITES-LANDING-ADMISSION-PROJECTION-2026-11-19.md'
+permissions:
+  contents: read
+concurrency:
+  group: sites-landing-admission-projection-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  landing-admission-pair:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'integration/sites-landing-admission-projection-2026-11-19-r11' &&
+      github.event.pull_request.base.ref == 'feature/sites-landing-head-request-candidate-2026-11-19-r10' &&
+      github.event.pull_request.base.sha == '26c64e4046a7e6e286676d1620c9af8a20d721aa'
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: rafhael100/imagine-portal
+          ref: b5a4bfc10ef18f0c661eb69d04a4b2d3bac83661
+          path: .pinned-portal
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+          coverage: none
+      - name: Verify immutable Portal and lint response parser
+        run: |
+          set -euo pipefail
+          test "$(git -C .pinned-portal rev-parse HEAD)" = b5a4bfc10ef18f0c661eb69d04a4b2d3bac83661
+          php -l apps/sites/app/Integration/PortalLandingPageAdmissionProjectionCandidate.php
+          php -l tests/landing-page-admission-pair-offline.php
+      - name: Exercise actual Portal admission and preserve Onepage/Landing request checks
+        run: |
+          set -euo pipefail
+          php tests/landing-page-admission-pair-offline.php | tee admission.log
+          grep -Eq '^SITES LANDING ADMISSION PARITY PASS: [0-9]+ checks;' admission.log
+          php tests/landing-page-head-request-offline.php | tee landing.log
+          grep -Eq '^SITES LANDING HEAD REQUEST PASS: [0-9]+ checks;' landing.log
+          php tests/onepage-head-request-pair-offline.php | tee onepage.log
+          grep -Eq '^SITES PORTAL ONEPAGE REQUEST PARITY PASS: [0-9]+ checks;' onepage.log
