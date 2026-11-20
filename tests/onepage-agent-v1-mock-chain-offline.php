@@ -231,4 +231,18 @@ try {
 $check(!file_exists($filename) && !is_dir($folder),
     'private lab preview removed after digest observation');
 
+$safeEvidence = [
+    'executionMode' => $e['executionMode'],
+    'runRef' => $e['runRef'],
+    'agentVersion' => $e['agentVersion'],
+    'sourceVersion' => $e['sourceVersion'],
+    'briefRevision' => $e['briefRevision'],
+    'manifestSha256' => $e['manifestSha256'],
+    'briefSha256' => $e['briefSha256'],
+    'taskSha256' => $e['taskSha256'],
+    'acceptedCopySha256' => $e['acceptedCopySha256'],
+    'htmlSha256' => $e['htmlSha256'],
+];
+echo 'ONEPAGE_AGENT_SYNTHETIC_EVIDENCE='.json_encode($safeEvidence,
+    JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES)."\\n";
 echo 'ONEPAGE AGENT V1 MOCK CHAIN PASS: '.$checks." synthetic assertions; NO-GO; NO OPENAI REQUEST.\n";
