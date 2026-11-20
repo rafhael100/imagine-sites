@@ -12,30 +12,34 @@ use Throwable;
 /**
  * OnePage ONLY, CI candidate without a runtime binding.
  *
- * A currently signed and independently witnessed client acceptance is
- * necessary but never sufficient to request a technical release transition.
- * A separately governed publisher-authority reader must also grant the
- * exact candidate. Recheck both sources after the first read; this detects
- * observed revocation but is NOT a distributed transaction or CAS.
+ * Signed and independently witnessed buyer acceptance is necessary but never
+ * sufficient to transition a release. A separate trusted publisher source
+ * must return a scoped grant for the exact action, target and editorial
+ * revision. Re-read the same grantRef/epoch after checking consent again.
  *
- * No publisher, Laravel route, service container binding or real authority
- * is registered here. The default is DENY.
+ * No source is installed. Two reads cannot prove atomicity or exclude ABA,
+ * and this candidate never publishes, accepts a customer order or rolls back.
  */
 final readonly class OnepageReleaseConsentAndPublisherFenceCandidate
 {
     /**
      * @param ?Closure $currentPublisherAuthority
-     *        Trusted source: (ReleaseManifest, editorialRevision) -> PolicyDecision.
-     *        Never derive from a browser body, ACK, prior release or buyer consent.
+     *   Trusted future adapter: (ReleaseManifest, editorialRevision, operation)
+     *   -> OnepagePublisherGrantSnapshotCandidate. NEVER browser input or ACK.
+     *   No authenticated or persistent source is implemented in this branch.
      */
     public function __construct(
         private SignedPortalClientApprovalGate $clientAcceptance,
         private ?Closure $currentPublisherAuthority = null,
     ) {}
 
-    public function inspect(ReleaseManifest $candidate, int $editorialRevision): PolicyDecision
-    {
-        if ($this->currentPublisherAuthority === null || $editorialRevision < 1) {
+    public function inspect(
+        ReleaseManifest $candidate,
+        int $editorialRevision,
+        string $operation,
+    ): PolicyDecision {
+        if ($this->currentPublisherAuthority === null || $editorialRevision < 1 ||
+            !in_array($operation, ['promote', 'rollback'], true)) {
             return self::deny('onepage_publisher_authority_unbound');
         }
 
@@ -45,8 +49,12 @@ final readonly class OnepageReleaseConsentAndPublisherFenceCandidate
                 return self::deny('onepage_client_acceptance_not_current');
             }
 
-            $publisherBefore = ($this->currentPublisherAuthority)($candidate, $editorialRevision);
-            if (!$publisherBefore instanceof PolicyDecision || !$publisherBefore->allowed) {
+            $publisherBefore = ($this->currentPublisherAuthority)(
+                $candidate, $editorialRevision, $operation,
+            );
+            if (!$publisherBefore instanceof OnepagePublisherGrantSnapshotCandidate ||
+                !$publisherBefore->approved ||
+                !$publisherBefore->matches($candidate, $editorialRevision, $operation)) {
                 return self::deny('onepage_publisher_authority_denied');
             }
 
@@ -55,16 +63,17 @@ final readonly class OnepageReleaseConsentAndPublisherFenceCandidate
                 return self::deny('onepage_client_acceptance_changed');
             }
 
-            $publisherAfter = ($this->currentPublisherAuthority)($candidate, $editorialRevision);
-            if (!$publisherAfter instanceof PolicyDecision ||
-                !$publisherAfter->allowed ||
-                $publisherAfter->reasons !== $publisherBefore->reasons) {
+            $publisherAfter = ($this->currentPublisherAuthority)(
+                $candidate, $editorialRevision, $operation,
+            );
+            if (!$publisherAfter instanceof OnepagePublisherGrantSnapshotCandidate ||
+                !$publisherAfter->approved ||
+                !$publisherAfter->matches($candidate, $editorialRevision, $operation) ||
+                $publisherAfter != $publisherBefore) {
+                // Detects rotation/reissue even when both grants say "approved".
                 return self::deny('onepage_publisher_authority_changed');
             }
 
-            // Candidate policy evidence, not permission to invoke a provider.
-            // Operational use still needs an authenticated source, durable
-            // transaction/epoch, independent reviewer and publication gates.
             return new PolicyDecision(true, []);
         } catch (Throwable) {
             return self::deny('onepage_release_fence_unavailable');

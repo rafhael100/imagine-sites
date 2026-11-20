@@ -18,7 +18,8 @@ if (PHP_SAPI !== 'cli' || getenv('GITHUB_ACTIONS') !== 'true' ||
 use Imagine\Sites\Domain\{PolicyDecision, ReleaseManifest};
 use Imagine\Sites\Publication\{
     IndependentClientApprovalWitness, OnepageReleaseConsentAndPublisherFenceCandidate,
-    PortalClientApprovalReceiptSource, SignedPortalClientApprovalGate
+    PortalClientApprovalReceiptSource, SignedPortalClientApprovalGate,
+    OnepagePublisherGrantSnapshotCandidate
 };
 
 $root = dirname(__DIR__);
@@ -104,68 +105,124 @@ $setCurrent($a, 1, 'accept-onepage-A-initial', 1);
 $consent = new SignedPortalClientApprovalGate($source, $witness, $public, $now);
 
 $unbound = new OnepageReleaseConsentAndPublisherFenceCandidate($consent);
-$check(!$unbound->inspect($a, 1)->allowed && $source->calls === 0,
+$check(!$unbound->inspect($a, 1, 'promote')->allowed && $source->calls === 0,
     'unbound publisher source denies without even reading buyer consent');
 
 $publisherAllowed = false;
 $publisherCalls = 0;
 $revokeDuringGrant = false;
 $revokePublisherAfterFirstRead = false;
-$publisher = static function (ReleaseManifest $candidate, int $revision)
+$publisherEpoch = 1;
+$publisherScopeOverride = null;
+$publisherTenantOverride = null;
+$publisherDigestOverride = null;
+$publisherRevisionOverride = null;
+$rotateEpochBetweenReads = false;
+$publisher = static function (ReleaseManifest $candidate, int $revision, string $operation)
     use (&$publisherAllowed, &$publisherCalls, &$revokeDuringGrant,
-        &$revokePublisherAfterFirstRead, $witness): PolicyDecision {
+        &$revokePublisherAfterFirstRead, &$publisherEpoch, &$publisherScopeOverride,
+        &$publisherTenantOverride, &$publisherDigestOverride, &$publisherRevisionOverride,
+        &$rotateEpochBetweenReads, $witness): OnepagePublisherGrantSnapshotCandidate {
     ++$publisherCalls;
     if ($revokeDuringGrant) {
         $revokeDuringGrant = false;
-        ++$witness->epoch; // Source changes while a candidate is inspected.
+        ++$witness->epoch;
     }
+    $approvedForThisRead = $publisherAllowed;
     if ($revokePublisherAfterFirstRead && $publisherCalls === 1) {
         $publisherAllowed = false;
-        return new PolicyDecision(true, []);
+        $approvedForThisRead = true; // First read still authorized.
     }
-    return new PolicyDecision($publisherAllowed, $publisherAllowed ? [] : ['not_authorized']);
+    $snapshot = new OnepagePublisherGrantSnapshotCandidate(
+        $publisherTenantOverride ?? $candidate->tenantRef,
+        $candidate->siteRef, $candidate->releaseRef,
+        $publisherDigestOverride ?? $candidate->digest,
+        $publisherRevisionOverride ?? $revision,
+        $publisherScopeOverride ?? $operation,
+        'publisher-grant-fictional', $publisherEpoch,
+        'publisher-operator-fictional', $approvedForThisRead,
+    );
+    if ($rotateEpochBetweenReads && $publisherCalls === 1) {
+        ++$publisherEpoch; // Both snapshots ALLOW but attest different grants.
+    }
+    return $snapshot;
 };
 $fence = new OnepageReleaseConsentAndPublisherFenceCandidate($consent, $publisher);
-$check(!$fence->inspect($a, 1)->allowed,
+$check(!$fence->inspect($a, 1, 'promote')->allowed,
     'fresh signed buyer acceptance alone cannot authorize technical release');
 $publisherAllowed = true;
-$check($fence->inspect($a, 1)->allowed && $publisherCalls >= 3,
+$check($fence->inspect($a, 1, 'promote')->allowed && $publisherCalls >= 3,
     'exact A consent and separate fictitious publisher grant are both required');
 
 $setCurrent($b, 2, 'accept-onepage-B-current', 2);
-$check(!$fence->inspect($a, 1)->allowed,
+$check(!$fence->inspect($a, 1, 'promote')->allowed,
     'after B becomes current, historical A consent cannot authorize rollback');
-$check(!$fence->inspect($b, 1)->allowed,
+$check(!$fence->inspect($b, 1, 'promote')->allowed,
     'editorial revision mismatch cannot borrow B current consent');
-$check($fence->inspect($b, 2)->allowed,
+$check($fence->inspect($b, 2, 'promote')->allowed,
     'B requires its own release, digest, revision, ref and epoch');
 
 $revokeDuringGrant = true;
-$check(!$fence->inspect($b, 2)->allowed,
+$check(!$fence->inspect($b, 2, 'promote')->allowed,
     'buyer consent revoked between independent reads denies release transition');
-$check(!$fence->inspect($b, 2)->allowed,
+$check(!$fence->inspect($b, 2, 'promote')->allowed,
     'revocation remains terminal even when publisher grant remains true');
 
 $setCurrent($b, 2, 'accept-onepage-B-renewed', 4);
 $publisherCalls = 0;
 $revokePublisherAfterFirstRead = true;
 $publisherAllowed = true;
-$check(!$fence->inspect($b, 2)->allowed,
+$check(!$fence->inspect($b, 2, 'promote')->allowed,
     'publisher grant removed during inspection denies despite valid buyer consent');
 $revokePublisherAfterFirstRead = false;
-$check(!$fence->inspect($b, 2)->allowed,
+$check(!$fence->inspect($b, 2, 'promote')->allowed,
     'subsequent inspection stays denied without separate publisher authority');
 
 $setCurrent($a, 1, 'accept-onepage-A-reconfirmed', 5);
 $publisherAllowed = false;
-$check(!$fence->inspect($a, 1)->allowed,
+$check(!$fence->inspect($a, 1, 'promote')->allowed,
     'renewed rollback consent still cannot replace publisher grant');
 $publisherAllowed = true;
-$check($fence->inspect($a, 1)->allowed,
+$check($fence->inspect($a, 1, 'promote')->allowed,
     'a distinct current A consent plus independent synthetic grant is required for a new proposal');
 $check(!$fence->inspect(new ReleaseManifest('other-tenant', $a->siteRef,
-    $a->releaseRef, $a->digest), 1)->allowed,
+    $a->releaseRef, $a->digest), 1, 'promote')->allowed,
     'cross-tenant replay of valid signed consent is denied');
+
+
+$setCurrent($b, 2, 'accept-onepage-B-scoped', 6);
+$publisherAllowed = true;
+$publisherScopeOverride = 'rollback';
+$check(!$fence->inspect($b, 2, 'promote')->allowed,
+    'rollback-specific publisher grant cannot authorize promotion');
+$publisherScopeOverride = null;
+$publisherTenantOverride = 'other-tenant';
+$check(!$fence->inspect($b, 2, 'promote')->allowed,
+    'publisher grant from another tenant cannot authorize this tenant');
+$publisherTenantOverride = null;
+$publisherDigestOverride = str_repeat('a', 64);
+$check(!$fence->inspect($b, 2, 'promote')->allowed,
+    'publisher grant for altered artifact SHA cannot be reused');
+$publisherDigestOverride = null;
+$publisherRevisionOverride = 99;
+$check(!$fence->inspect($b, 2, 'promote')->allowed,
+    'publisher grant for a different editorial revision cannot be reused');
+$publisherRevisionOverride = null;
+$publisherCalls = 0;
+$rotateEpochBetweenReads = true;
+$check(!$fence->inspect($b, 2, 'promote')->allowed,
+    'rotating publisher epoch rejects two otherwise allowed grant snapshots');
+$rotateEpochBetweenReads = false;
+$check($fence->inspect($b, 2, 'promote')->allowed,
+    'a stable exact scoped publisher grant still permits an offline inspection');
+$check(!$fence->inspect($b, 2, 'publication')->allowed,
+    'unknown technical action is rejected before consulting publisher');
+$check(!$fence->inspect($a, 1, 'rollback')->allowed,
+    'historical release cannot borrow the current B consent for rollback');
+$check(!(new OnepageReleaseConsentAndPublisherFenceCandidate(
+    $consent, static fn() => new PolicyDecision(true, []),
+))->inspect($b, 2, 'promote')->allowed,
+    'legacy unscoped boolean publisher assertion no longer authorizes release');
 
 $check($witness->calls >= 7 && $source->calls >= 7,
     'independent witness and signed receipt source re-read on candidates');
