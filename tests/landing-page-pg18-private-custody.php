@@ -199,6 +199,20 @@ $directDenied(static fn()=>$direct('operation-A-v2',$packet['artifactBytes'],
 $directDenied(static fn()=>$direct('operation-A-v2',$packet['artifactBytes'],
     substr_replace($packet['reviewBytes'],'"state":"approved",',1,0),$packet['reviewSha256']),
     'duplicate or extra approval field refused');
+// Database-level monotonicity: an attacker can bypass a PHP candidate
+// and submit a fully valid old packet after a newer version has been stored.
+$state->version=1;
+$latePacket=$draft->prepareForInternalReview(
+    'tenant-A','order-A',$site,'contract-A',7,1,'approval-1',1,
+    hash('sha256',$state->bytes)
+);
+$state->version=2;
+$directDenied(static fn()=>$direct('operation-A-late-v1',
+    $latePacket['artifactBytes'],$latePacket['reviewBytes'],$latePacket['reviewSha256']),
+    'SQL refuses valid but out-of-order new version, not just PHP readback');
+$direct('operation-A1',$latePacket['artifactBytes'],
+    $latePacket['reviewBytes'],$latePacket['reviewSha256']);
+$ok($count()===3,'exact historical replay remains idempotent without new row');
 $ok($count()===3,'no attacker row persisted');
 $state->version=3;
 $state->calls=0;$state->cutoff=5;
