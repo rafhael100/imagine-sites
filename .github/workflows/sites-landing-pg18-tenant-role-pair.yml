@@ -1,0 +1,73 @@
+name: Sites Landing PG18 tenant-scoped role handoff (draft only)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['test/sites-landing-terminal-revocation-pair-2026-11-20-r18']
+    paths:
+      - '.github/workflows/sites-landing-pg18-tenant-role-pair.yml'
+      - 'tests/landing-page-pg18-tenant-role-pair.php'
+      - 'docs/reviews/SITES-LANDING-PG18-TENANT-ROLE-PAIR-2026-11-20.md'
+permissions:
+  contents: read
+concurrency:
+  group: sites-landing-role-pair-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  tenant-role-portal-to-sites:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'test/sites-landing-pg18-tenant-roles-pair-2026-11-20-r20' &&
+      github.event.pull_request.base.ref == 'test/sites-landing-terminal-revocation-pair-2026-11-20-r18' &&
+      github.event.pull_request.base.sha == '4d2a3d14bf8842e2f4e6157b87de50452ca9c71a'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: ci-only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: rafhael100/imagine-portal
+          ref: 4a5e1e06376188f85c90bee3d10056ab3ce2302a
+          path: .pinned-portal
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo_pgsql
+          coverage: none
+      - name: Verify immutable Portal HEAD and PHP
+        run: |
+          set -euo pipefail
+          test "$(git -C .pinned-portal rev-parse HEAD)" = 4a5e1e06376188f85c90bee3d10056ab3ce2302a
+          php -l tests/landing-page-pg18-tenant-role-pair.php
+          php -l .pinned-portal/apps/portal/app/Domain/SitesIntegration/Pg18LandingPageApprovedBriefHeadSourceCandidate.php
+          php -m | grep -x pdo_pgsql
+      - name: PG18 tenant-scoped cross-repo readback and terminal regressions
+        run: |
+          set -euo pipefail
+          php tests/landing-page-pg18-tenant-role-pair.php | tee role-pair.log
+          grep -Eq '^SITES LANDING PG18 TENANT ROLE PAIR PASS: [0-9]+ checks;' role-pair.log
+          php tests/landing-page-pg18-terminal-event-pair.php | tee terminal-pair.log
+          grep -Eq '^SITES LANDING PG18 TERMINAL PAIR PASS: [0-9]+ checks;' terminal-pair.log
+          php tests/landing-page-private-current-readback-offline.php | tee offline-readback.log
+          grep -Eq '^SITES LANDING PRIVATE CURRENT READBACK PASS: [0-9]+ checks;' offline-readback.log
