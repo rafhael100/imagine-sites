@@ -16,3 +16,7 @@ Os cadastros de operadores e sites, contas de banco e fatos de aprovação usado
 - Nenhuma publicação, autorização ou pagamento é habilitado. **Dez gates BLOCKED.** Sem merge, deploy, VPS, produção, Cloudflare, DNS, Asaas, credenciais ou novos fornecedores.
 
 Os testes são deliberadamente CI-only, em PHP 8.3/8.4, com PostgreSQL 18 descartável; referências de CI devem ser anexadas somente depois de execuções reais.
+
+## CI verificado
+
+Na HEAD `9b9199f059e594e6b37f04ae8daaeee14047c575`, [GitHub Actions 44718436983](https://github.com/rafhael100/imagine-sites/actions/runs/44718436983) concluiu com dois jobs SUCCESS em PHP 8.3 e 8.4: **34 verificações novas de custódia PG18 + 34 regressões editoriais por versão**. As outras quatro execuções globais dessa HEAD também terminaram SUCCESS. Erros SQL de permissões observados nos logs são recusas negativas esperadas. A atualização documental posterior exige nova confirmação de CI para sua própria HEAD.
