@@ -78,6 +78,31 @@ $checkRead($rA===[
 $checkRead($read($readerA,'tenant-A',$packetA5,5)===$rA,
     'repeat read is stable and has no write side effects');
 $checkRead($countReview()===4,'reads do not create journal rows');
+
+ // A readback witness must not escape while any of its independently
+ // admitted identities/site is being revoked by another PG18 session.
+ // A timeout must fail closed, roll back and preserve the private journal.
+$revocationLocks=[
+    'reader'=>"SELECT login_name FROM sites_landing_custody.review_readers WHERE login_name='sites_landing_ci_reader_a' FOR UPDATE",
+    'site'=>"SELECT site_ref FROM sites_landing_custody.admitted_sites WHERE tenant_ref='tenant-A' AND site_ref='$site' FOR UPDATE",
+    'author'=>"SELECT login_name FROM sites_landing_custody.principals WHERE login_name='sites_landing_ci_a' FOR UPDATE",
+    'reviewer'=>"SELECT login_name FROM sites_landing_custody.reviewers WHERE login_name='sites_landing_ci_reviewer_a' FOR UPDATE",
+];
+foreach($revocationLocks as $identity=>$statement){
+    $admin->beginTransaction();
+    $locked=$admin->query($statement)->fetchColumn();
+    $checkRead(is_string($locked) && $locked!=='', "independent $identity row can be held before revocation");
+    $readerAConnection->exec("SET lock_timeout='300ms'");
+    $denyRead(static fn()=>$read($readerA,'tenant-A',$packetA5,5),
+        "review readback refuses pending $identity revocation");
+    $readerAConnection->exec('RESET lock_timeout');
+    $admin->rollBack();
+    $checkRead(!$readerAConnection->inTransaction() && $countReview()===4,
+        "pending $identity revocation left no reader transaction or journal mutation");
+    $checkRead($read($readerA,'tenant-A',$packetA5,5)===$rA,
+        "readback recovers after independent $identity lock is released");
+}
+
 $denyRead(static fn()=>$read($readerB,'tenant-A',$packetA5,5),
     'B connection cannot cross tenant even with correct A pointer');
 $denyRead(static fn()=>$read($readerUnbound,'tenant-A',$packetA5,5),
