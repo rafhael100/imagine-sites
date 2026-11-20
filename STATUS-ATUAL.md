@@ -1,5 +1,29 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 20/11/2026 — Portal PG18 transacional → Sites Landing (draft, não operacional)
+
+A [PR Sites #558](https://github.com/rafhael100/imagine-sites/pull/558), base
+imutável Sites #557 `acc935766ae385a04e37f29613008c8c09f6730a`, consome
+a [PR Portal #1015](https://github.com/rafhael100/imagine-portal/pull/1015),
+fonte PG18 candidata fixada em `3c3ba328111445394ad756b9a12507db393a62d1`.
+O Portal executa uma leitura READ ONLY REPEATABLE READ da revisão mais recente e
+seu evento coincidente de aprovação, com verificação de epoch, ator registrado,
+revogação posterior e digest; não existe fonte oficial/autorização de ator.
+
+O [CI Sites 44687731596](https://github.com/rafhael100/imagine-sites/actions/runs/44687731596)
+validou **2/2 jobs SUCCESS** (PHP 8.3/8.4): 10 verificações cross-repo em PG18
+efêmero e 42 regressões de readback por versão. Também passou o
+[CI Portal 44687290553](https://github.com/rafhael100/imagine-portal/actions/runs/44687290553):
+25 verificações PG18 + 34 regressões por versão PHP. A primeira execução do
+Portal falhou no lint de fixture; a correção foi validada na HEAD final.
+
+**LIMITE:** schemas e atores são sintéticos, a prova positiva usa superusuário
+apenas no PG efêmero, a role comum segue sem RLS autorizativa, admissão Sites
+continua fictícia e nenhuma API/serviço real está ligada. Não há homologação
+de aprovação autenticada, S2S/mTLS, artefato Landing, revisão formal, publicação
+ou aceite do cliente. Dez gates BLOCKED; sem merge/deploy, VPS, produção,
+DNS/Cloudflare, credenciais, Asaas ou pagamentos.
+
 ## 20/11/2026 — contrato privado do briefing Landing aprovado (draft)
 
 A [PR Sites #556](https://github.com/rafhael100/imagine-sites/pull/556)
