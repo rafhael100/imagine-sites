@@ -1,0 +1,74 @@
+name: Sites Landing PG18 terminal approval pair (draft only)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['integration/sites-landing-pg18-portal-head-pair-2026-11-20-r17']
+    paths:
+      - '.github/workflows/sites-landing-pg18-terminal-event-pair.yml'
+      - 'tests/landing-page-pg18-terminal-event-pair.php'
+      - 'docs/reviews/SITES-LANDING-PG18-TERMINAL-FENCE-2026-11-20.md'
+      - 'STATUS-ATUAL.md'
+permissions:
+  contents: read
+concurrency:
+  group: sites-landing-terminal-pair-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  portal-terminal-to-sites:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'test/sites-landing-terminal-revocation-pair-2026-11-20-r18' &&
+      github.event.pull_request.base.ref == 'integration/sites-landing-pg18-portal-head-pair-2026-11-20-r17' &&
+      github.event.pull_request.base.sha == 'e1eb991a12256e04d708bfe374837ec30c7d0981'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: ci-only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: rafhael100/imagine-portal
+          ref: 30f10691c6710e7b5effb220d0f4788c7f91914e
+          path: .pinned-portal
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo_pgsql
+          coverage: none
+      - name: Verify independent pinned Portal code and PHP syntax
+        run: |
+          set -euo pipefail
+          test "$(git -C .pinned-portal rev-parse HEAD)" = 30f10691c6710e7b5effb220d0f4788c7f91914e
+          php -l tests/landing-page-pg18-terminal-event-pair.php
+          php -l .pinned-portal/apps/portal/app/Domain/SitesIntegration/Pg18LandingPageApprovedBriefHeadSourceCandidate.php
+          php -m | grep -x pdo_pgsql
+      - name: Adversarial PG18 terminal sequence and original cross-repo regression
+        run: |
+          set -euo pipefail
+          php tests/landing-page-pg18-terminal-event-pair.php | tee sites-terminal-pair.log
+          grep -Eq '^SITES LANDING PG18 TERMINAL PAIR PASS: [0-9]+ checks;' sites-terminal-pair.log
+          php tests/landing-page-pg18-portal-pair.php | tee sites-original-pair.log
+          grep -Eq '^SITES LANDING PG18 PORTAL PAIR PASS: [0-9]+ checks;' sites-original-pair.log
+          php tests/landing-page-private-current-readback-offline.php | tee sites-offline-readback.log
+          grep -Eq '^SITES LANDING PRIVATE CURRENT READBACK PASS: [0-9]+ checks;' sites-offline-readback.log
