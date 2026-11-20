@@ -198,6 +198,7 @@ $directDenied(static fn()=>$direct('operation-A-v2',$packet['artifactBytes'],
     substr_replace($packet['reviewBytes'],'"state":"approved",',1,0),$packet['reviewSha256']),
     'duplicate or extra approval field refused');
 $ok($count()===3,'no attacker row persisted');
+$state->version=3;
 $state->calls=0;$state->cutoff=5;
 $deny(static fn()=>$run($a,'operation-A-drift'),
     'Portal revocation during post-write readback rolls back entire transaction');
