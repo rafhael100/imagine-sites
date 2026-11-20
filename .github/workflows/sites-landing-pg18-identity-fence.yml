@@ -25,7 +25,7 @@ jobs:
       github.repository == 'rafhael100/imagine-sites' &&
       github.event.pull_request.draft == true &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'test/sites-landing-pg18-row-lock-contention-2026-11-20-r26' &&
+      github.event.pull_request.head.ref == 'fix/sites-landing-pg18-identity-fence-2026-11-20-r27' &&
       github.event.pull_request.base.ref == 'test/sites-landing-pg18-row-lock-contention-2026-11-20-r26' &&
       github.event.pull_request.base.sha == 'f42b407dedb948d1ac8f4047acc140f920bf5cdd'
     runs-on: ubuntu-24.04
