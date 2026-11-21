@@ -39,7 +39,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: rafhael100/imagine-ai-agents
-          ref: 6b0ae0db9545277ff0c63e128aba5476ae0faf60
+          ref: 3f9ef347e51fe419e75d6582bf7630a51fe371dd
           path: ci-ai-agents
           persist-credentials: false
       - uses: shivammathur/setup-php@v2
