@@ -206,6 +206,44 @@ SQL,[$worker['pid'],$revokerPid]);
         self::need($original===$next);
     }
 
+    /** One observation only, never re-dispatch; input PDO must be newly admitted. */
+    public static function observeAfterBadAck(PDO $db, Intent $a, string $tenant, int $old): string
+    {
+        self::identity($db,'on');
+        self::need($db->beginTransaction());
+        try {
+            $r=self::rows($db,"SELECT pg_catalog.current_setting('transaction_read_only') AS ro",[]);
+            self::need($r===[['ro'=>'on']]);
+            $rows=self::rows($db,<<<'SQL'
+SELECT operation_ref,tenant_id::text,site_id::text,requested_binding_revision,observed_binding_revision,
+       exact_tuple::text,terminal,recorded_at::text
+FROM sites_onepage_terminal_candidate.decision ORDER BY operation_ref LIMIT 2
+SQL,[]);
+            self::need($db->commit());
+            return self::classifyBadAck($rows,$a,$tenant,$old);
+        } catch(Throwable $e) {
+            if ($db->inTransaction()) $db->rollBack();
+            throw $e;
+        }
+    }
+
+    /** Closed classification shared by failure observation and local pure checks. */
+    public static function classifyBadAck(array $rows, Intent $a, string $tenant, int $old): string
+    {
+        if ($rows===[]) return 'NO_ROW';
+        if (count($rows)!==1 || !is_array($rows[0]??null) || $old>=PHP_INT_MAX) return 'INCONSISTENT';
+        try {
+            $r=$rows[0];
+            $t=json_decode($r['exact_tuple']??'',true,8,JSON_THROW_ON_ERROR);
+            if (!is_array($t) || !(new Intent($r['operation_ref'],$t))->same($a) ||
+                [$r['tenant_id'],$r['site_id'],(string)$r['requested_binding_revision'],
+                    (string)$r['observed_binding_revision'],$r['terminal']]
+                !==[$tenant,$a->tuple['siteRef'],(string)$old,(string)($old+1),'rejected'] ||
+                !is_string($r['recorded_at']??null) || $r['recorded_at']==='') return 'INCONSISTENT';
+            return 'ONE_EXACT_REJECTED';
+        } catch(Throwable) { return 'INCONSISTENT'; }
+    }
+
     public static function durable(PDO $db, Intent $a, string $tenant, int $old): array
     {
         $rows=self::rows($db,self::ROW,[$a->operationRef]);
