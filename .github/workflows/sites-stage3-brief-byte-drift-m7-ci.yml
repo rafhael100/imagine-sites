@@ -1,7 +1,7 @@
 name: Sites stage 3 M7 — distinct briefing bytes invalidate stale revision
 'on':
   pull_request:
-    types: [opened]
+    types: [opened, synchronize]
     branches: [test/sites-stage3-portal-brief-sql-v2-2026-11-21]
     paths: [.github/workflows/sites-stage3-brief-byte-drift-m7-ci.yml]
 permissions:
@@ -14,7 +14,7 @@ jobs:
     if: >-
       github.repository == 'rafhael100/imagine-sites' &&
       github.event_name == 'pull_request' &&
-      github.event.action == 'opened' &&
+      github.event.action == 'synchronize' &&
       github.run_attempt == 1 &&
       github.event.repository.private == false &&
       github.event.pull_request.state == 'open' &&
@@ -42,10 +42,10 @@ jobs:
           prefix='tests/fixtures/sites-stage3-brief-v2/'
           new={
               prefix+'validate.php':'a84a45d58f0ebdb450bbcd2fb3d44de2e7632d13',
+              prefix+'runner.sh':'8af8fd45e31eb0cc901dc5aec59eb138f8762701',
           }
           inherited={
               prefix+'acquire.sh':'7bd4f9fdca05b7e5295370db43cf89b0d6e422386f96fbdb2fdf848d5b8b40d6',
-              prefix+'runner.sh':'1f91955679b2a107cfb0d0a98aa0557be95ae8273e29ab57de23ee4a869aad42',
               prefix+'owned_receipt.py':'f4e25ae782a30c1dd266f316624fb952848914e2cfaebc525796d2161004140b',
               prefix+'brief-persistence-v2.sql':'91f2fc10039ae1ef2fc326eb770de3825a747bcc94c31cd72470144f63dbf421',
               'tests/fixtures/sites-stage3/Stage3ReceiptChannel.php':'ee5e124be0521f44af7114ecd291c262ae544e6e448371d34f065973536426ba',
@@ -110,7 +110,7 @@ jobs:
               event=json.loads(pathlib.Path(e['GITHUB_EVENT_PATH']).read_bytes())
               pr=event['pull_request']
               number=event['number']
-              need(type(number) is int and number>0 and pr['number']==number and event['action']=='opened'
+              need(type(number) is int and number>0 and pr['number']==number and event['action']=='synchronize'
                    and public(event['repository']) and public(pr['head']['repo']) and public(pr['base']['repo'])
                    and pr['state']=='open' and pr['draft'] is True and pr['head']['ref']==head_ref
                    and pr['base']['ref']==base_ref and pr['base']['sha']==base)
@@ -128,14 +128,16 @@ jobs:
               def parents(commit):
                   return [ln[7:].decode() for ln in git('cat-file','commit',commit).split(b'\n\n',1)[0].splitlines()
                           if ln.startswith(b'parent ')]
-              need(parents(head)==[base] and parents(merge)==[base,head])
+              need(parents(head)==['5c3a4404fcc141e55d77548cee39d9709b1d6ce6']
+                   and parents('5c3a4404fcc141e55d77548cee39d9709b1d6ce6')==[base]
+                   and parents(merge)==[base,head])
               git('checkout','--quiet','--detach',head)
               need(git('rev-parse','HEAD').strip().decode()==head)
               allowed={*new,workflow}
               fields=git('diff','--no-renames','--name-status','-z',base,head).split(b'\0')
               need(fields[-1:]==[b''] and len(fields)==1+2*len(allowed)
                    and {(fields[i],fields[i+1].decode()) for i in range(0,len(fields)-1,2)}
-                       =={(b'M',prefix+'validate.php'),(b'A',workflow)})
+                       =={(b'M',prefix+'validate.php'),(b'M',prefix+'runner.sh'),(b'A',workflow)})
               for path,oid in new.items():
                   need(git('rev-parse',head+':'+path).strip().decode()==oid)
                   need(git_bytes(path,head)==git('show',head+':'+path))
