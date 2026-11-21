@@ -1,0 +1,67 @@
+name: Sites OnePage bounded AI Agents worker boundary (synthetic CI, NO-GO)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['test/sites-onepage-agents-process-bridge-2026-11-20-r38']
+    paths:
+      - 'src/Production/OnepageBoundedWorkerProcessCandidate.php'
+      - 'tests/onepage-bounded-worker-process-offline.php'
+      - 'tests/onepage-agent-process-bridge-offline.php'
+      - 'docs/reviews/SITES-ONEPAGE-BOUNDED-PROCESS-2026-11-20.md'
+      - '.github/workflows/sites-onepage-bounded-agent-worker.yml'
+permissions:
+  contents: read
+concurrency:
+  group: sites-onepage-bounded-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  bounded-process:
+    if: >-
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'test/sites-onepage-worker-deadline-output-fence-2026-11-20-r39' &&
+      github.event.pull_request.base.ref == 'test/sites-onepage-agents-process-bridge-2026-11-20-r38' &&
+      github.event.pull_request.base.sha == '50b72e90bdd2657c59fbf933db865f30e68f2e54'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3','8.4']
+    env:
+      SITES_ONEPAGE_AGENT_PROCESS_LAB: '1'
+      IMAGINE_ONEPAGE_PROCESS_LAB: '1'
+    steps:
+      - name: Exact Sites SHA with no persisted token
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Exact public synthetic worker SHA with no persisted token
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: rafhael100/imagine-ai-agents
+          ref: 3f9ef347e51fe419e75d6582bf7630a51fe371dd
+          path: ci-ai-agents
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, dom, xml
+          coverage: none
+      - name: Syntax, process fault injection, existing real cross-repo bridge and served HTML
+        run: |
+          set -euo pipefail
+          php -l src/Production/OnepageBoundedWorkerProcessCandidate.php
+          php -l tests/onepage-bounded-worker-process-offline.php
+          php -l tests/onepage-agent-process-bridge-offline.php
+          php tests/onepage-bounded-worker-process-offline.php | tee "$RUNNER_TEMP/onepage-bounded.log"
+          grep -Eq '^ONEPAGE BOUNDED WORKER PASS: [0-9]+ synthetic checks; NO-GO; NO OPENAI REQUEST[.]$' "$RUNNER_TEMP/onepage-bounded.log"
+          php tests/onepage-agent-process-bridge-offline.php | tee "$RUNNER_TEMP/onepage-bridge.log"
+          grep -Eq '^ONEPAGE PROCESS BRIDGE PASS: [0-9]+ synthetic checks; NO-GO; NO OPENAI REQUEST[.]$' "$RUNNER_TEMP/onepage-bridge.log"
+      - name: No provider use or credentials in public CI
+        run: |
+          set -euo pipefail
+          test ! -e .env
+          test ! -e ci-ai-agents/.env
+          ! grep -Eq 'OPENAI_API_KEY|api[.]openai[.]com|curl_exec|Asaas|Cloudflare' src/Production/OnepageBoundedWorkerProcessCandidate.php tests/onepage-bounded-worker-process-offline.php
