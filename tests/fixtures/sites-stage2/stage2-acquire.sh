@@ -38,7 +38,7 @@ ubuntuopt=("${aptopt[@]}" -o "Dir::Etc::sourcelist=$A/ubuntu.list" -o "Dir::Stat
 sudo -n apt-get "${aptopt[@]}" -o APT::Update::Error-Mode=any update >/dev/null
 sudo -n apt-get "${ubuntuopt[@]}" -o APT::Update::Error-Mode=any update >/dev/null
 packages=(php8.3-cli php8.3-pgsql php8.3-mbstring php8.3-xml php8.3-curl php8.3-zip composer
-  libicu74 libldap2 liblz4-1 libzstd1 libxml2 libssl3t64 libkrb5-3 libreadline8t64 libllvm17t64)
+  libicu74 libldap2 liblz4-1 libzstd1 libxml2 libssl3t64 libkrb5-3 libreadline8t64 libllvm17t64 libnuma1)
 if pgrep -x postgres >/dev/null; then echo STAGE2_EXISTING_POSTGRES_REFUSED >&2; exit 1; fi
 plan=$(sudo -n apt-get "${ubuntuopt[@]}" -s --no-upgrade --no-install-recommends install "${packages[@]}")
 if grep -Eq '^(Remv |Inst postgresql)' <<<"$plan"; then echo STAGE2_PACKAGE_PLAN_REFUSED >&2; exit 1; fi
@@ -72,6 +72,59 @@ if pgrep -x postgres >/dev/null; then echo STAGE2_EXISTING_POSTGRES_REFUSED >&2;
 test -f "$T/usr/share/postgresql/18/extension/pgcrypto.control"
 test -x "$T/usr/lib/postgresql/18/bin/postgres"
 test -f "$T/usr/lib/x86_64-linux-gnu/libpq.so.5"
+# Required by the pinned PG18 server. Extract one exact signed Noble package;
+# do not install it on the runner or permit an alternate version.
+(
+  mkdir "$A/liburing-deb" || exit 1
+  cd "$A/liburing-deb" || exit 1
+  apt-get "${ubuntuopt[@]}" download 'liburing2=2.5-1build1' >/dev/null || exit 1
+  shopt -s nullglob
+  files=(*.deb)
+  [[ "${#files[@]}" = 1 ]] || exit 1
+  deb=${files[0]}
+  [[ $(dpkg-deb -f "$deb" Package) = liburing2 &&
+     $(dpkg-deb -f "$deb" Version) = 2.5-1build1 &&
+     $(dpkg-deb -f "$deb" Architecture) = amd64 &&
+     $(stat -c %s "$deb") = 21092 ]] || exit 1
+  printf '%s  %s\n' c2aef62accee92a06263c3ad4ef46132c13e409b54296c44792a20491830a7b0 "$deb" |
+    sha256sum --strict -c - >/dev/null || exit 1
+  dpkg-deb -x "$deb" "$T" || exit 1
+) || { printf 'STAGE2_PG_CLOSURE_REFUSED LIBURING_PACKAGE\n' >&2; exit 1; }
+# --list resolves ELF dependencies only, with the runtime library path and no
+# inherited environment. No PostgreSQL code or extension entry point runs.
+(
+  shopt -s nullglob
+  lib=$T/usr/lib/x86_64-linux-gnu
+  pg18=$T/usr/lib/postgresql/18
+  loader=/lib64/ld-linux-x86-64.so.2
+  u=$lib/liburing.so.2.5
+  [[ -x "$loader" && -L "$lib/liburing.so.2" && $(readlink -- "$lib/liburing.so.2") = liburing.so.2.5 &&
+     -f "$u" && ! -L "$u" && $(stat -c %s "$u") = 26856 ]] || exit 1
+  printf '%s  %s\n' 51594b92ac35f96595d3fcec9c3ec5d190637d9b426d5f8a8f4207875d2962f6 "$u" |
+    sha256sum --strict -c - >/dev/null || exit 1
+  bins=("$pg18"/bin/*)
+  [[ "${#bins[@]}" -ge 5 && "${#bins[@]}" -le 80 &&
+     -f "$pg18/lib/pgcrypto.so" && ! -L "$pg18/lib/pgcrypto.so" ]] || exit 1
+  for target in "${bins[@]}" "$pg18/lib/pgcrypto.so"; do
+    tool=${target##*/}
+    [[ "$tool" =~ ^[a-z_0-9.]{1,32}$ && -f "$target" &&
+       $(realpath -e -- "$target") = "$pg18/"* ]] || exit 1
+    if ! report=$(timeout 5s /usr/bin/env -i LC_ALL=C "$loader" --library-path "$lib" --list "$target" 2>&1); then
+      printf 'STAGE2_PG_CLOSURE_REFUSED LOADER %s\n' "$tool" >&2
+      exit 1
+    fi
+    if grep -Eq 'not found|cannot open shared object file|wrong ELF' <<<"$report"; then
+      printf 'STAGE2_PG_CLOSURE_REFUSED UNRESOLVED %s\n' "$tool" >&2
+      exit 1
+    fi
+    if [[ "$tool" = postgres ]]; then
+      awk -v want="$lib/liburing.so.2" '$1=="liburing.so.2" && $2=="=>" && $3==want {n++} END {exit n!=1}' <<<"$report" || exit 1
+    elif [[ "$tool" = psql ]]; then
+      awk -v want="$lib/libpq.so.5" '$1=="libpq.so.5" && $2=="=>" && $3==want {n++} END {exit n!=1}' <<<"$report" || exit 1
+    fi
+  done
+  printf 'STAGE2_PG_ELF_CLOSURE_OK %s_PLUS_PGCRYPTO\n' "${#bins[@]}"
+) || { printf 'STAGE2_PG_CLOSURE_REFUSED EXACT_RUNTIME\n' >&2; exit 1; }
 portal=4dc198d2109fe1c7590b5f012e77757ed593e1d5
 git -C "$P" init -q
 git -C "$P" fetch -q --depth=1 --no-tags https://github.com/rafhael100/imagine-portal.git "$portal"
