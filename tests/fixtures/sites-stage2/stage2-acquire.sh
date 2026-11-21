@@ -103,6 +103,28 @@ for x in lock:
     path=v/x['name']
     check(path.is_dir() and path.resolve()==path and (path/'.git').is_dir())
     check(git(path,'rev-parse','HEAD').strip().decode()==ref)
+    # Composer makes declared bins executable, even when upstream recorded 100644.
+    # Permit only the observed candidate's deterministic Carbon mode mutation,
+    # restore the Git mode, and keep every content and tree check below.
+    if x['name']=='nesbot/carbon':
+        import hashlib, os, stat
+        check(ref=='ce0e5636fae7d1e99856eb70cae4c719a284aa08' and x.get('bin')==['bin/carbon'])
+        blob=b'b53ab7385803a001ca55414cbc630e0c8933fbbb'
+        check(git(path,'ls-tree','-z',ref,'--','bin/carbon')==b'100644 blob '+blob+b'\tbin/carbon\0')
+        delta=git(path,'-c','core.filemode=true','diff','--raw','--no-abbrev','-z','--no-ext-diff','--no-textconv',ref,'--')
+        if delta:
+            check(delta in {b':100644 100755 '+blob+b' '+oid+b' M\0bin/carbon\0' for oid in (b'0'*40,blob)})
+            f=path/'bin/carbon'
+            check(f.resolve(strict=True)==f)
+            with os.fdopen(os.open(f,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK),'rb') as stream:
+                s=os.fstat(stream.fileno())
+                check(stat.S_ISREG(s.st_mode) and stat.S_IMODE(s.st_mode)==0o700 and s.st_uid==os.geteuid()
+                      and s.st_nlink==1 and s.st_size==391)
+                data=stream.read(392)
+                check(len(data)==391 and hashlib.sha1(b'blob 391\0'+data).hexdigest().encode()==blob)
+                os.fchmod(stream.fileno(),0o600)
+            check(git(path,'-c','core.filemode=true','diff','--raw','-z',ref,'--')==b'')
+            print('STAGE2_CARBON_PINNED_MODE_RESTORED')
     check(git(path,'diff','--exit-code',ref,'--')==b'' and git(path,'ls-files','--others','-z')==b'')
     check(not any(f.startswith((b'120000 ',b'160000 ')) for f in git(path,'ls-files','--stage').splitlines()))
 print('STAGE2_LOCKED_SOURCES_OK',len(lock))
