@@ -236,7 +236,18 @@ try {
     $phase='APP_FACTORY';
     $app=require $base.'/bootstrap/app.php';
     $phase='CACHE';
-    need(!$app->configurationIsCached() && !$app->routesAreCached(),'UNCACHED_BOOT');
+    // Laravel registers the filesystem binding during kernel bootstrap.
+    // Verify the same native cache targets without resolving that service early.
+    $configCache=$app->getCachedConfigPath();
+    $routesCache=$app->getCachedRoutesPath();
+    $cacheDir=$base.'/bootstrap/cache';
+    need($configCache===$cacheDir.'/config.php' && $routesCache===$cacheDir.'/routes-v7.php'
+        && realpath($cacheDir)===$cacheDir && !is_link($cacheDir)
+        && !file_exists($configCache) && !is_link($configCache)
+        && !file_exists($routesCache) && !is_link($routesCache)
+        && (!$app->bound('config_loaded_from_cache') || $app->make('config_loaded_from_cache')===false)
+        && (!$app->bound('routes.cached') || $app->make('routes.cached')===false),
+        'UNCACHED_BOOT');
     $phase='KERNEL_RESOLVE';
     $console=$app->make(ConsoleKernel::class);
     $phase='CONSOLE_BOOT';
