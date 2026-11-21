@@ -96,13 +96,18 @@ function mfaStep(Client $client, PDO $admin, string $subject, int $last=-1):arra
     throw new RuntimeException('STAGE2_FIXTURE_REFUSED:TOTP_WINDOW');
 }
 
-function seedPortal(Slot $portal, string $base, string $root):array {
+function seedPortal(Slot $portal, string $base, string $root, string &$phase):array {
     $portal->assertSql();
     $p=$portal->pdo;
-    foreach (['portal_browser_auth.sql','portal_browser_envelopes.sql'] as $file) {
+    foreach ([
+        'DDL_PORTAL_BROWSER_AUTH'=>'portal_browser_auth.sql',
+        'DDL_PORTAL_BROWSER_ENVELOPES'=>'portal_browser_envelopes.sql',
+    ] as $step=>$file) {
+        $phase=$step;
         $portal->assertSql();
         $p->exec(file_get_contents($base.'/database/security/'.$file));
     }
+    $phase='DDL_PORTAL_ROLE_BOOTSTRAP';
     $proof=bin2hex(random_bytes(32));
     $totpKey=random_bytes(32);
     $identityPassword=bin2hex(random_bytes(32));
@@ -110,26 +115,32 @@ function seedPortal(Slot $portal, string $base, string $root):array {
     $appPassword=bin2hex(random_bytes(32));
     $p->beginTransaction();
     try {
-        $p->exec('SET LOCAL password_encryption=scram_sha_256');
+        $p->exec("SET LOCAL password_encryption='scram-sha-256'");
         $p->exec('REVOKE CONNECT,TEMP ON DATABASE '.PORTAL_DB.' FROM PUBLIC');
         foreach (['portal_browser_runtime'=>$identityPassword,'portal_browser_envelope_runtime'=>$envelopePassword] as $role=>$pw) {
             $p->exec('ALTER ROLE '.$role.' LOGIN PASSWORD '.$p->quote($pw));
             $p->exec('GRANT CONNECT ON DATABASE '.PORTAL_DB.' TO '.$role);
         }
+        $phase='DDL_PORTAL_PROOF';
         $p->prepare('INSERT INTO portal_browser_private.proof_key(secret) VALUES(?)')->execute([$proof]);
+        $phase='DDL_PORTAL_ORGANIZATION';
         $p->prepare("INSERT INTO public.portal_organizations(id,reference,display_name,status,security_revision) VALUES(?,'fixture-stage-two','Synthetic Stage Two','active',1)")->execute([COMPANY]);
         foreach ([AUTHOR=>'author@example.invalid',REVIEWER=>'reviewer@example.invalid'] as $id=>$mail) {
+            $phase='DDL_PORTAL_IDENTITY';
             $hash=PortalPasswordCredential::makeHash($appPassword);
             need(is_string($hash),'PASSWORD_FIXTURE');
             $p->prepare("INSERT INTO public.portal_identities(id,email_normalized,password_hash,status,mfa_secret_ciphertext,email_verified_at,mfa_confirmed_at,security_revision) VALUES(?,?,?,'active',?,clock_timestamp(),clock_timestamp(),1)")
                 ->execute([$id,$mail,$hash,PortalTotpSecretCipher::seal(BASE32_TEST_SECRET,$totpKey)]);
+            $phase='DDL_PORTAL_MEMBERSHIP';
             $p->prepare("INSERT INTO public.portal_memberships(id,identity_id,organization_id,role,status,membership_revision) VALUES(gen_random_uuid(),?,?,'member','active',1)")->execute([$id,COMPANY]);
         }
+        $phase='DDL_PORTAL_COMMIT';
         $p->commit();
     } catch(Throwable $e) {
         if ($p->inTransaction()) $p->rollBack();
         throw $e;
     }
+    $phase='DDL_PORTAL_CUSTODY_FILE';
     $file=$root.'/portal-fixture.json';
     $f=fopen($file,'x');
     need(is_resource($f),'PORTAL_FILE');
@@ -142,7 +153,7 @@ function seedPortal(Slot $portal, string $base, string $root):array {
     return [$file,$appPassword,$identityPassword];
 }
 
-function seedSites(Slot $sites, string $sitesRoot):array {
+function seedSites(Slot $sites, string $sitesRoot, string &$phase):array {
     $sites->assertSql();
     $p=$sites->pdo;
     need($p->query("SELECT to_regnamespace('sites_preview') IS NULL")->fetchColumn()===true,'SITES_ABSENT');
@@ -151,12 +162,14 @@ function seedSites(Slot $sites, string $sitesRoot):array {
     need(is_string($sql) && sha1('blob '.strlen($sql).chr(0).$sql)==='d1a3ec8ad66cb32f2911f73d3654ee3c857b4f50','SITES_DDL_PIN');
     $p->beginTransaction();
     try {
-        $p->exec('SET LOCAL password_encryption=scram_sha_256; SET LOCAL lock_timeout=2000; SET LOCAL statement_timeout=5000');
+        $p->exec("SET LOCAL password_encryption='scram-sha-256'; SET LOCAL lock_timeout=2000; SET LOCAL statement_timeout=5000");
         $p->exec('REVOKE CONNECT,TEMP ON DATABASE '.SITES_DB.' FROM PUBLIC');
         $p->exec('CREATE ROLE sites_preview_stage2_owner NOLOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE NOREPLICATION NOINHERIT');
         $p->exec('GRANT CREATE ON DATABASE '.SITES_DB.' TO sites_preview_stage2_owner');
+        $phase='DDL_SITES_NATIVE_SQL';
         $p->exec('SET LOCAL ROLE sites_preview_stage2_owner');
         $p->exec($sql); // exact native SQL, under the non-login runtime-independent owner
+        $phase='DDL_SITES_GRANTS';
         $p->exec('RESET ROLE');
         $p->exec('REVOKE CREATE ON DATABASE '.SITES_DB.' FROM sites_preview_stage2_owner');
         foreach ($logins as $role=>$pw) {
@@ -173,6 +186,7 @@ function seedSites(Slot $sites, string $sitesRoot):array {
             $p->prepare("INSERT INTO sites_preview.principals(database_login,company_id,can_edit,can_review,expires_at,revoked_at) VALUES(?,?::uuid,?::boolean,?::boolean,clock_timestamp()+interval '15 minutes',NULL)")
                 ->execute([$role,COMPANY,$role===AUTHOR_SQL?'true':'false',$role===REVIEWER_SQL?'true':'false']);
         }
+        $phase='DDL_SITES_COMMIT';
         $p->commit();
     } catch(Throwable $e) {
         if ($p->inTransaction()) $p->rollBack();
@@ -285,25 +299,30 @@ try {
         && $portal->pdo->query("SELECT count(*)=0 FROM pg_roles WHERE rolname ~ '^(portal_browser_|sites_preview_stage2_)'")->fetchColumn()===true,'FRESH_BOTH_DBS');
     echo "PASS STAGE2_DUAL_DB_BEFORE_DDL\n";
 
-    $phase='NATIVE_DDL';
+    $phase='DDL_PRESTATE';
     foreach ([
-        '2026_11_09_000002_create_portal_identity_foundation.php',
-        '2026_11_09_000003_add_mfa_replay_counter_to_portal_identities.php',
-        '2026_11_10_000004_add_org_revision_to_portal_sessions.php',
-        '2026_11_10_000005_create_portal_auth_throttle_buckets.php',
-        '2026_11_10_000008_add_session_purpose_to_portal_auth_sessions.php',
-        '2026_11_11_000012_fence_portal_membership_revision.php',
-        '2026_11_11_000013_fence_portal_organization_revision.php',
-        '2026_11_11_000014_guard_portal_session_issuance.php',
-        '2026_11_12_000016_fence_portal_identity_revision.php',
-    ] as $name) {
+        'DDL_MIG_000002'=>'2026_11_09_000002_create_portal_identity_foundation.php',
+        'DDL_MIG_000003'=>'2026_11_09_000003_add_mfa_replay_counter_to_portal_identities.php',
+        'DDL_MIG_000004'=>'2026_11_10_000004_add_org_revision_to_portal_sessions.php',
+        'DDL_MIG_000005'=>'2026_11_10_000005_create_portal_auth_throttle_buckets.php',
+        'DDL_MIG_000008'=>'2026_11_10_000008_add_session_purpose_to_portal_auth_sessions.php',
+        'DDL_MIG_000012'=>'2026_11_11_000012_fence_portal_membership_revision.php',
+        'DDL_MIG_000013'=>'2026_11_11_000013_fence_portal_organization_revision.php',
+        'DDL_MIG_000014'=>'2026_11_11_000014_guard_portal_session_issuance.php',
+        'DDL_MIG_000016'=>'2026_11_12_000016_fence_portal_identity_revision.php',
+    ] as $step=>$name) {
+        $phase=$step;
         $portal->assertSql();
         need($app['db']->connection()->getPdo()===$portal->pdo,'DDL_SAME_PDO');
         (require $base.'/database/migrations/'.$name)->up();
     }
-    [$fixtureFile,$appPassword,$identityPassword]=seedPortal($portal,$base,$root);
+    $phase='DDL_PORTAL_PRESTATE';
+    [$fixtureFile,$appPassword,$identityPassword]=seedPortal($portal,$base,$root,$phase);
+    $phase='DDL_PORTAL_PROJECTION';
     installProjection($portal,file_get_contents(__DIR__.'/stage2-fixture.sql'));
-    $sitesPasswords=seedSites($sites,$sitesRoot);
+    $phase='DDL_SITES_PRESTATE';
+    $sitesPasswords=seedSites($sites,$sitesRoot,$phase);
+    $phase='DDL_RUNTIME_SLOTS';
     $authPdo=slot($app,'stage2_portal_projection',PORTAL_DB,'portal_browser_runtime',$identityPassword,$receipt);
     $author=slot($app,'stage2_sites_author',SITES_DB,AUTHOR_SQL,$sitesPasswords[AUTHOR_SQL],$receipt);
     $reviewer=slot($app,'stage2_sites_reviewer',SITES_DB,REVIEWER_SQL,$sitesPasswords[REVIEWER_SQL],$receipt);
@@ -349,7 +368,23 @@ try {
     $failure=false;
 } catch(Throwable $e) {
     // Never print session material, DB diagnostics, synthetic passwords or raw errors.
-    $known=!in_array($phase,['KERNEL_RESOLVE','CONSOLE_BOOT'],true) && preg_match('/\ASTAGE2_FIXTURE_REFUSED:[A-Z_]+\z/D',$e->getMessage())===1 ? ' '.$e->getMessage():'';
+    $ddl=str_starts_with($phase,'DDL_');
+    $ddlReason='';
+    if ($ddl) {
+        // Laravel v13 QueryException extends PDOException and forwards the code.
+        // Do not emit the exception string, SQL, binding values, or unlisted state.
+        $state=$e instanceof \PDOException ? (string)$e->getCode() : null;
+        $ddlReason=match($state) {
+            null => ' NON_SQL_EXCEPTION',
+            '0','' => ' SQLSTATE_UNAVAILABLE',
+            '08001','08006','0A000','22001','22023','22P02','23502','23503','23505','23514',
+            '25001','25P01','25P02','28000','28P01','2BP01','3D000','3F000',
+            '42601','42501','42703','42704','42710','42804','42883','42P01','42P07',
+            '55000','55P03','57014','58P01','XX000' => ' SQLSTATE_'.$state,
+            default => ' SQLSTATE_OTHER',
+        };
+    }
+    $known=!$ddl && !in_array($phase,['KERNEL_RESOLVE','CONSOLE_BOOT'],true) && preg_match('/\ASTAGE2_FIXTURE_REFUSED:[A-Z_]+\z/D',$e->getMessage())===1 ? ' '.$e->getMessage():'';
     $family=in_array($phase,['KERNEL_RESOLVE','CONSOLE_BOOT'],true) ? ' '.match(true) {
         $e instanceof \Illuminate\Contracts\Container\BindingResolutionException => 'CONTAINER_RESOLUTION',
         $e instanceof \PDOException => 'PDO_EXCEPTION',
@@ -360,7 +395,7 @@ try {
         default => 'OTHER_THROWABLE',
     } : '';
     $stage=$phase==='CONSOLE_BOOT' ? ' '.($consoleStage??'PRE_BOOTSTRAPPERS'):'';
-    fwrite(STDERR,'STAGE2_FAILED_'.$phase.$stage.$family.$known."\n");
+    fwrite(STDERR,'STAGE2_FAILED_'.$phase.$stage.$family.$ddlReason.$known."\n");
 } finally {
     // Folder and cluster teardown are supervised independently, including abrupt exits.
     if ($fixtureFile!==null && is_file($fixtureFile) && !unlink($fixtureFile)) $failure=true;
