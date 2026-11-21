@@ -1,0 +1,44 @@
+name: Sites Landing checkout-to-approved-brief linkage candidate (NO-GO)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - fix/sites-landing-pg18-readback-head-serialization-2026-11-20-r29
+    paths:
+      - src/Integration/LandingCheckoutApprovalLinkageCandidate.php
+      - tests/landing-checkout-approval-linkage.php
+      - .github/workflows/sites-landing-checkout-approval-linkage-candidate.yml
+      - docs/reviews/SITES-LANDING-CHECKOUT-APPROVAL-LINKAGE-2026-11-21.md
+permissions:
+  contents: read
+jobs:
+  linkage:
+    if: github.event.pull_request.draft == true && github.repository == 'rafhael100/imagine-sites'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Verify precise PR HEAD and restricted candidate base
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_BASE: ${{ github.event.pull_request.base.ref }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$PR_HEAD_SHA"
+          test "$PR_BASE" = 'fix/sites-landing-pg18-readback-head-serialization-2026-11-20-r29'
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: none
+          tools: none
+          coverage: none
+      - name: Syntax and isolated negative/shape regressions (not end-to-end)
+        run: |
+          php -l src/Integration/LandingCheckoutApprovalLinkageCandidate.php
+          php -l tests/landing-checkout-approval-linkage.php
+          php tests/landing-checkout-approval-linkage.php
