@@ -48,7 +48,7 @@ final class IsolatedScenario
     ];
     private const MODULES=[
       'Machine.php'=>'036a5fed115c75f0103a934f383690b664f80814081ce7996288f6933d83a9b2',
-      'Race.php'=>'b3e55060b33e87e5cc74717403406bcc454c78ef646d0cc49e1b32f545a9fb58',
+      'Race.php'=>'5127576d711eed18d017bdb6a3e7883f9c9732c58dd44b0100f31b1ce2edd0bd',
       'schema.sql'=>'61f5a587b24d3d124596859a8411dd0d2b91a39d82a23e49894381050807c422',
     ];
     private const E='contracts/portal-sites/candidates/brief-production-v1/examples/';
@@ -239,7 +239,7 @@ final class IsolatedScenario
                 self::$phase='RACE_WAIT';
                 return $pid;
             };
-            $finish=static function(array $info)use(&$worker,&$pipes):array {
+            $finish=static function(array $info)use(&$worker,&$pipes,$gate,$observer,$revoker,$intent,$tenant):array {
                 self::$phase='RACE_CHILD';
                 $deadline=hrtime(true)+8_000_000_000;
                 do { $status=proc_get_status($worker); if(!$status['running']) break; usleep(5000); }
@@ -248,27 +248,45 @@ final class IsolatedScenario
                     self::$phase='RACE_CHILD_TIMEOUT';
                     throw new RuntimeException();
                 }
-                $stderr=stream_get_contents($pipes[2],257);
-                if ($status['exitcode']!==0) {
-                    self::reportChild($stderr);
-                    self::$phase='RACE_CHILD_EXIT';
-                    throw new RuntimeException();
+
+                // The subprocess is terminal, and the revocation committed
+                // before finish is invoked. On a bad ACK, observe once only.
+                $ack='IO';
+                try {
+                    $stderr=stream_get_contents($pipes[2],257);
+                    if ($status['exitcode']!==0) {
+                        self::reportChild($stderr);
+                        self::$phase='RACE_CHILD_EXIT';
+                        $ack='CHILD_EXIT';
+                        throw new RuntimeException();
+                    }
+                    self::$phase='RACE_ACK';
+                    $stdout=stream_get_contents($pipes[1],257);
+                    $ack=self::ackClass($stdout,$stderr);
+                    self::need($ack==='VALID');
+                    foreach($pipes as $p) fclose($p);
+                    $pipes=[];
+                    self::$phase='RACE_PARENT_CLOSE'; $ack='PARENT_CLOSE';
+                    $closed=proc_close($worker); $worker=null;
+                    self::need($closed===0 || $closed===-1);
+                    self::$phase='RACE_READBACK';
+                    return ['kind'=>'discarded'];
+                } catch(Throwable $failure) {
+                    fwrite(STDERR,'ONEPAGE_TERMINAL_ACK_REFUSED '.$ack."\n");
+                    $out='READ_UNAVAILABLE';
+                    try {
+                        $fresh=$gate->openBootstrap(true);
+                        $pid=$gate->assertBootstrap($fresh);
+                        $proof=self::q($observer,'SELECT pg_catalog.pg_backend_pid()')->fetchColumn();
+                        $held=self::q($revoker,'SELECT pg_catalog.pg_backend_pid()')->fetchColumn();
+                        self::need(!in_array($pid,[(int)$proof,(int)$held,$info['pid']],true));
+                        $out=RevokeFirstFixture::observeAfterBadAck($fresh,$intent,$tenant,$intent->tuple['bindingRevision']);
+                    } catch(Throwable) {
+                        // Never expose rows, values, paths, SQLSTATE or error text.
+                    }
+                    fwrite(STDERR,'ONEPAGE_TERMINAL_FAILED_ACK_READBACK '.$out."\n");
+                    throw $failure; // Readback never repairs the failure or retries the writer.
                 }
-                self::$phase='RACE_ACK';
-                $stdout=stream_get_contents($pipes[1],257);
-                self::need(is_string($stdout) && strlen($stdout)<=256 && $stderr==='');
-                foreach($pipes as $p) fclose($p);
-                $pipes=[];
-                self::$phase='RACE_PARENT_CLOSE';
-                $closed=proc_close($worker); $worker=null;
-                // The first non-running proc_get_status above already observed
-                // exact exit zero; older PHP may return -1 after that harvest.
-                self::need($closed===0 || $closed===-1);
-                self::$phase='RACE_ACK';
-                $done=self::decode($stdout);
-                self::need($done===['kind'=>'discarded']);
-                self::$phase='RACE_READBACK';
-                return $done;
             };
             RevokeFirstFixture::run($revoker,$observer,$tenant,$intent,$start,$finish,self::capture(...),
                 static fn():PDO=>$gate->openBootstrap(true));
@@ -316,6 +334,15 @@ final class IsolatedScenario
             fwrite(STDERR,'ONEPAGE_TERMINAL_CHILD_REFUSED '.$phase."\n");
             exit(1);
         }
+    }
+
+    private static function ackClass(mixed $stdout,mixed $stderr):string
+    {
+        if (!is_string($stdout) || !is_string($stderr)) return 'IO';
+        if ($stderr!=='') return 'STDERR';
+        if ($stdout==='') return 'EMPTY';
+        if (strlen($stdout)>256) return 'OVERSIZE';
+        return $stdout==="{\"kind\":\"discarded\"}\n" ? 'VALID' : 'FORMAT';
     }
 
     /** Raw output is untrusted and is never echoed or logged. */
