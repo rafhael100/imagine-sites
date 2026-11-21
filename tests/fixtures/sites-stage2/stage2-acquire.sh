@@ -274,7 +274,74 @@ for dirname, dirs, files in os.walk(v,followlinks=False,onerror=walk_error):
     scope='runtime'
 print('STAGE2_LOCKED_SOURCES_OK',len(lock),flush=True)
 PY
-cat /etc/php/8.3/cli/php.ini /etc/php/8.3/cli/conf.d/*.ini >"$R/php.ini"
+# Build the laboratory's private PostgreSQL runtime INI. Keep host config intact;
+# Pdo\Mysql constants in pinned Laravel config require PHP 8.4 if mysql loads.
+{
+  cat /etc/php/8.3/cli/php.ini
+  shopt -s nullglob
+  for ini in /etc/php/8.3/cli/conf.d/*.ini; do
+    case "${ini##*/}" in
+      10-mysqlnd.ini|20-mysqli.ini|20-pdo_mysql.ini) ;;
+      *) cat -- "$ini" ;;
+    esac
+  done
+} >"$R/php.ini"
+# An inert config-load preflight only, before opening any PostgreSQL connection.
+# Do not invoke Laravel console/HTTP kernels, providers, migrations or workers.
+outside=$(/usr/bin/readlink /proc/self/ns/net)
+uid=$(/usr/bin/id -u)
+gid=$(/usr/bin/id -g)
+sudo -n /usr/bin/env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin LC_ALL=C \
+  /usr/bin/unshare --net -- \
+  /usr/bin/setpriv --reuid "$uid" --regid "$gid" --clear-groups --no-new-privs \
+  --bounding-set=-all --inh-caps=-all --ambient-caps=-all \
+  /usr/bin/bash -ceu '
+    set -o pipefail
+    fail() { echo STAGE2_PHP_PROFILE_REFUSED ISOLATION >&2; exit 1; }
+    own_ns=$(/usr/bin/readlink /proc/self/ns/net) || fail
+    devices=$(ip -o link show | awk -F": " "{print \$2}") || fail
+    up=$(ip -o link show up) || fail
+    ipv4=$(ip -4 route show table main) || fail
+    ipv6=$(ip -6 route show table main) || fail
+    [[ $EUID = "$1" && $EUID != 0 &&
+       $own_ns =~ ^net:\[[1-9][0-9]*\]$ && $own_ns != "$2" &&
+       $(awk "/^CapEff:/{print \$2}" /proc/self/status) = 0000000000000000 &&
+       $(awk "/^NoNewPrivs:/{print \$2}" /proc/self/status) = 1 &&
+       $devices = lo && -z $up && -z $ipv4 && -z $ipv6 ]] || fail
+    exec /usr/bin/env -i PATH=/usr/bin:/bin LC_ALL=C PHP_INI_SCAN_DIR= \
+      /usr/bin/timeout --kill-after=2s 10s /usr/bin/php8.3 -c "$3" \
+      -d display_errors=0 -d log_errors=0 -f /dev/stdin -- "$4"
+  ' stage2-php-profile "$uid" "$outside" "$R/php.ini" "$P/apps/portal" <<'PHP'
+<?php
+declare(strict_types=1);
+$phase='MODULES';
+try {
+    if (PHP_MAJOR_VERSION!==8 || PHP_MINOR_VERSION!==3 || !in_array('pgsql',PDO::getAvailableDrivers(),true))
+        throw new RuntimeException();
+    foreach (['pdo','pdo_pgsql','posix','sodium','mbstring','openssl'] as $name)
+        if (!extension_loaded($name)) throw new RuntimeException();
+    foreach (['mysqlnd','mysqli','pdo_mysql'] as $name)
+        if (extension_loaded($name)) throw new RuntimeException();
+    echo "STAGE2_PHP_PG_PROFILE_OK\n";
+    $phase='VENDOR';
+    $base=$argv[1];
+    $loader=require $base.'/vendor/autoload.php';
+    if (!$loader instanceof \Composer\Autoload\ClassLoader) throw new RuntimeException();
+    $phase='APP_FACTORY';
+    $app=require $base.'/bootstrap/app.php';
+    if (!$app instanceof \Illuminate\Foundation\Application) throw new RuntimeException();
+    $phase='DATABASE_CONFIG';
+    $cfg=require $base.'/config/database.php';
+    if (($cfg['connections']['pgsql']['driver']??null)!=='pgsql'
+        || ($cfg['connections']['mysql']['options']??null)!==[]
+        || ($cfg['connections']['mariadb']['options']??null)!==[])
+        throw new RuntimeException();
+    echo "STAGE2_PORTAL_FACTORY_AND_DB_CONFIG_OK\n";
+} catch (Throwable) {
+    fwrite(STDERR,'STAGE2_PHP_PROFILE_REFUSED '.$phase."\n");
+    exit(1);
+}
+PHP
 (
   cd "$R"
   find root -type f -print0 | sort -z | xargs -0 sha256sum
