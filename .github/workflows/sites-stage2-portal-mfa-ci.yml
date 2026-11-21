@@ -2,7 +2,7 @@ name: Sites stage 2 — disposable Portal MFA editorial exercise
 'on':
   pull_request:
     types: [opened]
-    branches: [test/sites-stage2-portal-mfa-r3-2026-11-21]
+    branches: [test/sites-stage2-portal-mfa-r4-2026-11-21]
     paths: [.github/workflows/sites-stage2-portal-mfa-ci.yml]
 permissions:
   contents: read
@@ -18,9 +18,9 @@ jobs:
       github.event.pull_request.draft == true &&
       github.event.pull_request.head.repo.full_name == 'rafhael100/imagine-sites' &&
       github.event.pull_request.base.repo.full_name == 'rafhael100/imagine-sites' &&
-      github.event.pull_request.head.ref == 'test/sites-stage2-portal-mfa-r4-2026-11-21' &&
-      github.event.pull_request.base.ref == 'test/sites-stage2-portal-mfa-r3-2026-11-21' &&
-      github.event.pull_request.base.sha == 'b365081e5e6344e9c63f344ac2ce71aee14e5dbc'
+      github.event.pull_request.head.ref == 'test/sites-stage2-portal-mfa-r5-2026-11-21' &&
+      github.event.pull_request.base.ref == 'test/sites-stage2-portal-mfa-r4-2026-11-21' &&
+      github.event.pull_request.base.sha == 'a504de6d7d2df466f5223f829d0d5664fa395f05'
     runs-on: ubuntu-24.04
     timeout-minutes: 14
     steps:
@@ -36,10 +36,10 @@ jobs:
           python3 -I -B - <<'PY'
           import json, os, pathlib, re, subprocess
           repo = 'rafhael100/imagine-sites'
-          base = 'b365081e5e6344e9c63f344ac2ce71aee14e5dbc'
+          base = 'a504de6d7d2df466f5223f829d0d5664fa395f05'
           prefix = 'tests/fixtures/sites-stage2/'
           allowed = {'.github/workflows/sites-stage2-portal-mfa-ci.yml'} | {
-              prefix+'stage2-acquire.sh'
+              prefix+'stage2-runner.sh'
           }
           def require(value):
               if not value:
@@ -52,7 +52,7 @@ jobs:
           require(os.environ.get('GITHUB_ACTIONS')=='true' and os.environ.get('GITHUB_RUN_ATTEMPT')=='1' and os.environ.get('GITHUB_EVENT_NAME')=='pull_request')
           require(event['action']=='opened' and event['repository']['full_name']==repo and pr['draft'] is True and pr['state']=='open')
           require(pr['head']['repo']['full_name']==pr['base']['repo']['full_name']==repo and not pr['base']['repo']['private'])
-          require(pr['base']['sha']==base and pr['base']['ref']=='test/sites-stage2-portal-mfa-r3-2026-11-21' and pr['head']['ref']=='test/sites-stage2-portal-mfa-r4-2026-11-21')
+          require(pr['base']['sha']==base and pr['base']['ref']=='test/sites-stage2-portal-mfa-r4-2026-11-21' and pr['head']['ref']=='test/sites-stage2-portal-mfa-r5-2026-11-21')
           head=pr['head']['sha']
           require(re.fullmatch('[0-9a-f]{40}',head) and git('rev-parse','HEAD').strip().decode()==head)
           require(git('rev-list','--parents','-n1',head).decode().split()==[head,base])
