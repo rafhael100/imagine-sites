@@ -1,0 +1,294 @@
+name: Sites stage 3 M3 — no preview without approved brief
+'on':
+  pull_request:
+    types: [opened]
+    branches: [test/sites-stage3-native-order-intake-m2-2026-11-21]
+    paths: [.github/workflows/sites-stage3-missing-approved-brief-m3-ci.yml]
+permissions:
+  contents: read
+concurrency:
+  group: sites-stage3-missing-approved-brief-m3-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  attest:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      github.event_name == 'pull_request' &&
+      github.event.action == 'opened' &&
+      github.run_attempt == 1 &&
+      github.event.repository.private == false &&
+      github.event.pull_request.state == 'open' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.base.repo.full_name == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.head.ref == 'test/sites-stage3-missing-approved-brief-m3-2026-11-21' &&
+      github.event.pull_request.base.ref == 'test/sites-stage3-native-order-intake-m2-2026-11-21' &&
+      github.event.pull_request.base.sha == 'ea8d8964d149e14dfa2c2cfb3e3b4f0a2b73f554'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    steps:
+      - name: Attest fresh hosted runner and exact public source
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          /usr/bin/python3 -I -B - <<'PY'
+          import hashlib, json, os, pathlib, re, subprocess
+          repo='rafhael100/imagine-sites'
+          base='ea8d8964d149e14dfa2c2cfb3e3b4f0a2b73f554'
+          base_ref='test/sites-stage3-native-order-intake-m2-2026-11-21'
+          head_ref='test/sites-stage3-missing-approved-brief-m3-2026-11-21'
+          workflow='.github/workflows/sites-stage3-missing-approved-brief-m3-ci.yml'
+          prefix='tests/fixtures/sites-stage3/'
+          new={
+              prefix+'Stage3M3MissingApprovedSource.php':'69224eaa587876aacd8cba4337f77ff1f3c9c64044a85a815c43d4540ef0af47',
+              prefix+'Stage3M3Driver.php':'15c453de99571280e01ea59aa37437088737546603951073f750bfb93988f406',
+              prefix+'stage3-m3-php-entrypoint.php':'faf923a5b6338ce9a1023bc30621310f14087094e440a28e757cd914087828d7',
+              prefix+'stage3-m3-runner.sh':'e6c57c48426bef9ebe8046bee1524ff1544469cae3820537ab3fcc84cb71a053',
+          }
+          inherited={
+              prefix+'Stage3PortalOrderSeed.php':'6893fe479908b1c2d99003385b9112cf94b76e8db1bd8491faf2c663fe6c47a7',
+              prefix+'Stage3PortalFinanceSeed.php':'f66ad556b036fa0f4c5f4cb611d14329b593b64ba663a5008ec69ac570250d2e',
+              prefix+'Stage3InboxSeed.php':'8c67b258f7ce10563545020a9d16e9d2192947d447d3720be601505d441d0c1e',
+              prefix+'Stage3NativePaidEntry.php':'323c8f7c075c1f7ecca21622270551d003bcee99eb3107ef6588d3a88494063c',
+              prefix+'Stage3M2IntakeDdl.php':'a03d7c5c5f1760f1a46cf5ae40c8b10a404e94a4b75307f891ff87b3954ec72f',
+              prefix+'Stage3M2IntakeSlots.php':'95aeb0fe8b98fede5ab0390b34c215572dfdae30103ac9d5f7d3a09a3bb16927',
+              prefix+'Stage3NativeIntakeAssertion.php':'63434812bbd79f0dd11d7d88b07157d9a53e14b7e2ef4354e8b28eca7ae7ee8b',
+              prefix+'Stage3M2Driver.php':'3b49cfbb8985374e339075070a3c680e949b947ab92f7528729e6fe50267a65b',
+              prefix+'stage3-m2-php-entrypoint.php':'7170f7a7be2a0220f946bf0daca211ebbd6d27fb51b52bd87ca7e16117ebc67a',
+              prefix+'stage3-m2-runner.sh':'c13a7919f2bca46b425de4415decce44099f2dd7b7258488c5b8a59ed79a4057',
+              '.github/workflows/sites-stage3-three-db-attestation-ci.yml':'a3875f8993150bda5a894ba2d6d6efd5a49882599c8fb6840e12a8f25bab02f4',
+              '.github/workflows/sites-stage3-native-order-intake-m2-ci.yml':'4c792dc154ef20276fbb16e5bc208f603bcbac3caa14b7e092badeb7f8856161',
+              prefix+'stage3-runner.sh':'ebfbfd0bbbcf4ea737b1f5325a0a928b214ec01a976794c3f88c138e1c9e0968',
+              prefix+'stage3_owned_receipt.py':'d5241ff3ee6cd02cee05d28cc7a57c37cc9d3e5c3dd857948ed3e852386058b3',
+              prefix+'Stage3ReceiptChannel.php':'ee5e124be0521f44af7114ecd291c262ae544e6e448371d34f065973536426ba',
+              prefix+'Stage3SupervisedSlots.php':'fc6c8b38523b6eb3b46caf132272a52c3fe42c5a9fd7cceb727a38ca7f384ea1',
+              prefix+'stage3-qualified-connections.php':'0930a1f8c86e8a9e7b36e5a9d205f17d3006507de1bce95bf1ff167e85d66ab2',
+              'tests/fixtures/sites-stage2/stage2-acquire.sh':'4037029e11500853dd9cfe526a70f1f8c5ceeae72db6752c20959cafb93b1f1c',
+              'tests/fixtures/sites-stage2/stage2-runner.sh':'1ccdfefb8d291a9ac143568cef86071d998fd2fb5e83c462709d6ecc782728e5',
+          }
+          def need(ok):
+              if not ok: raise SystemExit('STAGE3_OUTER_REFUSED')
+          def fixed(cmd, *, env=None, timeout=8):
+              x=subprocess.run(cmd,env=env,stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,
+                               stderr=subprocess.DEVNULL,timeout=timeout)
+              need(x.returncode==0)
+              return x.stdout
+          def public(source):
+              return source['full_name']==repo and source['private'] is False
+          def git(*args):
+              return fixed(['/usr/bin/git','-C',str(root),*args],env=git_env,timeout=90)
+          def git_bytes(path,commit):
+              p=root/path
+              need(p.is_file() and p.resolve(strict=True)==p
+                   and git('ls-tree',commit,'--',path).startswith(b'100644 blob '))
+              data=p.read_bytes()
+              need(data==git('show',commit+':'+path))
+              return data
+          try:
+              e=os.environ
+              need(all(e.get(k)==v for k,v in {
+                  'GITHUB_ACTIONS':'true','GITHUB_EVENT_NAME':'pull_request','GITHUB_RUN_ATTEMPT':'1',
+                  'GITHUB_REPOSITORY':repo,'RUNNER_ENVIRONMENT':'github-hosted','RUNNER_OS':'Linux','RUNNER_ARCH':'X64',
+              }.items()))
+              denied={'GITHUB_TOKEN','GH_TOKEN','ACTIONS_ID_TOKEN_REQUEST_TOKEN','ACTIONS_ID_TOKEN_REQUEST_URL',
+                      'SSH_AUTH_SOCK','GIT_CONFIG_COUNT','GIT_ASKPASS','COMPOSER_AUTH','PGPASSWORD',
+                      'PGHOST','PGHOSTADDR','PGSERVICE','PGPASSFILE','DATABASE_URL','DB_PASSWORD',
+                      'AWS_ACCESS_KEY_ID','AWS_SECRET_ACCESS_KEY','AWS_SESSION_TOKEN','OPENAI_API_KEY'}
+              need(denied.isdisjoint(e))
+              need(os.getuid()==os.geteuid()!=0 and os.uname().machine=='x86_64')
+              release=set(pathlib.Path('/etc/os-release').read_text().splitlines())
+              need({'ID=ubuntu','VERSION_ID="24.04"'}<=release)
+              root=pathlib.Path(e['GITHUB_WORKSPACE'])
+              rt=pathlib.Path(e['RUNNER_TEMP'])
+              need(root.is_absolute() and root.resolve(strict=True)==root==pathlib.Path.cwd()
+                   and root.is_dir() and root.stat().st_uid==os.getuid() and not any(root.iterdir()))
+              need(rt.is_absolute() and rt.resolve(strict=True)==rt and rt.is_dir()
+                   and rt.stat().st_uid==os.getuid() and not any(rt.glob('sites-stage2-acquire.*'))
+                   and not any(rt.glob('sites-stage3-outer.*')) and not any(pathlib.Path('/tmp').glob('sites-stage3-*')))
+              need(subprocess.run(['/usr/bin/pgrep','-x','postgres'],stdin=subprocess.DEVNULL,
+                                  stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=5).returncode==1)
+              cap=r'''
+          import fcntl, os
+          status=dict(line.split(':',1) for line in open('/proc/self/status') if ':' in line)
+          required=(1<<12)|(1<<19)|(1<<21) # NET_ADMIN, SYS_PTRACE, SYS_ADMIN
+          assert os.getuid()==os.geteuid()==0 and int(status['CapEff'],16)&required==required
+          fd=os.memfd_create('stage3-capability-only',os.MFD_CLOEXEC|os.MFD_ALLOW_SEALING)
+          try:
+              seals=fcntl.F_SEAL_WRITE|fcntl.F_SEAL_GROW|fcntl.F_SEAL_SHRINK|fcntl.F_SEAL_SEAL
+              fcntl.fcntl(fd,fcntl.F_ADD_SEALS,seals)
+              assert fcntl.fcntl(fd,fcntl.F_GET_SEALS)==seals
+          finally:
+              os.close(fd)
+          '''
+              fixed(['/usr/bin/sudo','-n','/usr/bin/env','-i','PATH=/usr/sbin:/usr/bin:/sbin:/bin','LC_ALL=C',
+                     '/usr/bin/python3','-I','-B','-c',cap])
+              need(fixed(['/usr/bin/openssl','version']).startswith(b'OpenSSL 3.'))
+              event=json.loads(pathlib.Path(e['GITHUB_EVENT_PATH']).read_bytes())
+              pr=event['pull_request']
+              number=event['number']
+              need(type(number) is int and number>0 and pr['number']==number and event['action']=='opened'
+                   and public(event['repository']) and public(pr['head']['repo']) and public(pr['base']['repo'])
+                   and pr['state']=='open' and pr['draft'] is True and pr['head']['ref']==head_ref
+                   and pr['base']['ref']==base_ref and pr['base']['sha']==base)
+              head=pr['head']['sha']
+              merge=e['GITHUB_SHA']
+              pr_ref=f'refs/pull/{number}/merge'
+              need(re.fullmatch('[0-9a-f]{40}',head) and head!=base and re.fullmatch('[0-9a-f]{40}',merge)
+                   and e['GITHUB_REF']==pr_ref and e['GITHUB_WORKFLOW_REF']==f'{repo}/{workflow}@{pr_ref}'
+                   and e['GITHUB_WORKFLOW_SHA']==merge)
+              git_env={'PATH':'/usr/bin:/bin','LC_ALL':'C','HOME':'/nonexistent',
+                       'GIT_CONFIG_NOSYSTEM':'1','GIT_CONFIG_GLOBAL':'/dev/null','GIT_TERMINAL_PROMPT':'0'}
+              git('init','--quiet','--template=')
+              git('-c','credential.helper=','-c','http.followRedirects=false','fetch','--quiet','--no-tags',
+                  '--depth=3','https://github.com/rafhael100/imagine-sites.git',pr_ref,head,base)
+              def parents(commit):
+                  return [ln[7:].decode() for ln in git('cat-file','commit',commit).split(b'\n\n',1)[0].splitlines()
+                          if ln.startswith(b'parent ')]
+              need(parents(head)==[base] and parents(merge)==[base,head])
+              git('checkout','--quiet','--detach',head)
+              need(git('rev-parse','HEAD').strip().decode()==head)
+              added={*new,workflow}
+              fields=git('diff','--no-renames','--name-status','-z',base,head).split(b'\0')
+              need(fields[-1:]==[b''] and len(fields)==1+2*len(added)
+                   and {(fields[i],fields[i+1].decode()) for i in range(0,len(fields)-1,2)}
+                       =={(b'A',p) for p in added})
+              for path,digest in {**new,**inherited}.items():
+                  need(hashlib.sha256(git_bytes(path,head)).hexdigest()==digest)
+                  if path in inherited: need(git('show',base+':'+path)==git('show',head+':'+path))
+              need(git_bytes(workflow,head)==git('show',merge+':'+workflow))
+              need(git('rev-parse',merge+'^{tree}')==git('rev-parse',head+'^{tree}'))
+              need(git('status','--porcelain=v1','--untracked-files=all')==b'')
+          except (KeyError, OSError, ValueError, TypeError, subprocess.SubprocessError):
+              raise SystemExit('STAGE3_OUTER_REFUSED') from None
+          print('STAGE3_OUTER_HOST_AND_PINS_OK')
+          PY
+      - name: Check one native order and refuse preview without approved brief
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          export PATH=/usr/sbin:/usr/bin:/sbin:/bin LC_ALL=C
+          export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_TERMINAL_PROMPT=0
+          die() { printf 'STAGE3_JOB_REFUSED %s\n' "$1" >&2; exit 1; }
+          if pgrep -x postgres >/dev/null; then die EXISTING_POSTGRES; else [[ $? = 1 ]] || die PROCESS_CHECK; fi
+          work=$(mktemp -d "$RUNNER_TEMP/sites-stage3-outer.XXXXXXXX")
+          cleanup_outer() { rm -rf -- "$work"; }
+          trap cleanup_outer EXIT
+          [[ $work =~ /sites-stage3-outer\.[[:alnum:]]{8}$ && ! -L $work && -O $work ]] || die SCRATCH
+          mkdir "$work/home"
+          : >"$work/acquire-env"
+          # #589: unchanged sudo APT setup applies only to this fresh disposable VM.
+          # No secrets, job token, external service config or credentials are passed.
+          timeout --kill-after=5s 300s env -i PATH="$PATH" LC_ALL=C HOME="$work/home" RUNNER_TEMP="$RUNNER_TEMP" \
+            GITHUB_ACTIONS=true GITHUB_EVENT_NAME=pull_request GITHUB_RUN_ATTEMPT=1 \
+            GITHUB_REPOSITORY=rafhael100/imagine-sites GITHUB_ENV="$work/acquire-env" \
+            bash tests/fixtures/sites-stage2/stage2-acquire.sh || die ACQUISITION
+          mapfile -t receipt <"$work/acquire-env"
+          [[ ${#receipt[@]} = 2 && ${receipt[0]} = STAGE2_PORTAL_ROOT=* && \
+             ${receipt[1]} = STAGE2_RUNTIME_DIR=* ]] || die ACQUISITION_RECEIPT
+          portal=${receipt[0]#*=}; runtime=${receipt[1]#*=}; dir=${portal%/*}
+          [[ ${dir%/*} = "$RUNNER_TEMP" && ${dir##*/} =~ ^sites-stage2-acquire\.[[:alnum:]]{8}$ &&
+             $portal = "$dir/portal" && $runtime = "$dir/runtime" && \
+             $(realpath -e -- "$portal") = "$portal" && $(realpath -e -- "$runtime") = "$runtime" ]] || die ACQUISITION_PATHS
+          if pgrep -x postgres >/dev/null; then die EXISTING_POSTGRES; else [[ $? = 1 ]] || die PROCESS_CHECK; fi
+          lock="$portal/apps/portal/composer.lock"
+          [[ -f $lock && ! -L $lock && $(git -C "$portal" rev-parse HEAD) = 4dc198d2109fe1c7590b5f012e77757ed593e1d5 &&
+             $(git -C "$portal" hash-object "$lock") = 13e6715405e4719ab5dc56b8f22dcce1c855a66d ]] || die PORTAL_PIN
+          printf '%s  %s\n' 161cfffc9922862c8ef60a1ebcab7fd0445f309b94310a915a49436faa0eddb2 "$lock" |
+            sha256sum --check --strict --status || die PORTAL_LOCK
+          git -C "$portal" diff --quiet HEAD -- || die PORTAL_SOURCE_DRIFT
+          [[ -f $runtime/SHA256SUMS && ! -L $runtime/SHA256SUMS ]] || die RUNTIME_MANIFEST
+          # Two more distinct public source checkouts; no second Composer map
+          # participates in the Portal PHP process. Match exact prod tuples first.
+          checkout_fixed() {
+            local repo=$1 exact=$2 out=$3
+            [[ ! -e $out && ! -L $out ]] || return 1
+            mkdir "$out" &&
+              git -C "$out" init --quiet --template= &&
+              timeout --kill-after=3s 55s env -i PATH="$PATH" LC_ALL=C HOME="$work/home" \
+                GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_TERMINAL_PROMPT=0 \
+                /usr/bin/git -C "$out" -c credential.helper= -c http.followRedirects=false \
+                fetch --quiet --no-tags --depth=1 "$repo" "$exact" &&
+              git -C "$out" checkout --quiet --detach FETCH_HEAD &&
+              [[ $(git -C "$out" rev-parse HEAD) = "$exact" &&
+                 -z $(git -C "$out" status --porcelain=v1 --untracked-files=all) &&
+                 $(realpath -e "$out") = "$out" ]]
+          }
+          overlay="$work/portal-954"
+          sites="$work/sites-512"
+          checkout_fixed https://github.com/rafhael100/imagine-portal.git \
+            d1aaab523848baf80325a023f3ebbf4998a3607f "$overlay" || die PORTAL_OVERLAY_ACQUISITION
+          checkout_fixed https://github.com/rafhael100/imagine-sites.git \
+            9b80387fe1c580436b444a6aad2b63f3baafa37d "$sites" || die SITES_ACQUISITION
+          env -i PATH="$PATH" LC_ALL=C /usr/bin/python3 -I -B - "$portal" "$sites" <<'PY'
+          import hashlib,json,pathlib,sys
+          def need(ok):
+              if not ok: raise SystemExit('STAGE3_M2_DEPENDENCIES_REFUSED')
+          def site_lock(path):
+              f=pathlib.Path(path)
+              need(f.is_file() and f.resolve(strict=True)==f)
+              data=f.read_bytes()
+              need(hashlib.sha256(data).hexdigest()=='c2b50d26ab282213d2ccc6619211795953d5b955f79cda8cc0c1748a97dae9e3')
+              return data
+          def tuples(data):
+              return sorted((p['name'],p['version'],p['source']['type'],p['source']['url'],p['source']['reference'])
+                            for p in json.loads(data)['packages'])
+          p,s=sys.argv[1:]
+          need(not (pathlib.Path(s)/'apps/sites/vendor').exists() and not (pathlib.Path(s)/'apps/sites/vendor').is_symlink())
+          need(not (pathlib.Path(p)/'apps/portal/.env').exists() and not (pathlib.Path(p)/'apps/portal/.env').is_symlink())
+          a=tuples(pathlib.Path(p+'/apps/portal/composer.lock').read_bytes())
+          b=tuples(site_lock(s+'/apps/sites/composer.lock'))
+          need(len(a)==75 and a==b and len({k[0] for k in a})==75)
+          print('STAGE3_M2_EXACT_THREE_SOURCE_AND_DEPENDENCY_PINS_OK')
+          PY
+          portal976="$work/portal-976"
+          sites570="$work/sites-570"
+          mkdir "$portal976" "$sites570"
+          # Public immutable passive PHP only; no autoloader, scripts, credentials or redirects.
+          leaf() {
+            local repo=$1 commit=$2 root=$3 path=$4 expected=$5 dest code
+            dest="$root/$path"
+            [[ ! -e $dest && ! -L $dest ]] || return 1
+            mkdir -p -- "${dest%/*}" || return 1
+            code=$(env -i PATH="$PATH" LC_ALL=C HOME="$work/home" /usr/bin/curl -q \
+              --silent --fail --proto '=https' --connect-timeout 7 --max-time 18 --max-filesize 65536 \
+              --output "$dest" --write-out '%{http_code}' \
+              "https://raw.githubusercontent.com/rafhael100/$repo/$commit/$path") || return 1
+            [[ $code = 200 && -f $dest && ! -L $dest && $(realpath -e -- "$dest") = "$dest" && \
+               $(stat -c '%s' -- "$dest") -gt 0 && $(stat -c '%s' -- "$dest") -le 65536 && \
+               $(git hash-object --no-filters "$dest") = "$expected" ]]
+          }
+          domain=apps/portal/app/Domain/SitesIntegration
+          p976=89e309b497137cec4960b87f90a49d00bbf92843
+          s570=c141f0d5603dbffc03ca8c47570969aaa113a73f
+          leaf imagine-portal "$p976" "$portal976" "$domain/ApprovedOnepageBriefSnapshotSource.php" b34c87563456b12cde3c883939f9deccdffbdc79 || die PORTAL_976_SOURCE
+          leaf imagine-portal "$p976" "$portal976" "$domain/CurrentOnepageBriefApprovalWitness.php" 9fb98c381bb3a644f1491a9f3d9e0e38f1e58834 || die PORTAL_976_SOURCE
+          leaf imagine-portal "$p976" "$portal976" "$domain/ApprovedOnepageBriefSnapshot.php" beba2be5329116180aa1be922e7af0fd5bbbd737 || die PORTAL_976_SOURCE
+          leaf imagine-portal "$p976" "$portal976" "$domain/DenyingApprovedOnepageBriefSnapshotSource.php" 60b1efa325b7859256c5ab2683fbac525b289804 || die PORTAL_976_SOURCE
+          leaf imagine-portal "$p976" "$portal976" "$domain/DenyingCurrentOnepageBriefApprovalWitness.php" fdc95dec632554071ea5313cd8f1d6c4333929cd || die PORTAL_976_SOURCE
+          leaf imagine-portal "$p976" "$portal976" "$domain/OnepageApprovedBriefExportGate.php" 58000f18eddce8cc93b7c76a8135817b9b426b07 || die PORTAL_976_SOURCE
+          leaf imagine-sites "$s570" "$sites570" src/Production/OnepageBuyerPrivatePreviewCandidate.php 571838eefc9c4872515c5c2a2c8453328febd47b || die SITES_570_SOURCE
+          printf 'STAGE3_M3_FIXED_PASSIVE_CLASSES_OK\n'
+          printf 'STAGE3_ACQUIRED_PORTAL_PIN_OK\n'
+          rc=0
+          env -i PATH="$PATH" LC_ALL=C HOME="$work/home" STAGE3_RUNTIME_DIR="$runtime" \
+            bash tests/fixtures/sites-stage3/stage3-m3-runner.sh "$portal" "$overlay" "$sites" "$portal976" "$sites570" \
+            >"$work/stage3.log" 2>&1 || rc=$?
+          # Only finite Stage 3 statuses from the admitted runner. Never dump raw process output.
+          grep -E '^STAGE3_(ROOT_PRECREATE_ACK|ROOT_PRESCHEMA_ACK|PHP_THREE_QUALIFIED_CONNECTIONS_OK|NATIVE_INITIAL_MFA_ONE_EXACT_ACCEPTED_ORDER_OK|NATIVE_FINANCE_SEED_ONE_BINDING_ZERO_EFFECTS_OK|PINNED_INBOX_SHARED_AND_ROLE_FENCES_OK|ONE_NATIVE_CONSUMER_OBSERVATION_BEFORE_ENTRY_OK|SAME_ORDER_NATIVE_ENTRY_COMMITTED_NO_BUYER_OK|SAME_BUYER_NATIVE_MFA_FRESH_OK|ONE_NATIVE_ENTRY_PENDING_INTAKE_AND_BUYER_READ_OK|M3_APPROVED_SOURCE_MISSING_ZERO_RENDER_AND_LEDGER_UNCHANGED_OK|M2_SCENARIO_COMPLETED_REQUIRES_RUNNER_CLEANUP|RUNNER_CLEANUP_OK|THREE_QUALIFIED_CONNECTIONS_AND_CLEANUP_OK|RUNNER_REFUSED [A-Z_]+|NAMESPACE_WITNESS_REFUSED [A-Z_]+|SLOTS_DRIVER_REFUSED [A-Z_]+)$' \
+            "$work/stage3.log" || true
+          marker() { [[ $(grep -Fxc -- "$1" "$work/stage3.log" || true) = 1 ]]; }
+          marker STAGE3_RUNNER_CLEANUP_OK || die CLEANUP_UNPROVED
+          ((rc==0)) || die RUNTIME_STATUS
+          for name in ROOT_PRECREATE_ACK ROOT_PRESCHEMA_ACK PHP_THREE_QUALIFIED_CONNECTIONS_OK \
+                      NATIVE_INITIAL_MFA_ONE_EXACT_ACCEPTED_ORDER_OK NATIVE_FINANCE_SEED_ONE_BINDING_ZERO_EFFECTS_OK \
+                      PINNED_INBOX_SHARED_AND_ROLE_FENCES_OK ONE_NATIVE_CONSUMER_OBSERVATION_BEFORE_ENTRY_OK \
+                      SAME_ORDER_NATIVE_ENTRY_COMMITTED_NO_BUYER_OK SAME_BUYER_NATIVE_MFA_FRESH_OK \
+                      ONE_NATIVE_ENTRY_PENDING_INTAKE_AND_BUYER_READ_OK M3_APPROVED_SOURCE_MISSING_ZERO_RENDER_AND_LEDGER_UNCHANGED_OK M2_SCENARIO_COMPLETED_REQUIRES_RUNNER_CLEANUP \
+                      THREE_QUALIFIED_CONNECTIONS_AND_CLEANUP_OK; do
+            marker "STAGE3_$name" || die MISSING_TERMINAL_MARKER
+          done
+          if pgrep -x postgres >/dev/null; then die LEFTOVER_POSTGRES; else [[ $? = 1 ]] || die PROCESS_CHECK; fi
+          [[ -z $(find /tmp -maxdepth 1 -name 'sites-stage3-*' -print -quit) ]] || die LEFTOVER_SCRATCH
+          printf 'STAGE3_M3_WORKFLOW_SCENARIO_AND_CLEANUP_OK\n'
