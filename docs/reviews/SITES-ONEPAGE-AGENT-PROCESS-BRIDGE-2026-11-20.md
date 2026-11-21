@@ -1,6 +1,6 @@
 # OnePage AI Agents separate-process handoff — synthetic CI only / NO-GO
 
-Status: **candidate**, not authenticated preview, client acceptance, production publish or a real OpenAI call. Sites PR #577 HEAD `3045dceb989746b2b945bfd15268dde881a5bf89` is held unchanged. AI Agents worker PR #489 is pinned to `6b0ae0db9545277ff0c63e128aba5476ae0faf60`; no branch of Juliana or automation is edited.
+Status: **candidate**, not authenticated preview, client acceptance, production publish or a real OpenAI call. Sites PR #577 HEAD `3045dceb989746b2b945bfd15268dde881a5bf89` is held unchanged. AI Agents worker PR #489 is pinned to `3f9ef347e51fe419e75d6582bf7630a51fe371dd`; no branch of Juliana or automation is edited.
 
 New proof (not repetition of #577's callback): Sites assembles the **same already-admitted fictional OnePage** fixture, passes the bounded v1 JSON over stdin to a **real separate PHP process checked out from the AI Agents repository**, reads a single bounded stdout response, validates exact schema `sites.ai-copy.v1` with the existing Sites `StructuredCopyCandidate::assemble`, renders via the existing `StaticSiteRenderer`, and independently verifies digest of HTML served over `127.0.0.1` in a disposable directory. No retry, no provider invocation, no new transport credential.
 
