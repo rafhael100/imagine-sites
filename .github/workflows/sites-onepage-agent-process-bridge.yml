@@ -10,7 +10,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: sites-onepage-process-\${{ github.event.pull_request.number }}
+  group: sites-onepage-process-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 jobs:
   process-bridge:
@@ -33,7 +33,7 @@ jobs:
       - name: Checkout exact Sites PR HEAD
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: \${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
       - name: Checkout pinned public AI Agents PR SHA with no persistent token
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -44,7 +44,7 @@ jobs:
           persist-credentials: false
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: \${{ matrix.php }}
+          php-version: ${{ matrix.php }}
           extensions: mbstring, dom, xml
           coverage: none
       - name: Real child process to strict Sites renderer and loopback SHA
