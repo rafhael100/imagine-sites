@@ -214,7 +214,8 @@ try:
     approvals = (b'BRIEF_V2_ONE_EFFECTIVE_PDO_OK\n'
                  b'BRIEF_V2_EXACT_DDL_AND_ROWS_OK\n'
                  b'BRIEF_V2_NEGATIVE_ROLLBACK_OK\n'
-                 b'BRIEF_V2_REVOKED_HISTORICAL_NOT_CURRENT_OK\n')
+                 b'BRIEF_V2_REVOKED_HISTORICAL_NOT_CURRENT_OK\n'
+                 b'BRIEF_V2_DISTINCT_BRIEF_SOURCE_AND_STALE_VERSION_DENIED_OK\n')
     need(php.stdout is not None and php.stdout.read(len(approvals)+1)==approvals,'PHP_MARKERS')
     php.stdout.close()
     need(assert_owned(owned) and m.inspect_listener(proc,owned)==inode,'POSTMASTER_AFTER_PHP')
