@@ -4,7 +4,8 @@ name: Sites stage 3 — three disposable database attestations
     types: [opened]
     branches: [test/sites-stage2-portal-mfa-r9-2026-11-21]
     paths: [.github/workflows/sites-stage3-three-db-attestation-ci.yml]
-permissions: {}
+permissions:
+  contents: read
 concurrency:
   group: sites-stage3-three-db-attestation-${{ github.event.pull_request.number }}
   cancel-in-progress: false
