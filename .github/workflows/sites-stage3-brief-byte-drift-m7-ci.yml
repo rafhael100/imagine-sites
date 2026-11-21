@@ -1,0 +1,226 @@
+name: Sites stage 3 M7 — distinct briefing bytes invalidate stale revision
+'on':
+  pull_request:
+    types: [opened]
+    branches: [test/sites-stage3-portal-brief-sql-v2-2026-11-21]
+    paths: [.github/workflows/sites-stage3-brief-byte-drift-m7-ci.yml]
+permissions:
+  contents: read
+concurrency:
+  group: sites-stage3-portal-brief-sql-v2-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  attest:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      github.event_name == 'pull_request' &&
+      github.event.action == 'opened' &&
+      github.run_attempt == 1 &&
+      github.event.repository.private == false &&
+      github.event.pull_request.state == 'open' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.base.repo.full_name == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.head.ref == 'test/sites-stage3-brief-byte-drift-m7-2026-11-21' &&
+      github.event.pull_request.base.ref == 'test/sites-stage3-portal-brief-sql-v2-2026-11-21' &&
+      github.event.pull_request.base.sha == '149409de77fbbf00e22a0a89260dd8b05816c680'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    steps:
+      - name: Attest fresh hosted runner and exact public source
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          /usr/bin/python3 -I -B - <<'PY'
+          import hashlib, json, os, pathlib, re, subprocess
+          repo='rafhael100/imagine-sites'
+          base='149409de77fbbf00e22a0a89260dd8b05816c680'
+          base_ref='test/sites-stage3-portal-brief-sql-v2-2026-11-21'
+          head_ref='test/sites-stage3-brief-byte-drift-m7-2026-11-21'
+          workflow='.github/workflows/sites-stage3-brief-byte-drift-m7-ci.yml'
+          prefix='tests/fixtures/sites-stage3-brief-v2/'
+          new={
+              prefix+'validate.php':'a84a45d58f0ebdb450bbcd2fb3d44de2e7632d13',
+          }
+          inherited={
+              prefix+'acquire.sh':'7bd4f9fdca05b7e5295370db43cf89b0d6e422386f96fbdb2fdf848d5b8b40d6',
+              prefix+'runner.sh':'1f91955679b2a107cfb0d0a98aa0557be95ae8273e29ab57de23ee4a869aad42',
+              prefix+'owned_receipt.py':'f4e25ae782a30c1dd266f316624fb952848914e2cfaebc525796d2161004140b',
+              prefix+'brief-persistence-v2.sql':'91f2fc10039ae1ef2fc326eb770de3825a747bcc94c31cd72470144f63dbf421',
+              'tests/fixtures/sites-stage3/Stage3ReceiptChannel.php':'ee5e124be0521f44af7114ecd291c262ae544e6e448371d34f065973536426ba',
+          }
+          def need(ok):
+              if not ok: raise SystemExit('BRIEF_V2_OUTER_REFUSED')
+          def fixed(cmd, *, env=None, timeout=8):
+              x=subprocess.run(cmd,env=env,stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,
+                               stderr=subprocess.DEVNULL,timeout=timeout)
+              need(x.returncode==0)
+              return x.stdout
+          def public(source):
+              return source['full_name']==repo and source['private'] is False
+          def git(*args):
+              return fixed(['/usr/bin/git','-C',str(root),*args],env=git_env,timeout=90)
+          def git_bytes(path,commit):
+              p=root/path
+              need(p.is_file() and p.resolve(strict=True)==p
+                   and git('ls-tree',commit,'--',path).startswith(b'100644 blob '))
+              data=p.read_bytes()
+              need(data==git('show',commit+':'+path))
+              return data
+          try:
+              e=os.environ
+              need(all(e.get(k)==v for k,v in {
+                  'GITHUB_ACTIONS':'true','GITHUB_EVENT_NAME':'pull_request','GITHUB_RUN_ATTEMPT':'1',
+                  'GITHUB_REPOSITORY':repo,'RUNNER_ENVIRONMENT':'github-hosted','RUNNER_OS':'Linux','RUNNER_ARCH':'X64',
+              }.items()))
+              denied={'GITHUB_TOKEN','GH_TOKEN','ACTIONS_ID_TOKEN_REQUEST_TOKEN','ACTIONS_ID_TOKEN_REQUEST_URL',
+                      'SSH_AUTH_SOCK','GIT_CONFIG_COUNT','GIT_ASKPASS','COMPOSER_AUTH','PGPASSWORD',
+                      'PGHOST','PGHOSTADDR','PGSERVICE','PGPASSFILE','DATABASE_URL','DB_PASSWORD',
+                      'AWS_ACCESS_KEY_ID','AWS_SECRET_ACCESS_KEY','AWS_SESSION_TOKEN','OPENAI_API_KEY'}
+              need(denied.isdisjoint(e))
+              need(os.getuid()==os.geteuid()!=0 and os.uname().machine=='x86_64')
+              release=set(pathlib.Path('/etc/os-release').read_text().splitlines())
+              need({'ID=ubuntu','VERSION_ID="24.04"'}<=release)
+              root=pathlib.Path(e['GITHUB_WORKSPACE'])
+              rt=pathlib.Path(e['RUNNER_TEMP'])
+              need(root.is_absolute() and root.resolve(strict=True)==root==pathlib.Path.cwd()
+                   and root.is_dir() and root.stat().st_uid==os.getuid() and not any(root.iterdir()))
+              need(rt.is_absolute() and rt.resolve(strict=True)==rt and rt.is_dir()
+                   and rt.stat().st_uid==os.getuid() and not any(rt.glob('sites-brief-v2-acquire.*'))
+                   and not any(rt.glob('sites-brief-v2-outer.*')) and not any(pathlib.Path('/tmp').glob('sites-stage3-*')))
+              need(subprocess.run(['/usr/bin/pgrep','-x','postgres'],stdin=subprocess.DEVNULL,
+                                  stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=5).returncode==1)
+              cap=r'''
+          import fcntl, os
+          status=dict(line.split(':',1) for line in open('/proc/self/status') if ':' in line)
+          required=(1<<12)|(1<<19)|(1<<21) # NET_ADMIN, SYS_PTRACE, SYS_ADMIN
+          assert os.getuid()==os.geteuid()==0 and int(status['CapEff'],16)&required==required
+          fd=os.memfd_create('stage3-capability-only',os.MFD_CLOEXEC|os.MFD_ALLOW_SEALING)
+          try:
+              seals=fcntl.F_SEAL_WRITE|fcntl.F_SEAL_GROW|fcntl.F_SEAL_SHRINK|fcntl.F_SEAL_SEAL
+              fcntl.fcntl(fd,fcntl.F_ADD_SEALS,seals)
+              assert fcntl.fcntl(fd,fcntl.F_GET_SEALS)==seals
+          finally:
+              os.close(fd)
+          '''
+              fixed(['/usr/bin/sudo','-n','/usr/bin/env','-i','PATH=/usr/sbin:/usr/bin:/sbin:/bin','LC_ALL=C',
+                     '/usr/bin/python3','-I','-B','-c',cap])
+              need(fixed(['/usr/bin/openssl','version']).startswith(b'OpenSSL 3.'))
+              event=json.loads(pathlib.Path(e['GITHUB_EVENT_PATH']).read_bytes())
+              pr=event['pull_request']
+              number=event['number']
+              need(type(number) is int and number>0 and pr['number']==number and event['action']=='opened'
+                   and public(event['repository']) and public(pr['head']['repo']) and public(pr['base']['repo'])
+                   and pr['state']=='open' and pr['draft'] is True and pr['head']['ref']==head_ref
+                   and pr['base']['ref']==base_ref and pr['base']['sha']==base)
+              head=pr['head']['sha']
+              merge=e['GITHUB_SHA']
+              pr_ref=f'refs/pull/{number}/merge'
+              need(re.fullmatch('[0-9a-f]{40}',head) and head!=base and re.fullmatch('[0-9a-f]{40}',merge)
+                   and e['GITHUB_REF']==pr_ref and e['GITHUB_WORKFLOW_REF']==f'{repo}/{workflow}@{pr_ref}'
+                   and e['GITHUB_WORKFLOW_SHA']==merge)
+              git_env={'PATH':'/usr/bin:/bin','LC_ALL':'C','HOME':'/nonexistent',
+                       'GIT_CONFIG_NOSYSTEM':'1','GIT_CONFIG_GLOBAL':'/dev/null','GIT_TERMINAL_PROMPT':'0'}
+              git('init','--quiet','--template=')
+              git('-c','credential.helper=','-c','http.followRedirects=false','fetch','--quiet','--no-tags',
+                  '--depth=3','https://github.com/rafhael100/imagine-sites.git',pr_ref,head,base)
+              def parents(commit):
+                  return [ln[7:].decode() for ln in git('cat-file','commit',commit).split(b'\n\n',1)[0].splitlines()
+                          if ln.startswith(b'parent ')]
+              need(parents(head)==[base] and parents(merge)==[base,head])
+              git('checkout','--quiet','--detach',head)
+              need(git('rev-parse','HEAD').strip().decode()==head)
+              allowed={*new,workflow}
+              fields=git('diff','--no-renames','--name-status','-z',base,head).split(b'\0')
+              need(fields[-1:]==[b''] and len(fields)==1+2*len(allowed)
+                   and {(fields[i],fields[i+1].decode()) for i in range(0,len(fields)-1,2)}
+                       =={(b'M',prefix+'validate.php'),(b'A',workflow)})
+              for path,oid in new.items():
+                  need(git('rev-parse',head+':'+path).strip().decode()==oid)
+                  need(git_bytes(path,head)==git('show',head+':'+path))
+              for path,digest in inherited.items():
+                  need(hashlib.sha256(git_bytes(path,head)).hexdigest()==digest)
+                  need(git('show',base+':'+path)==git('show',head+':'+path))
+              need(git_bytes(workflow,head)==git('show',merge+':'+workflow))
+              need(git('rev-parse',merge+'^{tree}')==git('rev-parse',head+'^{tree}'))
+              need(git('status','--porcelain=v1','--untracked-files=all')==b'')
+          except (KeyError, OSError, ValueError, TypeError, subprocess.SubprocessError):
+              raise SystemExit('BRIEF_V2_OUTER_REFUSED') from None
+          print('BRIEF_V2_OUTER_HOST_AND_PINS_OK')
+          PY
+      - name: Validate the exact SQL v2 in one new disposable Portal fixture database
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          export PATH=/usr/sbin:/usr/bin:/sbin:/bin LC_ALL=C
+          die() { printf 'BRIEF_V2_JOB_REFUSED %s\n' "$1" >&2; exit 1; }
+          empty_pg() { if pgrep -x postgres >/dev/null; then die EXISTING_POSTGRES; else [[ $? = 1 ]] || die PROCESS_CHECK; fi; }
+          empty_pg
+          work=$(mktemp -d "$RUNNER_TEMP/sites-brief-v2-outer.XXXXXXXX")
+          acquired=''
+          cleanup_outer() {
+            rc=$?
+            trap - EXIT
+            if [[ -n $acquired ]]; then
+              [[ ${acquired%/*} = "$RUNNER_TEMP" &&
+                 ${acquired##*/} =~ ^sites-brief-v2-acquire\.[[:alnum:]]{8}$ &&
+                 ! -L $acquired && -d $acquired && -O $acquired &&
+                 $(realpath -e -- "$acquired") = "$acquired" ]] || die CLEANUP_ACQUISITION_PATH
+              rm -rf -- "$acquired" || die CLEANUP_ACQUISITION
+              [[ ! -e $acquired && ! -L $acquired ]] || die CLEANUP_ACQUISITION
+            fi
+            [[ ${work%/*} = "$RUNNER_TEMP" && ${work##*/} =~ ^sites-brief-v2-outer\.[[:alnum:]]{8}$ &&
+               ! -L $work && -d $work && -O $work && $(realpath -e -- "$work") = "$work" ]] || die CLEANUP_SCRATCH_PATH
+            rm -rf -- "$work" || die CLEANUP_SCRATCH
+            [[ ! -e $work && ! -L $work ]] || die CLEANUP_SCRATCH
+            if ((rc==0)); then printf 'BRIEF_V2_WORKFLOW_SQL_AND_CLEANUP_OK\n'; fi
+            exit "$rc"
+          }
+          [[ ${work%/*} = "$RUNNER_TEMP" && ${work##*/} =~ ^sites-brief-v2-outer\.[[:alnum:]]{8}$ &&
+             ! -L $work && -d $work && -O $work ]] || die SCRATCH
+          trap cleanup_outer EXIT
+          mkdir -m 0700 "$work/home"
+          : >"$work/acquire.receipt"
+          # Signed official APT packages, no application or Composer and no secret env.
+          env -i PATH="$PATH" LC_ALL=C HOME="$work/home" RUNNER_TEMP="$RUNNER_TEMP" \
+            GITHUB_ACTIONS=true GITHUB_EVENT_NAME=pull_request GITHUB_RUN_ATTEMPT=1 GITHUB_REPOSITORY=rafhael100/imagine-sites \
+            BRIEF_V2_RECEIPT="$work/acquire.receipt" \
+            bash tests/fixtures/sites-stage3-brief-v2/acquire.sh >"$work/acquisition.log" 2>&1 || die ACQUISITION
+          [[ $(stat -c %s -- "$work/acquisition.log") -le 32768 ]] || die ACQUISITION_LOG_BOUND
+          grep -Ex 'STAGE2_PG_ELF_CLOSURE_OK [0-9]{1,2}_PLUS_PGCRYPTO' "$work/acquisition.log" || die PG_LOADER_SEAL
+          mapfile -t receipt <"$work/acquire.receipt"
+          [[ ${#receipt[@]} = 1 && ${receipt[0]} = BRIEF_V2_RUNTIME_DIR=* ]] || die ACQUISITION_RECEIPT
+          runtime=${receipt[0]#*=}
+          dir=${runtime%/*}
+          [[ ${dir%/*} = "$RUNNER_TEMP" && ${dir##*/} =~ ^sites-brief-v2-acquire\.[[:alnum:]]{8}$ &&
+             $runtime = "$dir/runtime" &&
+             ! -L $dir && -O $dir && $(stat -c %a -- "$dir") = 700 &&
+             $(realpath -e -- "$dir") = "$dir" && $(realpath -e -- "$runtime") = "$runtime" ]] || die ACQUISITION_PATHS
+          acquired=$dir
+          [[ -f $runtime/SHA256SUMS && ! -L $runtime/SHA256SUMS ]] || die RUNTIME_MANIFEST
+          (cd "$runtime" && sha256sum --check --strict --status SHA256SUMS) || die RUNTIME_SEAL
+          empty_pg
+          rc=0
+          env -i PATH="$PATH" LC_ALL=C HOME="$work/home" BRIEF_V2_RUNTIME_DIR="$runtime" \
+            bash tests/fixtures/sites-stage3-brief-v2/runner.sh >"$work/runner.log" 2>&1 || rc=$?
+          [[ $(stat -c %s -- "$work/runner.log") -le 4096 ]] || die RUNNER_LOG_BOUND
+          grep -Ex 'BRIEF_V2_(ROOT_PRECREATE_OK|ROOT_PRESCHEMA_OK|ONE_EFFECTIVE_PDO_OK|EXACT_DDL_AND_ROWS_OK|NEGATIVE_ROLLBACK_OK|REVOKED_HISTORICAL_NOT_CURRENT_OK|DISTINCT_BRIEF_SOURCE_AND_STALE_VERSION_DENIED_OK|CLEANUP_OK|VALIDATION_AND_CLEANUP_OK|RUNNER_REFUSED [A-Z_]{1,40}|NAMESPACE_WITNESS_REFUSED [A-Z_]{1,40}|VALIDATOR_REFUSED [A-Z_]{1,40})' \
+            "$work/runner.log" || :
+          empty_pg
+          [[ -z $(find /tmp -maxdepth 1 -name 'sites-stage3-*' -print -quit) ]] || die LEFTOVER_SCRATCH
+          ((rc==0)) || die RUNTIME_STATUS
+          /usr/bin/python3 -I -B - "$work/runner.log" <<'PY'
+          import pathlib, sys
+          p=pathlib.Path(sys.argv[1])
+          if not 1 <= p.stat().st_size <= 4096: raise SystemExit('BRIEF_V2_MARKERS_REFUSED')
+          wanted=[
+              'BRIEF_V2_ROOT_PRECREATE_OK','BRIEF_V2_ROOT_PRESCHEMA_OK',
+              'BRIEF_V2_ONE_EFFECTIVE_PDO_OK','BRIEF_V2_EXACT_DDL_AND_ROWS_OK',
+              'BRIEF_V2_NEGATIVE_ROLLBACK_OK','BRIEF_V2_REVOKED_HISTORICAL_NOT_CURRENT_OK',
+              'BRIEF_V2_DISTINCT_BRIEF_SOURCE_AND_STALE_VERSION_DENIED_OK',
+              'BRIEF_V2_CLEANUP_OK','BRIEF_V2_VALIDATION_AND_CLEANUP_OK',
+          ]
+          if p.read_text(encoding='ascii').splitlines()!=wanted: raise SystemExit('BRIEF_V2_MARKERS_REFUSED')
+          PY

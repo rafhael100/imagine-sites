@@ -157,7 +157,9 @@ const REVIEWER='subject.synthetic.reviewer';
 const REVOKE_FIXTURE='subject.synthetic.revoke.fixture';
 const SNAP_A='563cced6-4344-4162-b42b-adb8837f1fb4';
 const SNAP_B='4cd0229d-a786-4513-bf89-5ac1878d3caf';
-const BODY="{\r\n\"corpo\":\"Conteúdo sintético\"\r\n}\r\n";
+const BODY_A="{\r\n\"corpo\":\"Conteúdo sintético A\"\r\n}\r\n";
+const BODY_B="{\r\n\"corpo\":\"Conteúdo sintético B alterado\"\r\n}\r\n";
+function bodyFor(int $version): string { return match($version) { 0=>BODY_A, 1=>BODY_B }; }
 const SCOPED=[ORG,ORDER,SITE];
 
 function effect(PDO $db,string $sql,array $bind=[]): int {
@@ -168,7 +170,8 @@ function effect(PDO $db,string $sql,array $bind=[]): int {
     return $n;
 }
 function revision(PDO $db,int $v,string $snapshot,string $confirmation): void {
-    $sha=hash('sha256',BODY);
+    $source=bodyFor($v);
+    $sha=hash('sha256',$source);
     need(effect($db,<<<'SQL'
 INSERT INTO portal_onepage_brief_candidate.confirmed_revision
  (tenant_ref,order_ref,site_ref,source_version,contract_ref,contract_revision,command_digest,
@@ -177,7 +180,7 @@ INSERT INTO portal_onepage_brief_candidate.confirmed_revision
  VALUES (?,?,?::uuid,?::bigint,?,1,?,?::uuid,?::integer,?,?,?,pg_catalog.decode(?,'hex'),?,?,?,?,?,?,?)
 SQL,
         [...SCOPED,$v,CONTRACT,hash('sha256','fixture command'),$snapshot,$v,'operation.'.$v,'idempotency.'.$v,
-            'payload.'.$v,bin2hex(BODY),$sha,$sha,$sha,BUYER,$confirmation,'rights.statement.fixture',
+            'payload.'.$v,bin2hex($source),$sha,$sha,$sha,BUYER,$confirmation,'rights.statement.fixture',
             'rights.evidence.'.$v])===1);
 }
 function event(PDO $db,int $gen,?string $priorKind,?int $priorVersion,string $kind,int $v,
@@ -261,7 +264,7 @@ function checkCurrent(PDO $ro,int $version,string $snapshot,string $approval,int
     $b=readCurrent($ro,$version,false);
     need(count($a)===1 && count($b)===1 && count($a[0])===17 && count($b[0])===18);
     $material=$a[0]; $witness=$b[0];
-    need($material['source_hex']===bin2hex(BODY) && $witness['reviewer_subject']===REVIEWER
+    need($material['source_hex']===bin2hex(bodyFor($version)) && $witness['reviewer_subject']===REVIEWER
         && $witness['authority_evidence_ref']==='fixture.evidence.'.$gen);
     unset($material['source_hex'],$witness['reviewer_subject'],$witness['authority_evidence_ref']);
     need($material===$witness && $material['tenant_ref']===ORG && $material['order_ref']===ORDER
@@ -269,7 +272,7 @@ function checkCurrent(PDO $ro,int $version,string $snapshot,string $approval,int
         && (string)$material['contract_revision']==='1'
         && $material['snapshot_ref']===$snapshot && (string)$material['source_version']===(string)$version
         && (string)$material['expected_brief_revision']===(string)$version
-        && $material['source_sha256']===hash('sha256',BODY)
+        && $material['source_sha256']===hash('sha256',bodyFor($version))
         && $material['command_digest']===hash('sha256','fixture command') && $material['buyer_subject']===BUYER
         && $material['operation_id']==='operation.'.$version && $material['idempotency_key']==='idempotency.'.$version
         && $material['payload_ref']==='payload.'.$version && $material['approval_ref']===$approval
@@ -396,13 +399,17 @@ try {
         && (string)$after[0][0]['generation']==='5'
         && $after[1][1]['kind']==='approve' && $after[1][1]['decision_ref']==='approval.a'
         && $after[1][2]['kind']==='revoke' && $after[1][2]['decision_ref']==='revoke.a'
-        && $after[2][0]['source_hex']===bin2hex(BODY) && $after[2][1]['source_hex']===bin2hex(BODY)
-        && $after[2][0]['source_sha256']===$after[2][1]['source_sha256']);
+        && $after[2][0]['source_hex']===bin2hex(BODY_A) && $after[2][1]['source_hex']===bin2hex(BODY_B)
+        && $after[2][0]['source_hex']!==$after[2][1]['source_hex']
+        && $after[2][0]['source_sha256']===hash('sha256',BODY_A)
+        && $after[2][1]['source_sha256']===hash('sha256',BODY_B)
+        && $after[2][0]['source_sha256']!==$after[2][1]['source_sha256']);
     deny($db,$observer,'55000',static fn()=>$db->exec('DELETE FROM portal_onepage_brief_candidate.confirmed_revision'));
     deny($db,$observer,'55000',static fn()=>$db->exec('TRUNCATE portal_onepage_brief_candidate.brief_event, portal_onepage_brief_candidate.brief_head'));
     deny($db,$observer,'40001',static fn()=>head($db,5,4));
     need(effectiveIdentity($db,$w)===$primary && effectiveIdentity($observer,$w)===$secondary);
     marker('BRIEF_V2_REVOKED_HISTORICAL_NOT_CURRENT_OK');
+    marker('BRIEF_V2_DISTINCT_BRIEF_SOURCE_AND_STALE_VERSION_DENIED_OK');
 } catch (Throwable) {
     fwrite(STDERR,'BRIEF_V2_VALIDATOR_REFUSED '.$stage."\n");
     exit(1);
