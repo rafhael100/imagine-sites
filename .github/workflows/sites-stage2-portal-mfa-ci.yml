@@ -1,0 +1,78 @@
+name: Sites stage 2 — disposable Portal MFA editorial exercise
+'on':
+  pull_request:
+    types: [opened]
+    branches: [feature/sites-preview-validation-2026-11-17]
+    paths: [.github/workflows/sites-stage2-portal-mfa-ci.yml]
+permissions:
+  contents: read
+concurrency:
+  group: sites-stage2-portal-mfa-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  run:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      github.run_attempt == 1 &&
+      github.event.pull_request.state == 'open' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.base.repo.full_name == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.head.ref == 'test/sites-stage2-portal-mfa-2026-11-21' &&
+      github.event.pull_request.base.ref == 'feature/sites-preview-validation-2026-11-17' &&
+      github.event.pull_request.base.sha == 'cac9084b4fbb0b2a5cf50ac843e89010fb9a019c'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify exact draft source and closed file set
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -I -B - <<'PY'
+          import json, os, pathlib, re, subprocess
+          repo = 'rafhael100/imagine-sites'
+          base = 'cac9084b4fbb0b2a5cf50ac843e89010fb9a019c'
+          prefix = 'tests/fixtures/sites-stage2/'
+          allowed = {'.github/workflows/sites-stage2-portal-mfa-ci.yml'} | {
+              prefix+x for x in ('stage2-driver.php','stage2-fixture.sql','stage2.php','stage2-runner.sh','stage2-acquire.sh')
+          }
+          def require(value):
+              if not value:
+                  raise SystemExit('STAGE2_PROVENANCE_REFUSED')
+          def git(*args):
+              return subprocess.check_output(['/usr/bin/git',*args])
+          root=pathlib.Path.cwd().resolve()
+          event=json.loads(pathlib.Path(os.environ['GITHUB_EVENT_PATH']).read_bytes())
+          pr=event['pull_request']
+          require(os.environ.get('GITHUB_ACTIONS')=='true' and os.environ.get('GITHUB_RUN_ATTEMPT')=='1' and os.environ.get('GITHUB_EVENT_NAME')=='pull_request')
+          require(event['action']=='opened' and event['repository']['full_name']==repo and pr['draft'] is True and pr['state']=='open')
+          require(pr['head']['repo']['full_name']==pr['base']['repo']['full_name']==repo and not pr['base']['repo']['private'])
+          require(pr['base']['sha']==base and pr['base']['ref']=='feature/sites-preview-validation-2026-11-17' and pr['head']['ref']=='test/sites-stage2-portal-mfa-2026-11-21')
+          head=pr['head']['sha']
+          require(re.fullmatch('[0-9a-f]{40}',head) and git('rev-parse','HEAD').strip().decode()==head)
+          require(git('rev-list','--parents','-n1',head).decode().split()==[head,base])
+          require(git('status','--porcelain=v1','--untracked-files=all')==b'')
+          fields=git('diff','--no-renames','--name-status','-z',base,head).split(b'\0')
+          require(fields[-1]==b'' and len(fields)==1+2*len(allowed))
+          changes={(fields[i].decode(),fields[i+1].decode()) for i in range(0,len(fields)-1,2)}
+          require(changes=={('A',x) for x in allowed})
+          for filename in allowed:
+              p=root/filename
+              require(p.is_file() and p.resolve(strict=True)==p and git('ls-tree',head,'--',filename).startswith(b'100644 blob '))
+              require(p.read_bytes()==git('show',head+':'+filename))
+          require(git('status','--porcelain=v1','--untracked-files=all')==b'')
+          print('STAGE2_PROVENANCE_OK')
+          PY
+      - name: Acquire pinned sources and dependencies
+        shell: bash
+        run: bash tests/fixtures/sites-stage2/stage2-acquire.sh
+      - name: Run one private endpoint and editorial case
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash tests/fixtures/sites-stage2/stage2-runner.sh "$STAGE2_PORTAL_ROOT" "$GITHUB_WORKSPACE"
