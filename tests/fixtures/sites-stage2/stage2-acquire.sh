@@ -86,48 +86,140 @@ git config --global --list >/dev/null 2>&1 || test "$GIT_CONFIG_GLOBAL" = /dev/n
 /usr/bin/php8.3 /usr/bin/composer install --working-dir="$P/apps/portal" --no-interaction \
   --no-progress --prefer-source --no-dev --no-scripts --no-plugins >/dev/null
 python3 -I -B - "$P/apps/portal" <<'PY'
-import json, pathlib, re, subprocess, sys
+import json, os, pathlib, re, stat, subprocess, sys
 app=pathlib.Path(sys.argv[1]).resolve(strict=True)
 v=app/'vendor'
-def git(p,*args):
-    return subprocess.check_output(['/usr/bin/git','-C',str(p),*args])
-def check(value):
-    if not value: raise SystemExit('STAGE2_COMPOSER_SOURCE_REFUSED')
+scope='manifest'
+def exception_marker(*_):
+    sys.stderr.write('STAGE2_COMPOSER_SOURCE_REFUSED '+scope+' UNEXPECTED_IO_OR_SHAPE\n')
+sys.excepthook=exception_marker
+def refuse(gate):
+    raise SystemExit('STAGE2_COMPOSER_SOURCE_REFUSED '+scope+' '+gate)
+def check(value,gate):
+    if not value: refuse(gate)
+def git(p,gate,*args):
+    try:
+        return subprocess.check_output(['/usr/bin/git','-C',str(p),*args],stderr=subprocess.DEVNULL)
+    except (OSError,subprocess.CalledProcessError):
+        refuse(gate)
+def records(data,gate):
+    parts=data.split(b'\0')
+    check(parts[-1]==b'',gate)
+    return parts[:-1]
+def links(entries):
+    return {row for row in entries if row.startswith((b'120000 ',b'160000 '))}
+
+NETTE_REF='6bf24518accf32cf845bca305e0b92078700fd01'
+NETTE_LINKS=(
+    ('tests/Utils/fixtures.finder3/another_subdir/subdir','61f519d04eac5af9dcec3938c655456ee8218036','../subdir'),
+    ('tests/Utils/fixtures.finder3/subdir/file.txt','1247f6970a9924a4ea8a68a71148f9d869ab1fea','../file.txt'),
+)
+
+def exclude_nette_test_links(path,ref,linked):
+    check(ref==NETTE_REF,'NETTE_REF')
+    cfg=json.loads((path/'composer.json').read_bytes())
+    check(cfg.get('autoload')=={'classmap':['src/'],'psr-4':{'Nette\\':'src'}}
+          and 'autoload-dev' not in cfg,'NETTE_AUTOLOAD')
+    canon_index={f'120000 {sha} 0\t{rel}'.encode() for rel,sha,_ in NETTE_LINKS}
+    canon_tree={f'120000 blob {sha}\t{rel}'.encode() for rel,sha,_ in NETTE_LINKS}
+    check(linked==canon_index,'NETTE_INDEX_LINK_SET')
+    check(links(records(git(path,'NETTE_GIT_TREE','ls-tree','-r','-z',ref),'NETTE_GIT_TREE'))==canon_tree,'NETTE_TREE_LINK_SET')
+    tests=path/'tests/Utils/fixtures.finder3'
+    check(tests.resolve(strict=True)==tests and tests.is_dir(),'NETTE_FIXTURE_ROOT')
+    opened=[]
+    try:
+        # Validate both original links and target containment before removing either.
+        for rel,sha,target in NETTE_LINKS:
+            leaf=path/rel
+            parent=leaf.parent
+            check(parent.resolve(strict=True)==parent and parent.is_relative_to(tests),'NETTE_PARENT')
+            fd=os.open(parent,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
+            opened.append((fd,leaf.name))
+            orig=os.stat(leaf.name,dir_fd=fd,follow_symlinks=False)
+            content=git(path,'NETTE_GIT_BLOB','cat-file','blob',sha)
+            raw=os.readlink(os.fsencode(leaf.name),dir_fd=fd)
+            check(stat.S_ISLNK(orig.st_mode) and orig.st_uid==os.geteuid() and orig.st_nlink==1
+                  and raw==content==target.encode()
+                  and leaf.resolve(strict=True).is_relative_to(tests),'NETTE_LINK_PROOF')
+        for fd,name in opened:
+            os.unlink(name,dir_fd=fd)
+    finally:
+        for fd,_ in opened:
+            os.close(fd)
+    raw=records(git(path,'NETTE_GIT_DELTA','-c','core.filemode=true','diff','--raw','--no-abbrev','-z','--no-ext-diff','--no-textconv',ref,'--'),'NETTE_GIT_DELTA')
+    expected={(f':120000 000000 {sha} '+('0'*40)+' D').encode():rel.encode()
+              for rel,sha,_ in NETTE_LINKS}
+    check(len(raw)==4 and dict(zip(raw[::2],raw[1::2]))==expected,'NETTE_EXACT_DELETIONS')
+    for rel,_,_ in NETTE_LINKS:
+        leaf=path/rel
+        check(not leaf.is_symlink() and not leaf.exists(),'NETTE_REMOVED')
+    print('STAGE2_NETTE_TEST_LINKS_EXCLUDED 2',flush=True)
+
 lock=json.loads((app/'composer.lock').read_bytes())['packages']
 install=json.loads((v/'composer/installed.json').read_bytes())['packages']
-check(len(lock)>0 and {x['name'] for x in lock}=={x['name'] for x in install})
+check(len(lock)>0 and {x['name'] for x in lock}=={x['name'] for x in install},'LOCK_SET')
+package_git=set()
+package_names={x['name'] for x in lock}
 for x in lock:
+    scope='manifest'
+    name=x['name']
+    check(re.fullmatch(r'[a-z0-9_.-]+/[a-z0-9_.-]+',name) and all(p not in ('.','..') for p in name.split('/')),'PACKAGE_NAME')
+    scope=name
     ref=x['source']['reference']; url=x['source']['url']
     check(x['source']['type']=='git' and re.fullmatch(r'[0-9a-f]{40}',ref)
-          and re.fullmatch(r'https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+',url))
-    path=v/x['name']
-    check(path.is_dir() and path.resolve()==path and (path/'.git').is_dir())
-    check(git(path,'rev-parse','HEAD').strip().decode()==ref)
+          and re.fullmatch(r'https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+',url),'LOCK_REF')
+    path=v/name
+    check(path.is_dir() and path.resolve()==path and (path/'.git').is_dir() and not (path/'.git').is_symlink(),'GIT_WORKTREE')
+    package_git.add(path/'.git')
+    check(git(path,'GIT_HEAD','rev-parse','HEAD').strip().decode()==ref,'LOCKED_HEAD')
     # Composer makes declared bins executable, even when upstream recorded 100644.
     # Permit only the observed candidate's deterministic Carbon mode mutation,
     # restore the Git mode, and keep every content and tree check below.
     if x['name']=='nesbot/carbon':
-        import hashlib, os, stat
-        check(ref=='ce0e5636fae7d1e99856eb70cae4c719a284aa08' and x.get('bin')==['bin/carbon'])
+        import hashlib
+        check(ref=='ce0e5636fae7d1e99856eb70cae4c719a284aa08' and x.get('bin')==['bin/carbon'],'CARBON_LOCK')
         blob=b'b53ab7385803a001ca55414cbc630e0c8933fbbb'
-        check(git(path,'ls-tree','-z',ref,'--','bin/carbon')==b'100644 blob '+blob+b'\tbin/carbon\0')
-        delta=git(path,'-c','core.filemode=true','diff','--raw','--no-abbrev','-z','--no-ext-diff','--no-textconv',ref,'--')
+        check(git(path,'CARBON_GIT_TREE','ls-tree','-z',ref,'--','bin/carbon')==b'100644 blob '+blob+b'\tbin/carbon\0','CARBON_TREE')
+        delta=git(path,'CARBON_GIT_DIFF','-c','core.filemode=true','diff','--raw','--no-abbrev','-z','--no-ext-diff','--no-textconv',ref,'--')
         if delta:
-            check(delta in {b':100644 100755 '+blob+b' '+oid+b' M\0bin/carbon\0' for oid in (b'0'*40,blob)})
+            check(delta in {b':100644 100755 '+blob+b' '+oid+b' M\0bin/carbon\0' for oid in (b'0'*40,blob)},'CARBON_MODE_DELTA')
             f=path/'bin/carbon'
-            check(f.resolve(strict=True)==f)
+            check(f.resolve(strict=True)==f,'CARBON_PATH')
             with os.fdopen(os.open(f,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK),'rb') as stream:
                 s=os.fstat(stream.fileno())
                 check(stat.S_ISREG(s.st_mode) and stat.S_IMODE(s.st_mode)==0o700 and s.st_uid==os.geteuid()
-                      and s.st_nlink==1 and s.st_size==391)
+                      and s.st_nlink==1 and s.st_size==391,'CARBON_FILE')
                 data=stream.read(392)
-                check(len(data)==391 and hashlib.sha1(b'blob 391\0'+data).hexdigest().encode()==blob)
+                check(len(data)==391 and hashlib.sha1(b'blob 391\0'+data).hexdigest().encode()==blob,'CARBON_BLOB')
                 os.fchmod(stream.fileno(),0o600)
-            check(git(path,'-c','core.filemode=true','diff','--raw','-z',ref,'--')==b'')
-            print('STAGE2_CARBON_PINNED_MODE_RESTORED')
-    check(git(path,'diff','--exit-code',ref,'--')==b'' and git(path,'ls-files','--others','-z')==b'')
-    check(not any(f.startswith((b'120000 ',b'160000 ')) for f in git(path,'ls-files','--stage').splitlines()))
-print('STAGE2_LOCKED_SOURCES_OK',len(lock))
+            check(git(path,'CARBON_GIT_DIFF','-c','core.filemode=true','diff','--raw','-z',ref,'--')==b'','CARBON_RESTORED')
+            print('STAGE2_CARBON_PINNED_MODE_RESTORED',flush=True)
+    check(git(path,'GIT_DIFF','-c','core.filemode=true','diff','--exit-code',ref,'--')==b'','WORKTREE_CLEAN')
+    check(git(path,'GIT_UNTRACKED','ls-files','--others','-z')==b'','UNTRACKED_ABSENT')
+    indexed=links(records(git(path,'GIT_INDEX','ls-files','--stage','-z'),'GIT_INDEX'))
+    if name=='nette/utils':
+        try:
+            exclude_nette_test_links(path,ref,indexed)
+        except (OSError,ValueError):
+            refuse('NETTE_FIXTURE_IO')
+    else:
+        check(not indexed,'TRACKED_LINK_GITLINK_ABSENT')
+# Check physical runtime files too, without following any symlinks. Only the
+# already-attested per-package Git metadata directories are skipped.
+scope='runtime'
+def walk_error(_):
+    refuse('VENDOR_READ')
+for dirname, dirs, files in os.walk(v,followlinks=False,onerror=walk_error):
+    root=pathlib.Path(dirname)
+    for entry in dirs+files:
+        target=root/entry
+        rel=target.relative_to(v).parts
+        scope='/'.join(rel[:2]) if '/'.join(rel[:2]) in package_names else 'runtime'
+        check(not target.is_symlink(),'PHYSICAL_LINK_ABSENT')
+        if target in package_git:
+            dirs.remove(entry)
+    scope='runtime'
+print('STAGE2_LOCKED_SOURCES_OK',len(lock),flush=True)
 PY
 cat /etc/php/8.3/cli/php.ini /etc/php/8.3/cli/conf.d/*.ini >"$R/php.ini"
 (
