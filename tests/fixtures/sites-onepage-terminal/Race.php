@@ -8,6 +8,17 @@ use PDO;
 use RuntimeException;
 use Throwable;
 
+enum WorkerStage:string
+{
+    case Lock='LOCK'; case Requested='REQUESTED'; case Head='HEAD';
+    case Shape='SHAPE'; case Veto='VETO'; case RequestedTuple='REQUESTED_TUPLE';
+    case Proposal='PROPOSAL'; case Insert='INSERT'; case Commit='COMMIT';
+}
+final class WorkerStageFailure extends RuntimeException
+{
+    public function __construct(public readonly WorkerStage $stage) { parent::__construct('REFUSED'); }
+}
+
 /** Test only; load after machine v2 in the qualified #541 parent and worker. */
 final class RevokeFirstFixture
 {
@@ -53,19 +64,25 @@ SQL;
     {
         self::identity($writer,'off');
         self::need(!$writer->inTransaction() && $writer->beginTransaction());
+        $stage=WorkerStage::Lock;
         try {
             $pid=(int)self::rows($writer,'SELECT pg_catalog.pg_backend_pid() AS pid',[])[0]['pid'];
             $ready($pid);
             $site=$a->tuple['siteRef'];
             $old=$a->tuple['bindingRevision'];
             self::rows($writer,self::LOCK,[$tenant,$site]); // separate READ COMMITTED snapshot next
+            $stage=WorkerStage::Requested;
             $requested=self::rows($writer,self::REQUESTED,[$tenant,$site,$old]);
+            $stage=WorkerStage::Head;
             $head=self::rows($writer,self::HEAD,[$tenant,$site]);
+            $stage=WorkerStage::Shape;
             self::need(count($requested)===1 && count($head)===1);
             $x=$requested[0]; $h=$head[0]; $t=$a->tuple;
+            $stage=WorkerStage::Veto;
             self::need($old<PHP_INT_MAX && (int)$h['binding_revision']===$old+1 &&
                 $h['event_kind']==='revoked' && $h['release_ref']===$t['releaseRef'] &&
                 $h['artifact_digest']===$t['htmlSha256'] && (int)$h['editorial_revision']===$t['editorialRevision']);
+            $stage=WorkerStage::RequestedTuple;
             self::need($x['event_kind']==='bound' && $x['product_code']==='onepage' &&
                 [$x['portal_org_ref'],$x['site_id'],$x['release_ref'],$x['order_ref'],$x['contract_ref'],
                     (int)$x['contract_revision'],$x['command_digest'],(int)$x['editorial_revision'],$x['artifact_digest'],
@@ -73,6 +90,7 @@ SQL;
                 ===[$t['tenantRef'],$site,$t['releaseRef'],$t['orderRef'],$t['contractRef'],$t['contractRevision'],
                     $t['commandDigest'],$t['editorialRevision'],$t['htmlSha256'],$t['snapshotRef'],
                     $t['briefRevision'],$t['manifestSha256'],$t['sourceVersion']]);
+            $stage=WorkerStage::Proposal;
             $authority=new class implements DecisionAuthority {
                 // Only after the exact native veto above; no path to Eligible.
                 public function observeUnderDecisionLock(Intent $intent): Verdict {return Verdict::Vetoed;}
@@ -80,13 +98,16 @@ SQL;
             };
             $p=(new SitesTerminalMachine($authority))->decide($a,null);
             self::need($p->outcome===Outcome::Proposed && $p->proposal?->terminal===Terminal::Rejected);
+            $stage=WorkerStage::Insert;
             $q=$writer->prepare(self::INSERT);
             self::need($q->execute([$a->operationRef,$tenant,$site,$old,$old+1,self::json($a),]) &&
-                $q->rowCount()===1 && $q->closeCursor() && $writer->commit());
+                $q->rowCount()===1 && $q->closeCursor());
+            $stage=WorkerStage::Commit;
+            self::need($writer->commit());
             return ['kind'=>'discarded'];
         } catch (Throwable) {
-            if ($writer->inTransaction()) $writer->rollBack();
-            throw new RuntimeException('ONEPAGE_TERMINAL_WORKER_REFUSED');
+            try { if ($writer->inTransaction()) $writer->rollBack(); } catch (Throwable) {}
+            throw new WorkerStageFailure($stage);
         }
     }
 
