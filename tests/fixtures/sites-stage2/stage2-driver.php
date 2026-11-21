@@ -216,7 +216,7 @@ try {
     need(preg_match('/\A[a-f0-9]{64}\n\z/D',$password)===1,'ADMIN_PASSWORD_FORMAT');
     $password=rtrim($password,"\n");
 
-    $phase='PINS';
+    $phase='SOURCE_BYTES';
     foreach ([$base.'/labs/onepage-d0-http-ci/Client.php'=>'fd9ddf2c8eaa989233455b277fec46454d48b774',
         $base.'/database/security/portal_browser_auth.sql'=>'42bb622b01e1b89f7ec99214ac104da2262c3774',
         $base.'/database/security/portal_browser_envelopes.sql'=>'b39bbcdb9156ffe884d21d1b208d842f8cb7942d',
@@ -227,12 +227,40 @@ try {
     unset($bytes);
     // The outer guard validates both complete Git trees, vendor lock and workspace
     // ownership. Never load a second Composer vendor/overlapping Laravel app.
+    $phase='AUTOLOAD';
     $loader=require $base.'/vendor/autoload.php';
+    $phase='PSR4';
     $loader->addPsr4('Imagine\\Sites\\',$sitesRoot.'/src/',true);
+    $phase='HTTP_FIXTURE';
     require $base.'/labs/onepage-d0-http-ci/Client.php';
+    $phase='APP_FACTORY';
     $app=require $base.'/bootstrap/app.php';
+    $phase='CACHE';
     need(!$app->configurationIsCached() && !$app->routesAreCached(),'UNCACHED_BOOT');
-    $app->make(ConsoleKernel::class)->bootstrap();
+    $phase='KERNEL_RESOLVE';
+    $console=$app->make(ConsoleKernel::class);
+    $phase='CONSOLE_BOOT';
+    $consoleStage='REGISTER_OBSERVER';
+    foreach ([
+        \Illuminate\Foundation\Bootstrap\LoadEnvironmentVariables::class=>'LOAD_ENVIRONMENT',
+        \Illuminate\Foundation\Bootstrap\LoadConfiguration::class=>'LOAD_CONFIGURATION',
+        \Illuminate\Foundation\Bootstrap\HandleExceptions::class=>'HANDLE_EXCEPTIONS',
+        \Illuminate\Foundation\Bootstrap\RegisterFacades::class=>'REGISTER_FACADES',
+        \Illuminate\Foundation\Bootstrap\SetRequestForConsole::class=>'SET_REQUEST_FOR_CONSOLE',
+        \Illuminate\Foundation\Bootstrap\RegisterProviders::class=>'REGISTER_PROVIDERS',
+        \Illuminate\Foundation\Bootstrap\BootProviders::class=>'BOOT_PROVIDERS',
+    ] as $bootstrapper=>$marker) {
+        $app->beforeBootstrapping($bootstrapper,static function() use (&$consoleStage,$marker):void {
+            $consoleStage=$marker;
+        });
+    }
+    $app->afterBootstrapping(\Illuminate\Foundation\Bootstrap\BootProviders::class,static function() use (&$consoleStage):void {
+        $consoleStage='AFTER_BOOT_PROVIDERS';
+    });
+    $consoleStage='PRE_BOOTSTRAPPERS';
+    $console->bootstrap();
+    echo "STAGE2_PORTAL_CONSOLE_BOOT_OK\n";
+    $phase='CONFIG';
     $app['config']->set(['app.env'=>'staging','app.debug'=>false,'app.url'=>ORIGIN,'logging.default'=>'null',
         'portal_development_auth.enabled'=>false,'portal_onepage.enabled'=>false,'portal_onepage_d0.enabled'=>false,
         'database.default'=>'stage2_portal_admin']);
@@ -310,8 +338,18 @@ try {
     $failure=false;
 } catch(Throwable $e) {
     // Never print session material, DB diagnostics, synthetic passwords or raw errors.
-    $known=preg_match('/\ASTAGE2_FIXTURE_REFUSED:[A-Z_]+\z/D',$e->getMessage())===1 ? ' '.$e->getMessage():'';
-    fwrite(STDERR,'STAGE2_FAILED_'.$phase.$known."\n");
+    $known=!in_array($phase,['KERNEL_RESOLVE','CONSOLE_BOOT'],true) && preg_match('/\ASTAGE2_FIXTURE_REFUSED:[A-Z_]+\z/D',$e->getMessage())===1 ? ' '.$e->getMessage():'';
+    $family=in_array($phase,['KERNEL_RESOLVE','CONSOLE_BOOT'],true) ? ' '.match(true) {
+        $e instanceof \Illuminate\Contracts\Container\BindingResolutionException => 'CONTAINER_RESOLUTION',
+        $e instanceof \PDOException => 'PDO_EXCEPTION',
+        $e instanceof \ErrorException => 'PHP_ERROR_EXCEPTION',
+        $e instanceof \TypeError => 'TYPE_ERROR',
+        $e instanceof \Error => 'PHP_ERROR',
+        $e instanceof \RuntimeException => 'RUNTIME_EXCEPTION',
+        default => 'OTHER_THROWABLE',
+    } : '';
+    $stage=$phase==='CONSOLE_BOOT' ? ' '.($consoleStage??'PRE_BOOTSTRAPPERS'):'';
+    fwrite(STDERR,'STAGE2_FAILED_'.$phase.$stage.$family.$known."\n");
 } finally {
     // Folder and cluster teardown are supervised independently, including abrupt exits.
     if ($fixtureFile!==null && is_file($fixtureFile) && !unlink($fixtureFile)) $failure=true;
