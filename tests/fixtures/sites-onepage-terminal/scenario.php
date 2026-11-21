@@ -48,7 +48,7 @@ final class IsolatedScenario
     ];
     private const MODULES=[
       'Machine.php'=>'036a5fed115c75f0103a934f383690b664f80814081ce7996288f6933d83a9b2',
-      'Race.php'=>'2910ae43b14582b5b14e91fa71c6bb2543bcff64481e1c1a0d597d1f1d48bc99',
+      'Race.php'=>'b3e55060b33e87e5cc74717403406bcc454c78ef646d0cc49e1b32f545a9fb58',
       'schema.sql'=>'61f5a587b24d3d124596859a8411dd0d2b91a39d82a23e49894381050807c422',
     ];
     private const E='contracts/portal-sites/candidates/brief-production-v1/examples/';
@@ -244,13 +244,31 @@ final class IsolatedScenario
                 $deadline=hrtime(true)+8_000_000_000;
                 do { $status=proc_get_status($worker); if(!$status['running']) break; usleep(5000); }
                 while(hrtime(true)<$deadline);
-                self::need(!$status['running'] && $status['exitcode']===0);
-                $stdout=stream_get_contents($pipes[1],257); $stderr=stream_get_contents($pipes[2],257);
+                if ($status['running']) {
+                    self::$phase='RACE_CHILD_TIMEOUT';
+                    throw new RuntimeException();
+                }
+                $stderr=stream_get_contents($pipes[2],257);
+                if ($status['exitcode']!==0) {
+                    self::reportChild($stderr);
+                    self::$phase='RACE_CHILD_EXIT';
+                    throw new RuntimeException();
+                }
+                self::$phase='RACE_ACK';
+                $stdout=stream_get_contents($pipes[1],257);
                 self::need(is_string($stdout) && strlen($stdout)<=256 && $stderr==='');
                 foreach($pipes as $p) fclose($p);
-                $pipes=[]; proc_close($worker); $worker=null;
+                $pipes=[];
+                self::$phase='RACE_PARENT_CLOSE';
+                $closed=proc_close($worker); $worker=null;
+                // The first non-running proc_get_status above already observed
+                // exact exit zero; older PHP may return -1 after that harvest.
+                self::need($closed===0 || $closed===-1);
+                self::$phase='RACE_ACK';
+                $done=self::decode($stdout);
+                self::need($done===['kind'=>'discarded']);
                 self::$phase='RACE_READBACK';
-                return self::decode($stdout);
+                return $done;
             };
             RevokeFirstFixture::run($revoker,$observer,$tenant,$intent,$start,$finish,self::capture(...),
                 static fn():PDO=>$gate->openBootstrap(true));
@@ -267,6 +285,7 @@ final class IsolatedScenario
     }
 
     public static function worker():never {
+        $phase='SETUP';
         try {
             self::modules();
             $raw=stream_get_contents(STDIN,4097);
@@ -288,9 +307,27 @@ final class IsolatedScenario
             $result=RevokeFirstFixture::worker($db,$tenant,new Intent($op,$tuple),static function(int $pid):void {
                 echo self::json(['pid'=>$pid]); flush();
             });
-            echo self::json($result);
+            $phase='ACK';
+            $ack=self::json($result);
+            self::need(fwrite(STDOUT,$ack)===strlen($ack) && fflush(STDOUT));
             exit(0);
-        } catch(Throwable) {fwrite(STDERR,"ONEPAGE_TERMINAL_SCENARIO_WORKER_REFUSED\n");exit(1);}
+        } catch(Throwable $failure) {
+            if ($failure instanceof WorkerStageFailure) $phase=$failure->stage->value;
+            fwrite(STDERR,'ONEPAGE_TERMINAL_CHILD_REFUSED '.$phase."\n");
+            exit(1);
+        }
+    }
+
+    /** Raw output is untrusted and is never echoed or logged. */
+    private static function reportChild(mixed $stderr):void
+    {
+        $known='UNKNOWN';
+        if (is_string($stderr) && preg_match('/\AONEPAGE_TERMINAL_CHILD_REFUSED ([A-Z_]{1,32})\n\z/D',$stderr,$m)===1) {
+            $stage=WorkerStage::tryFrom($m[1]);
+            if ($stage!==null) $known=$stage->value;
+            elseif (in_array($m[1],['SETUP','ACK'],true)) $known=$m[1];
+        }
+        fwrite(STDERR,'ONEPAGE_TERMINAL_CHILD_REFUSED '.$known."\n");
     }
 
     private static function scram(#[\SensitiveParameter] string $password):string
