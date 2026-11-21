@@ -60,27 +60,13 @@ $worker = static function (string $taskJson) use ($script, &$calls, $check): str
     $check(array_keys($task['copyHints']) === ['subject','audience','tone'],
         'only minimal synthetic copy hints cross the process boundary');
     $check(strlen($taskJson) <= 2048, 'one bounded versioned task');
-    $child = proc_open(
-        [PHP_BINARY, $script],
-        [0 => ['pipe','r'],1 => ['pipe','w'],2 => ['pipe','w']],
-        $pipes,
-        dirname($script),
-        [
-            'GITHUB_ACTIONS'=>'true',
-            'IMAGINE_ONEPAGE_PROCESS_LAB'=>'1',
-        ],
+    // Candidate process supervisor: no inherited environment, unbounded
+    // stdout/stderr, hanging worker or implicit retries.
+    $output = \Imagine\Sites\Production\OnepageBoundedWorkerProcessCandidate::run(
+        $taskJson, $script, dirname(dirname($script)), 2500,
     );
-    if (!is_resource($child)) throw new RuntimeException('No isolated child process');
-    fwrite($pipes[0], $taskJson);
-    fclose($pipes[0]);
-    $output = stream_get_contents($pipes[1], 8193);
-    fclose($pipes[1]);
-    $error = stream_get_contents($pipes[2], 257);
-    fclose($pipes[2]);
-    $exit = proc_close($child);
-    $check($exit === 0 && $error === '' && is_string($output) &&
-        strlen($output) <= 8192, 'child process succeeds without diagnostic leakage');
-    if (!is_string($output)) throw new RuntimeException();
+    $check($output !== '' && strlen($output) <= 8192,
+        'pinned child obeys bounded deadline and output contract');
     return $output;
 };
 $result = AgentLab::execute($manifest, $source, 'Marca fictícia Sites',
