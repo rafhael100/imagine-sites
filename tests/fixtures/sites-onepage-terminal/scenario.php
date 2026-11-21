@@ -22,6 +22,7 @@ use Throwable;
 
 final class IsolatedScenario
 {
+    private static string $phase='FILES';
     private const ADMIN='sites_terminal_fixture_bootstrap';
     private const PATHS=[
         'apps/sites/database/migrations/2026_11_14_000001_create_sites_core_foundation.php'=>'40f8d64e7be6c7153410175c9f53c58e7f618fc4',
@@ -55,8 +56,20 @@ final class IsolatedScenario
 
     public static function run(SitesTlsAdmission $gate,string $sites,PDO $writer,PDO $observer,string $run):bool
     {
+        try { return self::scenario($gate,$sites,$writer,$observer,$run); }
+        catch (Throwable $cause) {
+            // Never propagate the original exception, message, SQL, query,
+            // parameters, identifiers or credentials into the diagnostic.
+            fwrite(STDERR,'ONEPAGE_TERMINAL_SCENARIO_REFUSED '.self::$phase.' '.self::category($cause)."\n");
+            return false;
+        }
+    }
+
+    private static function scenario(SitesTlsAdmission $gate,string $sites,PDO $writer,PDO $observer,string $run):bool
+    {
         self::modules();
         foreach(self::PATHS as $path=>$pin) self::blob($sites.'/'.$path,$pin);
+        self::$phase='FRESH';
         self::need($gate->assertBootstrap($writer)!==$gate->assertBootstrap($observer));
         $identity=self::identity($observer,true);
         $identity['ca_sha']=hash_file('sha256',$run.'/tls/ca.pem');
@@ -66,6 +79,7 @@ final class IsolatedScenario
                  AND NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname LIKE 'sites_core_%' OR rolname LIKE 'terminal_fixture_%')")
             ->fetchColumn()===true);
 
+        self::$phase='LARAVEL';
         require $sites.'/apps/sites/vendor/autoload.php';
         $app=new Application($sites.'/apps/sites');
         $connection=self::wrap($writer);
@@ -80,16 +94,30 @@ final class IsolatedScenario
         Facade::clearResolvedInstances(); Facade::setFacadeApplication($app);
         foreach(self::PATHS as $path=>$pin) {
             if (!str_starts_with($path,'apps/sites/database/migrations/')) continue;
+            self::$phase=match(basename($path)) {
+                '2026_11_14_000001_create_sites_core_foundation.php'=>'MIGRATION_01',
+                '2026_11_14_000002_add_tenant_bound_read_api.php'=>'MIGRATION_02',
+                '2026_11_14_000003_add_editorial_revision_api.php'=>'MIGRATION_03',
+                '2026_11_17_000005_add_release_registry.php'=>'MIGRATION_05',
+                '2026_11_17_000006_allow_editorial_reopen.php'=>'MIGRATION_06',
+                '2026_11_18_000011_add_portal_project_intake.php'=>'MIGRATION_11',
+                '2026_11_18_000012_expand_release_registry_permission_guard.php'=>'MIGRATION_12',
+                '2026_11_18_000013_add_portal_brief_snapshots.php'=>'MIGRATION_13',
+                '2026_11_18_000014_add_brief_artifact_provenance.php'=>'MIGRATION_14',
+                default=>'MIGRATION_PIN',
+            };
             $gate->assertBootstrap($writer);
             $m=require $sites.'/'.$path;
             self::need($m instanceof Migration);
             $m->up();
             self::need($connection->getPdo()===$writer);
         }
+        self::$phase='TERMINAL_DDL';
         $gate->assertBootstrap($writer);
         self::need($writer->exec(self::file(__DIR__.'/schema.sql'))!==false);
         $gate->assertBootstrap($writer);
 
+        self::$phase='TENANT';
         $tenant=self::uuid($writer);
         $org='terminal-fixture-org';
         self::q($writer,'INSERT INTO sites_core.tenant_accounts(tenant_id,portal_org_ref) VALUES(?::uuid,?)',[$tenant,$org]);
@@ -104,6 +132,11 @@ final class IsolatedScenario
         ];
         $sessions=[];
         foreach($map as $key=>[$call,$table,$duty]) {
+            self::$phase=match($key) {
+                'intake'=>'ROLE_INTAKE','source'=>'ROLE_SOURCE','artifact'=>'ROLE_ARTIFACT',
+                'editor'=>'ROLE_EDITOR','reviewer'=>'ROLE_REVIEWER',
+                'binding'=>'ROLE_BIND','revoke'=>'ROLE_REVOKE',default=>'ROLE_PIN',
+            };
             $role='terminal_fixture_'.$key;
             $gate->assertBootstrap($writer);
             // One independent password per least-privilege fixture LOGIN.
@@ -126,11 +159,13 @@ final class IsolatedScenario
                 $sessions[$key]=self::connect($run,$role,$password,$identity,false);
             } finally { sodium_memzero($password); }
         }
+        self::$phase='INTAKE';
         $order='terminal-fixture-order'; $contract='terminal-fixture-contract'; $release='terminal-fixture-release-a';
         $command=new SiteProjectCommand('1','terminal-fixture-intake-operation',$org,$order,$contract,1,'onepage','terminal-fixture-intake-key');
         $intake=(new PortalProjectIntakeRecorder(self::wrap($sessions['intake'])))->record($command);
         $site=$intake['siteRef'];
         foreach(['authorityVerified','clientAccepted','canPublish'] as $flag) self::need(($intake[$flag]??null)===false);
+        self::$phase='SNAPSHOT';
         $snap=self::uuid($writer);
         $source=self::file($sites.'/'.self::E.'onepage-brief.synthetic.json');
         $editorial=self::file($sites.'/'.self::E.'render-input.synthetic.json');
@@ -142,6 +177,7 @@ final class IsolatedScenario
         $input=BriefSnapshotInput::fromJson(self::json($manifest),$source);
         $snapReceipt=(new PortalBriefSnapshotRecorder(self::wrap($sessions['source'])))->record($input);
         self::need($snapReceipt['snapshotRef']===$snap && $snapReceipt['payloadSha256']===$input->payloadSha256);
+        self::$phase='RENDER';
         $plan=self::decode(self::file($sites.'/'.self::E.'brief-render-plan.synthetic.json'));
         $plan=array_replace($plan,['tenantRef'=>$org,'siteRef'=>$site,'releaseRef'=>$release]);
         $plan['snapshot']=['snapshotRef'=>$snap,'briefRevision'=>1,'manifestSha256'=>$input->manifestSha256];
@@ -149,21 +185,26 @@ final class IsolatedScenario
         $planBytes=self::json($plan);
         $render=BriefRenderProvenance::render($planBytes,$input->snapshotJson,$input->sourceJson,$editorial);
         self::need($render['artifact']->html===$golden);
+        self::$phase='REGISTER';
         $reg=self::q($sessions['artifact'],'SELECT * FROM sites_core.record_brief_release_artifact(?::text,?::text,?::text)',
             [$planBytes,$editorial,$golden])->fetchAll(PDO::FETCH_ASSOC);
         self::need(count($reg)===1 && $reg[0]['artifact_digest']===self::HTML_SHA);
+        self::$phase='EDITORIAL';
         $e=new EditorialRevisionWriter(self::wrap($sessions['editor']));
         $review=new EditorialRevisionWriter(self::wrap($sessions['reviewer']));
         self::need($e->transition($site,0,'register',self::HTML_SHA)['revision']===1);
         self::need($e->transition($site,1,'submit',self::HTML_SHA)['revision']===2);
         self::need($review->transition($site,2,'approve_internal',self::HTML_SHA)['state']==='awaiting_portal_acceptance');
+        self::$phase='BIND';
         $binding=(new PgSiteReleaseRegistry($sessions['binding']))->bind($site,$release,3,0);
         self::need($binding->bindingRevision===1 && $binding->editorialRevision===3);
+        self::$phase='CUSTODY';
         $bytes=self::q($observer,'SELECT html FROM sites_core.release_artifacts WHERE tenant_id=?::uuid AND site_id=?::uuid AND release_ref=?',
             [$tenant,$site,$release])->fetchColumn();
         self::need($bytes===$golden);
 
         // Portal facts here are fictitious values. The D worker has no Eligible path.
+        self::$phase='INTENT';
         $intent=new Intent('terminal-fixture-operation-a',[
             'tenantRef'=>$org,'buyerRef'=>'fixture-buyer','orderRef'=>$order,'siteRef'=>$site,'contractRef'=>$contract,
             'snapshotRef'=>$snap,'releaseRef'=>$release,'presentationRef'=>'fixture-presentation-a','actionRef'=>'fixture-action-a',
@@ -171,6 +212,7 @@ final class IsolatedScenario
             'sessionBinding'=>hash('sha256','non-secret fixture label'),'contractRevision'=>1,'sourceVersion'=>$input->sourceVersion,
             'briefRevision'=>1,'approvalGeneration'=>1,'editorialRevision'=>3,'bindingRevision'=>1,'sessionEpoch'=>1,
         ]);
+        self::$phase='RACE_SETUP';
         self::race($gate,$observer,$sessions['revoke'],$run,$tenant,$intent,$identity);
         return true;
     }
@@ -180,6 +222,7 @@ final class IsolatedScenario
         $worker=null; $pipes=[];
         try {
             $start=static function(string $t,Intent $i)use($run,$identity,&$worker,&$pipes):array {
+                self::$phase='RACE_SPAWN';
                 $ini=php_ini_loaded_file();
                 self::need(is_string($ini) && realpath($ini)===$ini);
                 $worker=proc_open([PHP_BINARY,'-c',$ini,'-d','display_errors=0','-d','log_errors=0',
@@ -193,9 +236,11 @@ final class IsolatedScenario
                 $line=fgets($pipes[1],101);
                 self::need(is_string($line) && str_ends_with($line,"\n"));
                 $pid=self::decode($line);
+                self::$phase='RACE_WAIT';
                 return $pid;
             };
             $finish=static function(array $info)use(&$worker,&$pipes):array {
+                self::$phase='RACE_CHILD';
                 $deadline=hrtime(true)+8_000_000_000;
                 do { $status=proc_get_status($worker); if(!$status['running']) break; usleep(5000); }
                 while(hrtime(true)<$deadline);
@@ -204,6 +249,7 @@ final class IsolatedScenario
                 self::need(is_string($stdout) && strlen($stdout)<=256 && $stderr==='');
                 foreach($pipes as $p) fclose($p);
                 $pipes=[]; proc_close($worker); $worker=null;
+                self::$phase='RACE_READBACK';
                 return self::decode($stdout);
             };
             RevokeFirstFixture::run($revoker,$observer,$tenant,$intent,$start,$finish,self::capture(...),
@@ -326,6 +372,20 @@ final class IsolatedScenario
     private static function uuid(PDO $db):string{return self::q($db,'SELECT gen_random_uuid()::text')->fetchColumn();}
     private static function json(array $a):string{return json_encode($a,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR)."\n";}
     private static function decode(string $s):array{return json_decode($s,true,16,JSON_THROW_ON_ERROR);}
+    private static function category(Throwable $cause): string
+    {
+        for ($i=0;$i<3 && $cause!==null;++$i,$cause=$cause->getPrevious()) {
+            if (!$cause instanceof \PDOException) continue;
+            return match($cause->errorInfo[0]??null) {
+                '23502','23503','23505','23514'=>'CONSTRAINT',
+                '42501','28P01'=>'AUTH',
+                '40001','40P01','55P03','57014'=>'LOCK_OR_TIMEOUT',
+                '42P01','42703','42883','42P07','42710','3F000'=>'DEFINITION',
+                default=>'SQL_OTHER',
+            };
+        }
+        return 'NO_SQLSTATE';
+    }
     private static function need(bool $ok):void {if(!$ok) throw new RuntimeException('ONEPAGE_TERMINAL_SCENARIO_REFUSED');}
 }
 
