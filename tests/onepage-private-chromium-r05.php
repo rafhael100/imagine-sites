@@ -29,7 +29,8 @@ header('Cache-Control: no-store');
 header('X-Content-Type-Options: nosniff');
 header("Content-Security-Policy: default-src 'none'; frame-src 'self'; connect-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'none'");
 $state = json_decode((string) file_get_contents($dir.'/release.json'), true, 10, JSON_THROW_ON_ERROR);
-$buyer = ($_COOKIE['r05_session'] ?? null) === 'synthetic-buyer-one-session';
+$session = $_COOKIE['r05_session'] ?? '';
+$buyer = in_array($session, ['synthetic-buyer-one-session','synthetic-buyer-one-session-2'], true);
 // The guest shell is HTTP 200 so Chromium does not substitute its own error page
 // for an intentionally denied empty HTTP 403. It never sets a buyer cookie.
 if ($path === '/fixture-guest') {
@@ -37,8 +38,10 @@ if ($path === '/fixture-guest') {
     echo '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Convidado fictício</title></head><body><p>Sem sessão</p></body></html>';
     exit;
 }
-if ($path === '/fixture-enter' || $path === '/fixture-other') {
-    header('Set-Cookie: r05_session='.($path === '/fixture-enter' ? 'synthetic-buyer-one-session' : 'synthetic-buyer-two-session').'; Path=/; HttpOnly; SameSite=Strict');
+if (in_array($path, ['/fixture-enter','/fixture-enter-second','/fixture-other'], true)) {
+    $newSession = $path === '/fixture-enter' ? 'synthetic-buyer-one-session'
+        : ($path === '/fixture-enter-second' ? 'synthetic-buyer-one-session-2' : 'synthetic-buyer-two-session');
+    header('Set-Cookie: r05_session='.$newSession.'; Path=/; HttpOnly; SameSite=Strict');
     header('Location: '.($path === '/fixture-enter' ? '/review' : '/fixture-guest'), true, 302);
     exit;
 }
@@ -88,7 +91,7 @@ if ($path === '/private-onepage') {
     $sha = hash('sha256', $bytes);
     // A fixture GET does not constitute a legally valid presentation.
     file_put_contents($dir.'/presentation.json', json_encode([
-        'buyer'=>'buyer-one','epoch'=>$state['epoch'],'sha'=>$sha,'release'=>$state['release'],
+        'buyer'=>'buyer-one','session'=>$session,'epoch'=>$state['epoch'],'sha'=>$sha,'release'=>$state['release'],
     ], JSON_THROW_ON_ERROR), LOCK_EX);
     header('Content-Type: text/html; charset=UTF-8');
     header('X-Synthetic-Epoch: '.$state['epoch']);
@@ -106,6 +109,7 @@ if ($path === '/fixture-final-accept' && $_SERVER['REQUEST_METHOD'] === 'POST') 
         !is_int($request['epoch'] ?? null) || !is_string($request['sha'] ?? null) ||
         !is_int($request['length'] ?? null) || !is_array($observed) ||
         ($observed['buyer'] ?? null) !== 'buyer-one' ||
+        ($observed['session'] ?? null) !== $session ||
         ($observed['epoch'] ?? null) !== $state['epoch'] ||
         $request['epoch'] !== $state['epoch'] ||
         $expected !== $state['sha'] || $expected !== ($observed['sha'] ?? null) ||
@@ -190,7 +194,7 @@ try {
         // Never emit raw browser stderr. Only accept a bounded enum of failure phases.
         $reason = 'UNKNOWN';
         if (is_string($stderr) && preg_match(
-            '/^R05_FAIL (START_CHROME|START_CDP|DENY_GUEST|LOGIN_A|REVIEW_A|CLICK_A|REPLAY|STALE|LOGIN_B|REVIEW_B|CLICK_B|DENY_OTHER) (R05_[A-Z0-9_]+) (UNKNOWN|CHROME_BLOCKED|NOT_REVIEW|NO_IFRAME|INSECURE_CONTEXT|OBSERVATION_INCOMPLETE|REVIEW_READY)$/m',
+            '/^R05_FAIL (START_CHROME|START_CDP|DENY_GUEST|LOGIN_A|REVIEW_A|CLICK_A|REPLAY|STALE|LOGIN_B|REVIEW_B|CLICK_B|CROSS_SESSION_STALE|CROSS_SESSION_REVIEW|DENY_OTHER) (R05_[A-Z0-9_]+) (UNKNOWN|CHROME_BLOCKED|NOT_REVIEW|NO_IFRAME|INSECURE_CONTEXT|OBSERVATION_INCOMPLETE|REVIEW_READY)$/m',
             $stderr, $match,
         ) === 1) {
             $reason = $match[1].'_'.$match[2].'_'.$match[3];
@@ -217,6 +221,7 @@ try {
     }
     echo trim($stdout)."\n";
     echo "ONEPAGE R07 READBACK PASS: 3 release epochs, B/C same HTML SHA, obsolete click denied, no fourth effect; NO-GO.\n";
+    echo "ONEPAGE R08 READBACK PASS: presentation session mismatch denied, fresh session replay idempotent, 3 receipts; NO-GO.\n";
 } finally {
     proc_terminate($proc);
     proc_close($proc);

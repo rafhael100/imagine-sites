@@ -171,6 +171,33 @@ try{
   const replayC=await click();
   check(replayC.status===200 && replayC.body?.ok===true &&
         replayC.body?.ref==='synthetic-r05-3');
+  // R08: A second browser session of the SAME synthetic buyer must not
+  // borrow the first session's presentation, even with the same release/SHA.
+  // Read only minimal synthetic observation, never cookie or browser profile.
+  const witnessedC=await evaluate('window.r05Observed');
+  check(witnessedC?.epoch===3 && witnessedC?.sha===secondSha);
+  stage='CROSS_SESSION_STALE';
+  await visit('/fixture-enter-second');
+  const crossSession=await evaluate(
+    '(async()=>{const r=await fetch("/fixture-final-accept",{method:"POST",'+
+    'headers:{"Content-Type":"application/json"},credentials:"same-origin",cache:"no-store",'+
+    'body:JSON.stringify('+JSON.stringify(witnessedC)+')});'+
+    'return {status:r.status,body:await r.json()};})()'
+  );
+  check(crossSession.status===409 && crossSession.body?.ok===false);
+  const unchanged=(await readFile(join(dir,'receipts.jsonl'),'utf8')).trim().split('\n');
+  check(unchanged.length===3);
+  stage='CROSS_SESSION_REVIEW';
+  await visit('/review');
+  await readyReview();
+  const newSession=await snapshot();
+  check(newSession.status===200 && newSession.sha===secondSha &&
+        newSession.length===c.length && newSession.framePath==='/private-onepage');
+  const safeReplay=await click();
+  check(safeReplay.status===200 && safeReplay.body?.ok===true &&
+        safeReplay.body?.ref==='synthetic-r05-3');
+  const afterReplay=(await readFile(join(dir,'receipts.jsonl'),'utf8')).trim().split('\n');
+  check(afterReplay.length===3);
   stage='DENY_OTHER';
   await visit('/fixture-other');
   const denied=await evaluate(
