@@ -1,0 +1,75 @@
+name: Sites OnePage Chromium same-HTML new-release epoch R07 (CI only)
+'on':
+  pull_request:
+    types: [opened, synchronize]
+    branches: ['test/onepage-chromium-denied-response-r06-2026-11-22']
+    paths:
+      - 'tests/onepage-private-chromium-r05.php'
+      - 'tests/onepage-private-chromium-cdp-r05.mjs'
+      - '.github/workflows/sites-onepage-private-chromium-r07.yml'
+      - 'docs/reviews/SITES-ONEPAGE-PRIVATE-CHROMIUM-R07-2026-11-22.md'
+permissions:
+  contents: read
+concurrency:
+  group: sites-onepage-chromium-r07-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  chromium-private-same-html-epoch:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.base.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'test/onepage-chromium-same-sha-new-epoch-r07-2026-11-22' &&
+      github.event.pull_request.base.ref == 'test/onepage-chromium-denied-response-r06-2026-11-22' &&
+      github.event.pull_request.base.sha == '9e44b92112fb149acf98b57af9da41b1eb8b558a'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: none
+          coverage: none
+      - name: Install isolated Chromium as existing R05
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/sites-r07-venv"
+          source "$RUNNER_TEMP/sites-r07-venv/bin/activate"
+          python -m pip install --disable-pip-version-check 'playwright==1.56.0'
+          python -m playwright install --with-deps chromium
+      - name: Verify exact child scope and exercise denied guest and buyer Chromium
+        env:
+          EXACT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXACT_HEAD"
+          python3 - <<'PY'
+          import subprocess
+          expected = {
+            'tests/onepage-private-chromium-r05.php',
+            'tests/onepage-private-chromium-cdp-r05.mjs',
+            '.github/workflows/sites-onepage-private-chromium-r07.yml',
+            'docs/reviews/SITES-ONEPAGE-PRIVATE-CHROMIUM-R07-2026-11-22.md',
+          }
+          changed = set(subprocess.check_output([
+            'git','diff','--name-only','9e44b92112fb149acf98b57af9da41b1eb8b558a','HEAD'
+          ], text=True).splitlines())
+          assert changed == expected, 'R07_SCOPE_REFUSED'
+          PY
+          php -l tests/onepage-private-chromium-r05.php
+          node --check tests/onepage-private-chromium-cdp-r05.mjs
+          node -e 'if (typeof WebSocket!=="function") process.exit(1)'
+          source "$RUNNER_TEMP/sites-r07-venv/bin/activate"
+          export BROWSER_BIN="$(python -c 'from playwright.sync_api import sync_playwright; p=sync_playwright().start(); print(p.chromium.executable_path); p.stop()')"
+          test -x "$BROWSER_BIN"
+          test ! -e .env.production
+          test ! -e /run/secrets/imagine
+          php tests/onepage-private-chromium-r05.php | tee "$RUNNER_TEMP/sites-onepage-r07.log"
+          grep -Eq '^ONEPAGE R05 CHROMIUM PASS: [0-9]+ checks; NO-GO[.]$' "$RUNNER_TEMP/sites-onepage-r07.log"
+          grep -Fq 'ONEPAGE R07 READBACK PASS: 3 release epochs, B/C same HTML SHA, obsolete click denied, no fourth effect; NO-GO.' "$RUNNER_TEMP/sites-onepage-r07.log"

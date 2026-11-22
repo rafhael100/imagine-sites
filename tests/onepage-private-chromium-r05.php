@@ -144,6 +144,11 @@ file_put_contents($dir.'/next-preview.html',$artifactB->html,LOCK_EX);
 file_put_contents($dir.'/next-release.json',json_encode([
     'epoch'=>2,'sha'=>$artifactB->digest,'release'=>'synthetic-release-b',
 ],JSON_THROW_ON_ERROR),LOCK_EX);
+// A new immutable release may retain exactly the same HTML SHA.
+// The previous presentation/acceptance MUST still be stale by epoch.
+file_put_contents($dir.'/same-html-new-release.json',json_encode([
+    'epoch'=>3,'sha'=>$artifactB->digest,'release'=>'synthetic-release-c-same-html',
+],JSON_THROW_ON_ERROR),LOCK_EX);
 
 $proc = proc_open(
     [PHP_BINARY,'-d','display_errors=0','-S','127.0.0.1:'.$port,'-t',$dir,$dir.'/router.php'],
@@ -193,22 +198,30 @@ try {
         throw new RuntimeException('R05_BROWSER_REFUSED '.$reason);
     }
     $receipts=file($dir.'/receipts.jsonl',FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    if (!is_array($receipts) || count($receipts)!==2) throw new RuntimeException('R05_RECEIPT_COUNT_REFUSED');
+    if (!is_array($receipts) || count($receipts)!==3) throw new RuntimeException('R07_RECEIPT_COUNT_REFUSED');
     $a=json_decode($receipts[0],true,10,JSON_THROW_ON_ERROR);
     $b=json_decode($receipts[1],true,10,JSON_THROW_ON_ERROR);
+    $c=json_decode($receipts[2],true,10,JSON_THROW_ON_ERROR);
     if ($a['source']!=='SYNTHETIC_CHROMIUM_R05' || $b['source']!==$a['source'] ||
-        $a['epoch']!==1 || $b['epoch']!==2 ||
+        $c['source']!==$a['source'] ||
+        $a['epoch']!==1 || $b['epoch']!==2 || $c['epoch']!==3 ||
         $a['sha']!==$originalArtifact->digest || $b['sha']!==$artifactB->digest ||
-        $a['buyer']!=='buyer-one' || $b['buyer']!=='buyer-one') {
-        throw new RuntimeException('R05_RECEIPT_READBACK_REFUSED');
+        $c['sha']!==$b['sha'] ||
+        $a['release']!=='synthetic-release-a' ||
+        $b['release']!=='synthetic-release-b' ||
+        $c['release']!=='synthetic-release-c-same-html' ||
+        count(array_unique([$a['ref'], $b['ref'], $c['ref']]))!==3 ||
+        $a['buyer']!=='buyer-one' || $b['buyer']!=='buyer-one' ||
+        $c['buyer']!=='buyer-one') {
+        throw new RuntimeException('R07_RECEIPT_READBACK_REFUSED');
     }
     echo trim($stdout)."\n";
-    echo "ONEPAGE R05 READBACK PASS: 2 exact synthetic browser clicks, separate SHA, no third effect; NO-GO.\n";
+    echo "ONEPAGE R07 READBACK PASS: 3 release epochs, B/C same HTML SHA, obsolete click denied, no fourth effect; NO-GO.\n";
 } finally {
     proc_terminate($proc);
     proc_close($proc);
     foreach (['router.php','preview.html','next-preview.html','release.json','next-release.json',
-              'presentation.json','receipts.jsonl','server.out','server.err'] as $file) {
+              'same-html-new-release.json','presentation.json','receipts.jsonl','server.out','server.err'] as $file) {
         @unlink($dir.'/'.$file);
     }
     @rmdir($dir);
