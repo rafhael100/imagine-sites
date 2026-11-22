@@ -1,0 +1,73 @@
+name: Sites OnePage real Chromium browser and exact private HTML R05 (CI only)
+'on':
+  pull_request:
+    types: [opened, synchronize]
+    branches: ['test/onepage-private-http-witness-r04-2026-11-22']
+    paths:
+      - 'tests/onepage-private-chromium-r05.php'
+      - 'tests/onepage-private-chromium-cdp-r05.mjs'
+      - '.github/workflows/sites-onepage-private-chromium-r05.yml'
+      - 'docs/reviews/SITES-ONEPAGE-PRIVATE-CHROMIUM-R05-2026-11-22.md'
+permissions:
+  contents: read
+concurrency:
+  group: sites-onepage-chromium-r05-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  chromium-private-test:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.base.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'test/onepage-private-chromium-r05-2026-11-22' &&
+      github.event.pull_request.base.ref == 'test/onepage-private-http-witness-r04-2026-11-22' &&
+      github.event.pull_request.base.sha == 'd3d5d2b55fe8b005ce4d8626ecc32b866c5877b5'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: none
+          coverage: none
+      - name: Verify exact R05 scope and run private real browser test
+        env:
+          EXACT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXACT_HEAD"
+          python3 - <<'PY'
+          import subprocess
+          expected = {
+            'tests/onepage-private-chromium-r05.php',
+            'tests/onepage-private-chromium-cdp-r05.mjs',
+            '.github/workflows/sites-onepage-private-chromium-r05.yml',
+            'docs/reviews/SITES-ONEPAGE-PRIVATE-CHROMIUM-R05-2026-11-22.md',
+          }
+          changed = set(subprocess.check_output([
+            'git','diff','--name-only','d3d5d2b55fe8b005ce4d8626ecc32b866c5877b5','HEAD'
+          ],text=True).splitlines())
+          assert changed == expected, 'R05_SCOPE_REFUSED'
+          PY
+          php -l tests/onepage-private-chromium-r05.php
+          node --check tests/onepage-private-chromium-cdp-r05.mjs
+          node -e 'if (typeof WebSocket!=="function") process.exit(1)'
+          if command -v google-chrome >/dev/null; then
+            export BROWSER_BIN="$(command -v google-chrome)"
+          elif command -v chromium >/dev/null; then
+            export BROWSER_BIN="$(command -v chromium)"
+          else
+            echo 'R05_BROWSER_NOT_PROVISIONED' >&2
+            exit 1
+          fi
+          test ! -e .env.production
+          test ! -e /run/secrets/imagine
+          php tests/onepage-private-chromium-r05.php | tee "$RUNNER_TEMP/sites-onepage-r05.log"
+          grep -Eq '^ONEPAGE R05 CHROMIUM PASS: [0-9]+ checks; NO-GO[.]$' "$RUNNER_TEMP/sites-onepage-r05.log"
+          grep -Fq 'ONEPAGE R05 READBACK PASS: 2 exact synthetic browser clicks, separate SHA, no third effect; NO-GO.' "$RUNNER_TEMP/sites-onepage-r05.log"
