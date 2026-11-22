@@ -39,7 +39,7 @@ try {
         ob_get_clean()!=='' || $writer->inTransaction() || $observer->inTransaction() ||
         $admission->assertBootstrap($writer)===$admission->assertBootstrap($observer)) throw new RuntimeException();
     $writer=null; $observer=null;
-    echo "ONEPAGE_TERMINAL_REVOKE_FIRST_OK\n";
+    echo "ONEPAGE_TERMINAL_ACCEPT_FIRST_LATER_VETO_OK\n";
 } catch (Throwable) {
     while (ob_get_level()>0) ob_end_clean();
     fwrite(STDERR,'ONEPAGE_TERMINAL_ENTRY_REFUSED '.$phase."\n");
