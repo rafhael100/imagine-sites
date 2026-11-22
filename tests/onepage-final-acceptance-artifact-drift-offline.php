@@ -85,6 +85,10 @@ $initial = [
     'release'=>$release, 'acceptance'=>$accepted, 'presentation'=>$presentation,
 ];
 
+// Reuse identical synthetic inputs in the R04 HTTP transport experiment,
+// without rerunning R03's already-green regression suite.
+if (defined('ONEPAGE_HTTP_R04_FIXTURES_ONLY')) return;
+
 $gate = static function (array &$state): OnepageExactFinalAcceptanceReadCandidate {
     $preview = new OnepageBuyerPrivatePreviewCandidate(
         static fn() => $state['record'],
