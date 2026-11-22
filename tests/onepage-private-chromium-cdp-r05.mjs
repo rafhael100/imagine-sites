@@ -306,6 +306,21 @@ try{
   const finalReceipt=JSON.parse(concurrentReadback.trim().split('\n')[3]);
   check(finalReceipt.epoch===5 && finalReceipt.sha===secondSha &&
         finalReceipt.release==='synthetic-release-e-concurrent');
+  // R13: E already exists. R12 incorrectly short-circuited on its matching
+  // receipt before inspecting a later corrupt line, yielding HTTP 200.
+  // Idempotency must be fail-closed for the ENTIRE ledger.
+  stage='R13_IDEMPOTENT_CORRUPT_TAIL';
+  const validLedger=await readFile(receiptPath,'utf8');
+  const corruptTail=validLedger+'{broken-trailing-history'+String.fromCharCode(10);
+  await writeFile(receiptPath,corruptTail);
+  try {
+    const refusedReplay=await click();
+    check(refusedReplay.status===503 && refusedReplay.body?.ok===false);
+    check(await readFile(receiptPath,'utf8')===corruptTail);
+  } finally {
+    await writeFile(receiptPath,validLedger);
+  }
+  check(await readFile(receiptPath,'utf8')===validLedger);
   console.log('ONEPAGE R05 CHROMIUM PASS: '+checks+' checks; NO-GO.');
 }catch(error){
   const code=error instanceof Error && /^R05_[A-Z0-9_]+$/.test(error.message)
