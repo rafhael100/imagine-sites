@@ -133,6 +133,14 @@ if ($path === '/fixture-final-accept' && $_SERVER['REQUEST_METHOD'] === 'POST') 
         'release'=>$state['release'],'ref'=>'synthetic-r05-'.$state['epoch'],
     ];
     $receiptPath = $dir.'/receipts.jsonl';
+    // R11: the entire read/compare/append/readback must share one exclusive
+    // cross-worker critical section. LOCK_EX on append alone is insufficient:
+    // a second PHP worker could have read the old state before that append.
+    // This lock file is a fixed path inside a disposable 0700 fixture directory.
+    $receiptLock = @fopen($dir.'/receipts.lock', 'c');
+    if ($receiptLock === false || !@flock($receiptLock, LOCK_EX)) {
+        http_response_code(503); echo '{"ok":false}'; exit;
+    }
     // An accepted receipt must be durably readable. A symlink to a sink can
     // report a successful append while discarding all bytes (R10 regression).
     if (is_link($receiptPath) || (file_exists($receiptPath) && !is_file($receiptPath))) {
@@ -151,6 +159,9 @@ if ($path === '/fixture-final-accept' && $_SERVER['REQUEST_METHOD'] === 'POST') 
             exit;
         }
     }
+    // Widen only the synthetic epoch-5 concurrency window. Without the
+    // R11 critical section, parallel workers can both consider the ref new.
+    if ($state['epoch'] === 5) usleep(110000);
     $line = json_encode($receipt,JSON_THROW_ON_ERROR)."\n";
     $written = @file_put_contents($receiptPath,$line,FILE_APPEND | LOCK_EX);
     if ($written !== strlen($line)) {
@@ -186,7 +197,10 @@ file_put_contents($dir.'/same-html-new-release.json',json_encode([
 $proc = proc_open(
     [PHP_BINARY,'-d','display_errors=0','-S','127.0.0.1:'.$port,'-t',$dir,$dir.'/router.php'],
     [0=>['pipe','r'],1=>['file',$dir.'/server.out','a'],2=>['file',$dir.'/server.err','a']],
-    $pipes,$dir
+    $pipes,$dir,[
+        'PATH'=>getenv('PATH') ?: '/usr/bin:/bin',
+        'PHP_CLI_SERVER_WORKERS'=>'4',
+    ]
 );
 if (!is_resource($proc)) throw new RuntimeException('R05_SERVER_REFUSED');
 fclose($pipes[0]);
@@ -223,7 +237,7 @@ try {
         // Never emit raw browser stderr. Only accept a bounded enum of failure phases.
         $reason = 'UNKNOWN';
         if (is_string($stderr) && preg_match(
-            '/^R05_FAIL (START_CHROME|START_CDP|DENY_GUEST|LOGIN_A|REVIEW_A|CLICK_A|REPLAY|STALE|LOGIN_B|REVIEW_B|CLICK_B|CROSS_SESSION_STALE|CROSS_SESSION_REVIEW|R09_FIRST_SESSION_REVISIT|R09_SECOND_SESSION_REPLAY|DENY_OTHER) (R05_[A-Z0-9_]+) (UNKNOWN|CHROME_BLOCKED|NOT_REVIEW|NO_IFRAME|INSECURE_CONTEXT|OBSERVATION_INCOMPLETE|REVIEW_READY)$/m',
+            '/^R05_FAIL (START_CHROME|START_CDP|DENY_GUEST|LOGIN_A|REVIEW_A|CLICK_A|REPLAY|STALE|LOGIN_B|REVIEW_B|CLICK_B|CROSS_SESSION_STALE|CROSS_SESSION_REVIEW|R09_FIRST_SESSION_REVISIT|R09_SECOND_SESSION_REPLAY|DENY_OTHER|R10_UNDURABLE_RECEIPT|R11_CONCURRENT_RECEIPT) (R05_[A-Z0-9_]+) (UNKNOWN|CHROME_BLOCKED|NOT_REVIEW|NO_IFRAME|INSECURE_CONTEXT|OBSERVATION_INCOMPLETE|REVIEW_READY)$/m',
             $stderr, $match,
         ) === 1) {
             $reason = $match[1].'_'.$match[2].'_'.$match[3];
@@ -231,10 +245,11 @@ try {
         throw new RuntimeException('R05_BROWSER_REFUSED '.$reason);
     }
     $receipts=file($dir.'/receipts.jsonl',FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    if (!is_array($receipts) || count($receipts)!==3) throw new RuntimeException('R07_RECEIPT_COUNT_REFUSED');
+    if (!is_array($receipts) || count($receipts)!==4) throw new RuntimeException('R11_RECEIPT_COUNT_REFUSED');
     $a=json_decode($receipts[0],true,10,JSON_THROW_ON_ERROR);
     $b=json_decode($receipts[1],true,10,JSON_THROW_ON_ERROR);
     $c=json_decode($receipts[2],true,10,JSON_THROW_ON_ERROR);
+    $e=json_decode($receipts[3],true,10,JSON_THROW_ON_ERROR);
     if ($a['source']!=='SYNTHETIC_CHROMIUM_R05' || $b['source']!==$a['source'] ||
         $c['source']!==$a['source'] ||
         $a['epoch']!==1 || $b['epoch']!==2 || $c['epoch']!==3 ||
@@ -245,7 +260,11 @@ try {
         $c['release']!=='synthetic-release-c-same-html' ||
         count(array_unique([$a['ref'], $b['ref'], $c['ref']]))!==3 ||
         $a['buyer']!=='buyer-one' || $b['buyer']!=='buyer-one' ||
-        $c['buyer']!=='buyer-one') {
+        $c['buyer']!=='buyer-one' ||
+        $e['source']!==$a['source'] || $e['buyer']!=='buyer-one' ||
+        $e['epoch']!==5 || $e['sha']!==$artifactB->digest ||
+        $e['release']!=='synthetic-release-e-concurrent' ||
+        $e['ref']!=='synthetic-r05-5') {
         throw new RuntimeException('R07_RECEIPT_READBACK_REFUSED');
     }
     echo trim($stdout)."\n";
@@ -253,12 +272,13 @@ try {
     echo "ONEPAGE R08 READBACK PASS: presentation session mismatch denied, fresh session replay idempotent, 3 receipts; NO-GO.\n";
     echo "ONEPAGE R09 READBACK PASS: independent same-buyer session witnesses survive interleaving, no fourth effect; NO-GO.\n";
     echo "ONEPAGE R10 READBACK PASS: undurable receipt sink denied HTTP 503 and three original receipts preserved; NO-GO.\n";
+    echo "ONEPAGE R11 READBACK PASS: 12 parallel same-ref POSTs, one new exact receipt, eleven idempotent reads, no duplicate; NO-GO.\n";
 } finally {
     proc_terminate($proc);
     proc_close($proc);
     foreach (['router.php','preview.html','next-preview.html','release.json','next-release.json',
               'same-html-new-release.json','presentation-session-one.json','presentation-session-two.json',
-              'receipts.jsonl','receipts.saved.jsonl','server.out','server.err'] as $file) {
+              'receipts.jsonl','receipts.saved.jsonl','receipts.lock','server.out','server.err'] as $file) {
         @unlink($dir.'/'.$file);
     }
     @rmdir($dir);
