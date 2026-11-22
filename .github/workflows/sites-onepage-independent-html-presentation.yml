@@ -50,6 +50,6 @@ jobs:
           php -l tests/onepage-final-acceptance-artifact-drift-offline.php
           grep -Fq 'private ?Closure $currentPresentation = null' src/Production/OnepageExactFinalAcceptanceReadCandidate.php
           php tests/onepage-final-acceptance-artifact-drift-offline.php | tee "$RUNNER_TEMP/onepage-independent-presentation.log"
-          grep -Eq '^ONEPAGE FINAL ACCEPTANCE ARTIFACT DRIFT PASS: [0-9]+ synthetic checks; NO-GO[.]$' "$RUNNER_TEMP/onepage-final-drift.log"
+          grep -Eq '^ONEPAGE FINAL ACCEPTANCE ARTIFACT DRIFT PASS: [0-9]+ synthetic checks; NO-GO[.]$' "$RUNNER_TEMP/onepage-independent-presentation.log"
           test ! -e .env.production
           test ! -e /run/secrets/imagine
