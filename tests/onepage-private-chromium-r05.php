@@ -132,8 +132,17 @@ if ($path === '/fixture-final-accept' && $_SERVER['REQUEST_METHOD'] === 'POST') 
         'epoch'=>$state['epoch'],'sha'=>$state['sha'],
         'release'=>$state['release'],'ref'=>'synthetic-r05-'.$state['epoch'],
     ];
-    $previous = file_exists($dir.'/receipts.jsonl')
-        ? file($dir.'/receipts.jsonl', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) : [];
+    $receiptPath = $dir.'/receipts.jsonl';
+    // An accepted receipt must be durably readable. A symlink to a sink can
+    // report a successful append while discarding all bytes (R10 regression).
+    if (is_link($receiptPath) || (file_exists($receiptPath) && !is_file($receiptPath))) {
+        http_response_code(503); echo '{"ok":false}'; exit;
+    }
+    $previous = file_exists($receiptPath)
+        ? @file($receiptPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) : [];
+    if (!is_array($previous)) {
+        http_response_code(503); echo '{"ok":false}'; exit;
+    }
     foreach ($previous as $line) {
         $other = json_decode($line, true);
         if (($other['ref'] ?? '') === $receipt['ref']) {
@@ -142,7 +151,16 @@ if ($path === '/fixture-final-accept' && $_SERVER['REQUEST_METHOD'] === 'POST') 
             exit;
         }
     }
-    file_put_contents($dir.'/receipts.jsonl',json_encode($receipt,JSON_THROW_ON_ERROR)."\n",FILE_APPEND | LOCK_EX);
+    $line = json_encode($receipt,JSON_THROW_ON_ERROR)."\n";
+    $written = @file_put_contents($receiptPath,$line,FILE_APPEND | LOCK_EX);
+    if ($written !== strlen($line)) {
+        http_response_code(503); echo '{"ok":false}'; exit;
+    }
+    $persisted = @file($receiptPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    if (!is_array($persisted) || count($persisted)!==count($previous)+1 ||
+        end($persisted)!==rtrim($line,"\n")) {
+        http_response_code(503); echo '{"ok":false}'; exit;
+    }
     http_response_code(201);
     echo json_encode(['ok'=>true,'ref'=>$receipt['ref']],JSON_THROW_ON_ERROR);
     exit;
@@ -234,12 +252,13 @@ try {
     echo "ONEPAGE R07 READBACK PASS: 3 release epochs, B/C same HTML SHA, obsolete click denied, no fourth effect; NO-GO.\n";
     echo "ONEPAGE R08 READBACK PASS: presentation session mismatch denied, fresh session replay idempotent, 3 receipts; NO-GO.\n";
     echo "ONEPAGE R09 READBACK PASS: independent same-buyer session witnesses survive interleaving, no fourth effect; NO-GO.\n";
+    echo "ONEPAGE R10 READBACK PASS: undurable receipt sink denied HTTP 503 and three original receipts preserved; NO-GO.\n";
 } finally {
     proc_terminate($proc);
     proc_close($proc);
     foreach (['router.php','preview.html','next-preview.html','release.json','next-release.json',
               'same-html-new-release.json','presentation-session-one.json','presentation-session-two.json',
-              'receipts.jsonl','server.out','server.err'] as $file) {
+              'receipts.jsonl','receipts.saved.jsonl','server.out','server.err'] as $file) {
         @unlink($dir.'/'.$file);
     }
     @rmdir($dir);
