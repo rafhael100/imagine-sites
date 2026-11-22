@@ -30,9 +30,16 @@ header('X-Content-Type-Options: nosniff');
 header("Content-Security-Policy: default-src 'none'; frame-src 'self'; connect-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'none'");
 $state = json_decode((string) file_get_contents($dir.'/release.json'), true, 10, JSON_THROW_ON_ERROR);
 $buyer = ($_COOKIE['r05_session'] ?? null) === 'synthetic-buyer-one-session';
+// The guest shell is HTTP 200 so Chromium does not substitute its own error page
+// for an intentionally denied empty HTTP 403. It never sets a buyer cookie.
+if ($path === '/fixture-guest') {
+    header('Content-Type: text/html; charset=UTF-8');
+    echo '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Convidado fictício</title></head><body><p>Sem sessão</p></body></html>';
+    exit;
+}
 if ($path === '/fixture-enter' || $path === '/fixture-other') {
     header('Set-Cookie: r05_session='.($path === '/fixture-enter' ? 'synthetic-buyer-one-session' : 'synthetic-buyer-two-session').'; Path=/; HttpOnly; SameSite=Strict');
-    header('Location: /review', true, 302);
+    header('Location: '.($path === '/fixture-enter' ? '/review' : '/fixture-guest'), true, 302);
     exit;
 }
 if ($path === '/review') {

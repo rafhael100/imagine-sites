@@ -108,9 +108,19 @@ try{
   await cmd('Page.enable');
   await cmd('Runtime.enable');
   stage='DENY_GUEST';
-  await visit('/private-onepage');
-  const empty=await evaluate('document.body.innerText.length');
-  check(empty===0 || empty<100);
+  // Navigate to an intentionally unprivileged 200 shell. A direct navigation
+  // to an empty HTTP 403 may become chrome-error:// in Chromium; that is not
+  // trustworthy evidence of either authorization or origin policy.
+  await visit('/fixture-guest');
+  const guest=await evaluate(
+    '(async()=>{const p=await fetch("/private-onepage",{cache:"no-store"});'+
+    'const pbytes=await p.arrayBuffer();'+
+    'const r=await fetch("/review",{cache:"no-store"});'+
+    'const rbytes=await r.arrayBuffer();'+
+    'return {path:location.pathname,previewStatus:p.status,previewLength:pbytes.byteLength,reviewStatus:r.status,reviewLength:rbytes.byteLength};})()'
+  );
+  check(guest.path==='/fixture-guest' && guest.previewStatus===403 &&
+        guest.previewLength===0 && guest.reviewStatus===403 && guest.reviewLength===0);
   stage='LOGIN_A';
   await visit('/fixture-enter');
   await readyReview();
@@ -142,9 +152,14 @@ try{
   stage='DENY_OTHER';
   await visit('/fixture-other');
   const denied=await evaluate(
-    '(async()=>{const r=await fetch("/private-onepage",{cache:"no-store"});return {status:r.status,length:(await r.text()).length};})()'
+    '(async()=>{const p=await fetch("/private-onepage",{cache:"no-store"});'+
+    'const pbytes=await p.arrayBuffer();'+
+    'const r=await fetch("/review",{cache:"no-store"});'+
+    'const rbytes=await r.arrayBuffer();'+
+    'return {path:location.pathname,previewStatus:p.status,previewLength:pbytes.byteLength,reviewStatus:r.status,reviewLength:rbytes.byteLength};})()'
   );
-  check(denied.status===403 && denied.length===0);
+  check(denied.path==='/fixture-guest' && denied.previewStatus===403 &&
+        denied.previewLength===0 && denied.reviewStatus===403 && denied.reviewLength===0);
   console.log('ONEPAGE R05 CHROMIUM PASS: '+checks+' checks; NO-GO.');
 }catch(error){
   const code=error instanceof Error && /^R05_[A-Z0-9_]+$/.test(error.message)
