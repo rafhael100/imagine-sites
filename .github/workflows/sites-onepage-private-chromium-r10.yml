@@ -21,7 +21,7 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.base.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'test/onepage-chromium-undurable-receipt-r10-2026-11-22' &&
-      github.event.pull_request.base.ref == 'test/onepage-chromium-undurable-receipt-r10-2026-11-22' &&
+      github.event.pull_request.base.ref == 'test/onepage-chromium-isolate-same-buyer-witness-r09-2026-11-22' &&
       github.event.pull_request.base.sha == 'bde6a83947d6acc04496e5cfe095535be886c31f'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
