@@ -341,6 +341,27 @@ try{
     check(await readFile(receiptPath,'utf8')===blankHistory);
   } finally { await writeFile(receiptPath,validLedger); }
   check(await readFile(receiptPath,'utf8')===validLedger);
+  // R15: append many individually valid, canonical, uniquely referenced
+  // synthetic receipts. The R14 implementation read an unbounded file and
+  // incorrectly returned idempotent HTTP 200 for this valid-but-oversized log.
+  stage='R15_OVERSIZE_LEDGER';
+  const extra = Array.from({length:600},(_,i)=>{
+    const epoch=100+i;
+    return JSON.stringify({
+      source:'SYNTHETIC_CHROMIUM_R05',buyer:'buyer-one',
+      epoch,sha:secondSha,release:'synthetic-release-overflow-'+epoch,
+      ref:'synthetic-r05-'+epoch
+    });
+  }).join('\n')+'\n';
+  const oversizedLedger=validLedger+extra;
+  check(Buffer.byteLength(oversizedLedger,'utf8')>65536);
+  await writeFile(receiptPath,oversizedLedger);
+  try {
+    const oversizedResponse=await click();
+    check(oversizedResponse.status===503 && oversizedResponse.body?.ok===false);
+    check(await readFile(receiptPath,'utf8')===oversizedLedger);
+  } finally { await writeFile(receiptPath,validLedger); }
+  check(await readFile(receiptPath,'utf8')===validLedger);
   console.log('ONEPAGE R05 CHROMIUM PASS: '+checks+' checks; NO-GO.');
 }catch(error){
   const code=error instanceof Error && /^R05_[A-Z0-9_]+$/.test(error.message)
