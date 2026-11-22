@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { mkdtemp, readFile, cp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, rename, symlink, unlink, cp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -233,6 +233,31 @@ try{
   );
   check(denied.path==='/fixture-guest' && denied.previewStatus===403 &&
         denied.previewLength===0 && denied.reviewStatus===403 && denied.reviewLength===0);
+  // R10: /dev/null is an intentionally undurable *local* sink. In the R09
+  // fixture, append succeeded and incorrectly yielded HTTP 201 although no
+  // receipt could be re-read. Preserve and restore all three valid receipts.
+  stage='R10_UNDURABLE_RECEIPT';
+  const receiptPath=join(dir,'receipts.jsonl');
+  const savedPath=join(dir,'receipts.saved.jsonl');
+  const originalReceipts=await readFile(receiptPath,'utf8');
+  check(originalReceipts.trim().split('\n').length===3);
+  await rename(receiptPath,savedPath);
+  try {
+    await symlink('/dev/null',receiptPath);
+    await writeFile(join(dir,'release.json'),JSON.stringify({
+      epoch:4,sha:secondSha,release:'synthetic-release-d-undurable'
+    }));
+    await visit('/fixture-enter');
+    await readyReview();
+    const d=await snapshot();
+    check(d.status===200 && d.sha===secondSha && d.framePath==='/private-onepage');
+    const rejected=await click();
+    check(rejected.status===503 && rejected.body?.ok===false);
+  } finally {
+    await unlink(receiptPath);
+    await rename(savedPath,receiptPath);
+  }
+  check(await readFile(receiptPath,'utf8')===originalReceipts);
   console.log('ONEPAGE R05 CHROMIUM PASS: '+checks+' checks; NO-GO.');
 }catch(error){
   const code=error instanceof Error && /^R05_[A-Z0-9_]+$/.test(error.message)
