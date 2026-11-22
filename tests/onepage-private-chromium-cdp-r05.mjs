@@ -14,6 +14,7 @@ const binary=process.env.BROWSER_BIN;
 if (!binary?.startsWith('/')) throw new Error('R05_BROWSER_BINARY_REFUSED');
 const profile=await mkdtemp(join(tmpdir(),'sites-r05-chrome-'));
 let chrome, ws;
+let stage='START_CHROME';
 let checks=0;
 const check=v=>{if(!v) throw new Error('R05_BROWSER_ASSERTION_REFUSED'); ++checks;};
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
@@ -79,6 +80,7 @@ try{
     '--remote-debugging-port=0','--remote-debugging-address=127.0.0.1',
     '--user-data-dir='+profile,'about:blank'
   ],{stdio:['ignore','ignore','ignore']});
+  stage='START_CDP';
   const portString=await until(async()=>{
     const value=await readFile(join(profile,'DevToolsActivePort'),'utf8');
     return value.match(/^(\d+)\n/)?.[1] ?? false;
@@ -105,35 +107,59 @@ try{
   };
   await cmd('Page.enable');
   await cmd('Runtime.enable');
+  stage='DENY_GUEST';
   await visit('/private-onepage');
   const empty=await evaluate('document.body.innerText.length');
   check(empty===0 || empty<100);
+  stage='LOGIN_A';
   await visit('/fixture-enter');
   await readyReview();
+  stage='REVIEW_A';
   const a=await snapshot();
   check(a.status===200 && a.sha===firstSha && a.length>0 &&
         a.frameText>0 && a.framePath==='/private-onepage');
+  stage='CLICK_A';
   const first=await click();
   check(first.status===201 && first.body?.ok===true && first.body?.ref==='synthetic-r05-1');
+  stage='REPLAY';
   const replay=await click();
   check(replay.status===200 && replay.body?.ok===true && replay.body?.ref==='synthetic-r05-1');
   await cp(join(dir,'next-preview.html'),join(dir,'preview.html'));
   await cp(join(dir,'next-release.json'),join(dir,'release.json'));
+  stage='STALE';
   const stale=await click();
   check(stale.status===409 && stale.body?.ok===false);
+  stage='LOGIN_B';
   await visit('/review');
   await readyReview();
+  stage='REVIEW_B';
   const b=await snapshot();
   check(b.status===200 && b.sha===secondSha && b.sha!==a.sha &&
         b.frameText>0 && b.framePath==='/private-onepage');
+  stage='CLICK_B';
   const acceptedB=await click();
   check(acceptedB.status===201 && acceptedB.body?.ok===true && acceptedB.body?.ref==='synthetic-r05-2');
+  stage='DENY_OTHER';
   await visit('/fixture-other');
   const denied=await evaluate(
     '(async()=>{const r=await fetch("/private-onepage",{cache:"no-store"});return {status:r.status,length:(await r.text()).length};})()'
   );
   check(denied.status===403 && denied.length===0);
   console.log('ONEPAGE R05 CHROMIUM PASS: '+checks+' checks; NO-GO.');
+}catch(error){
+  const code=error instanceof Error && /^R05_[A-Z0-9_]+$/.test(error.message)
+    ? error.message : 'R05_OTHER';
+  const snapshot=await evaluate(
+    '({blocked:location.protocol==="chrome-error:",review:location.pathname==="/review",ready:window.r05Ready===true,frame:!!document.querySelector("iframe"),secure:isSecureContext})'
+  ).catch(()=>null);
+  const state=snapshot===null ? 'UNKNOWN'
+    : snapshot.blocked ? 'CHROME_BLOCKED'
+    : !snapshot.review ? 'NOT_REVIEW'
+    : !snapshot.frame ? 'NO_IFRAME'
+    : !snapshot.secure ? 'INSECURE_CONTEXT'
+    : !snapshot.ready ? 'OBSERVATION_INCOMPLETE' : 'REVIEW_READY';
+  console.error('R05_FAIL '+stage+' '+code+' '+state);
+  process.exitCode=1;
 }finally{
   for(const pending of inflight.values()) pending.reject(new Error('R05_BROWSER_SHUTDOWN'));
   try{ws?.close();}catch{}
