@@ -1,8 +1,8 @@
 name: Sites OnePage — revoke-first in disposable Sites TLS
 'on':
   pull_request:
-    types: [opened, synchronize]
-    branches: [test/sites-stage3-onepage-stderr-boundary-v5-2026-11-22]
+    types: [opened]
+    branches: [test/sites-onepage-startup-stderr-probe-v6-2026-11-22]
     paths: [.github/workflows/sites-stage3-onepage-revoke-first-tls-ci.yml]
 permissions:
   contents: read
@@ -14,7 +14,7 @@ jobs:
     if: >-
       github.repository == 'rafhael100/imagine-sites' &&
       github.event_name == 'pull_request' &&
-      github.event.action == 'synchronize' &&
+      github.event.action == 'opened' &&
       github.run_attempt == 1 &&
       github.event.repository.private == false &&
       github.event.pull_request.state == 'open' &&
@@ -23,9 +23,9 @@ jobs:
       github.event.sender.login == 'rafhael100' &&
       github.event.pull_request.head.repo.full_name == 'rafhael100/imagine-sites' &&
       github.event.pull_request.base.repo.full_name == 'rafhael100/imagine-sites' &&
-      github.event.pull_request.head.ref == 'test/sites-onepage-startup-stderr-probe-v6-2026-11-22' &&
-      github.event.pull_request.base.ref == 'test/sites-stage3-onepage-stderr-boundary-v5-2026-11-22' &&
-      github.event.pull_request.base.sha == 'cbacd149f8f11186c6d8dd380dd97a120d0bf4d3'
+      github.event.pull_request.head.ref == 'test/sites-onepage-minimal-cli-bootstrap-v7-2026-11-22' &&
+      github.event.pull_request.base.ref == 'test/sites-onepage-startup-stderr-probe-v6-2026-11-22' &&
+      github.event.pull_request.base.sha == '5eee80aff555ee6317f5e198ec3c7a916188767f'
     runs-on: ubuntu-24.04
     timeout-minutes: 14
     steps:
@@ -37,9 +37,9 @@ jobs:
           /usr/bin/python3 -I -B - <<'PY'
           import hashlib, json, os, pathlib, re, subprocess
           repo='rafhael100/imagine-sites'
-          base='cbacd149f8f11186c6d8dd380dd97a120d0bf4d3'
-          base_ref='test/sites-stage3-onepage-stderr-boundary-v5-2026-11-22'
-          head_ref='test/sites-onepage-startup-stderr-probe-v6-2026-11-22'
+          base='5eee80aff555ee6317f5e198ec3c7a916188767f'
+          base_ref='test/sites-onepage-startup-stderr-probe-v6-2026-11-22'
+          head_ref='test/sites-onepage-minimal-cli-bootstrap-v7-2026-11-22'
           workflow='.github/workflows/sites-stage3-onepage-revoke-first-tls-ci.yml'
           prefix='tests/fixtures/sites-onepage-terminal/'
           new={
@@ -49,7 +49,7 @@ jobs:
               prefix+'owned_receipt.py':'d86556b6fb11162b43413e7f126e76ace15d17b0989966562387e56e7b23414e',
               prefix+'TlsAdmission.php':'c831c002226587c4cf19e15e2f7c39116b895e48276f98667d45a0ee47b96676',
               prefix+'Stage3ReceiptChannel.php':'ee5e124be0521f44af7114ecd291c262ae544e6e448371d34f065973536426ba',
-              prefix+'scenario.php':'1231bdbfabf98de0b887a81df78be351ba12b456590e6ff43167b8070233ede8',
+              prefix+'scenario.php':'dfb31fda0f578f2c0bd4af15ff5e3f9b72de7c5fe52a0cb318bddaee45fa081c',
               prefix+'Machine.php':'036a5fed115c75f0103a934f383690b664f80814081ce7996288f6933d83a9b2',
               prefix+'Race.php':'5127576d711eed18d017bdb6a3e7883f9c9732c58dd44b0100f31b1ce2edd0bd',
               prefix+'schema.sql':'61f5a587b24d3d124596859a8411dd0d2b91a39d82a23e49894381050807c422',
@@ -121,7 +121,7 @@ jobs:
               number=event['number']
               need(e['GITHUB_ACTOR']=='rafhael100' and event['sender']['login']=='rafhael100'
                    and pr['user']['login']=='rafhael100' and pr['author_association']=='OWNER')
-              need(type(number) is int and number>0 and pr['number']==number and event['action']=='synchronize'
+              need(type(number) is int and number>0 and pr['number']==number and event['action']=='opened'
                    and public(event['repository']) and public(pr['head']['repo']) and public(pr['base']['repo'])
                    and pr['state']=='open' and pr['draft'] is True and pr['head']['ref']==head_ref
                    and pr['base']['ref']==base_ref and pr['base']['sha']==base)
