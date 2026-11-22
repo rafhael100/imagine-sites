@@ -291,7 +291,7 @@ try:
     stage='PHP_TERMINAL'
     need(finish(php,81)==0,'PHP_EXIT')
     approvals = (b'ONEPAGE_TERMINAL_PDO_ADMITTED_OK\n'
-                 b'ONEPAGE_TERMINAL_REVOKE_FIRST_OK\n')
+                 b'ONEPAGE_TERMINAL_ACCEPT_FIRST_LATER_VETO_OK\n')
     need(php.stdout is not None and php.stdout.read(len(approvals)+1)==approvals,'PHP_MARKERS')
     php.stdout.close()
     need(assert_owned(owned) and m.inspect_listener(proc,owned)==inode,'POSTMASTER_AFTER_PHP')

@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace OnepageSitesTerminalDraft;
 
-use Closure;
 use Illuminate\Container\Container;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\PostgresConnection;
@@ -48,7 +47,8 @@ final class IsolatedScenario
     ];
     private const MODULES=[
       'Machine.php'=>'036a5fed115c75f0103a934f383690b664f80814081ce7996288f6933d83a9b2',
-      'Race.php'=>'5127576d711eed18d017bdb6a3e7883f9c9732c58dd44b0100f31b1ce2edd0bd',
+      'AcceptFirstFixture.php'=>'c8529273f544407a75393596cc7f410f2e5e99c713ebf3d87d97b7a3b0ca67a7',
+      'AcceptFirstSyntheticWitness.php'=>'da8320883a0326965e4fb6d77a6a0faa7c8fbd361c02c2dd8c5f5c277308c956',
       'schema.sql'=>'61f5a587b24d3d124596859a8411dd0d2b91a39d82a23e49894381050807c422',
     ];
     private const E='contracts/portal-sites/candidates/brief-production-v1/examples/';
@@ -203,217 +203,23 @@ final class IsolatedScenario
             [$tenant,$site,$release])->fetchColumn();
         self::need($bytes===$golden);
 
-        // Portal facts here are fictitious values. The D worker has no Eligible path.
-        self::$phase='INTENT';
-        $intent=new Intent('terminal-fixture-operation-a',[
-            'tenantRef'=>$org,'buyerRef'=>'fixture-buyer','orderRef'=>$order,'siteRef'=>$site,'contractRef'=>$contract,
-            'snapshotRef'=>$snap,'releaseRef'=>$release,'presentationRef'=>'fixture-presentation-a','actionRef'=>'fixture-action-a',
-            'commandDigest'=>$intake['commandDigest'],'manifestSha256'=>$input->manifestSha256,'htmlSha256'=>self::HTML_SHA,
-            'sessionBinding'=>hash('sha256','non-secret fixture label'),'contractRevision'=>1,'sourceVersion'=>$input->sourceVersion,
-            'briefRevision'=>1,'approvalGeneration'=>1,'editorialRevision'=>3,'bindingRevision'=>1,'sessionEpoch'=>1,
+        self::$phase='ACCEPT_FIRST_WITNESS';
+        $minted=AcceptFirstSyntheticWitness::fromFixture(
+            $org,$site,$snap,$intake['commandDigest'],$input->manifestSha256,$input->sourceVersion,
+            $reg[0]['artifact_digest'],$binding->bindingRevision,$binding->editorialRevision
+        );
+        $submitted=new Intent('terminal-fixture-accept-first-a',[
+            'tenantRef'=>$org,'buyerRef'=>'fixture-buyer-af-a','orderRef'=>$order,'siteRef'=>$site,'contractRef'=>$contract,
+            'snapshotRef'=>$snap,'releaseRef'=>$release,'presentationRef'=>'fixture-presentation-af-a',
+            'actionRef'=>'fixture-action-af-a','commandDigest'=>$intake['commandDigest'],
+            'manifestSha256'=>$input->manifestSha256,'htmlSha256'=>self::HTML_SHA,
+            'sessionBinding'=>hash('sha256','fixture-session-af-a'),'contractRevision'=>1,
+            'sourceVersion'=>$input->sourceVersion,'briefRevision'=>1,'approvalGeneration'=>1,
+            'editorialRevision'=>3,'bindingRevision'=>1,'sessionEpoch'=>1,
         ]);
-        self::$phase='RACE_SETUP';
-        self::race($gate,$observer,$sessions['revoke'],$run,$tenant,$intent,$identity);
+        self::$phase='ACCEPT_FIRST_LIFECYCLE';
+        AcceptFirstFixture::run($gate,$sessions['revoke'],$tenant,$submitted,$minted,$golden,self::capture(...));
         return true;
-    }
-
-    private static function race(SitesTlsAdmission $gate,PDO $observer,PDO $revoker,string $run,string $tenant,Intent $intent,array $identity):void
-    {
-        $worker=null; $pipes=[];
-        try {
-            $start=static function(string $t,Intent $i)use($run,$identity,&$worker,&$pipes):array {
-                self::$phase='RACE_SPAWN';
-                $ini=php_ini_loaded_file();
-                self::need(is_string($ini) && realpath($ini)===$ini);
-                // Reproduce only the required PHP CLI runtime; never ignore
-                // stderr or use user-supplied ini, extension paths or modules.
-                $required=['PDO','pdo_pgsql','sodium','posix','json'];
-                $probeEnv=['PATH'=>'/usr/bin:/bin','LC_ALL'=>'C','HOME'=>$run,
-                    'TMPDIR'=>$run,'PHP_INI_SCAN_DIR'=>''];
-                $check=static function(array $cmd)use($probeEnv):array {
-                    $channels=[];
-                    $p=proc_open($cmd,[['pipe','r'],['pipe','w'],['pipe','w']],
-                        $channels,null,$probeEnv);
-                    if (!is_resource($p)) return ['FAILED',''];
-                    fclose($channels[0]);
-                    $out=stream_get_contents($channels[1],257);
-                    $err=stream_get_contents($channels[2],257);
-                    fclose($channels[1]); fclose($channels[2]);
-                    $exit=proc_close($p);
-                    if (!is_string($out) || !is_string($err) || $exit!==0 || $err!=='')
-                        return ['FAILED',''];
-                    return ['CLEAN',$out];
-                };
-                [$kind,$loaded]=$check([PHP_BINARY,'-n','-r',
-                    'foreach(["PDO","pdo_pgsql","sodium","posix","json"] as $m) echo extension_loaded($m) ? "1" : "0";']);
-                $runtime=['-n'];
-                if ($kind==='CLEAN' && preg_match('/\A[01]{5}\z/D',$loaded)===1) {
-                    foreach($required as $idx=>$module)
-                        if($loaded[$idx]==='0') {
-                            $runtime[]='-d';
-                            $runtime[]='extension='.strtolower($module);
-                        }
-                } else {
-                    $kind='FAILED';
-                }
-                if ($kind==='CLEAN') {
-                    [$kind,$output]=$check([PHP_BINARY,...$runtime,'-r',
-                        'foreach(["PDO","pdo_pgsql","sodium","posix","json"] as $m) if(!extension_loaded($m)) exit(3);']);
-                    if ($output!=='') $kind='FAILED';
-                }
-                fwrite(STDERR,'ONEPAGE_TERMINAL_PHP_STARTUP_PROBE '.$kind."\n");
-                self::need($kind==='CLEAN');
-                $worker=proc_open([PHP_BINARY,...$runtime,
-                    __FILE__,'--fixture-terminal-worker'],[['pipe','r'],['pipe','w'],['pipe','w']],$pipes,
-                    null,$probeEnv);
-                self::need(is_resource($worker));
-                $raw=self::json([$run,$t,$i->operationRef,$i->tuple,$identity,posix_getpid(),readlink('/proc/self/ns/net')]);
-                self::need(strlen($raw)<4096 && fwrite($pipes[0],$raw)===strlen($raw));
-                fclose($pipes[0]); unset($pipes[0]);
-                stream_set_timeout($pipes[1],2);
-                $line=fgets($pipes[1],101);
-                self::need(is_string($line) && str_ends_with($line,"\n"));
-                $pid=self::decode($line);
-                self::$phase='RACE_WAIT';
-                return $pid;
-            };
-            $finish=static function(array $info)use(&$worker,&$pipes,$gate,$observer,$revoker,$intent,$tenant):array {
-                self::$phase='RACE_CHILD';
-                $deadline=hrtime(true)+8_000_000_000;
-                do { $status=proc_get_status($worker); if(!$status['running']) break; usleep(5000); }
-                while(hrtime(true)<$deadline);
-                if ($status['running']) {
-                    self::$phase='RACE_CHILD_TIMEOUT';
-                    throw new RuntimeException();
-                }
-
-                // The subprocess is terminal, and the revocation committed
-                // before finish is invoked. On a bad ACK, observe once only.
-                $ack='IO';
-                try {
-                    $stderr=stream_get_contents($pipes[2],257);
-                    if ($status['exitcode']!==0) {
-                        self::reportChild($stderr);
-                        self::$phase='RACE_CHILD_EXIT';
-                        $ack='CHILD_EXIT';
-                        throw new RuntimeException();
-                    }
-                    self::$phase='RACE_ACK';
-                    $stdout=stream_get_contents($pipes[1],257);
-                    $ack=self::ackClass($stdout,$stderr);
-                    if ($ack==='STDERR') {
-                        // Only fixed categories: never emit raw child stderr.
-                        fwrite(STDERR,'ONEPAGE_TERMINAL_STDERR_CLASS '.self::stderrClass($stderr)."\n");
-                        fwrite(STDERR,'ONEPAGE_TERMINAL_ACK_FRAME '.(
-                            $stdout==="{\"kind\":\"discarded\"}\n" ? 'EXACT' : 'OTHER'
-                        )."\n");
-                    }
-                    self::need($ack==='VALID');
-                    foreach($pipes as $p) fclose($p);
-                    $pipes=[];
-                    self::$phase='RACE_PARENT_CLOSE'; $ack='PARENT_CLOSE';
-                    $closed=proc_close($worker); $worker=null;
-                    self::need($closed===0 || $closed===-1);
-                    self::$phase='RACE_READBACK';
-                    return ['kind'=>'discarded'];
-                } catch(Throwable $failure) {
-                    fwrite(STDERR,'ONEPAGE_TERMINAL_ACK_REFUSED '.$ack."\n");
-                    $out='READ_UNAVAILABLE';
-                    try {
-                        $fresh=$gate->openBootstrap(true);
-                        $pid=$gate->assertBootstrap($fresh);
-                        $proof=self::q($observer,'SELECT pg_catalog.pg_backend_pid()')->fetchColumn();
-                        $held=self::q($revoker,'SELECT pg_catalog.pg_backend_pid()')->fetchColumn();
-                        self::need(!in_array($pid,[(int)$proof,(int)$held,$info['pid']],true));
-                        $out=RevokeFirstFixture::observeAfterBadAck($fresh,$intent,$tenant,$intent->tuple['bindingRevision']);
-                    } catch(Throwable) {
-                        // Never expose rows, values, paths, SQLSTATE or error text.
-                    }
-                    fwrite(STDERR,'ONEPAGE_TERMINAL_FAILED_ACK_READBACK '.$out."\n");
-                    throw $failure; // Readback never repairs the failure or retries the writer.
-                }
-            };
-            RevokeFirstFixture::run($revoker,$observer,$tenant,$intent,$start,$finish,self::capture(...),
-                static fn():PDO=>$gate->openBootstrap(true));
-        } finally {
-            if (is_resource($worker)) {
-                proc_terminate($worker);
-                foreach($pipes as $p) if(is_resource($p)) fclose($p);
-                $end=hrtime(true)+1_000_000_000;
-                do { $state=proc_get_status($worker); if(!$state['running']) break; usleep(5000); } while(hrtime(true)<$end);
-                if($state['running']) proc_terminate($worker,9);
-                proc_close($worker);
-            }
-        }
-    }
-
-    public static function worker():never {
-        $phase='SETUP';
-        try {
-            self::modules();
-            $raw=stream_get_contents(STDIN,4097);
-            self::need(is_string($raw) && strlen($raw)<4096);
-            $payload=self::decode($raw);
-            self::need(array_is_list($payload) && count($payload)===7);
-            [$run,$tenant,$op,$tuple,$identity,$parent,$netns]=$payload;
-            self::need(PHP_SAPI==='cli' && posix_geteuid()>0 && posix_getppid()===$parent &&
-                readlink('/proc/self/ns/net')===$netns && posix_getuid()===posix_geteuid());
-            $status=file_get_contents('/proc/self/status',false,null,0,65536);
-            self::need(is_string($status) && preg_match('/^NoNewPrivs:\\s*1$/m',$status)===1);
-            foreach(['Eff','Prm','Inh','Bnd','Amb'] as $cap) self::need(preg_match('/^Cap'.$cap.':\\s*0000000000000000$/m',$status)===1);
-            // Only the isolated, identity-rechecking instrumentation worker
-            // may use the segregated bootstrap credential, never a native fixture role.
-            $password=self::file($run.'/password',65);
-            self::need(preg_match('/\A[a-f0-9]{64}\z/D',$password)===1);
-            $db=self::connect($run,self::ADMIN,$password,$identity,false);
-            sodium_memzero($password);
-            $result=RevokeFirstFixture::worker($db,$tenant,new Intent($op,$tuple),static function(int $pid):void {
-                echo self::json(['pid'=>$pid]); flush();
-            });
-            $phase='ACK';
-            $ack=self::json($result);
-            self::need(fwrite(STDOUT,$ack)===strlen($ack) && fflush(STDOUT));
-            exit(0);
-        } catch(Throwable $failure) {
-            if ($failure instanceof WorkerStageFailure) $phase=$failure->stage->value;
-            fwrite(STDERR,'ONEPAGE_TERMINAL_CHILD_REFUSED '.$phase."\n");
-            exit(1);
-        }
-    }
-
-    /** Classify only a bounded terminated child channel; never log bytes. */
-    private static function stderrClass(mixed $stderr):string
-    {
-        if (!is_string($stderr)) return 'IO';
-        if ($stderr==='') return 'EMPTY';
-        if (strlen($stderr)>256) return 'OVERSIZE';
-        if (preg_match('/\\AONEPAGE_TERMINAL_CHILD_REFUSED (?:SETUP|ACK|LOCK|REQUESTED|HEAD|SHAPE|VETO|REQUESTED_TUPLE|PROPOSAL|INSERT|COMMIT)\\n\\z/D',$stderr)===1)
-            return 'WORKER_REFUSAL';
-        if (preg_match('/\\A(?:PHP (?:Warning|Notice|Deprecated|Fatal error|Parse error):|(?:Warning|Notice|Deprecated|Fatal error|Parse error):)/',$stderr)===1)
-            return 'PHP_DIAGNOSTIC';
-        if (trim($stderr)==='') return 'WHITESPACE';
-        return 'UNRECOGNIZED';
-    }
-
-    private static function ackClass(mixed $stdout,mixed $stderr):string
-    {
-        if (!is_string($stdout) || !is_string($stderr)) return 'IO';
-        if ($stderr!=='') return 'STDERR';
-        if ($stdout==='') return 'EMPTY';
-        if (strlen($stdout)>256) return 'OVERSIZE';
-        return $stdout==="{\"kind\":\"discarded\"}\n" ? 'VALID' : 'FORMAT';
-    }
-
-    /** Raw output is untrusted and is never echoed or logged. */
-    private static function reportChild(mixed $stderr):void
-    {
-        $known='UNKNOWN';
-        if (is_string($stderr) && preg_match('/\AONEPAGE_TERMINAL_CHILD_REFUSED ([A-Z_]{1,32})\n\z/D',$stderr,$m)===1) {
-            $stage=WorkerStage::tryFrom($m[1]);
-            if ($stage!==null) $known=$stage->value;
-            elseif (in_array($m[1],['SETUP','ACK'],true)) $known=$m[1];
-        }
-        fwrite(STDERR,'ONEPAGE_TERMINAL_CHILD_REFUSED '.$known."\n");
     }
 
     private static function scram(#[\SensitiveParameter] string $password):string
@@ -478,7 +284,9 @@ final class IsolatedScenario
     }
     private static function modules():void {
         foreach(self::MODULES as $n=>$h) self::need(hash('sha256',self::file(__DIR__.'/'.$n,32768))===$h);
-        require_once __DIR__.'/Machine.php'; require_once __DIR__.'/Race.php';
+        require_once __DIR__.'/Machine.php';
+        require_once __DIR__.'/AcceptFirstSyntheticWitness.php';
+        require_once __DIR__.'/AcceptFirstFixture.php';
     }
     private static function blob(string $p,string $pin):void {
         $b=self::file($p); self::need(hash('sha1','blob '.strlen($b)."\0".$b)===$pin);
@@ -512,5 +320,4 @@ final class IsolatedScenario
     private static function need(bool $ok):void {if(!$ok) throw new RuntimeException('ONEPAGE_TERMINAL_SCENARIO_REFUSED');}
 }
 
-if (($argv[1]??null)==='--fixture-terminal-worker') IsolatedScenario::worker();
 return IsolatedScenario::run(...);
