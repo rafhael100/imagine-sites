@@ -70,10 +70,17 @@ $accepted = $release + [
     'buyerRef'=>'buyer-one', 'acceptanceRef'=>'final-accept-a',
     'presentationRef'=>'presentation-a', 'explicitClick'=>true, 'revoked'=>false,
 ];
+$presentation = [
+    'tenantRef'=>$brief->tenantRef, 'orderRef'=>$brief->orderRef, 'siteRef'=>$brief->siteRef,
+    'buyerRef'=>'buyer-one', 'presentationRef'=>'presentation-a',
+    'releaseRef'=>'release-a', 'artifactEpoch'=>1,
+    'htmlSha256'=>$originalArtifact->digest, 'briefRevision'=>$brief->briefRevision,
+    'sourceVersion'=>$brief->sourceVersion, 'observed'=>true,
+];
 $initial = [
     'record'=>['export'=>$export,'plan'=>$json($plan),'editorial'=>$editorial,'buyerRef'=>'buyer-one'],
     'head'=>$head, 'confirmation'=>$confirmation, 'review'=>$review,
-    'release'=>$release, 'acceptance'=>$accepted,
+    'release'=>$release, 'acceptance'=>$accepted, 'presentation'=>$presentation,
 ];
 
 $gate = static function (array &$state): OnepageExactFinalAcceptanceReadCandidate {
@@ -89,6 +96,7 @@ $gate = static function (array &$state): OnepageExactFinalAcceptanceReadCandidat
         $preview,
         static fn() => $state['release'],
         static fn() => $state['acceptance'],
+        static fn() => $state['presentation'],
     );
 };
 $call = static fn(OnepageExactFinalAcceptanceReadCandidate $checker, string $viewer='buyer-one') =>
@@ -135,6 +143,16 @@ $mutate(static function(array &$s):void { $s['release']['releaseRef']='release-o
 $mutate(static function(array &$s):void { $s['review']['approved']=false; },'brief approval revoked in reused preview');
 $mutate(static function(array &$s):void { $s['record']['buyerRef']='buyer-two'; },'preview ownership changed');
 $mutate(static function(array &$s):void { $s['acceptance']['canPublish']=true; },'extra authority rejected');
+$mutate(static function(array &$s):void { $s['presentation']['observed']=false; },'no independent observed presentation');
+$mutate(static function(array &$s):void { $s['presentation']['buyerRef']='buyer-two'; },'presentation from other buyer in same tenant');
+$mutate(static function(array &$s):void { $s['presentation']['htmlSha256']=str_repeat('a',64); },'browser presentation of other HTML bytes');
+$mutate(static function(array &$s):void { $s['presentation']['artifactEpoch']=2; },'browser presentation of other generation');
+$mutate(static function(array &$s):void { $s['presentation']['releaseRef']='release-other'; },'browser presentation from other release');
+$mutate(static function(array &$s):void { $s['presentation']['presentationRef']='presentation-other'; },'unrelated browser presentation ref');
+$mutate(static function(array &$s):void { $s['presentation']['sourceVersion']++; },'browser presentation from other briefing version');
+$mutate(static function(array &$s):void { $s['presentation']=null; },'independent presentation missing');
+$mutate(static function(array &$s):void { $s['presentation']['canPublish']=true; },'presentation cannot add publication authority');
+
 
 // Change ACTUAL editorial bytes, retaining source briefing provenance.
 // The previous final click is stale even when the buyer's rights declaration
@@ -162,6 +180,10 @@ $v2['acceptance']=$v2['release']+[
     'buyerRef'=>'buyer-one','acceptanceRef'=>'final-accept-b',
     'presentationRef'=>'presentation-b','explicitClick'=>true,'revoked'=>false,
 ];
+$v2['presentation']=array_replace($presentation,[
+    'presentationRef'=>'presentation-b', 'releaseRef'=>'release-b',
+    'artifactEpoch'=>2, 'htmlSha256'=>$artifactB->digest,
+]);
 $acceptedB=$call($gate($v2));
 $ok($acceptedB['htmlSha256']===$artifactB->digest &&
     $acceptedB['finalAcceptanceRef']==='final-accept-b' &&
@@ -181,7 +203,27 @@ $changingGate=new OnepageExactFinalAcceptanceReadCandidate(
             array_replace($changing['release'],['artifactEpoch'=>2]);
     },
     static fn()=>$changing['acceptance'],
+    static fn()=>$changing['presentation'],
 );
 $deny(static fn()=>$call($changingGate),'concurrent release rotation between reads');
 $ok($reads===2,'release independently checked again after render');
+
+// Browser presentation changes between two reads without rotating the release
+// or the exact acceptance receipt: the independent witness must still refuse.
+$presentReads=0; $steady=$initial;
+$presentationRace=new OnepageExactFinalAcceptanceReadCandidate(
+    new OnepageBuyerPrivatePreviewCandidate(
+        static fn()=>$steady['record'],static fn()=>$steady['head'],
+        static fn()=>$steady['confirmation'],static fn()=>$steady['review'],
+    ),
+    static fn()=>$steady['release'],
+    static fn()=>$steady['acceptance'],
+    static function()use(&$presentReads,$steady):array {
+        ++$presentReads;
+        return $presentReads===1 ? $steady['presentation'] :
+            array_replace($steady['presentation'],['observed'=>false]);
+    },
+);
+$deny(static fn()=>$call($presentationRace),'presentation revoked between two observations');
+$ok($presentReads===2,'presentation independently checked after render');
 echo 'ONEPAGE FINAL ACCEPTANCE ARTIFACT DRIFT PASS: '.$checks." synthetic checks; NO-GO.\n";
