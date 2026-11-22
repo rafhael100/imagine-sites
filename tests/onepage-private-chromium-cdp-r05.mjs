@@ -149,6 +149,28 @@ try{
   stage='CLICK_B';
   const acceptedB=await click();
   check(acceptedB.status===201 && acceptedB.body?.ok===true && acceptedB.body?.ref==='synthetic-r05-2');
+  // R07: Same HTML bytes and SHA do not confer validity across a new release epoch.
+  // No new GET is issued between the release switch and the stale click.
+  await cp(join(dir,'same-html-new-release.json'),join(dir,'release.json'));
+  stage='SAME_SHA_NEW_EPOCH_STALE';
+  const staleSameSha=await click();
+  check(staleSameSha.status===409 && staleSameSha.body?.ok===false);
+  const staleReadback=(await readFile(join(dir,'receipts.jsonl'),'utf8')).trim().split('\n');
+  check(staleReadback.length===2);
+  stage='SAME_SHA_NEW_EPOCH_REVIEW';
+  await visit('/review');
+  await readyReview();
+  const c=await snapshot();
+  check(c.status===200 && c.sha===secondSha && c.sha===b.sha &&
+        c.length===b.length && c.frameText>0 &&
+        c.framePath==='/private-onepage');
+  stage='SAME_SHA_NEW_EPOCH_CLICK';
+  const acceptedC=await click();
+  check(acceptedC.status===201 && acceptedC.body?.ok===true &&
+        acceptedC.body?.ref==='synthetic-r05-3');
+  const replayC=await click();
+  check(replayC.status===200 && replayC.body?.ok===true &&
+        replayC.body?.ref==='synthetic-r05-3');
   stage='DENY_OTHER';
   await visit('/fixture-other');
   const denied=await evaluate(
