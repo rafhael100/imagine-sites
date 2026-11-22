@@ -148,8 +148,12 @@ if ($path === '/fixture-final-accept' && $_SERVER['REQUEST_METHOD'] === 'POST') 
     }
     // R14: preserve exact JSONL physical framing under the R11 lock.
     // Skipping blank lines hid tampering; a missing terminal LF was accepted.
-    $rawLedger = file_exists($receiptPath) ? @file_get_contents($receiptPath) : '';
-    if (!is_string($rawLedger) ||
+    // R15: never load an unbounded historical file just to decide a replay.
+    // Read at most cap+1 bytes and reject before parsing on overflow.
+    $maxLedgerBytes = 65536;
+    $rawLedger = file_exists($receiptPath)
+        ? @file_get_contents($receiptPath, false, null, 0, $maxLedgerBytes + 1) : '';
+    if (!is_string($rawLedger) || strlen($rawLedger) > $maxLedgerBytes ||
         ($rawLedger !== '' && !str_ends_with($rawLedger, "\n"))) {
         http_response_code(503); echo '{"ok":false}'; exit;
     }
@@ -269,7 +273,7 @@ try {
         // Never emit raw browser stderr. Only accept a bounded enum of failure phases.
         $reason = 'UNKNOWN';
         if (is_string($stderr) && preg_match(
-            '/^R05_FAIL (START_CHROME|START_CDP|DENY_GUEST|LOGIN_A|REVIEW_A|CLICK_A|REPLAY|STALE|LOGIN_B|REVIEW_B|CLICK_B|CROSS_SESSION_STALE|CROSS_SESSION_REVIEW|R09_FIRST_SESSION_REVISIT|R09_SECOND_SESSION_REPLAY|DENY_OTHER|R10_UNDURABLE_RECEIPT|R11_CONCURRENT_RECEIPT|R12_CORRUPT_LEDGER|R13_IDEMPOTENT_CORRUPT_TAIL|R14_UNTERMINATED_LEDGER|R14_BLANK_LINE) (R05_[A-Z0-9_]+) (UNKNOWN|CHROME_BLOCKED|NOT_REVIEW|NO_IFRAME|INSECURE_CONTEXT|OBSERVATION_INCOMPLETE|REVIEW_READY)$/m',
+            '/^R05_FAIL (START_CHROME|START_CDP|DENY_GUEST|LOGIN_A|REVIEW_A|CLICK_A|REPLAY|STALE|LOGIN_B|REVIEW_B|CLICK_B|CROSS_SESSION_STALE|CROSS_SESSION_REVIEW|R09_FIRST_SESSION_REVISIT|R09_SECOND_SESSION_REPLAY|DENY_OTHER|R10_UNDURABLE_RECEIPT|R11_CONCURRENT_RECEIPT|R12_CORRUPT_LEDGER|R13_IDEMPOTENT_CORRUPT_TAIL|R14_UNTERMINATED_LEDGER|R14_BLANK_LINE|R15_OVERSIZE_LEDGER) (R05_[A-Z0-9_]+) (UNKNOWN|CHROME_BLOCKED|NOT_REVIEW|NO_IFRAME|INSECURE_CONTEXT|OBSERVATION_INCOMPLETE|REVIEW_READY)$/m',
             $stderr, $match,
         ) === 1) {
             $reason = $match[1].'_'.$match[2].'_'.$match[3];
@@ -308,6 +312,7 @@ try {
     echo "ONEPAGE R12 READBACK PASS: malformed historical receipt denied HTTP 503 before fresh append; NO-GO.\n";
     echo "ONEPAGE R13 READBACK PASS: idempotent replay denied HTTP 503 when later historical line is corrupt; NO-GO.\n";
     echo "ONEPAGE R14 READBACK PASS: missing terminal LF and blank historical line denied HTTP 503 without mutation; NO-GO.\n";
+    echo "ONEPAGE R15 READBACK PASS: bounded historical ledger rejects oversized valid JSONL before idempotent replay; NO-GO.\n";
 } finally {
     proc_terminate($proc);
     proc_close($proc);
