@@ -263,6 +263,13 @@ final class IsolatedScenario
                     self::$phase='RACE_ACK';
                     $stdout=stream_get_contents($pipes[1],257);
                     $ack=self::ackClass($stdout,$stderr);
+                    if ($ack==='STDERR') {
+                        // Only fixed categories: never emit raw child stderr.
+                        fwrite(STDERR,'ONEPAGE_TERMINAL_STDERR_CLASS '.self::stderrClass($stderr)."\n");
+                        fwrite(STDERR,'ONEPAGE_TERMINAL_ACK_FRAME '.(
+                            $stdout==="{\"kind\":\"discarded\"}\n" ? 'EXACT' : 'OTHER'
+                        )."\n");
+                    }
                     self::need($ack==='VALID');
                     foreach($pipes as $p) fclose($p);
                     $pipes=[];
@@ -334,6 +341,20 @@ final class IsolatedScenario
             fwrite(STDERR,'ONEPAGE_TERMINAL_CHILD_REFUSED '.$phase."\n");
             exit(1);
         }
+    }
+
+    /** Classify only a bounded terminated child channel; never log bytes. */
+    private static function stderrClass(mixed $stderr):string
+    {
+        if (!is_string($stderr)) return 'IO';
+        if ($stderr==='') return 'EMPTY';
+        if (strlen($stderr)>256) return 'OVERSIZE';
+        if (preg_match('/\\AONEPAGE_TERMINAL_CHILD_REFUSED (?:SETUP|ACK|LOCK|REQUESTED|HEAD|SHAPE|VETO|REQUESTED_TUPLE|PROPOSAL|INSERT|COMMIT)\\n\\z/D',$stderr)===1)
+            return 'WORKER_REFUSAL';
+        if (preg_match('/\\A(?:PHP (?:Warning|Notice|Deprecated|Fatal error|Parse error):|(?:Warning|Notice|Deprecated|Fatal error|Parse error):)/',$stderr)===1)
+            return 'PHP_DIAGNOSTIC';
+        if (trim($stderr)==='') return 'WHITESPACE';
+        return 'UNRECOGNIZED';
     }
 
     private static function ackClass(mixed $stdout,mixed $stderr):string
