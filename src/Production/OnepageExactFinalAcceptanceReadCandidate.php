@@ -13,6 +13,8 @@ use Throwable;
  * durable sources and a server-verified buyer principal before operational use.
  * The presentation witness MUST be from the independently authenticated delivery
  * observed by the buyer, never from the submitted click or accepted receipt.
+ * Its HTML bytes must be independently captured from that presentation, not
+ * copied from a client-controlled digest, receipt, or preview fixture.
  * A private preview alone NEVER grants final acceptance or publication.
  */
 final readonly class OnepageExactFinalAcceptanceReadCandidate
@@ -71,6 +73,12 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
                 ($preview['clientFinalAccepted'] ?? null) !== false ||
                 ($preview['canPublish'] ?? null) !== false ||
                 ($preview['publicationAuthorized'] ?? null) !== false) {
+                throw new RuntimeException();
+            }
+
+            // Metadata alone is insufficient: the independent observation must
+            // match the exact bytes rendered from the reviewed source.
+            if ($presentation['servedHtmlBytes'] !== $preview['html']) {
                 throw new RuntimeException();
             }
 
@@ -144,6 +152,8 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
      * approved HTML. Require an independent presentation observation for the
      * exact release/epoch/digest, and observe it again after rendering.
      * This read-only gate still cannot authenticate a browser or lock a release.
+     * The source of servedHtmlBytes must be independent, authenticated and
+     * bounded; an in-memory test fixture is NOT an operational observation.
      */
     private function readPresentation(
         string $tenant, string $order, string $site, string $viewer,
@@ -154,7 +164,7 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
         );
         $keys = ['tenantRef','orderRef','siteRef','buyerRef','presentationRef',
             'releaseRef','artifactEpoch','htmlSha256','briefRevision',
-            'sourceVersion','observed'];
+            'sourceVersion','observed','servedHtmlBytes'];
         if (!self::keys($record, $keys) ||
             $record['tenantRef'] !== $tenant || $record['orderRef'] !== $order ||
             $record['siteRef'] !== $site || $record['buyerRef'] !== $viewer ||
@@ -164,7 +174,11 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
             $record['htmlSha256'] !== $head['htmlSha256'] ||
             $record['briefRevision'] !== $head['briefRevision'] ||
             $record['sourceVersion'] !== $head['sourceVersion'] ||
-            $record['observed'] !== true) {
+            $record['observed'] !== true ||
+            !is_string($record['servedHtmlBytes']) ||
+            strlen($record['servedHtmlBytes']) === 0 ||
+            strlen($record['servedHtmlBytes']) > 262144 ||
+            !hash_equals($head['htmlSha256'], hash('sha256', $record['servedHtmlBytes']))) {
             throw new RuntimeException();
         }
         return $record;

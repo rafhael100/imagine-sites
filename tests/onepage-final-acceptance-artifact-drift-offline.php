@@ -76,6 +76,8 @@ $presentation = [
     'releaseRef'=>'release-a', 'artifactEpoch'=>1,
     'htmlSha256'=>$originalArtifact->digest, 'briefRevision'=>$brief->briefRevision,
     'sourceVersion'=>$brief->sourceVersion, 'observed'=>true,
+    // Synthetic in-memory bytes, NOT proof of an authenticated HTTP/browser observation.
+    'servedHtmlBytes'=>$originalArtifact->html,
 ];
 $initial = [
     'record'=>['export'=>$export,'plan'=>$json($plan),'editorial'=>$editorial,'buyerRef'=>'buyer-one'],
@@ -152,6 +154,15 @@ $mutate(static function(array &$s):void { $s['presentation']['presentationRef']=
 $mutate(static function(array &$s):void { $s['presentation']['sourceVersion']++; },'browser presentation from other briefing version');
 $mutate(static function(array &$s):void { $s['presentation']=null; },'independent presentation missing');
 $mutate(static function(array &$s):void { $s['presentation']['canPublish']=true; },'presentation cannot add publication authority');
+// R03: a metadata-only witness may falsely claim the correct SHA even while
+// holding different bytes. The read gate must hash and compare the actual
+// captured HTML bytes, not trust the witness's copied digest field.
+$mutate(static function(array &$s):void { $s['presentation']['servedHtmlBytes'].='!'; },'claimed hash correct but captured bytes changed');
+$mutate(static function(array &$s):void { $s['presentation']['servedHtmlBytes']=''; },'empty served HTML evidence');
+$mutate(static function(array &$s):void { $s['presentation']['servedHtmlBytes']=str_repeat('x',262145); },'oversized HTML evidence denied before digest');
+$mutate(static function(array &$s):void { $s['presentation']['servedHtmlBytes']=false; },'nonstring observed bytes denied');
+$mutate(static function(array &$s):void { unset($s['presentation']['servedHtmlBytes']); },'bytes absent while digest remains');
+
 
 
 // Change ACTUAL editorial bytes, retaining source briefing provenance.
@@ -183,6 +194,7 @@ $v2['acceptance']=$v2['release']+[
 $v2['presentation']=array_replace($presentation,[
     'presentationRef'=>'presentation-b', 'releaseRef'=>'release-b',
     'artifactEpoch'=>2, 'htmlSha256'=>$artifactB->digest,
+    'servedHtmlBytes'=>$artifactB->html,
 ]);
 $acceptedB=$call($gate($v2));
 $ok($acceptedB['htmlSha256']===$artifactB->digest &&
@@ -226,4 +238,24 @@ $presentationRace=new OnepageExactFinalAcceptanceReadCandidate(
 );
 $deny(static fn()=>$call($presentationRace),'presentation revoked between two observations');
 $ok($presentReads===2,'presentation independently checked after render');
+// The witness can rotate only the served bytes after the first read while
+// keeping all metadata and the receipt unchanged. The second read rejects it.
+$bytesReads=0; $bytesSteady=$initial;
+$bytesRace=new OnepageExactFinalAcceptanceReadCandidate(
+    new OnepageBuyerPrivatePreviewCandidate(
+        static fn()=>$bytesSteady['record'],static fn()=>$bytesSteady['head'],
+        static fn()=>$bytesSteady['confirmation'],static fn()=>$bytesSteady['review'],
+    ),
+    static fn()=>$bytesSteady['release'],
+    static fn()=>$bytesSteady['acceptance'],
+    static function()use(&$bytesReads,$bytesSteady):array {
+        ++$bytesReads;
+        return $bytesReads===1 ? $bytesSteady['presentation'] :
+            array_replace($bytesSteady['presentation'],[
+                'servedHtmlBytes'=>$bytesSteady['presentation']['servedHtmlBytes'].'!',
+            ]);
+    },
+);
+$deny(static fn()=>$call($bytesRace),'observed HTML bytes drift between witness reads');
+$ok($bytesReads===2,'witness bytes were independently re-read');
 echo 'ONEPAGE FINAL ACCEPTANCE ARTIFACT DRIFT PASS: '.$checks." synthetic checks; NO-GO.\n";
