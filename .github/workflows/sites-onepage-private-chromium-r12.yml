@@ -1,5 +1,12 @@
 name: Sites OnePage Chromium corrupted-ledger refusal R12 (CI only)
 'on':
+  push:
+    branches: ['test/onepage-chromium-corrupt-ledger-r12-2026-11-22']
+    paths:
+      - 'tests/onepage-private-chromium-r05.php'
+      - 'tests/onepage-private-chromium-cdp-r05.mjs'
+      - '.github/workflows/sites-onepage-private-chromium-r12.yml'
+      - 'docs/reviews/SITES-ONEPAGE-PRIVATE-CHROMIUM-R12-2026-11-22.md'
   pull_request:
     types: [opened, synchronize]
     branches: ['test/onepage-chromium-concurrent-exact-receipts-r11-2026-11-22']
@@ -17,18 +24,23 @@ jobs:
   chromium-private-session-witness:
     if: >-
       github.repository == 'rafhael100/imagine-sites' &&
-      github.event.pull_request.draft == true &&
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.base.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'test/onepage-chromium-corrupt-ledger-r12-2026-11-22' &&
-      github.event.pull_request.base.ref == 'test/onepage-chromium-concurrent-exact-receipts-r11-2026-11-22' &&
-      github.event.pull_request.base.sha == '88ffd133b43ba095da3b3384604c9e37d765a3b5'
+      (
+        (github.event_name == 'push' &&
+         github.ref == 'refs/heads/test/onepage-chromium-corrupt-ledger-r12-2026-11-22') ||
+        (github.event_name == 'pull_request' &&
+         github.event.pull_request.draft == true &&
+         github.event.pull_request.head.repo.full_name == github.repository &&
+         github.event.pull_request.base.repo.full_name == github.repository &&
+         github.event.pull_request.head.ref == 'test/onepage-chromium-corrupt-ledger-r12-2026-11-22' &&
+         github.event.pull_request.base.ref == 'test/onepage-chromium-concurrent-exact-receipts-r11-2026-11-22' &&
+         github.event.pull_request.base.sha == '88ffd133b43ba095da3b3384604c9e37d765a3b5')
+      )
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
       - uses: shivammathur/setup-php@v2
@@ -45,7 +57,7 @@ jobs:
           python -m playwright install --with-deps chromium
       - name: Verify exact child scope and exercise denied guest and buyer Chromium
         env:
-          EXACT_HEAD: ${{ github.event.pull_request.head.sha }}
+          EXACT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXACT_HEAD"
