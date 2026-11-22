@@ -16,6 +16,10 @@ R04 exerceu HTTP loopback e observou os bytes com cliente PHP, não com navegado
 
 A R05 **não demonstra** identidade nativa, clique legalmente atestado, writer autorizado, armazenamento PG18 operacional, briefing oficial, permissão do revisor, ligação worker/API OpenAI, aceite jurídico ou autorização para publicar. O escritor de arquivo é somente uma fixture descartável, nunca um writer do Portal. R01–R04 não são reexecutadas; Landing permanece independente.
 
-CI: VM efêmera Ubuntu 24.04, PHP 8.4, Node nativo e Chromium instalado no runner. Somente loopback, sem segredos, GitHub `contents: read`, branch/base e SHA fixadas. Nenhuma alteração main/VPS/DNS/Cloudflare, checkout, PSP, OpenAI/Replit, merge/deploy ou publicação. Gate Sites #38 segue NO-GO.
+CI: VM efêmera Ubuntu 24.04, PHP 8.4, Node nativo e Chromium instalado apenas no runner descartável via Playwright 1.56.0, conforme precedente Portal #1041. Somente HTTP loopback na aplicação e CSP que nega subrecursos externos; a instalação efêmera do navegador usa pacote público, sem segredos, GitHub `contents: read`, branch/base e SHA fixadas. Nenhuma alteração main/VPS/DNS/Cloudflare, checkout, PSP, OpenAI/Replit, merge/deploy ou publicação. Gate Sites #38 segue NO-GO.
 
 Registrar SHA final, jobs e resultados somente após observação real de CI. Se Chromium não puder fazer HTTP loopback no runner, registrar o erro sem substituir por mock ou alegar prova de navegador.
+
+## Correção de execução CI
+
+A primeira tentativa com Chrome preinstalado foi recusada pelo browser com estado enumerado `CHROME_BLOCKED` ainda no GET sem sessão; não há evidência de clique naquela tentativa. Para evitar depender do Chrome gerenciado da VM e seguir a composição já validada no Portal #1041, esta branch instala Chromium isolado pela versão pinada de Playwright, mantendo perfil efêmero, origem loopback e CSP. Nenhuma mudança em política do navegador gerenciado ou ambiente operacional. Confirmar resultado da nova SHA pelo job dedicado.
