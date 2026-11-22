@@ -225,27 +225,47 @@ final class IsolatedScenario
                 self::$phase='RACE_SPAWN';
                 $ini=php_ini_loaded_file();
                 self::need(is_string($ini) && realpath($ini)===$ini);
-                // Read-only control: same PHP CLI and ini, no application code,
-                // networking, credentials, database access or output of stderr bytes.
-                // This distinguishes PHP startup diagnostics from worker-phase output.
-                $probePipes=[];
-                $probe=proc_open([PHP_BINARY,'-c',$ini,'-d','display_errors=0','-d','log_errors=0',
-                    '-r','exit(0);'],[['pipe','r'],['pipe','w'],['pipe','w']],$probePipes,
-                    null,['PATH'=>'/usr/bin:/bin','LC_ALL'=>'C','HOME'=>$run,'TMPDIR'=>$run,'PHP_INI_SCAN_DIR'=>'']);
-                self::need(is_resource($probe));
-                fclose($probePipes[0]);
-                $probeStdout=stream_get_contents($probePipes[1],257);
-                $probeStderr=stream_get_contents($probePipes[2],257);
-                fclose($probePipes[1]); fclose($probePipes[2]);
-                $probeExit=proc_close($probe);
-                $probeClass=($probeExit!==0 || !is_string($probeStdout) || !is_string($probeStderr))
-                    ? 'FAILED' : ($probeStdout!=='' ? 'STDOUT' : ($probeStderr==='' ? 'CLEAN' :
-                        (strlen($probeStderr)>256 ? 'OVERSIZE' : 'NONEMPTY')));
-                fwrite(STDERR,'ONEPAGE_TERMINAL_PHP_STARTUP_PROBE '.$probeClass."\n");
-                self::need($probeClass==='CLEAN');
-                $worker=proc_open([PHP_BINARY,'-c',$ini,'-d','display_errors=0','-d','log_errors=0',
+                // Reproduce only the required PHP CLI runtime; never ignore
+                // stderr or use user-supplied ini, extension paths or modules.
+                $required=['PDO','pdo_pgsql','sodium','posix','json'];
+                $probeEnv=['PATH'=>'/usr/bin:/bin','LC_ALL'=>'C','HOME'=>$run,
+                    'TMPDIR'=>$run,'PHP_INI_SCAN_DIR'=>''];
+                $check=static function(array $cmd)use($probeEnv):array {
+                    $channels=[];
+                    $p=proc_open($cmd,[['pipe','r'],['pipe','w'],['pipe','w']],
+                        $channels,null,$probeEnv);
+                    if (!is_resource($p)) return ['FAILED',''];
+                    fclose($channels[0]);
+                    $out=stream_get_contents($channels[1],257);
+                    $err=stream_get_contents($channels[2],257);
+                    fclose($channels[1]); fclose($channels[2]);
+                    $exit=proc_close($p);
+                    if (!is_string($out) || !is_string($err) || $exit!==0 || $err!=='')
+                        return ['FAILED',''];
+                    return ['CLEAN',$out];
+                };
+                [$kind,$loaded]=$check([PHP_BINARY,'-n','-r',
+                    'foreach(["PDO","pdo_pgsql","sodium","posix","json"] as $m) echo extension_loaded($m) ? "1" : "0";']);
+                $runtime=['-n'];
+                if ($kind==='CLEAN' && preg_match('/\A[01]{5}\z/D',$loaded)===1) {
+                    foreach($required as $idx=>$module)
+                        if($loaded[$idx]==='0') {
+                            $runtime[]='-d';
+                            $runtime[]='extension='.strtolower($module);
+                        }
+                } else {
+                    $kind='FAILED';
+                }
+                if ($kind==='CLEAN') {
+                    [$kind,$output]=$check([PHP_BINARY,...$runtime,'-r',
+                        'foreach(["PDO","pdo_pgsql","sodium","posix","json"] as $m) if(!extension_loaded($m)) exit(3);']);
+                    if ($output!=='') $kind='FAILED';
+                }
+                fwrite(STDERR,'ONEPAGE_TERMINAL_PHP_STARTUP_PROBE '.$kind."\n");
+                self::need($kind==='CLEAN');
+                $worker=proc_open([PHP_BINARY,...$runtime,
                     __FILE__,'--fixture-terminal-worker'],[['pipe','r'],['pipe','w'],['pipe','w']],$pipes,
-                    null,['PATH'=>'/usr/bin:/bin','LC_ALL'=>'C','HOME'=>$run,'TMPDIR'=>$run,'PHP_INI_SCAN_DIR'=>'']);
+                    null,$probeEnv);
                 self::need(is_resource($worker));
                 $raw=self::json([$run,$t,$i->operationRef,$i->tuple,$identity,posix_getpid(),readlink('/proc/self/ns/net')]);
                 self::need(strlen($raw)<4096 && fwrite($pipes[0],$raw)===strlen($raw));
