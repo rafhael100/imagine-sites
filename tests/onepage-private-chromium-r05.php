@@ -151,9 +151,27 @@ if ($path === '/fixture-final-accept' && $_SERVER['REQUEST_METHOD'] === 'POST') 
     if (!is_array($previous)) {
         http_response_code(503); echo '{"ok":false}'; exit;
     }
+    // R12: a corrupt/ambiguous historical audit line is not an empty ledger.
+    // Refuse the whole append rather than using a partially decoded history.
+    // All synthetic receipts have one canonical, exact six-field JSON shape.
+    $seenRefs = [];
     foreach ($previous as $line) {
-        $other = json_decode($line, true);
-        if (($other['ref'] ?? '') === $receipt['ref']) {
+        $other = json_decode($line, true, 10);
+        if (!is_array($other) || count($other) !== 6 ||
+            ($other['source'] ?? null) !== 'SYNTHETIC_CHROMIUM_R05' ||
+            ($other['buyer'] ?? null) !== 'buyer-one' ||
+            !is_int($other['epoch'] ?? null) || $other['epoch'] < 1 ||
+            !is_string($other['sha'] ?? null) ||
+            preg_match('/\\A[a-f0-9]{64}\\z/D', $other['sha']) !== 1 ||
+            !is_string($other['release'] ?? null) || $other['release'] === '' ||
+            !is_string($other['ref'] ?? null) ||
+            $other['ref'] !== 'synthetic-r05-'.$other['epoch'] ||
+            json_encode($other, JSON_THROW_ON_ERROR) !== $line ||
+            isset($seenRefs[$other['ref']])) {
+            http_response_code(503); echo '{"ok":false}'; exit;
+        }
+        $seenRefs[$other['ref']] = true;
+        if ($other['ref'] === $receipt['ref']) {
             http_response_code($other === $receipt ? 200 : 409);
             echo json_encode(['ok'=>$other === $receipt,'ref'=>$receipt['ref']],JSON_THROW_ON_ERROR);
             exit;
@@ -237,7 +255,7 @@ try {
         // Never emit raw browser stderr. Only accept a bounded enum of failure phases.
         $reason = 'UNKNOWN';
         if (is_string($stderr) && preg_match(
-            '/^R05_FAIL (START_CHROME|START_CDP|DENY_GUEST|LOGIN_A|REVIEW_A|CLICK_A|REPLAY|STALE|LOGIN_B|REVIEW_B|CLICK_B|CROSS_SESSION_STALE|CROSS_SESSION_REVIEW|R09_FIRST_SESSION_REVISIT|R09_SECOND_SESSION_REPLAY|DENY_OTHER|R10_UNDURABLE_RECEIPT|R11_CONCURRENT_RECEIPT) (R05_[A-Z0-9_]+) (UNKNOWN|CHROME_BLOCKED|NOT_REVIEW|NO_IFRAME|INSECURE_CONTEXT|OBSERVATION_INCOMPLETE|REVIEW_READY)$/m',
+            '/^R05_FAIL (START_CHROME|START_CDP|DENY_GUEST|LOGIN_A|REVIEW_A|CLICK_A|REPLAY|STALE|LOGIN_B|REVIEW_B|CLICK_B|CROSS_SESSION_STALE|CROSS_SESSION_REVIEW|R09_FIRST_SESSION_REVISIT|R09_SECOND_SESSION_REPLAY|DENY_OTHER|R10_UNDURABLE_RECEIPT|R11_CONCURRENT_RECEIPT|R12_CORRUPT_LEDGER) (R05_[A-Z0-9_]+) (UNKNOWN|CHROME_BLOCKED|NOT_REVIEW|NO_IFRAME|INSECURE_CONTEXT|OBSERVATION_INCOMPLETE|REVIEW_READY)$/m',
             $stderr, $match,
         ) === 1) {
             $reason = $match[1].'_'.$match[2].'_'.$match[3];
@@ -273,6 +291,7 @@ try {
     echo "ONEPAGE R09 READBACK PASS: independent same-buyer session witnesses survive interleaving, no fourth effect; NO-GO.\n";
     echo "ONEPAGE R10 READBACK PASS: undurable receipt sink denied HTTP 503 and three original receipts preserved; NO-GO.\n";
     echo "ONEPAGE R11 READBACK PASS: 12 parallel same-ref POSTs, one new exact receipt, eleven idempotent reads, no duplicate; NO-GO.\n";
+    echo "ONEPAGE R12 READBACK PASS: malformed historical receipt denied HTTP 503 before fresh append; NO-GO.\n";
 } finally {
     proc_terminate($proc);
     proc_close($proc);
