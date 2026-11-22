@@ -175,7 +175,15 @@ try {
     if ($exit!==0 || !is_string($stdout) ||
         !preg_match('/\AONEPAGE R05 CHROMIUM PASS: [0-9]+ checks; NO-GO\.\n\z/D',$stdout)) {
         // No raw browser logs, cookies, profiles or environment in CI.
-        throw new RuntimeException('R05_BROWSER_REFUSED '.(is_int($exit)?$exit:'unknown'));
+        // Never emit raw browser stderr. Only accept a bounded enum of failure phases.
+        $reason = 'UNKNOWN';
+        if (is_string($stderr) && preg_match(
+            '/^R05_FAIL (START_CHROME|START_CDP|DENY_GUEST|LOGIN_A|REVIEW_A|CLICK_A|REPLAY|STALE|LOGIN_B|REVIEW_B|CLICK_B|DENY_OTHER) (R05_[A-Z0-9_]+) (UNKNOWN|CHROME_BLOCKED|NOT_REVIEW|NO_IFRAME|INSECURE_CONTEXT|OBSERVATION_INCOMPLETE|REVIEW_READY)$/m',
+            $stderr, $match,
+        ) === 1) {
+            $reason = $match[1].'_'.$match[2].'_'.$match[3];
+        }
+        throw new RuntimeException('R05_BROWSER_REFUSED '.$reason);
     }
     $receipts=file($dir.'/receipts.jsonl',FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
     if (!is_array($receipts) || count($receipts)!==2) throw new RuntimeException('R05_RECEIPT_COUNT_REFUSED');
