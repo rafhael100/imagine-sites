@@ -39,7 +39,7 @@ if ($path === '/fixture-guest') {
 }
 if ($path === '/fixture-enter' || $path === '/fixture-other') {
     header('Set-Cookie: r05_session='.($path === '/fixture-enter' ? 'synthetic-buyer-one-session' : 'synthetic-buyer-two-session').'; Path=/; HttpOnly; SameSite=Strict');
-    header('Location: /review', true, 302);
+    header('Location: '.($path === '/fixture-enter' ? '/review' : '/fixture-guest'), true, 302);
     exit;
 }
 if ($path === '/review') {
