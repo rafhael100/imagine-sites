@@ -270,6 +270,22 @@ try{
   await readyReview();
   const e=await snapshot();
   check(e.status===200 && e.sha===secondSha && e.framePath==='/private-onepage');
+  // R12: an unreadable historical record is not a blank audit trail.
+  // Against R11 this malformed JSON line was ignored and the next click
+  // incorrectly returned 201. Restore the exact original bytes afterward.
+  stage='R12_CORRUPT_LEDGER';
+  const beforeCorruption=await readFile(receiptPath,'utf8');
+  const invalidHistory=beforeCorruption+'{broken-json\\n';
+  await writeFile(receiptPath,invalidHistory);
+  try {
+    const refusedCorrupt=await click();
+    check(refusedCorrupt.status===503 && refusedCorrupt.body?.ok===false);
+    check(await readFile(receiptPath,'utf8')===invalidHistory);
+  } finally {
+    await writeFile(receiptPath,beforeCorruption);
+  }
+  check(await readFile(receiptPath,'utf8')===beforeCorruption);
+  stage='R11_CONCURRENT_RECEIPT';
   const concurrent=await evaluate(
     '(async()=>{'+
     'const body=JSON.stringify(window.r05Observed);'+
