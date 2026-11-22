@@ -31,6 +31,13 @@ header("Content-Security-Policy: default-src 'none'; frame-src 'self'; connect-s
 $state = json_decode((string) file_get_contents($dir.'/release.json'), true, 10, JSON_THROW_ON_ERROR);
 $session = $_COOKIE['r05_session'] ?? '';
 $buyer = in_array($session, ['synthetic-buyer-one-session','synthetic-buyer-one-session-2'], true);
+// Separate fixed, synthetic witness slots: one browser session cannot evict
+// a second session's observed HTML. Never derive file paths from cookies.
+$witnessPath = match ($session) {
+    'synthetic-buyer-one-session' => $dir.'/presentation-session-one.json',
+    'synthetic-buyer-one-session-2' => $dir.'/presentation-session-two.json',
+    default => null,
+};
 // The guest shell is HTTP 200 so Chromium does not substitute its own error page
 // for an intentionally denied empty HTTP 403. It never sets a buyer cookie.
 if ($path === '/fixture-guest') {
@@ -90,9 +97,13 @@ if ($path === '/private-onepage') {
     if (!is_string($bytes) || $bytes === '') { http_response_code(503); exit; }
     $sha = hash('sha256', $bytes);
     // A fixture GET does not constitute a legally valid presentation.
-    file_put_contents($dir.'/presentation.json', json_encode([
+    // A failed witness write must not serve a preview that appears eligible
+    // for a later final-accept; the entire fixture remains fail-closed.
+    if ($witnessPath === null || file_put_contents($witnessPath, json_encode([
         'buyer'=>'buyer-one','session'=>$session,'epoch'=>$state['epoch'],'sha'=>$sha,'release'=>$state['release'],
-    ], JSON_THROW_ON_ERROR), LOCK_EX);
+    ], JSON_THROW_ON_ERROR), LOCK_EX) === false) {
+        http_response_code(503); exit;
+    }
     header('Content-Type: text/html; charset=UTF-8');
     header('X-Synthetic-Epoch: '.$state['epoch']);
     echo $bytes;
@@ -101,7 +112,7 @@ if ($path === '/private-onepage') {
 if ($path === '/fixture-final-accept' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: application/json');
     $request = json_decode((string) file_get_contents('php://input'), true);
-    $presented = @file_get_contents($dir.'/presentation.json');
+    $presented = $witnessPath === null ? false : @file_get_contents($witnessPath);
     $observed = is_string($presented) ? json_decode($presented, true) : null;
     $bytes = file_get_contents($dir.'/preview.html');
     $expected = is_string($bytes) ? hash('sha256', $bytes) : null;
@@ -194,7 +205,7 @@ try {
         // Never emit raw browser stderr. Only accept a bounded enum of failure phases.
         $reason = 'UNKNOWN';
         if (is_string($stderr) && preg_match(
-            '/^R05_FAIL (START_CHROME|START_CDP|DENY_GUEST|LOGIN_A|REVIEW_A|CLICK_A|REPLAY|STALE|LOGIN_B|REVIEW_B|CLICK_B|CROSS_SESSION_STALE|CROSS_SESSION_REVIEW|DENY_OTHER) (R05_[A-Z0-9_]+) (UNKNOWN|CHROME_BLOCKED|NOT_REVIEW|NO_IFRAME|INSECURE_CONTEXT|OBSERVATION_INCOMPLETE|REVIEW_READY)$/m',
+            '/^R05_FAIL (START_CHROME|START_CDP|DENY_GUEST|LOGIN_A|REVIEW_A|CLICK_A|REPLAY|STALE|LOGIN_B|REVIEW_B|CLICK_B|CROSS_SESSION_STALE|CROSS_SESSION_REVIEW|R09_FIRST_SESSION_REVISIT|R09_SECOND_SESSION_REPLAY|DENY_OTHER) (R05_[A-Z0-9_]+) (UNKNOWN|CHROME_BLOCKED|NOT_REVIEW|NO_IFRAME|INSECURE_CONTEXT|OBSERVATION_INCOMPLETE|REVIEW_READY)$/m',
             $stderr, $match,
         ) === 1) {
             $reason = $match[1].'_'.$match[2].'_'.$match[3];
@@ -222,11 +233,13 @@ try {
     echo trim($stdout)."\n";
     echo "ONEPAGE R07 READBACK PASS: 3 release epochs, B/C same HTML SHA, obsolete click denied, no fourth effect; NO-GO.\n";
     echo "ONEPAGE R08 READBACK PASS: presentation session mismatch denied, fresh session replay idempotent, 3 receipts; NO-GO.\n";
+    echo "ONEPAGE R09 READBACK PASS: independent same-buyer session witnesses survive interleaving, no fourth effect; NO-GO.\n";
 } finally {
     proc_terminate($proc);
     proc_close($proc);
     foreach (['router.php','preview.html','next-preview.html','release.json','next-release.json',
-              'same-html-new-release.json','presentation.json','receipts.jsonl','server.out','server.err'] as $file) {
+              'same-html-new-release.json','presentation-session-one.json','presentation-session-two.json',
+              'receipts.jsonl','server.out','server.err'] as $file) {
         @unlink($dir.'/'.$file);
     }
     @rmdir($dir);

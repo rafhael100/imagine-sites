@@ -198,6 +198,30 @@ try{
         safeReplay.body?.ref==='synthetic-r05-3');
   const afterReplay=(await readFile(join(dir,'receipts.jsonl'),'utf8')).trim().split('\n');
   check(afterReplay.length===3);
+  // R09: Both sessions of the same fictitious buyer have independently seen C.
+  // Revisiting session one must NOT evict session two's existing presentation.
+  // This failed against the R08 single global presentation.json witness.
+  const observedInSessionTwo={epoch:3,sha:newSession.sha,length:newSession.length};
+  stage='R09_FIRST_SESSION_REVISIT';
+  await visit('/fixture-enter');
+  await readyReview();
+  const revisitedOne=await snapshot();
+  check(revisitedOne.status===200 && revisitedOne.sha===secondSha &&
+        revisitedOne.length===c.length);
+  stage='R09_SECOND_SESSION_REPLAY';
+  // This entry only changes the synthetic cookie; it intentionally does not
+  // GET /private-onepage in session two after session one was refreshed.
+  await visit('/fixture-enter-second');
+  const secondStillValid=await evaluate(
+    '(async()=>{const r=await fetch("/fixture-final-accept",{method:"POST",'+
+    'headers:{"Content-Type":"application/json"},credentials:"same-origin",cache:"no-store",'+
+    'body:JSON.stringify('+JSON.stringify(observedInSessionTwo)+')});'+
+    'return {status:r.status,body:await r.json()};})()'
+  );
+  check(secondStillValid.status===200 && secondStillValid.body?.ok===true &&
+        secondStillValid.body?.ref==='synthetic-r05-3');
+  const afterInterleaving=(await readFile(join(dir,'receipts.jsonl'),'utf8')).trim().split('\n');
+  check(afterInterleaving.length===3);
   stage='DENY_OTHER';
   await visit('/fixture-other');
   const denied=await evaluate(
