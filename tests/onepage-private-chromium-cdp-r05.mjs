@@ -258,6 +258,38 @@ try{
     await rename(savedPath,receiptPath);
   }
   check(await readFile(receiptPath,'utf8')===originalReceipts);
+  // R11: a single observed epoch and buyer session dispatch twelve
+  // concurrent HTTP POSTs. The PHP fixture has four local workers and an
+  // intentional 110ms pre-append window for this synthetic epoch only.
+  // Exactly one write may be new; the other eleven must be idempotent.
+  stage='R11_CONCURRENT_RECEIPT';
+  await writeFile(join(dir,'release.json'),JSON.stringify({
+    epoch:5,sha:secondSha,release:'synthetic-release-e-concurrent'
+  }));
+  await visit('/fixture-enter');
+  await readyReview();
+  const e=await snapshot();
+  check(e.status===200 && e.sha===secondSha && e.framePath==='/private-onepage');
+  const concurrent=await evaluate(
+    '(async()=>{'+
+    'const body=JSON.stringify(window.r05Observed);'+
+    'const requests=Array.from({length:12},()=>fetch("/fixture-final-accept",'+
+    '{method:"POST",headers:{"Content-Type":"application/json"},'+
+    'credentials:"same-origin",cache:"no-store",body}));'+
+    'const replies=await Promise.all(requests);'+
+    'return await Promise.all(replies.map(async r=>({status:r.status,body:await r.json()})));'+
+    '})()'
+  );
+  check(Array.isArray(concurrent) && concurrent.length===12);
+  check(concurrent.filter(r=>r.status===201).length===1 &&
+        concurrent.filter(r=>r.status===200).length===11);
+  check(concurrent.every(r=>r.body?.ok===true && r.body?.ref==='synthetic-r05-5'));
+  const concurrentReadback=await readFile(receiptPath,'utf8');
+  check(concurrentReadback.startsWith(originalReceipts) &&
+        concurrentReadback.trim().split('\n').length===4);
+  const finalReceipt=JSON.parse(concurrentReadback.trim().split('\n')[3]);
+  check(finalReceipt.epoch===5 && finalReceipt.sha===secondSha &&
+        finalReceipt.release==='synthetic-release-e-concurrent');
   console.log('ONEPAGE R05 CHROMIUM PASS: '+checks+' checks; NO-GO.');
 }catch(error){
   const code=error instanceof Error && /^R05_[A-Z0-9_]+$/.test(error.message)
