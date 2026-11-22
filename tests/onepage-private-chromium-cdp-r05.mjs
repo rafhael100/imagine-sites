@@ -275,7 +275,7 @@ try{
   // incorrectly returned 201. Restore the exact original bytes afterward.
   stage='R12_CORRUPT_LEDGER';
   const beforeCorruption=await readFile(receiptPath,'utf8');
-  const invalidHistory=beforeCorruption+'{broken-json\\n';
+  const invalidHistory=beforeCorruption+'{broken-json\n';
   await writeFile(receiptPath,invalidHistory);
   try {
     const refusedCorrupt=await click();
