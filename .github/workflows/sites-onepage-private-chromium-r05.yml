@@ -24,7 +24,7 @@ jobs:
       github.event.pull_request.base.ref == 'test/onepage-private-http-witness-r04-2026-11-22' &&
       github.event.pull_request.base.sha == 'd3d5d2b55fe8b005ce4d8626ecc32b866c5877b5'
     runs-on: ubuntu-24.04
-    timeout-minutes: 12
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -36,6 +36,13 @@ jobs:
           php-version: '8.4'
           tools: none
           coverage: none
+      - name: Install isolated Chromium as in Portal browser #1041
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/sites-r05-venv"
+          source "$RUNNER_TEMP/sites-r05-venv/bin/activate"
+          python -m pip install --disable-pip-version-check 'playwright==1.56.0'
+          python -m playwright install --with-deps chromium
       - name: Verify exact R05 scope and run private real browser test
         env:
           EXACT_HEAD: ${{ github.event.pull_request.head.sha }}
@@ -58,14 +65,9 @@ jobs:
           php -l tests/onepage-private-chromium-r05.php
           node --check tests/onepage-private-chromium-cdp-r05.mjs
           node -e 'if (typeof WebSocket!=="function") process.exit(1)'
-          if command -v google-chrome >/dev/null; then
-            export BROWSER_BIN="$(command -v google-chrome)"
-          elif command -v chromium >/dev/null; then
-            export BROWSER_BIN="$(command -v chromium)"
-          else
-            echo 'R05_BROWSER_NOT_PROVISIONED' >&2
-            exit 1
-          fi
+          source "$RUNNER_TEMP/sites-r05-venv/bin/activate"
+          export BROWSER_BIN="$(python -c 'from playwright.sync_api import sync_playwright; p=sync_playwright().start(); print(p.chromium.executable_path); p.stop()')"
+          test -x "$BROWSER_BIN"
           test ! -e .env.production
           test ! -e /run/secrets/imagine
           php tests/onepage-private-chromium-r05.php | tee "$RUNNER_TEMP/sites-onepage-r05.log"
