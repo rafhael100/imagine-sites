@@ -311,7 +311,7 @@ try{
   // Idempotency must be fail-closed for the ENTIRE ledger.
   stage='R13_IDEMPOTENT_CORRUPT_TAIL';
   const validLedger=await readFile(receiptPath,'utf8');
-  const corruptTail=validLedger+'{broken-trailing-history\\n';
+  const corruptTail=validLedger+'{broken-trailing-history'+String.fromCharCode(10);
   await writeFile(receiptPath,corruptTail);
   try {
     const refusedReplay=await click();
