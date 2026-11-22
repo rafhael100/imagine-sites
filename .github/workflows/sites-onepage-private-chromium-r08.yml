@@ -11,10 +11,10 @@ name: Sites OnePage Chromium same-buyer session witness R08 (CI only)
 permissions:
   contents: read
 concurrency:
-  group: sites-onepage-chromium-r07-${{ github.event.pull_request.number }}
+  group: sites-onepage-chromium-r08-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 jobs:
-  chromium-private-same-html-epoch:
+  chromium-private-session-witness:
     if: >-
       github.repository == 'rafhael100/imagine-sites' &&
       github.event.pull_request.draft == true &&
