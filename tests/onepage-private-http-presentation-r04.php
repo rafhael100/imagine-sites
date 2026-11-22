@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+use Imagine\Sites\Production\{LocalSiteRendering, OnepageBuyerPrivatePreviewCandidate, OnepageExactFinalAcceptanceReadCandidate};
+
 // CI-only loopback transport exercise. Synthetic cookie is NOT native Portal
 // authentication, and the copied metadata is NOT an operational authority.
 define('ONEPAGE_HTTP_R04_FIXTURES_ONLY', true);
