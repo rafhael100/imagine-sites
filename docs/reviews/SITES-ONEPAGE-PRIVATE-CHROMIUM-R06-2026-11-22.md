@@ -13,3 +13,9 @@ R06 adiciona `/fixture-guest` (HTTP 200, sem cookie, sem permissão, nenhum reci
 Branch filha isolada de #609. Arquivos: dois scripts do teste R05, novo workflow R06, esta nota. Toda identidade, sessão, HTML e recibo são fictícios e locais. Sem contato com Portal real, OpenAI, Replit, VPS, DNS, Asaas, Cloudflare ou produção. Sem merge/deploy, sem alteração de main, sem credenciais. Não há login operacional, aceite legal, prévia pública, release real ou publicação. Não herdar evidência para Landing Page.
 
 **Gate**: R06 só pode ser considerada aprovada quando seu workflow na HEAD exata estiver SUCCESS. Sem sucesso, registrar primeira fase falha e preservar NO-GO de Sites #38. A origem oficial do briefing, sessão e aceite autenticados, além da rota privada do worker OnePage, continuam dependências distintas.
+
+## Nova falha observada e correção restrita
+
+Na primeira execução R06, HEAD `f2741614b54646001b0312150cd381c1c54434c3`, [run 45007011468](https://github.com/rafhael100/imagine-sites/actions/runs/45007011468) (dedicado) falhou **depois** do fluxo de clique A/B, na fase `DENY_OTHER`, porque `/fixture-other` redirecionava para `/review` 403 vazio e o Chromium novamente substituía o documento por `chrome-error://`. Marcador exato `DENY_OTHER_R05_BROWSER_EVALUATION_REFUSED_CHROME_BLOCKED`. Sintaxe e os três workflows gerais ficaram verdes naquela SHA; o teste dedicado foi vermelho.
+
+Correção: `fixture-other` ainda emite o cookie de **outro comprador fictício**, mas redireciona à página neutra 200 sem autoridade (`fixture-guest`). No mesmo navegador, as requisições reais a `/private-onepage` **e** `/review` devem retornar 403 e zero bytes para essa identidade distinta. Não muda decisões de backend, não concede sessão do comprador responsável, não desliga segurança do Chrome, não finge sucesso. Revalidar CI na HEAD posterior, sem reutilizar o verde da SHA anterior.
