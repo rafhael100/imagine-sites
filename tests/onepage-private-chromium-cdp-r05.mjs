@@ -321,6 +321,26 @@ try{
     await writeFile(receiptPath,validLedger);
   }
   check(await readFile(receiptPath,'utf8')===validLedger);
+  // R14: the prior filtered read silently accepted either invalid framing.
+  stage='R14_UNTERMINATED_LEDGER';
+  check(validLedger.endsWith('\n'));
+  const unterminated=validLedger.slice(0,-1);
+  await writeFile(receiptPath,unterminated);
+  try {
+    const noLf=await click();
+    check(noLf.status===503 && noLf.body?.ok===false);
+    check(await readFile(receiptPath,'utf8')===unterminated);
+  } finally { await writeFile(receiptPath,validLedger); }
+  stage='R14_BLANK_LINE';
+  const blankHistory=validLedger.replace('\n','\n\n');
+  check(blankHistory!==validLedger);
+  await writeFile(receiptPath,blankHistory);
+  try {
+    const blank=await click();
+    check(blank.status===503 && blank.body?.ok===false);
+    check(await readFile(receiptPath,'utf8')===blankHistory);
+  } finally { await writeFile(receiptPath,validLedger); }
+  check(await readFile(receiptPath,'utf8')===validLedger);
   console.log('ONEPAGE R05 CHROMIUM PASS: '+checks+' checks; NO-GO.');
 }catch(error){
   const code=error instanceof Error && /^R05_[A-Z0-9_]+$/.test(error.message)
