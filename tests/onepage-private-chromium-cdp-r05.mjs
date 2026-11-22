@@ -76,7 +76,7 @@ try{
     '--no-default-browser-check','--disable-background-networking',
     '--disable-sync','--disable-extensions','--disable-features=MediaRouter',
     '--no-proxy-server',
-    '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1',
+    // The origin and browser protocol are loopback-only; the PHP CSP refuses external subresources.
     '--remote-debugging-port=0','--remote-debugging-address=127.0.0.1',
     '--user-data-dir='+profile,'about:blank'
   ],{stdio:['ignore','ignore','ignore']});
