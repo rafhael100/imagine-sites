@@ -128,7 +128,7 @@ try {
         'bytes captured over loopback HTTP equal reviewed renderer digest');
 
     $httpReads = 0;
-    $buildGate = static function (array $state, ?string $session) use (
+    $buildGate = static function (array $state, ?string $session, ?Closure $afterRead = null) use (
         $readHttp, &$httpReads
     ): OnepageExactFinalAcceptanceReadCandidate {
         $preview = new OnepageBuyerPrivatePreviewCandidate(
@@ -140,7 +140,7 @@ try {
         return new OnepageExactFinalAcceptanceReadCandidate(
             $preview, static fn()=>$state['release'],
             static fn()=>$state['acceptance'],
-            static function () use ($readHttp, &$httpReads, $state, $session): array {
+            static function () use ($readHttp, &$httpReads, $state, $session, $afterRead): array {
                 ++$httpReads;
                 $response = $readHttp('/private-onepage', $session);
                 if ($response['status'] !== 200 || !$response['noStore'] ||
@@ -149,6 +149,7 @@ try {
                 }
                 // Only bytes come from independent HTTP transport. The rest
                 // remain explicitly synthetic fixtures, never official receipts.
+                if ($afterRead !== null) $afterRead($httpReads);
                 return array_replace($state['presentation'], [
                     'servedHtmlBytes'=>$response['bytes'],
                 ]);
@@ -168,6 +169,19 @@ try {
         'same company other buyer denied by production read gate');
     $denied(static fn()=>$accept($buildGate($initial, null)),
         'synthetic session missing refuses the read gate');
+
+    // The first authenticated GET observes A, but the private origin switches
+    // its bytes before the second independent read during the same decision.
+    $httpReads = 0;
+    $denied(static fn()=>$accept($buildGate(
+        $initial, 'synthetic-buyer-one-session',
+        static function (int $readNumber) use ($directory, $originalArtifact): void {
+            if ($readNumber === 1) {
+                file_put_contents($directory.'/preview.html', $originalArtifact->html.'<!-- mid-read -->', LOCK_EX);
+            }
+        },
+    )), 'HTTP bytes changed between two witness reads');
+    $check($httpReads === 2, 'two real HTTP GETs detect the mid-decision drift');
 
     file_put_contents($directory.'/preview.html', $originalArtifact->html.'<!-- changed -->', LOCK_EX);
     $denied(static fn()=>$accept($buildGate($initial, 'synthetic-buyer-one-session')),
