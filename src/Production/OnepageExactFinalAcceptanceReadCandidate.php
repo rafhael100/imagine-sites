@@ -9,8 +9,10 @@ use Throwable;
 
 /**
  * CI-only, NO-RUNTIME-BIND read gate. This does not create an acceptance or
- * authenticate a buyer. The three ports must be backed by separately authorized
+ * authenticate a buyer. The four ports must be backed by separately authorized
  * durable sources and a server-verified buyer principal before operational use.
+ * The presentation witness MUST be from the independently authenticated delivery
+ * observed by the buyer, never from the submitted click or accepted receipt.
  * A private preview alone NEVER grants final acceptance or publication.
  */
 final readonly class OnepageExactFinalAcceptanceReadCandidate
@@ -20,11 +22,13 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
     /**
      * @param ?Closure $currentRelease (tenant,order,site) -> current reviewed HTML head
      * @param ?Closure $currentAcceptance (tenant,order,site,buyer) -> durable exact click receipt
+     * @param ?Closure $currentPresentation (tenant,order,site,buyer,presentationRef) -> independent exact presentation
      */
     public function __construct(
         private ?OnepageBuyerPrivatePreviewCandidate $preview = null,
         private ?Closure $currentRelease = null,
         private ?Closure $currentAcceptance = null,
+        private ?Closure $currentPresentation = null,
     ) {}
 
     /**
@@ -38,7 +42,8 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
     ): array {
         try {
             if ($this->preview === null || $this->currentRelease === null ||
-                $this->currentAcceptance === null || !self::ref($viewerRef) ||
+                $this->currentAcceptance === null || $this->currentPresentation === null ||
+                !self::ref($viewerRef) ||
                 !self::ref($tenantRef) || !self::ref($orderRef) ||
                 preg_match('/\A[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}\z/D', $siteRef) !== 1 ||
                 $sourceVersion < 0 || $sourceVersion > 9007199254740991) {
@@ -46,6 +51,9 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
             }
             $head = $this->readHead($tenantRef, $orderRef, $siteRef, $sourceVersion, $viewerRef);
             $receipt = $this->readReceipt($tenantRef, $orderRef, $siteRef, $viewerRef, $head);
+            $presentation = $this->readPresentation(
+                $tenantRef, $orderRef, $siteRef, $viewerRef, $head, $receipt,
+            );
 
             // Reuse the already-reviewed exact briefing + human witness +
             // renderer checks. An accepted receipt cannot make a stale preview
@@ -68,7 +76,11 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
 
             $freshHead = $this->readHead($tenantRef, $orderRef, $siteRef, $sourceVersion, $viewerRef);
             $freshReceipt = $this->readReceipt($tenantRef, $orderRef, $siteRef, $viewerRef, $freshHead);
-            if ($freshHead !== $head || $freshReceipt !== $receipt) throw new RuntimeException();
+            $freshPresentation = $this->readPresentation(
+                $tenantRef, $orderRef, $siteRef, $viewerRef, $freshHead, $freshReceipt,
+            );
+            if ($freshHead !== $head || $freshReceipt !== $receipt ||
+                $freshPresentation !== $presentation) throw new RuntimeException();
 
             return [
                 'releaseRef' => $head['releaseRef'],
@@ -125,6 +137,37 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
             throw new RuntimeException();
         }
         return $receipt;
+    }
+
+    /**
+     * A receipt's presentationRef alone is not proof that the browser saw the
+     * approved HTML. Require an independent presentation observation for the
+     * exact release/epoch/digest, and observe it again after rendering.
+     * This read-only gate still cannot authenticate a browser or lock a release.
+     */
+    private function readPresentation(
+        string $tenant, string $order, string $site, string $viewer,
+        array $head, array $receipt,
+    ): array {
+        $record = ($this->currentPresentation)(
+            $tenant, $order, $site, $viewer, $receipt['presentationRef'],
+        );
+        $keys = ['tenantRef','orderRef','siteRef','buyerRef','presentationRef',
+            'releaseRef','artifactEpoch','htmlSha256','briefRevision',
+            'sourceVersion','observed'];
+        if (!self::keys($record, $keys) ||
+            $record['tenantRef'] !== $tenant || $record['orderRef'] !== $order ||
+            $record['siteRef'] !== $site || $record['buyerRef'] !== $viewer ||
+            $record['presentationRef'] !== $receipt['presentationRef'] ||
+            $record['releaseRef'] !== $head['releaseRef'] ||
+            $record['artifactEpoch'] !== $head['artifactEpoch'] ||
+            $record['htmlSha256'] !== $head['htmlSha256'] ||
+            $record['briefRevision'] !== $head['briefRevision'] ||
+            $record['sourceVersion'] !== $head['sourceVersion'] ||
+            $record['observed'] !== true) {
+            throw new RuntimeException();
+        }
+        return $record;
     }
 
     private static function keys(mixed $data, array $keys): bool
