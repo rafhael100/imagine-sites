@@ -152,9 +152,14 @@ try{
   stage='DENY_OTHER';
   await visit('/fixture-other');
   const denied=await evaluate(
-    '(async()=>{const r=await fetch("/private-onepage",{cache:"no-store"});return {status:r.status,length:(await r.text()).length};})()'
+    '(async()=>{const p=await fetch("/private-onepage",{cache:"no-store"});'+
+    'const pbytes=await p.arrayBuffer();'+
+    'const r=await fetch("/review",{cache:"no-store"});'+
+    'const rbytes=await r.arrayBuffer();'+
+    'return {path:location.pathname,previewStatus:p.status,previewLength:pbytes.byteLength,reviewStatus:r.status,reviewLength:rbytes.byteLength};})()'
   );
-  check(denied.status===403 && denied.length===0);
+  check(denied.path==='/fixture-guest' && denied.previewStatus===403 &&
+        denied.previewLength===0 && denied.reviewStatus===403 && denied.reviewLength===0);
   console.log('ONEPAGE R05 CHROMIUM PASS: '+checks+' checks; NO-GO.');
 }catch(error){
   const code=error instanceof Error && /^R05_[A-Z0-9_]+$/.test(error.message)
