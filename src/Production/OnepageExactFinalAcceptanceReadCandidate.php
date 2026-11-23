@@ -157,6 +157,19 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
                 $viewerRef, $tenantRef, $orderRef, $siteRef, $sourceVersion,
             );
             if ($freshPreview !== $preview) throw new RuntimeException();
+
+            // R31: a release can be replaced DURING the SECOND confidential
+            // buyer receipt read. The previously observed head is not enough
+            // to authorize another confidential HTML lookup, even when the
+            // receipt and briefing are still byte-identical. This extra read
+            // is only an observed-race fence, never a transactional CAS.
+            $afterSecondReceiptHead = $this->readHead(
+                $tenantRef, $orderRef, $siteRef, $sourceVersion, $viewerRef,
+            );
+            if (!self::sameFields($afterSecondReceiptHead, $head)) {
+                throw new RuntimeException();
+            }
+
             $freshPresentation = $this->readPresentation(
                 $tenantRef, $orderRef, $siteRef, $viewerRef, $freshHead, $freshReceipt,
             );
