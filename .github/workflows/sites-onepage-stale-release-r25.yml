@@ -1,0 +1,67 @@
+name: Sites OnePage R25 stale release prevents private receipt reread (CI-only)
+on:
+  push:
+    branches: ['fix/onepage-stop-stale-head-before-receipt-r25-20261123']
+    paths:
+      - 'src/Production/OnepageExactFinalAcceptanceReadCandidate.php'
+      - 'tests/onepage-stale-release-prevents-receipt-r25.php'
+      - '.github/workflows/sites-onepage-stale-release-r25.yml'
+      - 'docs/reviews/SITES-ONEPAGE-STALE-RELEASE-R25-2026-11-23.md'
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['fix/onepage-acceptance-associative-order-r24-20261123']
+    paths:
+      - 'src/Production/OnepageExactFinalAcceptanceReadCandidate.php'
+      - 'tests/onepage-stale-release-prevents-receipt-r25.php'
+      - '.github/workflows/sites-onepage-stale-release-r25.yml'
+permissions:
+  contents: read
+concurrency:
+  group: sites-onepage-r25-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  stale-release-preflight:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      (github.event_name == 'push' || (
+        github.event.pull_request.draft == true &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        github.event.pull_request.head.ref == 'fix/onepage-stop-stale-head-before-receipt-r25-20261123' &&
+        github.event.pull_request.base.ref == 'fix/onepage-acceptance-associative-order-r24-20261123' &&
+        github.event.pull_request.base.sha == '95f2a0b9951ea1febe77375684ab301ef4cfa24d'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, dom, xml
+          coverage: none
+          tools: none
+      - name: Verify SHA, lint, new R25 negative and affected R24
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}"
+          test "$(git rev-parse HEAD)" = "$expected"
+          php -l src/Production/OnepageExactFinalAcceptanceReadCandidate.php
+          php -l tests/onepage-stale-release-prevents-receipt-r25.php
+          php -l tests/onepage-acceptance-associative-order-r24.php
+          php tests/onepage-stale-release-prevents-receipt-r25.php
+          php tests/onepage-acceptance-associative-order-r24.php
+      - name: Keep all operational gates blocked
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e .env.production
+          test ! -d .pinned-portal
+          test ! -d .pinned-agents
+          test ! -f deploy.sh
