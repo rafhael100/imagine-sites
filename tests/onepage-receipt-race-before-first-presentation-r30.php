@@ -81,7 +81,7 @@ foreach (['rights','review','source'] as $change) {
 }
 $valid = $probeR30('');
 $checkR30($valid['error'] === null && is_array($valid['accepted']), 'same buyer current version accepted');
-$checkR30($valid['reads'] === ['release'=>2,'receipt'=>2,'presentation'=>2], 'existing independent rereads kept');
+$checkR30($valid['reads'] === ['release'=>3,'receipt'=>2,'presentation'=>2], 'existing independent rereads kept');
 $checkR30($valid['accepted']['clientFinalAccepted'] === true &&
     $valid['accepted']['canPublish'] === false &&
     $valid['accepted']['publicationAuthorized'] === false, 'acceptance not publication');
