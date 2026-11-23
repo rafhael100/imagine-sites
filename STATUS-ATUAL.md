@@ -1,5 +1,9 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 23/11/2026 — OnePage R36: releitura histórica PG18 (draft #640; NO-GO)
+
+[PR #640](https://github.com/rafhael100/imagine-sites/pull/640), base #639 `4965d6574882ebe55a85441e11b1d12cf378044b` (4 workflows SUCCESS). Em PG18 descartável, pin sintético capturado uma vez e relido por conexões SQL independentes, três papéis somente SELECT com RLS por tenant/comprador, chave composta exata, commit/reconexão e recusa após rotação de direitos/plano. [CI inicial 45287398736](https://github.com/rafhael100/imagine-sites/actions/runs/45287398736), SHA `250c76a75564a74f1de79c1a2e02296676258f8b`: 28 checks novos em cada PHP 8.3/8.4, ambos SUCCESS, containers encerrados. [Limites e inspeção de fontes](docs/reviews/SITES-ONEPAGE-HISTORICAL-PIN-PG18-R36-2026-11-23.md). Fixture não constitui clique, fonte oficial Portal, imutabilidade contra admin ou CAS. Portal #976/#1099 continuam default-deny; #948 é projeção de admissão, #1090/#1093 Node legado, #605 não contém digests R35. Sem writer/rota/migration operacional, chamada IA, publicação, checkout, VPS ou alteração Landing. CI da HEAD documental a conferir na PR; Sites #38 NO-GO.
+
 ## 23/11/2026 — OnePage R35: vínculo histórico do aceite (draft #639; NO-GO)
 
 [PR #639](https://github.com/rafhael100/imagine-sites/pull/639), base #638 HEAD `b1171d962d560825398fcddad702a20ce8f1a4c2` (4/4 workflows SUCCESS). Nova observação estrita exige porta independente do pin histórico do clique com testemunhos e handoff exatos, negando na ausência. O leitor legado sem porta é apenas consistência sintética, não integração. [Análise R35](docs/reviews/SITES-ONEPAGE-HISTORICAL-ACCEPTANCE-PIN-R35-2026-11-23.md). CI da HEAD final a conferir na PR. Ainda sem origem/recibo durável oficial Portal #976, CAS, OpenAI real ou publicação. Sites #38 NO-GO. Landing independente.
