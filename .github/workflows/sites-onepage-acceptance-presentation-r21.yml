@@ -49,8 +49,25 @@ jobs:
           set -euo pipefail
           php -l src/Production/OnepageExactFinalAcceptanceReadCandidate.php
           php -l tests/onepage-acceptance-presentation-preflight-r21.php
+          php -l tests/onepage-final-acceptance-artifact-drift-offline.php
           php tests/onepage-acceptance-presentation-preflight-r21.php | tee "$RUNNER_TEMP/onepage-r21.log"
-          grep -Eq '^ONEPAGE ACCEPTANCE PRESENTATION R21 PASS: [0-9]+ synthetic checks; NO-GO[.]$' "$RUNNER_TEMP/onepage-r21.log"
+          grep -Eq '^ONEPAGE ACCEPTANCE PRESENTATION R21 PASS: [0-9]+ synthetic checks; NO-GO[.]
+      - name: Deny operational artifacts
+        run: |
+          set -euo pipefail
+          test ! -f .env.production
+          test ! -d .pinned-portal
+ "$RUNNER_TEMP/onepage-r21.log"
+          # The class changed: recheck only its affected existing acceptance
+          # regression, without rerunning unrelated OnePage or Landing cases.
+          php tests/onepage-final-acceptance-artifact-drift-offline.php | tee "$RUNNER_TEMP/onepage-r21-acceptance.log"
+          grep -Eq '^ONEPAGE FINAL ACCEPTANCE ARTIFACT DRIFT PASS: [0-9]+ synthetic checks; NO-GO[.]
+      - name: Deny operational artifacts
+        run: |
+          set -euo pipefail
+          test ! -f .env.production
+          test ! -d .pinned-portal
+ "$RUNNER_TEMP/onepage-r21-acceptance.log"
       - name: Deny operational artifacts
         run: |
           set -euo pipefail
