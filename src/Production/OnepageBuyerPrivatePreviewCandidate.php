@@ -167,12 +167,8 @@ final readonly class OnepageBuyerPrivatePreviewCandidate
         $head = $selection;
         // The head was validated before any private source read; consult the
         // separately injected human witnesses against this exact selection.
-        $bound = $selection;
-        $buyerWitness = ($this->readBuyerConfirmation)($selection);
-        // Human confirmation and independent approval must cover the ENTIRE
-        // current immutable head, including the contract revision and product.
-        // A valid receipt from another contract cannot authorize this preview,
-        // even inside the same tenant/order/site with coincident digests.
+        // Human confirmation and independent approval cover the ENTIRE
+        // immutable head, including contract revision and product.
         $bound = $selection;
         $buyerWitness = ($this->readBuyerConfirmation)($selection);
         if (!is_array($buyerWitness) ||
