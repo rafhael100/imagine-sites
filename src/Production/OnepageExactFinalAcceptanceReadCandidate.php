@@ -97,6 +97,13 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
 
             $freshHead = $this->readHead($tenantRef, $orderRef, $siteRef, $sourceVersion, $viewerRef);
             $freshReceipt = $this->readReceipt($tenantRef, $orderRef, $siteRef, $viewerRef, $freshHead);
+            // If the release or exact buyer click changed during the FIRST
+            // presentation, deny BEFORE consulting private HTML a second time.
+            // This is only an observed-race guard, not a transactional lock.
+            if (!self::sameFields($freshHead, $head) ||
+                !self::sameFields($freshReceipt, $receipt)) {
+                throw new RuntimeException();
+            }
             // An editorial revocation or withdrawn rights may happen while the
             // FIRST independent presentation bytes are being read. Reread the
             // already-existing fail-closed current briefing/rights/reviewer
@@ -109,8 +116,12 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
             $freshPresentation = $this->readPresentation(
                 $tenantRef, $orderRef, $siteRef, $viewerRef, $freshHead, $freshReceipt,
             );
-            if ($freshHead !== $head || $freshReceipt !== $receipt ||
-                $freshPresentation !== $presentation) throw new RuntimeException();
+            // The read ports return associative field maps, not ordered tuples.
+            // Strictly compare field names, types and values: a PostgreSQL/JSON
+            // adapter may reorder keys while preserving exactly the same proof.
+            if (!self::sameFields($freshPresentation, $presentation)) {
+                throw new RuntimeException();
+            }
 
             return [
                 'releaseRef' => $head['releaseRef'],
@@ -211,6 +222,22 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
             throw new RuntimeException();
         }
         return $record;
+    }
+
+    /**
+     * Independently loaded flat, validated associative witnesses have no
+     * meaningful insertion order. Compare every exact field and its type;
+     * changes to epoch, refs, digest or observed bytes must still be refused.
+     */
+    private static function sameFields(array $actual, array $expected): bool
+    {
+        if (!self::keys($actual, array_keys($expected))) return false;
+        foreach ($expected as $key => $value) {
+            if (!array_key_exists($key, $actual) || $actual[$key] !== $value) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static function keys(mixed $data, array $keys): bool
