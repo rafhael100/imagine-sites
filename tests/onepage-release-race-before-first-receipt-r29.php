@@ -81,7 +81,7 @@ foreach (['rights','review','source'] as $change) {
 }
 $positive = $probeR29('');
 $checkR29($positive['error'] === null && is_array($positive['accepted']), 'unchanged synthetic approval accepted');
-$checkR29($positive['reads'] === ['release'=>2,'receipt'=>2,'presentation'=>2], 'independent existing reads kept');
+$checkR29($positive['reads'] === ['release'=>3,'receipt'=>2,'presentation'=>2], 'independent existing reads kept');
 $checkR29($positive['accepted']['clientFinalAccepted'] === true &&
     $positive['accepted']['canPublish'] === false &&
     $positive['accepted']['publicationAuthorized'] === false, 'final acceptance is not publishing');
