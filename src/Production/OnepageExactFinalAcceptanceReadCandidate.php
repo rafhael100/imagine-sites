@@ -92,6 +92,15 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
 
             $freshHead = $this->readHead($tenantRef, $orderRef, $siteRef, $sourceVersion, $viewerRef);
             $freshReceipt = $this->readReceipt($tenantRef, $orderRef, $siteRef, $viewerRef, $freshHead);
+            // An editorial revocation or withdrawn rights may happen while the
+            // FIRST independent presentation bytes are being read. Reread the
+            // already-existing fail-closed current briefing/rights/reviewer
+            // evidence before consulting private HTML bytes a SECOND time.
+            // This does not make independent sources transactional or CAS-safe.
+            $freshPreview = $this->preview->render(
+                $viewerRef, $tenantRef, $orderRef, $siteRef, $sourceVersion,
+            );
+            if ($freshPreview !== $preview) throw new RuntimeException();
             $freshPresentation = $this->readPresentation(
                 $tenantRef, $orderRef, $siteRef, $viewerRef, $freshHead, $freshReceipt,
             );
