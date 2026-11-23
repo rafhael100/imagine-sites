@@ -97,6 +97,13 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
 
             $freshHead = $this->readHead($tenantRef, $orderRef, $siteRef, $sourceVersion, $viewerRef);
             $freshReceipt = $this->readReceipt($tenantRef, $orderRef, $siteRef, $viewerRef, $freshHead);
+            // If the release or exact buyer click changed during the FIRST
+            // presentation, deny BEFORE consulting private HTML a second time.
+            // This is only an observed-race guard, not a transactional lock.
+            if (!self::sameFields($freshHead, $head) ||
+                !self::sameFields($freshReceipt, $receipt)) {
+                throw new RuntimeException();
+            }
             // An editorial revocation or withdrawn rights may happen while the
             // FIRST independent presentation bytes are being read. Reread the
             // already-existing fail-closed current briefing/rights/reviewer
@@ -112,9 +119,7 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
             // The read ports return associative field maps, not ordered tuples.
             // Strictly compare field names, types and values: a PostgreSQL/JSON
             // adapter may reorder keys while preserving exactly the same proof.
-            if (!self::sameFields($freshHead, $head) ||
-                !self::sameFields($freshReceipt, $receipt) ||
-                !self::sameFields($freshPresentation, $presentation)) {
+            if (!self::sameFields($freshPresentation, $presentation)) {
                 throw new RuntimeException();
             }
 
