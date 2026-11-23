@@ -42,6 +42,11 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
         string $viewerRef, string $tenantRef, string $orderRef,
         string $siteRef, int $sourceVersion,
     ): array {
+        // Trusted read ports may accidentally echo before denial (or success).
+        // Never let these bytes escape from a private acceptance observation.
+        // This is output containment, NOT a sandbox for malicious callbacks.
+        $outputLevel = ob_get_level();
+        if (!ob_start()) throw new RuntimeException(self::DENIED);
         try {
             if ($this->preview === null || $this->currentRelease === null ||
                 $this->currentAcceptance === null || $this->currentPresentation === null ||
@@ -122,6 +127,13 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
         } catch (Throwable) {
             // Never disclose bytes, identities, digests, or database exceptions.
             throw new RuntimeException(self::DENIED);
+        } finally {
+            // Discard output (including buffers opened by trusted read ports)
+            // on BOTH valid and denied paths. Operational ports must not flush
+            // buffers or mutate output buffering themselves.
+            while (ob_get_level() > $outputLevel) {
+                if (!ob_end_clean()) break;
+            }
         }
     }
 
