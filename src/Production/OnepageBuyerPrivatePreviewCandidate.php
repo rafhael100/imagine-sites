@@ -36,6 +36,11 @@ final readonly class OnepageBuyerPrivatePreviewCandidate
     /** Only a private preview, NEVER final acceptance or publication. */
     public function render(string $viewerRef, string $tenantRef, string $orderRef, string $siteRef, int $sourceVersion): array
     {
+        // Trusted reader ports return data. If an adapter accidentally echoes
+        // private bytes before later validation fails, do not emit them in an
+        // HTTP response. This does not sandbox malicious output-buffer control.
+        $outputLevel = ob_get_level();
+        if (!ob_start()) throw new RuntimeException(self::DENIED);
         try {
             if ($this->readExact === null || $this->readCurrentHead === null ||
                 $this->readBuyerConfirmation === null || $this->readReviewerApproval === null ||
@@ -104,6 +109,13 @@ final readonly class OnepageBuyerPrivatePreviewCandidate
             ];
         } catch (Throwable) {
             throw new RuntimeException(self::DENIED);
+        } finally {
+            // Always discard output from every consulted port (successful or
+            // denied path), including nested buffers opened by trusted ports.
+            // Operational adapters must never flush output or manage buffers.
+            while (ob_get_level() > $outputLevel) {
+                if (!ob_end_clean()) break;
+            }
         }
     }
 
