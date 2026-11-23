@@ -1,0 +1,62 @@
+name: Sites OnePage R22 second-presentation fresh approval (CI-only)
+on:
+  push:
+    branches: ['fix/onepage-revalidate-before-second-presentation-r22-20261123']
+    paths:
+      - 'src/Production/OnepageExactFinalAcceptanceReadCandidate.php'
+      - 'tests/onepage-presentation-second-read-r22.php'
+      - '.github/workflows/sites-onepage-second-presentation-r22.yml'
+      - 'docs/reviews/SITES-ONEPAGE-SECOND-PRESENTATION-R22-2026-11-23.md'
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['fix/onepage-acceptance-presentation-preflight-r21-20261123']
+    paths:
+      - 'src/Production/OnepageExactFinalAcceptanceReadCandidate.php'
+      - 'tests/onepage-presentation-second-read-r22.php'
+      - '.github/workflows/sites-onepage-second-presentation-r22.yml'
+permissions:
+  contents: read
+concurrency:
+  group: sites-onepage-r22-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  second-presentation:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      (github.event_name == 'push' || (
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'fix/onepage-revalidate-before-second-presentation-r22-20261123' &&
+      github.event.pull_request.base.ref == 'fix/onepage-acceptance-presentation-preflight-r21-20261123' &&
+      github.event.pull_request.base.sha == '8759cbe1099ff3d35d94b6692ec1686352d1ab7a'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, dom, xml
+          coverage: none
+      - name: Regression for late rights/reviewer revocation before second private HTML read
+        run: |
+          set -euo pipefail
+          php -l src/Production/OnepageExactFinalAcceptanceReadCandidate.php
+          php -l tests/onepage-presentation-second-read-r22.php
+          php -l tests/onepage-final-acceptance-artifact-drift-offline.php
+          php tests/onepage-presentation-second-read-r22.php | tee "$RUNNER_TEMP/r22.log"
+          grep -Eq '^ONEPAGE PRESENTATION R22 PASS: [0-9]+ synthetic checks; NO-GO[.]$' "$RUNNER_TEMP/r22.log"
+          php tests/onepage-final-acceptance-artifact-drift-offline.php | tee "$RUNNER_TEMP/acceptance.log"
+          grep -Eq '^ONEPAGE FINAL ACCEPTANCE ARTIFACT DRIFT PASS: [0-9]+ synthetic checks; NO-GO[.]$' "$RUNNER_TEMP/acceptance.log"
+      - name: Block operational artifacts
+        run: |
+          set -euo pipefail
+          test ! -f .env.production
+          test ! -d .pinned-portal
