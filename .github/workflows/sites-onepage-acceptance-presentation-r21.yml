@@ -1,0 +1,63 @@
+name: Sites OnePage R21 presentation preflight (CI-only)
+on:
+  push:
+    branches: ['fix/onepage-acceptance-presentation-preflight-r21-20261123']
+    paths:
+      - 'src/Production/OnepageExactFinalAcceptanceReadCandidate.php'
+      - 'tests/onepage-acceptance-presentation-preflight-r21.php'
+      - '.github/workflows/sites-onepage-acceptance-presentation-r21.yml'
+      - 'docs/reviews/SITES-ONEPAGE-ACCEPTANCE-PRESENTATION-R21-2026-11-23.md'
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['fix/onepage-private-output-containment-r20-20261123']
+    paths:
+      - 'src/Production/OnepageExactFinalAcceptanceReadCandidate.php'
+      - 'tests/onepage-acceptance-presentation-preflight-r21.php'
+      - '.github/workflows/sites-onepage-acceptance-presentation-r21.yml'
+permissions:
+  contents: read
+concurrency:
+  group: sites-onepage-r21-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  exact-presentation-preflight:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      (github.event_name == 'push' || (
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'fix/onepage-acceptance-presentation-preflight-r21-20261123' &&
+      github.event.pull_request.base.ref == 'fix/onepage-private-output-containment-r20-20261123' &&
+      github.event.pull_request.base.sha == 'a7d7b416e21f605de6ac971f7ff853372c584400'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, dom, xml
+          coverage: none
+      - name: Prove denied brief never reads private presentation bytes
+        run: |
+          set -euo pipefail
+          php -l src/Production/OnepageExactFinalAcceptanceReadCandidate.php
+          php -l tests/onepage-acceptance-presentation-preflight-r21.php
+          php -l tests/onepage-final-acceptance-artifact-drift-offline.php
+          php tests/onepage-acceptance-presentation-preflight-r21.php | tee "$RUNNER_TEMP/onepage-r21.log"
+          grep -Eq '^ONEPAGE ACCEPTANCE PRESENTATION R21 PASS: [0-9]+ synthetic checks; NO-GO[.]$' "$RUNNER_TEMP/onepage-r21.log"
+          # Class touched: rerun only the existing directly affected acceptance tests.
+          php tests/onepage-final-acceptance-artifact-drift-offline.php | tee "$RUNNER_TEMP/onepage-r21-acceptance.log"
+          grep -Eq '^ONEPAGE FINAL ACCEPTANCE ARTIFACT DRIFT PASS: [0-9]+ synthetic checks; NO-GO[.]$' "$RUNNER_TEMP/onepage-r21-acceptance.log"
+      - name: Deny operational artifacts
+        run: |
+          set -euo pipefail
+          test ! -f .env.production
+          test ! -d .pinned-portal

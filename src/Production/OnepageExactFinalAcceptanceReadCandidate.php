@@ -53,10 +53,11 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
             }
             $head = $this->readHead($tenantRef, $orderRef, $siteRef, $sourceVersion, $viewerRef);
             $receipt = $this->readReceipt($tenantRef, $orderRef, $siteRef, $viewerRef, $head);
-            $presentation = $this->readPresentation(
-                $tenantRef, $orderRef, $siteRef, $viewerRef, $head, $receipt,
-            );
 
+            // The independently stored presentation includes private HTML bytes.
+            // First validate current buyer rights and reviewer approval through
+            // the fail-closed preview; do not read servedHtmlBytes for a revoked
+            // or tampered briefing, even when a stale final click still exists.
             // Reuse the already-reviewed exact briefing + human witness +
             // renderer checks. An accepted receipt cannot make a stale preview
             // current or override a rejected reviewer/rights witness.
@@ -76,6 +77,13 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
                 throw new RuntimeException();
             }
 
+            // Only after the preview passes current human/source validation
+            // may we read the independent private presentation bytes. This
+            // remains read-only and does NOT authenticate a browser or lock
+            // either source transactionally.
+            $presentation = $this->readPresentation(
+                $tenantRef, $orderRef, $siteRef, $viewerRef, $head, $receipt,
+            );
             // Metadata alone is insufficient: the independent observation must
             // match the exact bytes rendered from the reviewed source.
             if ($presentation['servedHtmlBytes'] !== $preview['html']) {
