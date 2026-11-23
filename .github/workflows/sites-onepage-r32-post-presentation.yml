@@ -6,6 +6,9 @@ on:
       - 'src/Production/OnepageExactFinalAcceptanceReadCandidate.php'
       - 'tests/onepage-second-presentation-postflight-r32.php'
       - 'tests/onepage-second-receipt-release-r31.php'
+      - 'tests/onepage-receipt-race-before-first-presentation-r30.php'
+      - 'tests/onepage-release-race-before-first-receipt-r29.php'
+      - 'tests/onepage-buyer-preflight-release-r28.php'
       - '.github/workflows/sites-onepage-r32-post-presentation.yml'
   pull_request:
     types: [opened, synchronize, reopened]
@@ -52,6 +55,9 @@ jobs:
           php -l tests/onepage-second-presentation-postflight-r32.php
           php tests/onepage-second-presentation-postflight-r32.php
           php tests/onepage-second-receipt-release-r31.php
+          php tests/onepage-receipt-race-before-first-presentation-r30.php
+          php tests/onepage-release-race-before-first-receipt-r29.php
+          php tests/onepage-buyer-preflight-release-r28.php
       - name: Preserve laboratory-only gates
         shell: bash
         run: |
