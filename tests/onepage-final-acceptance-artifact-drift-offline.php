@@ -32,6 +32,8 @@ $manifest['payload']['sha256'] = hash('sha256', $source);
 $manifestBytes = $json($manifest);
 $brief = BriefSnapshotInput::fromJson($manifestBytes, $source);
 $plan = json_decode($read('brief-render-plan.synthetic.json'), true, 16, JSON_THROW_ON_ERROR);
+// The render plan and independently read release must name the same generation.
+$plan['releaseRef'] = 'release-a';
 $plan['snapshot']['manifestSha256'] = hash('sha256', $manifestBytes);
 $plan['renderInput']['sizeBytes'] = strlen($editorial);
 $plan['renderInput']['sha256'] = hash('sha256', $editorial);
