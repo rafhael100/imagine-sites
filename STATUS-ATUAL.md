@@ -1,5 +1,10 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 23/11/2026 — OnePage R31: release alterada durante segundo recibo (draft #635; NO-GO)
+
+[PR #635](https://github.com/rafhael100/imagine-sites/pull/635) filha da #634 HEAD `ae37a149406a19a618238e15ae2918ca7c6d08f9`. Teste novo reproduziu aceite obsoleto antes da correção em PHP 8.3/8.4: [run 45236255109](https://github.com/rafhael100/imagine-sites/actions/runs/45236255109), ambas as versões FAILURE em `uniform denied release`. Correção mínima reconsulta o head exato após segundo recibo e antes da segunda apresentação HTML, com recusa se releaseRef/epoch/SHA/aprovação mudar; controles e regressões positivas R28–R30 ajustados para terceira leitura. [Documento R31](docs/reviews/SITES-ONEPAGE-SECOND-RECEIPT-RELEASE-R31-2026-11-23.md). CI verde da SHA final somente quando evidência vinculada ao PR; Portal #976 e Sites #38 NO-GO. Sem login operacional, CAS, publicação, API OpenAI, VPS ou dados reais.
+
+
 ## 23/11/2026 — OnePage R20: saída acidental de reader privado contida (draft #624; NO-GO)
 
 [PR Sites #624](https://github.com/rafhael100/imagine-sites/pull/624), branch filha isolada da #623 HEAD `466da7cc2c053495ec72821d35e66af61e41e9f8` (4/4 workflows SUCCESS antes da escrita). Teste test-first reproduziu vazamento de marcador **fictício** por `echo` em porta PHP, mesmo quando o array final seria negado: [run 45129552033](https://github.com/rafhael100/imagine-sites/actions/runs/45129552033), PHP 8.3/8.4 FAILURE. O código contém a saída acidental em buffer descartado via `finally`, preservando HTML/SHA/autoridades; primeira [CI R20 verde 45129597210](https://github.com/rafhael100/imagine-sites/actions/runs/45129597210) em PHP 8.3/8.4 e três workflows gerais SUCCESS na SHA da correção `55b700988ea0b19f7fe124f45382e2f9d811a47f`. Registrar CI da HEAD documental final à parte. [Análise/limites](docs/reviews/SITES-ONEPAGE-PRIVATE-OUTPUT-R20-2026-11-23.md). Não protege contra adaptador malicioso, não substitui fonte oficial Portal #976, sessão ou CAS; OnePage privada continua laboratório, Landing separada. Sem OpenAI real, checkout, VPS, merge, deploy ou publicação. **Sites #38 NO-GO.**
