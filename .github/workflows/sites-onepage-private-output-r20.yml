@@ -1,0 +1,51 @@
+name: Sites OnePage R20 silent private-port boundary (CI-only)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['fix/onepage-recheck-before-private-r19-20261123']
+    paths:
+      - 'src/Production/OnepageBuyerPrivatePreviewCandidate.php'
+      - 'tests/onepage-private-output-r20.php'
+      - '.github/workflows/sites-onepage-private-output-r20.yml'
+permissions:
+  contents: read
+concurrency:
+  group: sites-onepage-r20-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  private-port-output:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'fix/onepage-private-output-containment-r20-20261123' &&
+      github.event.pull_request.base.ref == 'fix/onepage-recheck-before-private-r19-20261123' &&
+      github.event.pull_request.base.sha == '466da7cc2c053495ec72821d35e66af61e41e9f8'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, dom, xml
+          coverage: none
+      - name: Prove private ports are silent without changing original renderer
+        run: |
+          set -euo pipefail
+          php -l src/Production/OnepageBuyerPrivatePreviewCandidate.php
+          php -l tests/onepage-private-output-r20.php
+          php tests/onepage-private-output-r20.php | tee "$RUNNER_TEMP/onepage-r20.log"
+          grep -Eq '^ONEPAGE PRIVATE OUTPUT R20 PASS: [0-9]+ checks; synthetic ports only; NO-GO[.]$' "$RUNNER_TEMP/onepage-r20.log"
+      - name: Prevent operational artifacts
+        run: |
+          set -euo pipefail
+          test ! -f .env.production
+          test ! -d .pinned-portal
