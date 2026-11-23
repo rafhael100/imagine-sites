@@ -66,6 +66,19 @@ final readonly class OnepageBuyerPrivatePreviewCandidate
                 throw new RuntimeException();
             }
 
+            // A revocation/supersession after the first private read must
+            // prevent a SECOND sensitive read, not just deny the response.
+            // The later check below still observes revocation during that
+            // second read. None of these reads substitutes for a durable CAS.
+            $beforeRereadSelection = $this->readCurrentSelection(
+                $tenantRef, $orderRef, $siteRef, $sourceVersion,
+            );
+            $beforeRereadProofs = $this->assertCurrentProofs($beforeRereadSelection, $viewerRef);
+            if (!self::sameFields($beforeRereadSelection, $selected) ||
+                $beforeRereadProofs !== $beforeProofs) {
+                throw new RuntimeException();
+            }
+
             // Detect observed concurrent replacement/revocation, not an
             // atomicity claim. Operational CAS/epoch remains mandatory.
             $again = ($this->readExact)($tenantRef, $orderRef, $siteRef, $sourceVersion);
