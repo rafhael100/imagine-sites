@@ -25,12 +25,14 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
      * @param ?Closure $currentRelease (tenant,order,site) -> current reviewed HTML head
      * @param ?Closure $currentAcceptance (tenant,order,site,buyer) -> durable exact click receipt
      * @param ?Closure $currentPresentation (tenant,order,site,buyer,presentationRef) -> independent exact presentation
+     * @param ?Closure $historicalPin (tenant,order,site,buyer,acceptanceRef) -> independently stored historical binding
      */
     public function __construct(
         private ?OnepageBuyerPrivatePreviewCandidate $preview = null,
         private ?Closure $currentRelease = null,
         private ?Closure $currentAcceptance = null,
         private ?Closure $currentPresentation = null,
+        private ?Closure $historicalPin = null,
     ) {}
 
     /**
@@ -42,13 +44,39 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
         string $viewerRef, string $tenantRef, string $orderRef,
         string $siteRef, int $sourceVersion,
     ): array {
+        // Historical fixtures may still exercise the legacy consistency-only
+        // observation; supplying a pin reader always opts into the stricter path.
+        return $this->observeInternal($viewerRef, $tenantRef, $orderRef, $siteRef,
+            $sourceVersion, $this->historicalPin !== null);
+    }
+
+    /**
+     * Explicit candidate for the future historical receipt consumer.
+     * No pin source means DENY before private reads. The source MUST be a
+     * separately persisted, immutable binding from the original exact click,
+     * never reconstructed from the current preview or a request parameter.
+     * This adds no operational writer, CAS, authentication or publish grant.
+     */
+    public function observeHistoricallyBound(
+        string $viewerRef, string $tenantRef, string $orderRef,
+        string $siteRef, int $sourceVersion,
+    ): array {
+        return $this->observeInternal($viewerRef, $tenantRef, $orderRef, $siteRef,
+            $sourceVersion, true);
+    }
+
+    private function observeInternal(
+        string $viewerRef, string $tenantRef, string $orderRef,
+        string $siteRef, int $sourceVersion, bool $requireHistoricalPin,
+    ): array {
         // Trusted read ports may accidentally echo before denial (or success).
         // Never let these bytes escape from a private acceptance observation.
         // This is output containment, NOT a sandbox for malicious callbacks.
         $outputLevel = ob_get_level();
         if (!ob_start()) throw new RuntimeException(self::DENIED);
         try {
-            if ($this->preview === null || $this->currentRelease === null ||
+            if (($requireHistoricalPin && $this->historicalPin === null) ||
+                $this->preview === null || $this->currentRelease === null ||
                 $this->currentAcceptance === null || $this->currentPresentation === null ||
                 !self::ref($viewerRef) ||
                 !self::ref($tenantRef) || !self::ref($orderRef) ||
@@ -106,6 +134,7 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
             // independent editorial approval and exact rendered bytes first.
             // This is read ordering, NOT an operational session or SQL lock.
             $receipt = $this->readReceipt($tenantRef, $orderRef, $siteRef, $viewerRef, $head);
+            if ($requireHistoricalPin) $this->assertHistoricalPin($receipt, $preview);
 
             // R30: the FIRST private receipt read can itself coincide with
             // a withdrawn buyer declaration, editorial revocation, or briefing
@@ -154,6 +183,7 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
             if (!self::sameFields($freshReceipt, $receipt)) {
                 throw new RuntimeException();
             }
+            if ($requireHistoricalPin) $this->assertHistoricalPin($freshReceipt, $preview);
             // An editorial revocation or withdrawn rights may happen while the
             // FIRST independent presentation bytes are being read. Reread the
             // already-existing fail-closed current briefing/rights/reviewer
@@ -228,6 +258,32 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
             while (ob_get_level() > $outputLevel) {
                 if (!ob_end_clean()) break;
             }
+        }
+    }
+
+    /**
+     * Compare the historical binding against the exact, already validated
+     * current receipt and internally rendered provenance. No digest is
+     * accepted from the buyer, no pin is minted here, and no source is bound
+     * by default. The source's append-only/click-time semantics remain a
+     * separate prerequisite to operational use.
+     */
+    private function assertHistoricalPin(array $receipt, array $preview): void
+    {
+        $expected = $receipt;
+        unset($expected['approved'], $expected['explicitClick'], $expected['revoked']);
+        $expected['proofDigest'] = $preview['proofDigest'];
+        $expected['renderHandoffSha256'] = $preview['renderHandoffSha256'];
+        if (!self::digest($expected['proofDigest']) ||
+            !self::digest($expected['renderHandoffSha256'])) {
+            throw new RuntimeException();
+        }
+        $pin = ($this->historicalPin)(
+            $receipt['tenantRef'], $receipt['orderRef'], $receipt['siteRef'],
+            $receipt['buyerRef'], $receipt['acceptanceRef'],
+        );
+        if (!is_array($pin) || !self::sameFields($pin, $expected)) {
+            throw new RuntimeException();
         }
     }
 

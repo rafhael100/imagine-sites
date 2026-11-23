@@ -1,5 +1,9 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 23/11/2026 — OnePage R35: vínculo histórico do aceite (draft #639; NO-GO)
+
+[PR #639](https://github.com/rafhael100/imagine-sites/pull/639), base #638 HEAD `b1171d962d560825398fcddad702a20ce8f1a4c2` (4/4 workflows SUCCESS). Nova observação estrita exige porta independente do pin histórico do clique com testemunhos e handoff exatos, negando na ausência. O leitor legado sem porta é apenas consistência sintética, não integração. [Análise R35](docs/reviews/SITES-ONEPAGE-HISTORICAL-ACCEPTANCE-PIN-R35-2026-11-23.md). CI da HEAD final a conferir na PR. Ainda sem origem/recibo durável oficial Portal #976, CAS, OpenAI real ou publicação. Sites #38 NO-GO. Landing independente.
+
 ## 23/11/2026 — OnePage R34: proveniência da release exata (draft #638; NO-GO)
 
 [PR #638](https://github.com/rafhael100/imagine-sites/pull/638), base #637 HEAD `7c0524df9bbcdf71c51f8ee109ab381d1a740a3d` (4/4 workflows SUCCESS). [CI inicial 45267861370](https://github.com/rafhael100/imagine-sites/actions/runs/45267861370) comprovou falha em PHP 8.3/8.4: plano de outra release aceito com mesmo SHA HTML. Correção mantém release e digest do handoff validado na observação interna e nega divergência antes de ler recibo; troca do plano também altera digest. Fixture compartilhada alinhada à release independente. [Análise R34](docs/reviews/SITES-ONEPAGE-RENDER-PLAN-RELEASE-R34-2026-11-23.md). CI final a confirmar na SHA exata e registrar na PR. Sem CAS, vínculo histórico oficial, worker OpenAI atestado ou publicação; Portal #976 e Sites #38 NO-GO. Landing independente; sem merge/deploy/VPS/checkout.
