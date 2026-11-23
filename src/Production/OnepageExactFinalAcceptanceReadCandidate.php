@@ -96,12 +96,17 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
             }
 
             $freshHead = $this->readHead($tenantRef, $orderRef, $siteRef, $sourceVersion, $viewerRef);
+            // A superseded release observed after the FIRST HTML presentation
+            // must stop HERE: consulting a fresh private buyer receipt for the
+            // different release would disclose data before the final DENY.
+            // Same typed fields with reordered keys remain equivalent (R24).
+            // This is an observed-race guard, never a transactional lock.
+            if (!self::sameFields($freshHead, $head)) {
+                throw new RuntimeException();
+            }
             $freshReceipt = $this->readReceipt($tenantRef, $orderRef, $siteRef, $viewerRef, $freshHead);
-            // If the release or exact buyer click changed during the FIRST
-            // presentation, deny BEFORE consulting private HTML a second time.
-            // This is only an observed-race guard, not a transactional lock.
-            if (!self::sameFields($freshHead, $head) ||
-                !self::sameFields($freshReceipt, $receipt)) {
+            // A changed buyer click also denies before a SECOND HTML read.
+            if (!self::sameFields($freshReceipt, $receipt)) {
                 throw new RuntimeException();
             }
             // An editorial revocation or withdrawn rights may happen while the
