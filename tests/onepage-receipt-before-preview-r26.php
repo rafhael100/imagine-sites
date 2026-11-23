@@ -62,9 +62,8 @@ $probeR26 = static function (array $state, string $viewer = 'buyer-one') use ($b
     return compact('accepted', 'error', 'output', 'reads');
 };
 
-// The release metadata is not an authorization to retrieve a confidential
-// buyer acceptance. Validate current buyer rights and independent editorial
-// approval via the existing private preview FIRST.
+// The release metadata is confidential too. Validate current buyer rights
+// and independent editorial approval via the existing private preview FIRST.
 $negative = [
     'withdrawn-rights' => static function (array &$state): void {
         $state['confirmation']['rightsDeclared'] = false;
@@ -85,7 +84,7 @@ foreach ($negative as $label => $mutate) {
         $probe['error']->getMessage() === 'ONEPAGE_EXACT_FINAL_ACCEPTANCE_DENIED' &&
         $probe['error']->getPrevious() === null, 'uniform negative: '.$label);
     $assertR26($probe['reads'] === [
-        'release' => 1, 'acceptance' => 0, 'presentation' => 0,
+        'release' => 0, 'acceptance' => 0, 'presentation' => 0,
     ], 'no private receipt/presentation read: '.$label);
     $assertR26($probe['output'] === '', 'no leaked bytes: '.$label);
 }
@@ -97,7 +96,7 @@ $assertR26($other['accepted'] === null &&
     $other['error']->getMessage() === 'ONEPAGE_EXACT_FINAL_ACCEPTANCE_DENIED',
     'other buyer same tenant denied');
 $assertR26($other['reads'] === [
-    'release' => 1, 'acceptance' => 0, 'presentation' => 0,
+    'release' => 0, 'acceptance' => 0, 'presentation' => 0,
 ], 'other buyer cannot read confidential receipt');
 $assertR26($other['output'] === '', 'other buyer no output');
 
