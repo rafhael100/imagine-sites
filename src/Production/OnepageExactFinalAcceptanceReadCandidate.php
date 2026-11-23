@@ -85,6 +85,16 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
                 throw new RuntimeException();
             }
 
+            // R29: the FIRST confidential release read can itself coincide
+            // with a rights withdrawal, reviewer revocation, or briefing edit.
+            // Reuse the exact fail-closed preview BEFORE the FIRST private
+            // buyer receipt read, even when the release metadata is unchanged.
+            // This is a race observation, not a transaction or publication gate.
+            $afterFirstReleasePreview = $this->preview->render(
+                $viewerRef, $tenantRef, $orderRef, $siteRef, $sourceVersion,
+            );
+            if ($afterFirstReleasePreview !== $preview) throw new RuntimeException();
+
             // A reviewed release head alone is not buyer authorization for
             // the confidential final-click receipt. Require current rights,
             // independent editorial approval and exact rendered bytes first.
