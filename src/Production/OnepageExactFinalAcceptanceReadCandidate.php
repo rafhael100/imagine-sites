@@ -101,6 +101,16 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
             // This is read ordering, NOT an operational session or SQL lock.
             $receipt = $this->readReceipt($tenantRef, $orderRef, $siteRef, $viewerRef, $head);
 
+            // R30: the FIRST private receipt read can itself coincide with
+            // a withdrawn buyer declaration, editorial revocation, or briefing
+            // change. Reuse the existing fail-closed source/rights/reviewer
+            // validation BEFORE the FIRST confidential HTML presentation read.
+            // This is observed consistency, not an authenticated CAS or lock.
+            $afterFirstReceiptPreview = $this->preview->render(
+                $viewerRef, $tenantRef, $orderRef, $siteRef, $sourceVersion,
+            );
+            if ($afterFirstReceiptPreview !== $preview) throw new RuntimeException();
+
             // Only after the preview passes current human/source validation
             // may we read the independent private presentation bytes. This
             // remains read-only and does NOT authenticate a browser or lock
