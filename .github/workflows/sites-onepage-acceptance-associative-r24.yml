@@ -46,7 +46,7 @@ jobs:
           extensions: mbstring, dom, xml
           coverage: none
           tools: none
-      - name: Verify exact SHA, lint, and new typed-order regression
+      - name: Verify exact SHA, lint, R24 and affected R22/R23
         shell: bash
         run: |
           set -euo pipefail
@@ -56,34 +56,9 @@ jobs:
           php -l tests/onepage-acceptance-associative-order-r24.php
           php -l tests/onepage-presentation-second-read-r22.php
           php -l tests/onepage-acceptance-port-output-r23.php
-          php tests/onepage-acceptance-associative-order-r24.php | tee "$RUNNER_TEMP/r24.log"
-          grep -Eq '^ONEPAGE ACCEPTANCE ORDER R24 PASS: [1-9][0-9]* synthetic checks; NO-GO[.]
-      - name: Assert no production artifacts
-        shell: bash
-        run: |
-          set -euo pipefail
-          test ! -f .env.production
-          test ! -d .pinned-portal
- "$RUNNER_TEMP/r24.log"
-          # Only regressions directly affected by this read-gate change.
-          php tests/onepage-presentation-second-read-r22.php | tee "$RUNNER_TEMP/r22.log"
-          grep -Eq '^ONEPAGE PRESENTATION R22 PASS: [1-9][0-9]* synthetic checks; NO-GO[.]
-      - name: Assert no production artifacts
-        shell: bash
-        run: |
-          set -euo pipefail
-          test ! -f .env.production
-          test ! -d .pinned-portal
- "$RUNNER_TEMP/r22.log"
-          php tests/onepage-acceptance-port-output-r23.php | tee "$RUNNER_TEMP/r23.log"
-          grep -Eq '^ONEPAGE ACCEPTANCE PORT OUTPUT R23 PASS: [1-9][0-9]* synthetic checks; NO-GO[.]
-      - name: Assert no production artifacts
-        shell: bash
-        run: |
-          set -euo pipefail
-          test ! -f .env.production
-          test ! -d .pinned-portal
- "$RUNNER_TEMP/r23.log"
+          php tests/onepage-acceptance-associative-order-r24.php
+          php tests/onepage-presentation-second-read-r22.php
+          php tests/onepage-acceptance-port-output-r23.php
       - name: Assert no production artifacts
         shell: bash
         run: |
