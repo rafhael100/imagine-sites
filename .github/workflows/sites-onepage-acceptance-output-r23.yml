@@ -1,0 +1,64 @@
+name: Sites OnePage R23 exact-acceptance port-output containment (CI-only)
+on:
+  push:
+    branches: ['fix/onepage-exact-acceptance-port-output-r23-20261123']
+    paths:
+      - 'src/Production/OnepageExactFinalAcceptanceReadCandidate.php'
+      - 'tests/onepage-acceptance-port-output-r23.php'
+      - '.github/workflows/sites-onepage-acceptance-output-r23.yml'
+      - 'docs/reviews/SITES-ONEPAGE-ACCEPTANCE-OUTPUT-R23-2026-11-23.md'
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['fix/onepage-revalidate-before-second-presentation-r22-20261123']
+    paths:
+      - 'src/Production/OnepageExactFinalAcceptanceReadCandidate.php'
+      - 'tests/onepage-acceptance-port-output-r23.php'
+      - '.github/workflows/sites-onepage-acceptance-output-r23.yml'
+permissions:
+  contents: read
+concurrency:
+  group: sites-onepage-r23-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  exact-acceptance-output:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      (github.event_name == 'push' || (
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'fix/onepage-exact-acceptance-port-output-r23-20261123' &&
+      github.event.pull_request.base.ref == 'fix/onepage-revalidate-before-second-presentation-r22-20261123' &&
+      github.event.pull_request.base.sha == '6420c7c05644b94983c9babdc76f0f442f95f5a1'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, dom, xml
+          coverage: none
+          tools: none
+      - name: Verify exact commit, lint and new output-boundary regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}"
+          test "$(git rev-parse HEAD)" = "$expected"
+          php -l src/Production/OnepageExactFinalAcceptanceReadCandidate.php
+          php -l tests/onepage-acceptance-port-output-r23.php
+          php tests/onepage-acceptance-port-output-r23.php | tee "$RUNNER_TEMP/onepage-r23.log"
+          grep -Eq '^ONEPAGE ACCEPTANCE PORT OUTPUT R23 PASS: [1-9][0-9]* synthetic checks; NO-GO[.]$' "$RUNNER_TEMP/onepage-r23.log"
+      - name: No operational credentials or deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -f .env.production
+          test ! -d .pinned-portal
