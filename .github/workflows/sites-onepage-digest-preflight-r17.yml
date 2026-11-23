@@ -1,0 +1,50 @@
+name: Sites OnePage R17 digest preflight (CI-only)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['fix/onepage-preflight-private-source-r16-20261123']
+    paths:
+      - 'src/Production/OnepageBuyerPrivatePreviewCandidate.php'
+      - '.github/workflows/sites-onepage-digest-preflight-r17.yml'
+permissions:
+  contents: read
+concurrency:
+  group: sites-onepage-r17-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  exact-digest-preflight:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'fix/onepage-private-head-digest-r17-20261123' &&
+      github.event.pull_request.base.ref == 'fix/onepage-preflight-private-source-r16-20261123' &&
+      github.event.pull_request.base.sha == 'd1076db67638171bc2849233059676a154d7a0ff'
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, dom, xml
+          coverage: none
+      - name: Verify strict current-head digest and affected private-preview tests
+        run: |
+          set -euo pipefail
+          php -l src/Production/OnepageBuyerPrivatePreviewCandidate.php
+          php tests/onepage-private-source-preflight-r16.php | tee "$RUNNER_TEMP/onepage-r17.log"
+          grep -Eq '^ONEPAGE PRIVATE SOURCE PREFLIGHT R16 PASS: [0-9]+ checks; isolated mock ports; NO-GO[.]$' "$RUNNER_TEMP/onepage-r17.log"
+          php tests/onepage-final-acceptance-artifact-drift-offline.php
+      - name: No production secrets or operational publisher
+        run: |
+          set -euo pipefail
+          test ! -f .env.production
+          test ! -d .pinned-portal

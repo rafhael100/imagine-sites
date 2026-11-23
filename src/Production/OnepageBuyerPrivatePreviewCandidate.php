@@ -219,6 +219,12 @@ final readonly class OnepageBuyerPrivatePreviewCandidate
         return is_string($value) && preg_match('/\A[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\z/D', $value) === 1;
     }
 
+    /** Validate digests from a trusted head before accessing private bytes. */
+    private static function digest(mixed $value): bool
+    {
+        return is_string($value) && preg_match('/\\A[a-f0-9]{64}\\z/D', $value) === 1;
+    }
+
     private static function uuid(string $value): bool
     {
         return preg_match('/\A[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}\z/D', $value) === 1;

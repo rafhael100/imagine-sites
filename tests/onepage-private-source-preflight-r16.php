@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+use Imagine\Sites\Production\OnepageBuyerPrivatePreviewCandidate;
+
 // Reuse the original private preview test's synthetic order and renderer.
 // This is NOT a buyer login, Portal approval source, or operational preview.
 require __DIR__.'/onepage-buyer-private-preview-offline.php';
