@@ -109,6 +109,16 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
             if (!self::sameFields($freshHead, $head)) {
                 throw new RuntimeException();
             }
+            // R27: rights, approval or source bytes can be revoked during the
+            // FIRST private presentation read while the release remains
+            // unchanged. Deny before fetching a SECOND confidential receipt.
+            // This is an observed preflight, not an atomic snapshot or login.
+            $beforeSecondReceiptPreview = $this->preview->render(
+                $viewerRef, $tenantRef, $orderRef, $siteRef, $sourceVersion,
+            );
+            if ($beforeSecondReceiptPreview !== $preview) {
+                throw new RuntimeException();
+            }
             $freshReceipt = $this->readReceipt($tenantRef, $orderRef, $siteRef, $viewerRef, $freshHead);
             // A changed buyer click also denies before a SECOND HTML read.
             if (!self::sameFields($freshReceipt, $receipt)) {
