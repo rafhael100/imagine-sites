@@ -51,8 +51,8 @@ $rotatingHead = new OnepageBuyerPrivatePreviewCandidate(
     static fn(): array => $confirmation,
     static fn(): array => $approval,
 );
-$assertR18($expectedPreview($call($rotatingHead)) && $headReads === 2,
-    'two independent head reads with identical typed fields');
+$assertR18($expectedPreview($call($rotatingHead)) && $headReads === 3,
+    'three current-head checks with identical typed fields');
 
 // Separately serialized buyer and reviewer receipts can also have a different
 // map insertion order; actual receipt references and typed values stay exact.
@@ -71,8 +71,8 @@ $rotatingWitnesses = new OnepageBuyerPrivatePreviewCandidate(
     },
 );
 $assertR18($expectedPreview($call($rotatingWitnesses))
-    && $buyerReads === 2 && $reviewReads === 2,
-    'two typed witness reads with identical rights and approvals');
+    && $buyerReads === 3 && $reviewReads === 3,
+    'three typed witness checks with identical rights and approvals');
 
 // Reconstructed record wrappers may change PHP key order between independent
 // reads, while the manifest and source byte strings themselves stay identical.

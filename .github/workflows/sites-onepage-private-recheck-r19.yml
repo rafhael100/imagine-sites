@@ -1,0 +1,57 @@
+name: Sites OnePage R19 pre-second-private-read authority (CI-only)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['fix/onepage-associative-read-order-r18-20261123']
+    paths:
+      - 'src/Production/OnepageBuyerPrivatePreviewCandidate.php'
+      - 'tests/onepage-private-recheck-r19.php'
+      - 'tests/onepage-private-source-preflight-r16.php'
+      - 'tests/onepage-associative-read-order-r18.php'
+      - '.github/workflows/sites-onepage-private-recheck-r19.yml'
+permissions:
+  contents: read
+concurrency:
+  group: sites-onepage-r19-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  current-proof-before-second-private-read:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'fix/onepage-recheck-before-private-r19-20261123' &&
+      github.event.pull_request.base.ref == 'fix/onepage-associative-read-order-r18-20261123' &&
+      github.event.pull_request.base.sha == '6aaf97320588a17bafebae16986442d7fa30134d'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, dom, xml
+          coverage: none
+      - name: Exercise original private preview and all affected authority checks
+        run: |
+          set -euo pipefail
+          php -l src/Production/OnepageBuyerPrivatePreviewCandidate.php
+          php -l tests/onepage-private-recheck-r19.php
+          php -l tests/onepage-private-source-preflight-r16.php
+          php -l tests/onepage-associative-read-order-r18.php
+          php tests/onepage-private-source-preflight-r16.php
+          php tests/onepage-associative-read-order-r18.php
+          php tests/onepage-private-recheck-r19.php | tee "$RUNNER_TEMP/onepage-r19.log"
+          grep -Eq '^ONEPAGE PRIVATE RECHECK R19 PASS: [0-9]+ checks; synthetic ports only; NO-GO[.]$' "$RUNNER_TEMP/onepage-r19.log"
+      - name: Confirm no secrets or operational authority
+        run: |
+          set -euo pipefail
+          test ! -f .env.production
+          test ! -d .pinned-portal

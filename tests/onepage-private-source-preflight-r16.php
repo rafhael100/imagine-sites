@@ -92,13 +92,14 @@ foreach ($cases as $label => $change) {
         $label.' never reads private bytes');
 }
 
-// Positive fixture still uses exactly two independent reads of all four ports,
-// preserves the original rendered digest, and does not create an acceptance.
+// Positive fixture uses two private reads, with three proof checks to avoid
+// a sensitive reread after revocation and to detect drift during that reread.
+// The rendered digest is unchanged and this is not final acceptance.
 $reads = $emptyReads();
 $guard = $makeObserved($original, $reads);
 $rendered = $call($guard);
-$checkR16($reads === ['private'=>2,'head'=>2,'buyer'=>2,'reviewer'=>2],
-    'positive path observes original and current sources twice, not three times');
+$checkR16($reads === ['private'=>2,'head'=>3,'buyer'=>3,'reviewer'=>3],
+    'positive path observes current approval before and after sensitive reread');
 $checkR16($rendered['html'] === $artifact->html &&
     hash_equals($rendered['sha256'], hash('sha256', $rendered['html'])) &&
     $rendered['privatePreview'] === true &&
