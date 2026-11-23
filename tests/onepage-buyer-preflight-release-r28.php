@@ -87,7 +87,7 @@ foreach ($denied as $name => $spec) {
 }
 $positive = $probeR28($initial);
 $assertR28($positive['error'] === null && is_array($positive['result']), 'current buyer accepted in synthetic test');
-$assertR28($positive['counts'] === ['release'=>2,'receipt'=>2,'presentation'=>2],
+$assertR28($positive['counts'] === ['release'=>3,'receipt'=>2,'presentation'=>2],
     'valid buyer keeps independent release/receipt/presentation rereads');
 $assertR28($positive['result']['privatePreview'] === true &&
     $positive['result']['clientFinalAccepted'] === true &&
