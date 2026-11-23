@@ -60,9 +60,13 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
             // must pass the existing fail-closed preview BEFORE even consulting
             // the confidential release-head port. This does not establish a
             // server session, transactional CAS, or authority to publish.
-            $preview = $this->preview->render(
+            $preview = $this->preview->observeWithWitness(
                 $viewerRef, $tenantRef, $orderRef, $siteRef, $sourceVersion,
             );
+            // R33: compare the internal observation, including the canonical
+            // witness digest, rather than only the public HTML response.
+            // A coherent rotation of rights/reviewer receipts must deny even
+            // when all bytes and release metadata are unchanged. No CAS claim.
             $head = $this->readHead($tenantRef, $orderRef, $siteRef, $sourceVersion, $viewerRef);
 
             // The independently stored presentation includes private HTML bytes.
@@ -90,7 +94,7 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
             // Reuse the exact fail-closed preview BEFORE the FIRST private
             // buyer receipt read, even when the release metadata is unchanged.
             // This is a race observation, not a transaction or publication gate.
-            $afterFirstReleasePreview = $this->preview->render(
+            $afterFirstReleasePreview = $this->preview->observeWithWitness(
                 $viewerRef, $tenantRef, $orderRef, $siteRef, $sourceVersion,
             );
             if ($afterFirstReleasePreview !== $preview) throw new RuntimeException();
@@ -106,7 +110,7 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
             // change. Reuse the existing fail-closed source/rights/reviewer
             // validation BEFORE the FIRST confidential HTML presentation read.
             // This is observed consistency, not an authenticated CAS or lock.
-            $afterFirstReceiptPreview = $this->preview->render(
+            $afterFirstReceiptPreview = $this->preview->observeWithWitness(
                 $viewerRef, $tenantRef, $orderRef, $siteRef, $sourceVersion,
             );
             if ($afterFirstReceiptPreview !== $preview) throw new RuntimeException();
@@ -137,7 +141,7 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
             // FIRST private presentation read while the release remains
             // unchanged. Deny before fetching a SECOND confidential receipt.
             // This is an observed preflight, not an atomic snapshot or login.
-            $beforeSecondReceiptPreview = $this->preview->render(
+            $beforeSecondReceiptPreview = $this->preview->observeWithWitness(
                 $viewerRef, $tenantRef, $orderRef, $siteRef, $sourceVersion,
             );
             if ($beforeSecondReceiptPreview !== $preview) {
@@ -153,7 +157,7 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
             // already-existing fail-closed current briefing/rights/reviewer
             // evidence before consulting private HTML bytes a SECOND time.
             // This does not make independent sources transactional or CAS-safe.
-            $freshPreview = $this->preview->render(
+            $freshPreview = $this->preview->observeWithWitness(
                 $viewerRef, $tenantRef, $orderRef, $siteRef, $sourceVersion,
             );
             if ($freshPreview !== $preview) throw new RuntimeException();
@@ -187,7 +191,7 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
             // First revalidate buyer/briefing authority without reading more
             // confidential receipts, then revalidate release metadata. These
             // observations are NOT a transaction, CAS, native login or publish.
-            $afterSecondPresentationPreview = $this->preview->render(
+            $afterSecondPresentationPreview = $this->preview->observeWithWitness(
                 $viewerRef, $tenantRef, $orderRef, $siteRef, $sourceVersion,
             );
             if ($afterSecondPresentationPreview !== $preview) {

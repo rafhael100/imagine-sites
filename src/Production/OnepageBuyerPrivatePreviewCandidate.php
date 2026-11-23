@@ -36,6 +36,21 @@ final readonly class OnepageBuyerPrivatePreviewCandidate
     /** Only a private preview, NEVER final acceptance or publication. */
     public function render(string $viewerRef, string $tenantRef, string $orderRef, string $siteRef, int $sourceVersion): array
     {
+        $observation = $this->observeWithWitness($viewerRef, $tenantRef, $orderRef, $siteRef, $sourceVersion);
+        unset($observation['proofDigest']);
+        return $observation;
+    }
+
+    /**
+     * Internal CI-only observation for the final acceptance reader.
+     * The fingerprint is not an authentication token or public HTTP field.
+     * It binds the already validated, canonically ordered current witnesses
+     * across preview calls even when rendered HTML is byte-identical.
+     * No additional source reads or authority are introduced.
+     * @internal
+     */
+    public function observeWithWitness(string $viewerRef, string $tenantRef, string $orderRef, string $siteRef, int $sourceVersion): array
+    {
         // Trusted reader ports return data. If an adapter accidentally echoes
         // private bytes before later validation fails, do not emit them in an
         // HTTP response. This does not sandbox malicious output-buffer control.
@@ -98,6 +113,7 @@ final readonly class OnepageBuyerPrivatePreviewCandidate
             }
 
             return [
+                'proofDigest' => hash('sha256', json_encode($beforeProofs, JSON_THROW_ON_ERROR)),
                 'html' => $artifact->html,
                 'sha256' => $artifact->digest,
                 'sourceVersion' => $brief->sourceVersion,
