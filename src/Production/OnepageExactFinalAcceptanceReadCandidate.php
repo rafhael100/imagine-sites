@@ -56,6 +56,13 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
                 $sourceVersion < 0 || $sourceVersion > 9007199254740991) {
                 throw new RuntimeException();
             }
+            // R28: the current buyer and independently approved exact briefing
+            // must pass the existing fail-closed preview BEFORE even consulting
+            // the confidential release-head port. This does not establish a
+            // server session, transactional CAS, or authority to publish.
+            $preview = $this->preview->render(
+                $viewerRef, $tenantRef, $orderRef, $siteRef, $sourceVersion,
+            );
             $head = $this->readHead($tenantRef, $orderRef, $siteRef, $sourceVersion, $viewerRef);
 
             // The independently stored presentation includes private HTML bytes.
@@ -63,11 +70,8 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
             // the fail-closed preview; do not read servedHtmlBytes for a revoked
             // or tampered briefing, even when a stale final click still exists.
             // Reuse the already-reviewed exact briefing + human witness +
-            // renderer checks. An accepted receipt cannot make a stale preview
-            // current or override a rejected reviewer/rights witness.
-            $preview = $this->preview->render(
-                $viewerRef, $tenantRef, $orderRef, $siteRef, $sourceVersion,
-            );
+            // renderer checks from the preflight above. An acceptance receipt
+            // cannot override a stale or revoked preview.
             if (!is_array($preview) || !is_string($preview['html'] ?? null) ||
                 !is_string($preview['sha256'] ?? null) ||
                 !hash_equals($head['htmlSha256'], $preview['sha256']) ||
