@@ -180,6 +180,26 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
                 throw new RuntimeException();
             }
 
+            // R32: the SECOND independently observed HTML may itself coincide
+            // with a rights withdrawal, reviewer revocation, changed briefing
+            // or replacement of the reviewed release. Do not return a final
+            // acceptance based solely on the old exact presentation bytes.
+            // First revalidate buyer/briefing authority without reading more
+            // confidential receipts, then revalidate release metadata. These
+            // observations are NOT a transaction, CAS, native login or publish.
+            $afterSecondPresentationPreview = $this->preview->render(
+                $viewerRef, $tenantRef, $orderRef, $siteRef, $sourceVersion,
+            );
+            if ($afterSecondPresentationPreview !== $preview) {
+                throw new RuntimeException();
+            }
+            $afterSecondPresentationHead = $this->readHead(
+                $tenantRef, $orderRef, $siteRef, $sourceVersion, $viewerRef,
+            );
+            if (!self::sameFields($afterSecondPresentationHead, $head)) {
+                throw new RuntimeException();
+            }
+
             return [
                 'releaseRef' => $head['releaseRef'],
                 'artifactEpoch' => $head['artifactEpoch'],

@@ -70,7 +70,7 @@ foreach (['release','epoch','digest','approval'] as $drift) {
 }
 $p = $probe('');
 $assert($p['error'] === null && is_array($p['accepted']), 'valid exact buyer');
-$assert($p['reads'] === ['release'=>3,'receipt'=>2,'presentation'=>2], 'three current release observations');
+$assert($p['reads'] === ['release'=>4,'receipt'=>2,'presentation'=>2], 'four current release observations');
 $assert($p['accepted']['clientFinalAccepted'] === true &&
     $p['accepted']['privatePreview'] === true &&
     $p['accepted']['publicationAuthorized'] === false &&
