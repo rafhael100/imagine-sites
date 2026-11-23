@@ -37,7 +37,7 @@ final readonly class OnepageBuyerPrivatePreviewCandidate
     public function render(string $viewerRef, string $tenantRef, string $orderRef, string $siteRef, int $sourceVersion): array
     {
         $observation = $this->observeWithWitness($viewerRef, $tenantRef, $orderRef, $siteRef, $sourceVersion);
-        unset($observation['proofDigest']);
+        unset($observation['proofDigest'], $observation['renderReleaseRef'], $observation['renderHandoffSha256']);
         return $observation;
     }
 
@@ -74,7 +74,11 @@ final readonly class OnepageBuyerPrivatePreviewCandidate
 
             // Reuse established parser, Portal export contract, render plan,
             // private review handoff, and deterministic HTML renderer.
-            OnepageReviewHandoffCandidate::build($record['export'], $record['plan'], $record['editorial']);
+            $handoff = OnepageReviewHandoffCandidate::build($record['export'], $record['plan'], $record['editorial']);
+            // The already validated internal handoff names the actual render-plan
+            // release and binds the exact plan/editorial bytes. Do not substitute
+            // the independently supplied release head for this provenance.
+            $handoffFields = json_decode($handoff['reviewBytes'], true, 16, JSON_THROW_ON_ERROR);
             $rendered = BriefRenderProvenance::render(
                 $record['plan'], $record['export']['manifestBytes'],
                 $record['export']['sourceBytes'], $record['editorial'],
@@ -114,6 +118,8 @@ final readonly class OnepageBuyerPrivatePreviewCandidate
 
             return [
                 'proofDigest' => hash('sha256', json_encode($beforeProofs, JSON_THROW_ON_ERROR)),
+                'renderReleaseRef' => $handoffFields['releaseRef'],
+                'renderHandoffSha256' => $handoff['reviewSha256'],
                 'html' => $artifact->html,
                 'sha256' => $artifact->digest,
                 'sourceVersion' => $brief->sourceVersion,
