@@ -1,5 +1,10 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 23/11/2026 — OnePage R34: proveniência da release exata (draft #638; NO-GO)
+
+[PR #638](https://github.com/rafhael100/imagine-sites/pull/638), base #637 HEAD `7c0524df9bbcdf71c51f8ee109ab381d1a740a3d` (4/4 workflows SUCCESS). [CI inicial 45267861370](https://github.com/rafhael100/imagine-sites/actions/runs/45267861370) comprovou falha em PHP 8.3/8.4: plano de outra release aceito com mesmo SHA HTML. Correção mantém release e digest do handoff validado na observação interna e nega divergência antes de ler recibo; troca do plano também altera digest. Fixture compartilhada alinhada à release independente. [Análise R34](docs/reviews/SITES-ONEPAGE-RENDER-PLAN-RELEASE-R34-2026-11-23.md). CI final a confirmar na SHA exata e registrar na PR. Sem CAS, vínculo histórico oficial, worker OpenAI atestado ou publicação; Portal #976 e Sites #38 NO-GO. Landing independente; sem merge/deploy/VPS/checkout.
+
+
 ## 23/11/2026 — OnePage R33: continuidade dos testemunhos entre prévias (draft #637; NO-GO)
 
 [PR #637](https://github.com/rafhael100/imagine-sites/pull/637), base #636 HEAD `942887d8091ddb9f165b66bc229a725803fcd5d7` (4 workflows SUCCESS verificados). Candidata compara fingerprint interno dos testemunhos exatos já validados entre observações, mesmo com HTML byte-idêntico; preserva shape público e não acrescenta consultas ou autoridade. Teste novo de rotação coerente em cinco pontos e controles. [Análise R33](docs/reviews/SITES-ONEPAGE-WITNESS-CONTINUITY-R33-2026-11-23.md). CI da HEAD exata a verificar e registrar na PR. Sem vínculo histórico do aceite anterior à primeira leitura, CAS, identidade oficial Portal #976, worker OpenAI atestado ou homologação. Landing independente; Sites #38 NO-GO. Sem merge, deploy, VPS, checkout, API real ou publicação.
