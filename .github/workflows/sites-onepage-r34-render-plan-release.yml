@@ -1,0 +1,77 @@
+name: Sites OnePage R34 render plan release provenance (CI-only)
+on:
+  push:
+    branches: ['fix/onepage-render-plan-release-provenance-r34-20261123']
+    paths:
+      - 'src/Production/OnepageExactFinalAcceptanceReadCandidate.php'
+      - 'src/Production/OnepageBuyerPrivatePreviewCandidate.php'
+      - 'tests/onepage-render-plan-release-provenance-r34.php'
+      - 'tests/onepage-final-acceptance-artifact-drift-offline.php'
+      - 'tests/onepage-witness-continuity-r33.php'
+      - 'tests/onepage-second-presentation-postflight-r32.php'
+      - 'tests/onepage-second-receipt-release-r31.php'
+      - 'tests/onepage-receipt-race-before-first-presentation-r30.php'
+      - 'tests/onepage-release-race-before-first-receipt-r29.php'
+      - 'tests/onepage-buyer-preflight-release-r28.php'
+      - '.github/workflows/sites-onepage-r34-render-plan-release.yml'
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['fix/onepage-witness-continuity-r33-20261123']
+permissions:
+  contents: read
+concurrency:
+  group: sites-onepage-r34-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  final-presentation-postflight:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      (github.event_name == 'push' || (
+        github.event.pull_request.draft == true &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        github.event.pull_request.head.ref == 'fix/onepage-render-plan-release-provenance-r34-20261123' &&
+        github.event.pull_request.base.ref == 'fix/onepage-witness-continuity-r33-20261123' &&
+        github.event.pull_request.base.sha == '7c0524df9bbcdf71c51f8ee109ab381d1a740a3d'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, dom, xml
+          coverage: none
+          tools: none
+      - name: Pinned SHA lint, R32 and affected R31 regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}"
+          test "$(git rev-parse HEAD)" = "$expected"
+          php -l src/Production/OnepageExactFinalAcceptanceReadCandidate.php
+          php -l tests/onepage-second-presentation-postflight-r32.php
+          php -l src/Production/OnepageBuyerPrivatePreviewCandidate.php
+          php -l tests/onepage-witness-continuity-r33.php
+          php -l tests/onepage-render-plan-release-provenance-r34.php
+          php tests/onepage-render-plan-release-provenance-r34.php
+          php tests/onepage-witness-continuity-r33.php
+          php tests/onepage-second-presentation-postflight-r32.php
+          php tests/onepage-second-receipt-release-r31.php
+          php tests/onepage-receipt-race-before-first-presentation-r30.php
+          php tests/onepage-release-race-before-first-receipt-r29.php
+          php tests/onepage-buyer-preflight-release-r28.php
+      - name: Preserve laboratory-only gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e .env.production
+          test ! -d .pinned-portal
+          test ! -d .pinned-agents
+          test ! -f deploy.sh

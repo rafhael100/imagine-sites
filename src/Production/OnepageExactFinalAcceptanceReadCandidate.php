@@ -78,6 +78,8 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
             // cannot override a stale or revoked preview.
             if (!is_array($preview) || !is_string($preview['html'] ?? null) ||
                 !is_string($preview['sha256'] ?? null) ||
+                ($preview['renderReleaseRef'] ?? null) !== $head['releaseRef'] ||
+                !self::digest($preview['renderHandoffSha256'] ?? null) ||
                 !hash_equals($head['htmlSha256'], $preview['sha256']) ||
                 !hash_equals($head['htmlSha256'], hash('sha256', $preview['html'])) ||
                 ($preview['sourceVersion'] ?? null) !== $head['sourceVersion'] ||
