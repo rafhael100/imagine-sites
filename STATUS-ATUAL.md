@@ -1,5 +1,10 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 23/11/2026 — OnePage R33: continuidade dos testemunhos entre prévias (draft #637; NO-GO)
+
+[PR #637](https://github.com/rafhael100/imagine-sites/pull/637), base #636 HEAD `942887d8091ddb9f165b66bc229a725803fcd5d7` (4 workflows SUCCESS verificados). Candidata compara fingerprint interno dos testemunhos exatos já validados entre observações, mesmo com HTML byte-idêntico; preserva shape público e não acrescenta consultas ou autoridade. Teste novo de rotação coerente em cinco pontos e controles. [Análise R33](docs/reviews/SITES-ONEPAGE-WITNESS-CONTINUITY-R33-2026-11-23.md). CI da HEAD exata a verificar e registrar na PR. Sem vínculo histórico do aceite anterior à primeira leitura, CAS, identidade oficial Portal #976, worker OpenAI atestado ou homologação. Landing independente; Sites #38 NO-GO. Sem merge, deploy, VPS, checkout, API real ou publicação.
+
+
 ## 23/11/2026 — OnePage R31: release alterada durante segundo recibo (draft #635; NO-GO)
 
 [PR #635](https://github.com/rafhael100/imagine-sites/pull/635) filha da #634 HEAD `ae37a149406a19a618238e15ae2918ca7c6d08f9`. Teste novo reproduziu aceite obsoleto antes da correção em PHP 8.3/8.4: [run 45236255109](https://github.com/rafhael100/imagine-sites/actions/runs/45236255109), ambas as versões FAILURE em `uniform denied release`. Correção mínima reconsulta o head exato após segundo recibo e antes da segunda apresentação HTML, com recusa se releaseRef/epoch/SHA/aprovação mudar; controles e regressões positivas R28–R30 ajustados para terceira leitura. [Documento R31](docs/reviews/SITES-ONEPAGE-SECOND-RECEIPT-RELEASE-R31-2026-11-23.md). CI verde da SHA final somente quando evidência vinculada ao PR; Portal #976 e Sites #38 NO-GO. Sem login operacional, CAS, publicação, API OpenAI, VPS ou dados reais.
