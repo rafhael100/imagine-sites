@@ -57,7 +57,6 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
                 throw new RuntimeException();
             }
             $head = $this->readHead($tenantRef, $orderRef, $siteRef, $sourceVersion, $viewerRef);
-            $receipt = $this->readReceipt($tenantRef, $orderRef, $siteRef, $viewerRef, $head);
 
             // The independently stored presentation includes private HTML bytes.
             // First validate current buyer rights and reviewer approval through
@@ -81,6 +80,12 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
                 ($preview['publicationAuthorized'] ?? null) !== false) {
                 throw new RuntimeException();
             }
+
+            // A reviewed release head alone is not buyer authorization for
+            // the confidential final-click receipt. Require current rights,
+            // independent editorial approval and exact rendered bytes first.
+            // This is read ordering, NOT an operational session or SQL lock.
+            $receipt = $this->readReceipt($tenantRef, $orderRef, $siteRef, $viewerRef, $head);
 
             // Only after the preview passes current human/source validation
             // may we read the independent private presentation bytes. This
