@@ -43,9 +43,14 @@ final readonly class OnepageBuyerPrivatePreviewCandidate
                 !self::uuid($siteRef) || $sourceVersion < 0 || $sourceVersion > 9007199254740991) {
                 throw new RuntimeException();
             }
+            // Check current head, buyer ownership/rights and independent reviewer
+            // BEFORE reading the private briefing bytes. A refused buyer must
+            // have zero readExact side effects, including within one tenant.
+            $selected = $this->readCurrentSelection($tenantRef, $orderRef, $siteRef, $sourceVersion);
+            $beforeProofs = $this->assertCurrentProofs($selected, $viewerRef);
             $record = ($this->readExact)($tenantRef, $orderRef, $siteRef, $sourceVersion);
             $brief = $this->validateRecord($record, $viewerRef, $tenantRef, $orderRef, $siteRef, $sourceVersion);
-            $beforeProofs = $this->assertCurrentProofs($brief, $record['buyerRef']);
+            if (self::selectionFromBrief($brief) !== $selected) throw new RuntimeException();
 
             // Reuse established parser, Portal export contract, render plan,
             // private review handoff, and deterministic HTML renderer.
@@ -66,8 +71,13 @@ final readonly class OnepageBuyerPrivatePreviewCandidate
             $again = ($this->readExact)($tenantRef, $orderRef, $siteRef, $sourceVersion);
             $this->validateRecord($again, $viewerRef, $tenantRef, $orderRef, $siteRef, $sourceVersion);
             if ($again !== $record) throw new RuntimeException();
-            $afterProofs = $this->assertCurrentProofs($brief, $record['buyerRef']);
-            if ($afterProofs !== $beforeProofs) throw new RuntimeException();
+            $freshSelection = $this->readCurrentSelection(
+                $tenantRef, $orderRef, $siteRef, $sourceVersion,
+            );
+            $afterProofs = $this->assertCurrentProofs($freshSelection, $viewerRef);
+            if ($freshSelection !== $selected || $afterProofs !== $beforeProofs) {
+                throw new RuntimeException();
+            }
 
             return [
                 'html' => $artifact->html,
@@ -112,9 +122,9 @@ final readonly class OnepageBuyerPrivatePreviewCandidate
         return $brief;
     }
 
-    private function assertCurrentProofs(BriefSnapshotInput $brief, string $buyer): array
+    private static function selectionFromBrief(BriefSnapshotInput $brief): array
     {
-        $selection = [
+        return [
             'tenantRef' => $brief->tenantRef,
             'orderRef' => $brief->orderRef,
             'siteRef' => $brief->siteRef,
@@ -127,9 +137,38 @@ final readonly class OnepageBuyerPrivatePreviewCandidate
             'manifestSha256' => $brief->manifestSha256,
             'payloadSha256' => $brief->payloadSha256,
         ];
-        $head = ($this->readCurrentHead)($brief->tenantRef, $brief->orderRef, $brief->siteRef);
-        if (!self::exact($head, $selection)) throw new RuntimeException();
+    }
 
+    /** A trusted current-head read is not a buyer session or commercial grant. */
+    private function readCurrentSelection(
+        string $tenant, string $order, string $site, int $version,
+    ): array {
+        $head = ($this->readCurrentHead)($tenant, $order, $site);
+        if (!self::keys($head, [
+            'tenantRef', 'orderRef', 'siteRef', 'contractRef', 'contractRevision',
+            'productCode', 'snapshotRef', 'briefRevision', 'sourceVersion',
+            'manifestSha256', 'payloadSha256',
+        ]) || $head['tenantRef'] !== $tenant || $head['orderRef'] !== $order ||
+            $head['siteRef'] !== $site || $head['productCode'] !== 'onepage' ||
+            $head['sourceVersion'] !== $version ||
+            !self::ref($head['contractRef']) ||
+            !is_int($head['contractRevision']) || $head['contractRevision'] < 1 ||
+            !self::uuid($head['snapshotRef']) ||
+            !is_int($head['briefRevision']) || $head['briefRevision'] < 1 ||
+            !self::digest($head['manifestSha256']) ||
+            !self::digest($head['payloadSha256'])) {
+            throw new RuntimeException();
+        }
+        return $head;
+    }
+
+    private function assertCurrentProofs(array $selection, string $buyer): array
+    {
+        $head = $selection;
+        // The head was validated before any private source read; consult the
+        // separately injected human witnesses against this exact selection.
+        $bound = $selection;
+        $buyerWitness = ($this->readBuyerConfirmation)($selection);
         // Human confirmation and independent approval must cover the ENTIRE
         // current immutable head, including the contract revision and product.
         // A valid receipt from another contract cannot authorize this preview,
@@ -169,11 +208,6 @@ final readonly class OnepageBuyerPrivatePreviewCandidate
     {
         return is_array($value) && count($value) === count($keys) &&
             array_diff($keys, array_keys($value)) === [];
-    }
-
-    private static function exact(mixed $actual, array $expected): bool
-    {
-        return self::keys($actual, array_keys($expected)) && self::includes($actual, $expected);
     }
 
     private static function includes(array $actual, array $expected): bool
