@@ -50,7 +50,7 @@ final readonly class OnepageBuyerPrivatePreviewCandidate
             $beforeProofs = $this->assertCurrentProofs($selected, $viewerRef);
             $record = ($this->readExact)($tenantRef, $orderRef, $siteRef, $sourceVersion);
             $brief = $this->validateRecord($record, $viewerRef, $tenantRef, $orderRef, $siteRef, $sourceVersion);
-            if (self::selectionFromBrief($brief) !== $selected) throw new RuntimeException();
+            if (!self::sameFields($selected, self::selectionFromBrief($brief))) throw new RuntimeException();
 
             // Reuse established parser, Portal export contract, render plan,
             // private review handoff, and deterministic HTML renderer.
@@ -70,12 +70,12 @@ final readonly class OnepageBuyerPrivatePreviewCandidate
             // atomicity claim. Operational CAS/epoch remains mandatory.
             $again = ($this->readExact)($tenantRef, $orderRef, $siteRef, $sourceVersion);
             $this->validateRecord($again, $viewerRef, $tenantRef, $orderRef, $siteRef, $sourceVersion);
-            if ($again !== $record) throw new RuntimeException();
+            if (!self::sameRecord($again, $record)) throw new RuntimeException();
             $freshSelection = $this->readCurrentSelection(
                 $tenantRef, $orderRef, $siteRef, $sourceVersion,
             );
             $afterProofs = $this->assertCurrentProofs($freshSelection, $viewerRef);
-            if ($freshSelection !== $selected || $afterProofs !== $beforeProofs) {
+            if (!self::sameFields($freshSelection, $selected) || $afterProofs !== $beforeProofs) {
                 throw new RuntimeException();
             }
 
@@ -197,7 +197,38 @@ final readonly class OnepageBuyerPrivatePreviewCandidate
         // Refuse an observed change to either attestation or current head
         // across rendering, even if both receipts rotate together and each
         // separate read is internally consistent. Not a transactional CAS.
-        return [$head, $buyerWitness, $reviewWitness];
+        return [self::orderedFields($head), self::orderedFields($buyerWitness), self::orderedFields($reviewWitness)];
+    }
+
+    /**
+     * PHP associative insertion order is not part of Portal's immutable
+     * selection. Compare exact field names, types and values, never loose ==.
+     * JSON source/manifest/HTML remain exact byte strings (not decoded here).
+     */
+    private static function sameFields(mixed $actual, array $expected): bool
+    {
+        return self::keys($actual, array_keys($expected)) && self::includes($actual, $expected);
+    }
+
+    /** The only nested map in a validated private record is the export wrapper. */
+    private static function sameRecord(array $actual, array $expected): bool
+    {
+        if (!self::keys($actual, array_keys($expected)) ||
+            !self::keys($actual['export'] ?? null, array_keys($expected['export']))) {
+            return false;
+        }
+        $actualExport = $actual['export'];
+        $expectedExport = $expected['export'];
+        unset($actual['export'], $expected['export']);
+        return self::sameFields($actual, $expected) &&
+            self::sameFields($actualExport, $expectedExport);
+    }
+
+    /** Normalize only the field order in independently read human witnesses. */
+    private static function orderedFields(array $fields): array
+    {
+        ksort($fields, SORT_STRING);
+        return $fields;
     }
 
     private static function keys(mixed $value, array $keys): bool
