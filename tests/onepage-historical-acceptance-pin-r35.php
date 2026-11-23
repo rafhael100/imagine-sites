@@ -29,7 +29,7 @@ $check = static function (bool $condition, string $label) use (&$checks): void {
     if (!$condition) throw new RuntimeException('R35 historical pin: '.$label);
     ++$checks;
 };
-$probe = static function (string $scenario, bool $strict = true) use ($base, $pin, $brief, $makePreview, $json): array {
+$probe = static function (string $scenario, bool $strict = true, bool $configurePin = false) use ($base, $pin, $brief, $makePreview, $json): array {
     $s = $base; $p = $pin;
     $counts = ['release'=>0,'receipt'=>0,'presentation'=>0,'pin'=>0];
     if ($scenario === 'rotated-rights') {
@@ -42,6 +42,9 @@ $probe = static function (string $scenario, bool $strict = true) use ($base, $pi
         $plan['operationId'] = 'op-render-new-r35';
         $s['record']['plan'] = $json($plan);
     }
+    if ($scenario === 'other-tenant') $p['tenantRef'] = 'other-tenant-r35';
+    if ($scenario === 'other-order') $p['orderRef'] = 'other-order-r35';
+    if ($scenario === 'missing-digest') unset($p['renderHandoffSha256']);
     if ($scenario === 'other-buyer') $p['buyerRef'] = 'buyer-two';
     if ($scenario === 'other-presentation') $p['presentationRef'] = 'presentation-new';
     if ($scenario === 'other-epoch') $p['artifactEpoch']++;
@@ -65,7 +68,7 @@ $probe = static function (string $scenario, bool $strict = true) use ($base, $pi
         static function () use (&$s,&$counts): array { ++$counts['release']; return $s['release']; },
         static function () use (&$s,&$counts): array { ++$counts['receipt']; return $s['acceptance']; },
         static function () use (&$s,&$counts): array { ++$counts['presentation']; return $s['presentation']; },
-        $scenario === 'no-port' || !$strict ? null : $port,
+        $scenario === 'no-port' || (!$strict && !$configurePin) ? null : $port,
     );
     $result = null; $error = null;
     ob_start();
@@ -85,7 +88,7 @@ foreach (['rotated-rights','replaced-plan'] as $scenario) {
         'legacy observation lacks historical pin '.$scenario);
 }
 foreach (['no-port','missing-pin','rotated-rights','replaced-plan','other-buyer',
-    'other-presentation','other-epoch','extra-authority','bad-hash','exception','pin-revoked','pin-replaced'] as $scenario) {
+    'other-presentation','other-epoch','other-tenant','other-order','missing-digest','extra-authority','bad-hash','exception','pin-revoked','pin-replaced'] as $scenario) {
     $r = $probe($scenario);
     $check($r['result'] === null && $r['error'] instanceof RuntimeException &&
         $r['error']->getMessage() === 'ONEPAGE_EXACT_FINAL_ACCEPTANCE_DENIED' &&
@@ -104,4 +107,8 @@ foreach (['valid','reordered'] as $scenario) {
     $check(count($r['result']) === 10 && !array_key_exists('proofDigest',$r['result']) &&
         !array_key_exists('renderHandoffSha256',$r['result']), 'no public shape change '.$scenario);
 }
+$configured = $probe('rotated-rights',false,true);
+$check($configured['error'] instanceof RuntimeException &&
+    $configured['error']->getMessage() === 'ONEPAGE_EXACT_FINAL_ACCEPTANCE_DENIED' &&
+    $configured['counts']['presentation'] === 0, 'configured pin cannot be bypassed by old method');
 echo "ONEPAGE R35 PASS: {$checks} synthetic checks; NO-GO.\n";
