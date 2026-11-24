@@ -237,6 +237,25 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
                 throw new RuntimeException();
             }
 
+            // R40: rights and release can remain current while the buyer's
+            // final click is withdrawn/replaced during the last HTML read.
+            // For the historical path, re-read the exact current receipt
+            // after that presentation, while the preview and head are still
+            // authorized. The immutable historical binding was checked twice;
+            // do not fetch further private HTML or pins. This is a bounded
+            // observation, never an atomic CAS or operational authorization.
+            if ($requireHistoricalPin) {
+                $finalReceipt = $this->readReceipt(
+                    $tenantRef, $orderRef, $siteRef, $viewerRef, $afterSecondPresentationHead,
+                );
+                if (!self::sameFields($finalReceipt, $receipt)) throw new RuntimeException();
+                if ($this->preview->observeWithWitness(
+                    $viewerRef, $tenantRef, $orderRef, $siteRef, $sourceVersion,
+                ) !== $preview) throw new RuntimeException();
+                $finalHead = $this->readHead($tenantRef, $orderRef, $siteRef, $sourceVersion, $viewerRef);
+                if (!self::sameFields($finalHead, $head)) throw new RuntimeException();
+            }
+
             return [
                 'releaseRef' => $head['releaseRef'],
                 'artifactEpoch' => $head['artifactEpoch'],
