@@ -64,7 +64,7 @@ foreach (['receipt-rights-1','receipt-rights-2','receipt-head-1','receipt-head-2
     if ($scenario==='valid') {
         $check($error===null && $result['clientFinalAccepted']===true && $result['canPublish']===false &&
             $result['publicationAuthorized']===false,'valid synthetic control');
-        $check($counts===['receipt'=>2,'pin'=>2,'presentation'=>2],'two exact independent readings');
+        $check($counts===['receipt'=>3,'pin'=>2,'presentation'=>2],'two independent pins/presentations and final exact receipt');
         continue;
     }
     $n=(int)substr($scenario,-1);
