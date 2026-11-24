@@ -1,0 +1,59 @@
+name: Sites OnePage R41 transactional history (CI-only)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ['fix/onepage-historical-pin-final-receipt-r40-20261124']
+permissions:
+  contents: read
+concurrency:
+  group: sites-onepage-r41-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  pg18-transactional-history:
+    if: >-
+      github.repository == 'rafhael100/imagine-sites' &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'test/onepage-historical-cas-r41-20261124' &&
+      github.event.pull_request.base.sha == '573e03a9713d9d14cdc7d9953a76ed124818124f'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    services:
+      pg:
+        image: postgres:18
+        env:
+          POSTGRES_DB: sites_r36_lab
+          POSTGRES_PASSWORD: r36_disposable_admin
+        ports:
+          - 127.0.0.1:55436:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sites_r36_lab"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, dom, xml, pdo_pgsql
+          coverage: none
+          tools: none
+      - name: Verify exact SHA and transactional history
+        env:
+          SITES_R36_PG_LAB: DISPOSABLE_R36_PG18
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          test ! -e .env.production
+          php -l tests/onepage-historical-cas-r41.php
+          php tests/onepage-historical-cas-r41.php
