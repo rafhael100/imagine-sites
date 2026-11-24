@@ -134,7 +134,6 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
             // independent editorial approval and exact rendered bytes first.
             // This is read ordering, NOT an operational session or SQL lock.
             $receipt = $this->readReceipt($tenantRef, $orderRef, $siteRef, $viewerRef, $head);
-            if ($requireHistoricalPin) $this->assertHistoricalPin($receipt, $preview);
 
             // R30: the FIRST private receipt read can itself coincide with
             // a withdrawn buyer declaration, editorial revocation, or briefing
@@ -145,6 +144,7 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
                 $viewerRef, $tenantRef, $orderRef, $siteRef, $sourceVersion,
             );
             if ($afterFirstReceiptPreview !== $preview) throw new RuntimeException();
+            if ($requireHistoricalPin) $this->assertAuthorizedHistoricalPin($receipt, $preview, $head);
 
             // Only after the preview passes current human/source validation
             // may we read the independent private presentation bytes. This
@@ -183,7 +183,6 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
             if (!self::sameFields($freshReceipt, $receipt)) {
                 throw new RuntimeException();
             }
-            if ($requireHistoricalPin) $this->assertHistoricalPin($freshReceipt, $preview);
             // An editorial revocation or withdrawn rights may happen while the
             // FIRST independent presentation bytes are being read. Reread the
             // already-existing fail-closed current briefing/rights/reviewer
@@ -205,6 +204,8 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
             if (!self::sameFields($afterSecondReceiptHead, $head)) {
                 throw new RuntimeException();
             }
+
+            if ($requireHistoricalPin) $this->assertAuthorizedHistoricalPin($freshReceipt, $preview, $head);
 
             $freshPresentation = $this->readPresentation(
                 $tenantRef, $orderRef, $siteRef, $viewerRef, $freshHead, $freshReceipt,
@@ -259,6 +260,36 @@ final readonly class OnepageExactFinalAcceptanceReadCandidate
                 if (!ob_end_clean()) break;
             }
         }
+    }
+
+    /**
+     * R37: a historical binding is itself private. A receipt read can coincide
+     * with withdrawn rights or a replaced release. Check the already-authorized
+     * head and preview before opening the pin, and fence changes observed during
+     * that independent read before consulting the private presentation.
+     * Strict historical path only; these finite checks do not supply atomicity.
+     */
+    private function assertAuthorizedHistoricalPin(array $receipt, array $preview, array $head): void
+    {
+        $args = [$receipt['buyerRef'], $head['tenantRef'], $head['orderRef'],
+            $head['siteRef'], $head['sourceVersion']];
+        $checkPreview = function () use ($args, $preview): void {
+            if ($this->preview->observeWithWitness(...$args) !== $preview) {
+                throw new RuntimeException();
+            }
+        };
+        $checkHead = function () use ($head, $receipt): void {
+            $current = $this->readHead($head['tenantRef'], $head['orderRef'],
+                $head['siteRef'], $head['sourceVersion'], $receipt['buyerRef']);
+            if (!self::sameFields($current, $head)) throw new RuntimeException();
+        };
+        // Caller has already revalidated preview after the receipt.
+        $checkHead();
+        $checkPreview();
+        $this->assertHistoricalPin($receipt, $preview);
+        $checkPreview();
+        $checkHead();
+        $checkPreview();
     }
 
     /**
