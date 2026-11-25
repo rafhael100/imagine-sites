@@ -1,5 +1,9 @@
 # STATUS-ATUAL — Imagine Sites Engine
 
+## 24/11/2026 — OnePage R44: pin CAS e bytes observados por HTTP local (NO-GO)
+
+Base #647 `90967214a94c69e815286f00697a8623421b6aed` 4/4 SUCCESS. Reutiliza a origem HTTP de R04 extraída sem modificar o contrato e o pin SQL comprometido em R42 no mesmo pedido fictício. Nova composição observa bytes reais duas vezes, nega outras sessões de fixture e leitores SQL antes de GET quando RLS não permite pin, detecta troca da origem entre GETs mesmo com recibo e release constantes; readback não altera histórico. R04 é reexecutado por causa da extração. Não é clique autenticado, fonte editorial oficial, publicação ou autoridade operacional. Portal #1118 5/5; Landing #1088 e Agents #490 independentes. CI a verificar na HEAD; #38 NO-GO.
+
 ## 24/11/2026 — OnePage R43: leitura estrita do pin confirmado pelo CAS de laboratório (NO-GO)
 
 Base #646 `13377de9a96091a928feb276fb4ac506680f222a` 4/4 SUCCESS. R42 verificava separadamente a mutação atômica e a leitura SQL; R43 usa o registro efetivamente confirmado pela função restrita de R42 no observador histórico existente, via conexão independente. Nova renderização com bytes diferentes: recibo anterior, tentativa coerente de reaproveitar a referência histórica e referência sem pin devem negar antes da leitura HTML; outro comprador/tenant negados e histórico preservado. Todos os demais portos são fixtures; não é clique autenticado, fonte oficial, autorização comercial, publicação ou CAS operacional. CI a verificar na HEAD. Portal #1118 `de433a7b9f8fa39ed0ad36fe3e8493a6872f0a88` 5/5 SUCCESS, PG18 45516527326; #976 sem fonte editorial oficial demonstrada. Landing #1088 independente, Agents #490 simulado, sem worker privado atestado. Sem VPS, credenciais, checkout, API real, merge/deploy; #38 NO-GO.
